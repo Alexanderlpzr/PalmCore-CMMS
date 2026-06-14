@@ -4,17 +4,18 @@ namespace App\Filament\Resources\Maintenance\WorkOrder\RelationManagers;
 
 use App\Domain\Maintenance\Enums\WorkOrderSignatureType;
 use App\Domain\Maintenance\Services\WorkOrderService;
+use Filament\Actions\CreateAction;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
-use Filament\Tables\Actions\CreateAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
 class SignaturesRelationManager extends RelationManager
 {
     protected static string $relationship = 'signatures';
+
     protected static ?string $title = 'Firmas de Conformidad';
 
     public function form(Schema $schema): Schema
@@ -52,10 +53,14 @@ class SignaturesRelationManager extends RelationManager
                 CreateAction::make()
                     ->label('Registrar firma')
                     ->using(function (array $data, WorkOrderService $service): mixed {
+                        $type = $data['signature_type'] instanceof WorkOrderSignatureType
+                            ? $data['signature_type']
+                            : WorkOrderSignatureType::from($data['signature_type']);
+
                         return $service->addSignature(
                             $this->getOwnerRecord(),
                             auth()->user(),
-                            WorkOrderSignatureType::from($data['signature_type']),
+                            $type,
                             $data['notes'] ?? null,
                         );
                     }),

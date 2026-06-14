@@ -1,12 +1,14 @@
 <?php
 
+use App\Models\Tenant;
+
 return [
 
-    'name' => 'PalmCore EAM/CMMS',
+    'name' => 'Fronda CMMS',
 
     'version' => '0.1.0',
 
-    'tenant_model' => App\Models\Tenant::class,
+    'tenant_model' => Tenant::class,
 
     /*
     |--------------------------------------------------------------------------

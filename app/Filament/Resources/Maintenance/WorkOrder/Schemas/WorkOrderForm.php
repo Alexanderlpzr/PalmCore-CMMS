@@ -2,20 +2,20 @@
 
 namespace App\Filament\Resources\Maintenance\WorkOrder\Schemas;
 
+use App\Domain\Assets\Services\ReferenceDataService;
 use App\Domain\Maintenance\Enums\WorkOrderPriority;
 use App\Domain\Maintenance\Enums\WorkOrderType;
-use App\Models\Area;
 use App\Models\Equipment;
-use App\Models\Plant;
 use App\Models\User;
+use Filament\Facades\Filament;
 use Filament\Forms\Components\DateTimePicker;
-use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
-use Filament\Forms\Get;
-use Filament\Forms\Set;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 
 class WorkOrderForm
@@ -106,12 +106,12 @@ class WorkOrderForm
                 // Hidden auto-populated fields
                 Select::make('plant_id')
                     ->label('Planta')
-                    ->options(fn (): array => Plant::pluck('name', 'id')->toArray())
+                    ->options(fn (): array => ReferenceDataService::plants(Filament::getTenant()?->id ?? ''))
                     ->required()
                     ->hidden(),
                 Select::make('area_id')
                     ->label('Área')
-                    ->options(fn (): array => Area::pluck('name', 'id')->toArray())
+                    ->options(fn (): array => ReferenceDataService::allAreas(Filament::getTenant()?->id ?? ''))
                     ->hidden(),
             ]);
     }

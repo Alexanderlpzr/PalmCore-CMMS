@@ -109,6 +109,39 @@ class ViewMaintenanceRequest extends ViewRecord
                     $service, MaintenanceRequestStatus::Cancelled
                 )),
 
+            // Assign preliminary technician (visible from UnderReview until conversion)
+            Action::make('assign_technician')
+                ->label('Asignar técnico')
+                ->icon(Heroicon::OutlinedUserPlus)
+                ->color('info')
+                ->modalHeading('Asignar técnico preliminar')
+                ->modalDescription('Selecciona el técnico que ejecutará el trabajo. Puedes cambiar esto en cualquier momento antes de crear la OT.')
+                ->visible(fn (): bool => in_array(
+                    $this->record->status,
+                    [MaintenanceRequestStatus::UnderReview, MaintenanceRequestStatus::Approved],
+                    strict: true,
+                ) && $this->record->work_order_id === null)
+                ->form([
+                    Select::make('preliminary_technician_id')
+                        ->label('Técnico asignado')
+                        ->options(User::query()->orderBy('name')->pluck('name', 'id'))
+                        ->searchable()
+                        ->nullable()
+                        ->default(fn (): ?string => $this->record->preliminary_technician_id)
+                        ->helperText('Este técnico se asignará automáticamente al crear la OT.'),
+                ])
+                ->action(function (array $data): void {
+                    $this->record->update(['preliminary_technician_id' => $data['preliminary_technician_id']]);
+                    $this->record->refresh();
+
+                    Notification::make()
+                        ->title($data['preliminary_technician_id']
+                            ? 'Técnico asignado correctamente'
+                            : 'Técnico removido')
+                        ->success()
+                        ->send();
+                }),
+
             // Convert to Work Order
             Action::make('convert_to_wo')
                 ->label('Convertir a OT')

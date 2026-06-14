@@ -2,10 +2,10 @@
 
 namespace App\Filament\Resources\Tenants\Schemas;
 
-use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
 class TenantForm
@@ -63,7 +63,9 @@ class TenantForm
                                 'starter' => 'Inicial',
                                 'professional' => 'Profesional',
                                 'enterprise' => 'Empresarial',
-                            ]),
+                            ])
+                            ->required()
+                            ->default('starter'),
                         Toggle::make('is_active')
                             ->label('Activo')
                             ->default(true)

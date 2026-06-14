@@ -24,7 +24,7 @@ class AreaPolicy
 
     public function update(User $user, Area $area): bool
     {
-        return $user->is_super_admin || $user->hasPermissionTo('areas.edit');
+        return $user->is_super_admin || $user->hasPermissionTo('areas.update');
     }
 
     public function delete(User $user, Area $area): bool

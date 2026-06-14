@@ -26,6 +26,11 @@ class UsersTable
                     ->label('Email')
                     ->searchable()
                     ->sortable(),
+                TextColumn::make('tenants.name')
+                    ->label('Empresas')
+                    ->badge()
+                    ->separator(',')
+                    ->visible(fn (): bool => auth()->user()?->is_super_admin ?? false),
                 TextColumn::make('roles.name')
                     ->label('Roles')
                     ->badge()

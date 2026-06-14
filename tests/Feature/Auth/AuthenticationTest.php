@@ -65,3 +65,40 @@ test('users can logout', function () {
 
     $this->assertGuest();
 });
+
+test('login is throttled after 5 failed attempts (tier 1 — per minute)', function () {
+    $user = User::factory()->create();
+
+    for ($i = 0; $i < 5; $i++) {
+        $this->post(route('login.store'), [
+            'email' => $user->email,
+            'password' => 'wrong-password',
+        ]);
+    }
+
+    $response = $this->post(route('login.store'), [
+        'email' => $user->email,
+        'password' => 'wrong-password',
+    ]);
+
+    $response->assertStatus(429);
+});
+
+test('login is throttled after 10 failed attempts (tier 2 — per 5 minutes)', function () {
+    $user = User::factory()->create();
+
+    // Saturate tier 1 (5/min) and tier 2 (10 per 5 min) from a fresh IP
+    for ($i = 0; $i < 10; $i++) {
+        $this->post(route('login.store'), [
+            'email' => $user->email,
+            'password' => 'wrong-password',
+        ]);
+    }
+
+    $response = $this->post(route('login.store'), [
+        'email' => $user->email,
+        'password' => 'password',
+    ]);
+
+    $response->assertStatus(429);
+});

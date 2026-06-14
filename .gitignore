@@ -1,4 +1,8 @@
 /.phpunit.cache
+/e2e/.auth
+/e2e/report
+/playwright-report
+/test-results
 /node_modules
 /public/build
 /public/fonts-manifest.dev.json

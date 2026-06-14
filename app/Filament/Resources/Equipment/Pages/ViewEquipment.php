@@ -3,13 +3,16 @@
 namespace App\Filament\Resources\Equipment\Pages;
 
 use App\Domain\Assets\Services\QrCodeService;
+use App\Domain\Reports\DTOs\ReportRequest;
+use App\Domain\Reports\Enums\ReportType;
+use App\Domain\Reports\Services\ReportManager;
 use App\Filament\Resources\Equipment\EquipmentResource;
 use App\Models\Equipment;
-use App\Models\EquipmentQrCode;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\RestoreAction;
+use Filament\Facades\Filament;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Support\Icons\Heroicon;
@@ -61,10 +64,26 @@ class ViewEquipment extends ViewRecord
                     'filament.equipment.qr-modal',
                     [
                         'equipment' => $this->record,
-                        'qrCode'    => $this->record->qrCode,
-                        'action'    => $action,
+                        'qrCode' => $this->record->qrCode,
+                        'action' => $action,
                     ]
                 )),
+            Action::make('download_pdf')
+                ->label('Descargar PDF')
+                ->icon(Heroicon::OutlinedArrowDownTray)
+                ->color('gray')
+                ->action(function (ReportManager $manager): mixed {
+                    /** @var Equipment $equipment */
+                    $equipment = $this->record;
+
+                    return $manager->streamDownload(new ReportRequest(
+                        type: ReportType::EquipmentSheet,
+                        tenantId: Filament::getTenant()->id,
+                        requestedBy: auth()->id(),
+                        recordId: $equipment->id,
+                    ));
+                }),
+
             EditAction::make(),
             DeleteAction::make(),
             RestoreAction::make(),

@@ -21,14 +21,15 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Laravel\Fortify\Contracts\PasskeyUser;
 use Laravel\Fortify\PasskeyAuthenticatable;
+use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['name', 'email', 'password', 'is_active', 'locale'])]
+#[Fillable(['name', 'email', 'password', 'is_active'])]
 #[Hidden(['password', 'remember_token', 'is_super_admin'])]
 class User extends Authenticatable implements FilamentUser, HasAvatar, HasTenants, PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, HasRoles, HasUuids, Notifiable, PasskeyAuthenticatable, SoftDeletes;
+    use HasApiTokens, HasFactory, HasRoles, HasUuids, Notifiable, PasskeyAuthenticatable, SoftDeletes;
 
     public function newUniqueId(): string
     {

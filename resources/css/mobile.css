@@ -1,0 +1,18 @@
+@import 'tailwindcss';
+
+@source '../js/mobile/**/*.vue';
+@source '../js/mobile/**/*.js';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Safe-area insets for notch / dynamic island / Android nav bar */
+:root {
+    --sat: env(safe-area-inset-top, 0px);
+    --sab: env(safe-area-inset-bottom, 0px);
+    --sal: env(safe-area-inset-left, 0px);
+    --sar: env(safe-area-inset-right, 0px);
+}

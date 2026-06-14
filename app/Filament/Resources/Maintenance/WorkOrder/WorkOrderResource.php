@@ -21,6 +21,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use UnitEnum;
 
 class WorkOrderResource extends Resource
@@ -58,21 +59,26 @@ class WorkOrderResource extends Resource
     {
         return [
             'technicians' => TechniciansRelationManager::class,
-            'timeLogs'    => TimeLogsRelationManager::class,
-            'parts'       => PartsRelationManager::class,
-            'comments'    => CommentsRelationManager::class,
+            'timeLogs' => TimeLogsRelationManager::class,
+            'parts' => PartsRelationManager::class,
+            'comments' => CommentsRelationManager::class,
             'attachments' => AttachmentsRelationManager::class,
-            'signatures'  => SignaturesRelationManager::class,
+            'signatures' => SignaturesRelationManager::class,
         ];
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->with(['equipment']);
     }
 
     public static function getPages(): array
     {
         return [
-            'index'  => ListWorkOrders::route('/'),
+            'index' => ListWorkOrders::route('/'),
             'create' => CreateWorkOrder::route('/create'),
-            'view'   => ViewWorkOrder::route('/{record}'),
-            'edit'   => EditWorkOrder::route('/{record}/edit'),
+            'view' => ViewWorkOrder::route('/{record}'),
+            'edit' => EditWorkOrder::route('/{record}/edit'),
         ];
     }
 }

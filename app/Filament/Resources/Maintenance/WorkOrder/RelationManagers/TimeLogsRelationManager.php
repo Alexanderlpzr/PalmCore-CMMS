@@ -5,19 +5,20 @@ namespace App\Filament\Resources\Maintenance\WorkOrder\RelationManagers;
 use App\Domain\Maintenance\Services\WorkOrderService;
 use App\Models\User;
 use Carbon\Carbon;
+use Filament\Actions\CreateAction;
+use Filament\Actions\DeleteAction;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
-use Filament\Tables\Actions\CreateAction;
-use Filament\Tables\Actions\DeleteAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
 class TimeLogsRelationManager extends RelationManager
 {
     protected static string $relationship = 'timeLogs';
+
     protected static ?string $title = 'Registro de Tiempo';
 
     public function form(Schema $schema): Schema

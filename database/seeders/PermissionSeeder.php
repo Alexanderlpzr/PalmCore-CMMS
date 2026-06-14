@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\Permission;
+use Illuminate\Database\Seeder;
 use Spatie\Permission\PermissionRegistrar;
 
 class PermissionSeeder extends Seeder
@@ -130,6 +130,41 @@ class PermissionSeeder extends Seeder
         'work-order-time-logs.create',
         'work-order-parts.create',
         'work-order-signatures.create',
+
+        // Maintenance Plans
+        'maintenance-plans.view',
+        'maintenance-plans.create',
+        'maintenance-plans.update',
+        'maintenance-plans.delete',
+        'maintenance-plans.activate',
+
+        // Maintenance Plan sub-records
+        'maintenance-plan-tasks.create',
+        'maintenance-plan-tasks.update',
+        'maintenance-checklist-items.create',
+        'maintenance-plan-attachments.create',
+
+        // Equipment Meter Readings
+        'equipment-meter-readings.create',
+
+        // Spare Parts
+        'spare-parts.view',
+        'spare-parts.create',
+        'spare-parts.update',
+        'spare-parts.delete',
+
+        // Warehouses
+        'warehouses.view',
+        'warehouses.create',
+        'warehouses.update',
+        'warehouses.delete',
+
+        // Inventory movements
+        'inventory.view',
+        'inventory.entry',
+        'inventory.exit',
+        'inventory.adjust',
+        'inventory.transfer',
     ];
 
     public function run(): void

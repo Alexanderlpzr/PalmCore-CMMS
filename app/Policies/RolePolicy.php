@@ -19,17 +19,17 @@ class RolePolicy
 
     public function create(User $user): bool
     {
-        return $user->is_super_admin || $user->hasPermissionTo('roles.create');
+        return $user->is_super_admin;
     }
 
     public function update(User $user, Role $role): bool
     {
-        return $user->is_super_admin || $user->hasPermissionTo('roles.edit');
+        return $user->is_super_admin;
     }
 
     public function delete(User $user, Role $role): bool
     {
-        return $user->is_super_admin || $user->hasPermissionTo('roles.delete');
+        return $user->is_super_admin;
     }
 
     public function restore(User $user, Role $role): bool

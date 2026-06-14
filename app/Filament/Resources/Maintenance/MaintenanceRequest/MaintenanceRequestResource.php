@@ -17,6 +17,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use UnitEnum;
 
 class MaintenanceRequestResource extends Resource
@@ -53,18 +54,23 @@ class MaintenanceRequestResource extends Resource
     public static function getRelations(): array
     {
         return [
-            'comments'    => CommentsRelationManager::class,
+            'comments' => CommentsRelationManager::class,
             'attachments' => AttachmentsRelationManager::class,
         ];
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->with(['equipment', 'createdBy']);
     }
 
     public static function getPages(): array
     {
         return [
-            'index'  => ListMaintenanceRequests::route('/'),
+            'index' => ListMaintenanceRequests::route('/'),
             'create' => CreateMaintenanceRequest::route('/create'),
-            'view'   => ViewMaintenanceRequest::route('/{record}'),
-            'edit'   => EditMaintenanceRequest::route('/{record}/edit'),
+            'view' => ViewMaintenanceRequest::route('/{record}'),
+            'edit' => EditMaintenanceRequest::route('/{record}/edit'),
         ];
     }
 }

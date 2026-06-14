@@ -35,6 +35,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'approved_at',
     'rejected_at',
     'work_order_id',
+    'preliminary_technician_id',
 ])]
 class MaintenanceRequest extends BaseModel
 {
@@ -75,6 +76,11 @@ class MaintenanceRequest extends BaseModel
     public function rejectedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'rejected_by');
+    }
+
+    public function preliminaryTechnician(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'preliminary_technician_id');
     }
 
     public function workOrder(): HasOne
@@ -124,14 +130,14 @@ class MaintenanceRequest extends BaseModel
     protected function casts(): array
     {
         return [
-            'request_type'       => MaintenanceRequestType::class,
-            'priority'           => MaintenanceRequestPriority::class,
-            'status'             => MaintenanceRequestStatus::class,
+            'request_type' => MaintenanceRequestType::class,
+            'priority' => MaintenanceRequestPriority::class,
+            'status' => MaintenanceRequestStatus::class,
             'requested_due_date' => 'date',
-            'submitted_at'       => 'datetime',
-            'reviewed_at'        => 'datetime',
-            'approved_at'        => 'datetime',
-            'rejected_at'        => 'datetime',
+            'submitted_at' => 'datetime',
+            'reviewed_at' => 'datetime',
+            'approved_at' => 'datetime',
+            'rejected_at' => 'datetime',
         ];
     }
 }

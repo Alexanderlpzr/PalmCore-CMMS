@@ -46,11 +46,16 @@ class UserResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        $tenantId = Filament::getTenant()?->id;
+        $query = parent::getEloquentQuery()
+            ->withoutGlobalScopes([SoftDeletingScope::class]);
 
-        return parent::getEloquentQuery()
-            ->withoutGlobalScopes([SoftDeletingScope::class])
-            ->whereHas('tenants', fn (Builder $q) => $q->where('tenants.id', $tenantId));
+        // Super admins see all users; regular admins only see users in their tenant.
+        if (! auth()->user()?->is_super_admin) {
+            $tenantId = Filament::getTenant()?->id;
+            $query->whereHas('tenants', fn (Builder $q) => $q->where('tenants.id', $tenantId));
+        }
+
+        return $query;
     }
 
     public static function getRelations(): array
@@ -61,9 +66,9 @@ class UserResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index'  => ListUsers::route('/'),
+            'index' => ListUsers::route('/'),
             'create' => CreateUser::route('/create'),
-            'edit'   => EditUser::route('/{record}/edit'),
+            'edit' => EditUser::route('/{record}/edit'),
         ];
     }
 }

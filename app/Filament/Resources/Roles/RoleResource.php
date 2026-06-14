@@ -48,6 +48,11 @@ class RoleResource extends Resource
         $tenantId = Filament::getTenant()?->id;
         setPermissionsTeamId($tenantId);
 
+        // Super admins see roles across all tenants.
+        if (auth()->user()?->is_super_admin) {
+            return parent::getEloquentQuery();
+        }
+
         return parent::getEloquentQuery()->where('team_id', $tenantId);
     }
 
@@ -59,9 +64,9 @@ class RoleResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index'  => ListRoles::route('/'),
+            'index' => ListRoles::route('/'),
             'create' => CreateRole::route('/create'),
-            'edit'   => EditRole::route('/{record}/edit'),
+            'edit' => EditRole::route('/{record}/edit'),
         ];
     }
 }

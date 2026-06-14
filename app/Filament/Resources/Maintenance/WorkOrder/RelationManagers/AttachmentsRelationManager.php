@@ -3,19 +3,20 @@
 namespace App\Filament\Resources\Maintenance\WorkOrder\RelationManagers;
 
 use App\Domain\Maintenance\Enums\WorkOrderAttachmentType;
+use Filament\Actions\CreateAction;
+use Filament\Actions\DeleteAction;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
-use Filament\Tables\Actions\CreateAction;
-use Filament\Tables\Actions\DeleteAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
 class AttachmentsRelationManager extends RelationManager
 {
     protected static string $relationship = 'attachments';
+
     protected static ?string $title = 'Adjuntos';
 
     public function form(Schema $schema): Schema

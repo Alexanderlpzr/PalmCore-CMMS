@@ -4,11 +4,11 @@ namespace App\Filament\Resources\EquipmentCategories\Schemas;
 
 use App\Models\EquipmentCategory;
 use Filament\Facades\Filament;
-use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
 class EquipmentCategoryForm

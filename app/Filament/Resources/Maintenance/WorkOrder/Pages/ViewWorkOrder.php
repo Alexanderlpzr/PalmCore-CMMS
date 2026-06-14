@@ -5,11 +5,15 @@ namespace App\Filament\Resources\Maintenance\WorkOrder\Pages;
 use App\Domain\Maintenance\Enums\WorkOrderSignatureType;
 use App\Domain\Maintenance\Enums\WorkOrderStatus;
 use App\Domain\Maintenance\Services\WorkOrderService;
+use App\Domain\Reports\DTOs\ReportRequest;
+use App\Domain\Reports\Enums\ReportType;
+use App\Domain\Reports\Services\ReportManager;
 use App\Filament\Resources\Maintenance\WorkOrder\WorkOrderResource;
 use App\Models\WorkOrder;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
+use Filament\Facades\Filament;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
@@ -22,7 +26,7 @@ class ViewWorkOrder extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
-            // Plan: Draft → Planned
+            // Plan: Draft → Planned  (work-orders.plan)
             Action::make('plan')
                 ->label('Planificar')
                 ->icon(Heroicon::OutlinedCalendar)
@@ -30,37 +34,41 @@ class ViewWorkOrder extends ViewRecord
                 ->requiresConfirmation()
                 ->modalHeading('Planificar OT')
                 ->modalDescription('Confirma que los técnicos y fechas están asignados en los tabs de abajo.')
-                ->visible(fn (): bool => $this->record->status === WorkOrderStatus::Draft)
+                ->visible(fn (): bool => $this->record->status === WorkOrderStatus::Draft
+                    && auth()->user()->can('work-orders.plan'))
                 ->action(fn (WorkOrderService $service) => $this->doTransition($service, WorkOrderStatus::Planned)),
 
-            // Start: Planned → InProgress
+            // Start: Planned → InProgress  (work-orders.execute)
             Action::make('start')
                 ->label('Iniciar trabajo')
                 ->icon(Heroicon::OutlinedPlay)
                 ->color('warning')
                 ->requiresConfirmation()
-                ->visible(fn (): bool => $this->record->status === WorkOrderStatus::Planned)
+                ->visible(fn (): bool => $this->record->status === WorkOrderStatus::Planned
+                    && auth()->user()->can('work-orders.execute'))
                 ->action(fn (WorkOrderService $service) => $this->doTransition($service, WorkOrderStatus::InProgress)),
 
-            // Pause: InProgress → OnHold
+            // Pause: InProgress → OnHold  (work-orders.execute)
             Action::make('pause')
                 ->label('Pausar')
                 ->icon(Heroicon::OutlinedPause)
                 ->color('gray')
                 ->requiresConfirmation()
-                ->visible(fn (): bool => $this->record->status === WorkOrderStatus::InProgress)
+                ->visible(fn (): bool => $this->record->status === WorkOrderStatus::InProgress
+                    && auth()->user()->can('work-orders.execute'))
                 ->action(fn (WorkOrderService $service) => $this->doTransition($service, WorkOrderStatus::OnHold)),
 
-            // Resume: OnHold → InProgress
+            // Resume: OnHold → InProgress  (work-orders.execute)
             Action::make('resume')
                 ->label('Reanudar')
                 ->icon(Heroicon::OutlinedPlay)
                 ->color('info')
                 ->requiresConfirmation()
-                ->visible(fn (): bool => $this->record->status === WorkOrderStatus::OnHold)
+                ->visible(fn (): bool => $this->record->status === WorkOrderStatus::OnHold
+                    && auth()->user()->can('work-orders.execute'))
                 ->action(fn (WorkOrderService $service) => $this->doTransition($service, WorkOrderStatus::InProgress)),
 
-            // Complete: InProgress → Completed
+            // Complete: InProgress → Completed  (work-orders.execute)
             Action::make('complete')
                 ->label('Completar')
                 ->icon(Heroicon::OutlinedCheckCircle)
@@ -78,7 +86,8 @@ class ViewWorkOrder extends ViewRecord
                         ->label('Causa raíz (si aplica)')
                         ->rows(3),
                 ])
-                ->visible(fn (): bool => $this->record->status === WorkOrderStatus::InProgress)
+                ->visible(fn (): bool => $this->record->status === WorkOrderStatus::InProgress
+                    && auth()->user()->can('work-orders.execute'))
                 ->action(function (array $data, WorkOrderService $service): void {
                     $this->doTransition($service, WorkOrderStatus::Completed, $data);
 
@@ -91,14 +100,15 @@ class ViewWorkOrder extends ViewRecord
                     );
                 }),
 
-            // Verify: Completed → Verified
+            // Verify: Completed → Verified  (work-orders.verify — ingeniero/supervisor)
             Action::make('verify')
                 ->label('Verificar')
                 ->icon(Heroicon::OutlinedCheckBadge)
                 ->color('success')
                 ->requiresConfirmation()
                 ->modalHeading('Verificar trabajo realizado')
-                ->visible(fn (): bool => $this->record->status === WorkOrderStatus::Completed)
+                ->visible(fn (): bool => $this->record->status === WorkOrderStatus::Completed
+                    && auth()->user()->can('work-orders.verify'))
                 ->action(function (WorkOrderService $service): void {
                     $this->doTransition($service, WorkOrderStatus::Verified);
 
@@ -113,7 +123,7 @@ class ViewWorkOrder extends ViewRecord
                     $service->recalculateCosts($this->record);
                 }),
 
-            // Reject back: Completed → InProgress
+            // Reject back: Completed → InProgress  (work-orders.verify)
             Action::make('reject_completion')
                 ->label('Rechazar (volver a ejecución)')
                 ->icon(Heroicon::OutlinedArrowUturnLeft)
@@ -125,12 +135,13 @@ class ViewWorkOrder extends ViewRecord
                         ->required()
                         ->rows(3),
                 ])
-                ->visible(fn (): bool => $this->record->status === WorkOrderStatus::Completed)
+                ->visible(fn (): bool => $this->record->status === WorkOrderStatus::Completed
+                    && auth()->user()->can('work-orders.verify'))
                 ->action(fn (array $data, WorkOrderService $service) => $this->doTransition(
                     $service, WorkOrderStatus::InProgress, $data
                 )),
 
-            // Close: Verified → Closed
+            // Close: Verified → Closed  (work-orders.close)
             Action::make('close')
                 ->label('Cerrar OT')
                 ->icon(Heroicon::OutlinedArchiveBox)
@@ -138,10 +149,11 @@ class ViewWorkOrder extends ViewRecord
                 ->requiresConfirmation()
                 ->modalHeading('¿Cerrar definitivamente?')
                 ->modalDescription('Una vez cerrada, la OT no puede modificarse.')
-                ->visible(fn (): bool => $this->record->status === WorkOrderStatus::Verified)
+                ->visible(fn (): bool => $this->record->status === WorkOrderStatus::Verified
+                    && auth()->user()->can('work-orders.close'))
                 ->action(fn (WorkOrderService $service) => $this->doTransition($service, WorkOrderStatus::Closed)),
 
-            // Cancel
+            // Cancel  (work-orders.update)
             Action::make('cancel')
                 ->label('Cancelar OT')
                 ->icon(Heroicon::OutlinedArchiveBoxXMark)
@@ -149,8 +161,25 @@ class ViewWorkOrder extends ViewRecord
                 ->requiresConfirmation()
                 ->modalHeading('¿Cancelar orden de trabajo?')
                 ->visible(fn (): bool => ! $this->record->status->isTerminal()
-                    && $this->record->status->canTransitionTo(WorkOrderStatus::Cancelled))
+                    && $this->record->status->canTransitionTo(WorkOrderStatus::Cancelled)
+                    && auth()->user()->can('work-orders.update'))
                 ->action(fn (WorkOrderService $service) => $this->doTransition($service, WorkOrderStatus::Cancelled)),
+
+            Action::make('download_pdf')
+                ->label('Descargar PDF')
+                ->icon(Heroicon::OutlinedArrowDownTray)
+                ->color('gray')
+                ->action(function (ReportManager $manager): mixed {
+                    /** @var WorkOrder $wo */
+                    $wo = $this->record;
+
+                    return $manager->streamDownload(new ReportRequest(
+                        type: ReportType::WorkOrder,
+                        tenantId: Filament::getTenant()->id,
+                        requestedBy: auth()->id(),
+                        recordId: $wo->id,
+                    ));
+                }),
 
             EditAction::make()
                 ->visible(fn (): bool => $this->record->isEditable()),

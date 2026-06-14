@@ -24,7 +24,6 @@ use Illuminate\Support\Str;
     'timezone',
     'locale',
     'subscription_plan',
-    'subscription_expires_at',
     'is_active',
     'logo_path',
     'settings',

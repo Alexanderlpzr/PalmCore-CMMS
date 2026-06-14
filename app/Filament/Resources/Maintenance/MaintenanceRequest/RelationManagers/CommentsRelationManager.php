@@ -2,12 +2,11 @@
 
 namespace App\Filament\Resources\Maintenance\MaintenanceRequest\RelationManagers;
 
-use App\Models\MaintenanceRequestComment;
 use Filament\Actions\CreateAction;
-use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -70,7 +69,7 @@ class CommentsRelationManager extends RelationManager
             ->headerActions([
                 CreateAction::make()
                     ->mutateFormDataUsing(function (array $data): array {
-                        $data['user_id']   = auth()->id();
+                        $data['user_id'] = auth()->id();
                         $data['tenant_id'] = $this->ownerRecord->tenant_id;
 
                         return $data;

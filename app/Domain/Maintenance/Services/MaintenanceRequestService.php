@@ -2,9 +2,10 @@
 
 namespace App\Domain\Maintenance\Services;
 
-use App\Domain\Maintenance\Enums\IssueReportStatus;
 use App\Domain\Maintenance\Enums\MaintenanceRequestStatus;
 use App\Domain\Maintenance\Enums\MaintenanceRequestType;
+use App\Events\MaintenanceRequestApproved;
+use App\Events\MaintenanceRequestCreated;
 use App\Models\EquipmentIssueReport;
 use App\Models\MaintenanceRequest;
 use App\Models\User;
@@ -48,8 +49,8 @@ class MaintenanceRequestService
      */
     public function create(array $data, User $createdBy): MaintenanceRequest
     {
-        return DB::transaction(function () use ($data, $createdBy): MaintenanceRequest {
-            $type   = MaintenanceRequestType::from($data['request_type']);
+        $request = DB::transaction(function () use ($data, $createdBy): MaintenanceRequest {
+            $type = MaintenanceRequestType::from($data['request_type']);
             $status = $type->startsUnderReview()
                 ? MaintenanceRequestStatus::UnderReview
                 : MaintenanceRequestStatus::Draft;
@@ -59,8 +60,8 @@ class MaintenanceRequestService
             $request = MaintenanceRequest::create([
                 ...$data,
                 'request_number' => $number,
-                'status'         => $status->value,
-                'created_by'     => $createdBy->id,
+                'status' => $status->value,
+                'created_by' => $createdBy->id,
             ]);
 
             if ($type->startsUnderReview()) {
@@ -69,6 +70,10 @@ class MaintenanceRequestService
 
             return $request;
         });
+
+        event(new MaintenanceRequestCreated($request));
+
+        return $request;
     }
 
     /**
@@ -83,9 +88,9 @@ class MaintenanceRequestService
         return DB::transaction(function () use ($issueReport, $data, $createdBy): MaintenanceRequest {
             $request = $this->create([
                 ...$data,
-                'tenant_id'       => $issueReport->tenant_id,
+                'tenant_id' => $issueReport->tenant_id,
                 'issue_report_id' => $issueReport->id,
-                'equipment_id'    => $issueReport->equipment_id,
+                'equipment_id' => $issueReport->equipment_id,
             ], $createdBy);
 
             $issueReport->markConvertedToMr();
@@ -112,7 +117,13 @@ class MaintenanceRequestService
 
         $request->update(array_merge(['status' => $toStatus->value], $timestamps, $extra));
 
-        return $request->refresh();
+        $request = $request->refresh();
+
+        if ($toStatus === MaintenanceRequestStatus::Approved) {
+            event(new MaintenanceRequestApproved($request));
+        }
+
+        return $request;
     }
 
     // ── Notifications ─────────────────────────────────────────────────────────
@@ -131,11 +142,11 @@ class MaintenanceRequestService
     private function transitionTimestamps(MaintenanceRequestStatus $toStatus, User $actor): array
     {
         return match ($toStatus) {
-            MaintenanceRequestStatus::Submitted   => ['submitted_at' => now()],
+            MaintenanceRequestStatus::Submitted => ['submitted_at' => now()],
             MaintenanceRequestStatus::UnderReview => ['reviewed_at' => now(), 'assigned_reviewer' => $actor->id],
-            MaintenanceRequestStatus::Approved    => ['approved_at' => now(), 'approved_by' => $actor->id],
-            MaintenanceRequestStatus::Rejected    => ['rejected_at' => now(), 'rejected_by' => $actor->id],
-            default                               => [],
+            MaintenanceRequestStatus::Approved => ['approved_at' => now(), 'approved_by' => $actor->id],
+            MaintenanceRequestStatus::Rejected => ['rejected_at' => now(), 'rejected_by' => $actor->id],
+            default => [],
         };
     }
 }

@@ -5,9 +5,10 @@ namespace App\Filament\Resources\Equipment\Schemas;
 use App\Domain\Assets\Enums\EquipmentCriticality;
 use App\Domain\Assets\Enums\EquipmentPriority;
 use App\Domain\Assets\Enums\EquipmentStatus;
+use App\Models\Equipment;
 use Filament\Infolists\Components\IconEntry;
-use Filament\Infolists\Components\Section;
 use Filament\Infolists\Components\TextEntry;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
 class EquipmentInfolist
@@ -124,6 +125,88 @@ class EquipmentInfolist
                             ->placeholder('—'),
                         TextEntry::make('currency_code')
                             ->label('Moneda'),
+                    ]),
+
+                Section::make('Reliability KPIs')
+                    ->columns(4)
+                    ->schema([
+                        TextEntry::make('kpi_stale_badge')
+                            ->label('')
+                            ->badge()
+                            ->columnSpanFull()
+                            ->hidden(fn (Equipment $record): bool => $record->kpi?->is_stale !== true)
+                            ->getStateUsing(fn (): string => 'Actualizando…')
+                            ->color('warning'),
+
+                        TextEntry::make('kpi_ongoing_badge')
+                            ->label('')
+                            ->badge()
+                            ->columnSpanFull()
+                            ->hidden(fn (Equipment $record): bool => $record->ongoingDowntimeEvent === null)
+                            ->getStateUsing(fn (): string => 'Evento de parada en curso')
+                            ->color('danger'),
+
+                        TextEntry::make('kpi.mtbf_hours')
+                            ->label('MTBF')
+                            ->getStateUsing(fn (Equipment $record): ?string => $record->kpi
+                                ? (float) $record->kpi->mtbf_hours !== 0.0
+                                    ? number_format((float) $record->kpi->mtbf_hours, 2).' h'
+                                    : 'Sin fallas registradas'
+                                : null
+                            )
+                            ->placeholder('Sin fallas registradas'),
+
+                        TextEntry::make('kpi.mttr_hours')
+                            ->label('MTTR')
+                            ->getStateUsing(fn (Equipment $record): ?string => $record->kpi
+                                ? (float) $record->kpi->mttr_hours !== 0.0
+                                    ? number_format((float) $record->kpi->mttr_hours, 2).' h'
+                                    : 'Sin fallas registradas'
+                                : null
+                            )
+                            ->placeholder('Sin fallas registradas'),
+
+                        TextEntry::make('kpi.availability_percentage')
+                            ->label('Disponibilidad')
+                            ->getStateUsing(fn (Equipment $record): ?string => $record->kpi
+                                ? number_format((float) $record->kpi->availability_percentage, 2).'%'
+                                : null
+                            )
+                            ->placeholder('—'),
+
+                        TextEntry::make('kpi.unplanned_availability_percentage')
+                            ->label('Disp. no planificada')
+                            ->getStateUsing(fn (Equipment $record): ?string => $record->kpi
+                                ? number_format((float) $record->kpi->unplanned_availability_percentage, 2).'%'
+                                : null
+                            )
+                            ->placeholder('—'),
+
+                        TextEntry::make('kpi.failure_count')
+                            ->label('Nº de fallas')
+                            ->getStateUsing(fn (Equipment $record): ?string => $record->kpi
+                                ? (string) $record->kpi->failure_count
+                                : null
+                            )
+                            ->placeholder('—'),
+
+                        TextEntry::make('kpi.downtime_hours')
+                            ->label('Horas de parada')
+                            ->getStateUsing(fn (Equipment $record): ?string => $record->kpi
+                                ? number_format((float) $record->kpi->downtime_hours, 2).' h'
+                                : null
+                            )
+                            ->placeholder('—'),
+
+                        TextEntry::make('kpi.last_failure_at')
+                            ->label('Última falla')
+                            ->dateTime('d/m/Y H:i')
+                            ->placeholder('—'),
+
+                        TextEntry::make('kpi.last_calculated_at')
+                            ->label('Calculado el')
+                            ->dateTime('d/m/Y H:i')
+                            ->placeholder('—'),
                     ]),
 
                 Section::make('Auditoría')

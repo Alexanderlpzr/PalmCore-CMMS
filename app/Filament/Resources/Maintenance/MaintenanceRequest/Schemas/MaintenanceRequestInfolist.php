@@ -5,8 +5,9 @@ namespace App\Filament\Resources\Maintenance\MaintenanceRequest\Schemas;
 use App\Domain\Maintenance\Enums\MaintenanceRequestPriority;
 use App\Domain\Maintenance\Enums\MaintenanceRequestStatus;
 use App\Domain\Maintenance\Enums\MaintenanceRequestType;
-use Filament\Infolists\Components\Section;
+use App\Models\MaintenanceRequest;
 use Filament\Infolists\Components\TextEntry;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
 class MaintenanceRequestInfolist
@@ -64,7 +65,7 @@ class MaintenanceRequestInfolist
                         TextEntry::make('rejection_reason')
                             ->label('Motivo de rechazo')
                             ->placeholder('—')
-                            ->visible(fn (\App\Models\MaintenanceRequest $record): bool => $record->rejection_reason !== null),
+                            ->visible(fn (MaintenanceRequest $record): bool => $record->rejection_reason !== null),
                     ]),
 
                 Section::make('Seguimiento')

@@ -5,19 +5,20 @@ namespace App\Filament\Resources\Maintenance\WorkOrder\RelationManagers;
 use App\Domain\Maintenance\Enums\TechnicianRole;
 use App\Domain\Maintenance\Services\WorkOrderService;
 use App\Models\User;
+use Filament\Actions\CreateAction;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\EditAction;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
-use Filament\Tables\Actions\CreateAction;
-use Filament\Tables\Actions\DeleteAction;
-use Filament\Tables\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
 class TechniciansRelationManager extends RelationManager
 {
     protected static string $relationship = 'technicians';
+
     protected static ?string $title = 'Técnicos';
 
     public function form(Schema $schema): Schema

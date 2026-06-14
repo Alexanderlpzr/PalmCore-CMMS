@@ -5,20 +5,19 @@ namespace App\Filament\Resources\Equipment\Schemas;
 use App\Domain\Assets\Enums\EquipmentCriticality;
 use App\Domain\Assets\Enums\EquipmentPriority;
 use App\Domain\Assets\Enums\EquipmentStatus;
-use App\Models\Area;
+use App\Domain\Assets\Services\ReferenceDataService;
 use App\Models\Equipment;
-use App\Models\EquipmentCategory;
 use App\Models\Manufacturer;
 use App\Models\Supplier;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\DatePicker;
-use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
-use Filament\Forms\Get;
-use Filament\Forms\Set;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 
 class EquipmentForm
@@ -56,12 +55,7 @@ class EquipmentForm
                     ->schema([
                         Select::make('category_id')
                             ->label('Categoría')
-                            ->options(fn () => EquipmentCategory::query()
-                                ->where('tenant_id', Filament::getTenant()?->id)
-                                ->where('is_active', true)
-                                ->orderBy('name')
-                                ->pluck('name', 'id')
-                            )
+                            ->options(fn () => ReferenceDataService::categories(Filament::getTenant()?->id ?? ''))
                             ->searchable()
                             ->nullable(),
                         Select::make('status')
@@ -101,11 +95,9 @@ class EquipmentForm
                             ->afterStateUpdated(fn (Set $set) => $set('area_id', null)),
                         Select::make('area_id')
                             ->label('Área')
-                            ->options(fn (Get $get) => Area::query()
-                                ->where('plant_id', $get('plant_id'))
-                                ->where('is_active', true)
-                                ->orderBy('name')
-                                ->pluck('name', 'id')
+                            ->options(fn (Get $get) => blank($get('plant_id'))
+                                ? []
+                                : ReferenceDataService::areas($get('plant_id'))
                             )
                             ->searchable()
                             ->nullable()

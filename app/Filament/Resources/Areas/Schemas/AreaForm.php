@@ -2,13 +2,12 @@
 
 namespace App\Filament\Resources\Areas\Schemas;
 
-use App\Models\Plant;
 use Filament\Facades\Filament;
-use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
 class AreaForm

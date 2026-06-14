@@ -6,10 +6,8 @@ use App\Domain\Assets\Enums\EquipmentCriticality;
 use App\Domain\Assets\Enums\EquipmentPriority;
 use App\Domain\Assets\Enums\EquipmentStatus;
 use App\Domain\Assets\Services\QrCodeService;
+use App\Domain\Assets\Services\ReferenceDataService;
 use App\Models\Equipment;
-use App\Models\EquipmentCategory;
-use App\Models\EquipmentQrCode;
-use App\Models\Plant;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -90,20 +88,11 @@ class EquipmentTable
                     ->options(EquipmentPriority::options()),
                 SelectFilter::make('plant_id')
                     ->label('Planta')
-                    ->options(fn () => Plant::query()
-                        ->where('tenant_id', Filament::getTenant()?->id)
-                        ->orderBy('name')
-                        ->pluck('name', 'id')
-                    )
+                    ->options(fn () => ReferenceDataService::plants(Filament::getTenant()?->id ?? ''))
                     ->searchable(),
                 SelectFilter::make('category_id')
                     ->label('Categoría')
-                    ->options(fn () => EquipmentCategory::query()
-                        ->where('tenant_id', Filament::getTenant()?->id)
-                        ->where('is_active', true)
-                        ->orderBy('name')
-                        ->pluck('name', 'id')
-                    )
+                    ->options(fn () => ReferenceDataService::categories(Filament::getTenant()?->id ?? ''))
                     ->searchable(),
                 TrashedFilter::make(),
             ])
@@ -145,8 +134,8 @@ class EquipmentTable
                         'filament.equipment.qr-modal',
                         [
                             'equipment' => $record,
-                            'qrCode'    => $record->qrCode,
-                            'action'    => $action,
+                            'qrCode' => $record->qrCode,
+                            'action' => $action,
                         ]
                     )),
             ])

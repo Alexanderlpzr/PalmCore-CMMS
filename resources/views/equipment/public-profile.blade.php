@@ -26,7 +26,7 @@
     {{-- Header --}}
     <div class="flex items-center justify-between mb-6">
         <div>
-            <p class="text-xs font-semibold text-emerald-600 uppercase tracking-widest">PalmCore EAM</p>
+            <p class="text-xs font-semibold text-emerald-600 uppercase tracking-widest">Fronda CMMS</p>
             <h1 class="text-xl font-bold text-gray-900 leading-tight mt-0.5">{{ $equipment->name }}</h1>
         </div>
         <span class="text-2xl font-mono font-black text-gray-400">{{ $equipment->code }}</span>
@@ -97,7 +97,7 @@
 
     {{-- Footer --}}
     <p class="text-center text-xs text-gray-400 mt-8">
-        PalmCore EAM/CMMS &mdash; Escaneos: {{ number_format($qrCode->scan_count) }}
+        Fronda CMMS &mdash; Escaneos: {{ number_format($qrCode->scan_count) }}
     </p>
 
 </div>

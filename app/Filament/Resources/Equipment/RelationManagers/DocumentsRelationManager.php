@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Equipment\RelationManagers;
 use App\Domain\Assets\Enums\DocumentType;
 use App\Models\EquipmentDocument;
 use Filament\Actions\Action;
+use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
@@ -15,12 +16,12 @@ use Filament\Actions\RestoreAction;
 use Filament\Actions\RestoreBulkAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -123,9 +124,9 @@ class DocumentsRelationManager extends RelationManager
                     ->label('Vence')
                     ->date('d/m/Y')
                     ->color(fn (EquipmentDocument $record): string => match (true) {
-                        $record->isExpired()           => 'danger',
-                        $record->isExpiringSoon()      => 'warning',
-                        default                        => 'success',
+                        $record->isExpired() => 'danger',
+                        $record->isExpiringSoon() => 'warning',
+                        default => 'success',
                     })
                     ->placeholder('Sin vencimiento')
                     ->sortable(),
@@ -177,7 +178,7 @@ class DocumentsRelationManager extends RelationManager
                 ForceDeleteAction::make(),
             ])
             ->toolbarActions([
-                \Filament\Actions\BulkActionGroup::make([
+                BulkActionGroup::make([
                     DeleteBulkAction::make(),
                     RestoreBulkAction::make(),
                     ForceDeleteBulkAction::make(),

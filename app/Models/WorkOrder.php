@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'tenant_id',
     'work_order_number',
     'maintenance_request_id',
+    'maintenance_plan_id',
     'equipment_id',
     'plant_id',
     'area_id',
@@ -69,6 +70,11 @@ class WorkOrder extends BaseModel
     public function maintenanceRequest(): BelongsTo
     {
         return $this->belongsTo(MaintenanceRequest::class);
+    }
+
+    public function maintenancePlan(): BelongsTo
+    {
+        return $this->belongsTo(MaintenancePlan::class);
     }
 
     public function equipment(): BelongsTo
@@ -187,25 +193,25 @@ class WorkOrder extends BaseModel
     protected function casts(): array
     {
         return [
-            'work_order_type'      => WorkOrderType::class,
-            'status'               => WorkOrderStatus::class,
-            'priority'             => WorkOrderPriority::class,
-            'equipment_stopped'    => 'boolean',
-            'planned_labor_hours'  => 'float',
-            'actual_labor_hours'   => 'float',
-            'estimated_cost'       => 'float',
-            'actual_cost_labor'    => 'float',
-            'actual_cost_parts'    => 'float',
+            'work_order_type' => WorkOrderType::class,
+            'status' => WorkOrderStatus::class,
+            'priority' => WorkOrderPriority::class,
+            'equipment_stopped' => 'boolean',
+            'planned_labor_hours' => 'float',
+            'actual_labor_hours' => 'float',
+            'estimated_cost' => 'float',
+            'actual_cost_labor' => 'float',
+            'actual_cost_parts' => 'float',
             'actual_cost_external' => 'float',
-            'actual_cost_total'    => 'float',
-            'planned_start_at'     => 'datetime',
-            'planned_end_at'       => 'datetime',
-            'actual_start_at'      => 'datetime',
-            'actual_end_at'        => 'datetime',
-            'started_at'           => 'datetime',
-            'completed_at'         => 'datetime',
-            'verified_at'          => 'datetime',
-            'closed_at'            => 'datetime',
+            'actual_cost_total' => 'float',
+            'planned_start_at' => 'datetime',
+            'planned_end_at' => 'datetime',
+            'actual_start_at' => 'datetime',
+            'actual_end_at' => 'datetime',
+            'started_at' => 'datetime',
+            'completed_at' => 'datetime',
+            'verified_at' => 'datetime',
+            'closed_at' => 'datetime',
         ];
     }
 }

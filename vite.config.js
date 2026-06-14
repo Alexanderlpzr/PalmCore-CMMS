@@ -1,17 +1,19 @@
-import {
-    defineConfig
-} from 'vite';
+import { defineConfig } from 'vite';
+import vue from '@vitejs/plugin-vue';
 import laravel from 'laravel-vite-plugin';
 import { bunny } from 'laravel-vite-plugin/fonts';
-import tailwindcss from "@tailwindcss/vite";
+import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
     plugins: [
+        vue(),
         laravel({
             input: [
                 'resources/css/app.css',
                 'resources/js/app.js',
                 'resources/js/passkeys.js',
+                'resources/css/mobile.css',
+                'resources/js/mobile/main.js',
             ],
             refresh: true,
             fonts: [
@@ -23,6 +25,7 @@ export default defineConfig({
         tailwindcss(),
     ],
     server: {
+        host: '127.0.0.1',
         cors: true,
         watch: {
             ignored: ['**/storage/framework/views/**'],

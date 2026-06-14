@@ -1,9 +1,17 @@
 <?php
 
+use App\Providers\AppServiceProvider;
+use App\Providers\AuditServiceProvider;
+use App\Providers\Filament\AdminPanelProvider;
+use App\Providers\FortifyServiceProvider;
+use App\Providers\HorizonServiceProvider;
+use App\Providers\TenancyServiceProvider;
+
 return [
-    App\Providers\AppServiceProvider::class,
-    App\Providers\AuditServiceProvider::class,
-    App\Providers\Filament\AdminPanelProvider::class,
-    App\Providers\FortifyServiceProvider::class,
-    App\Providers\TenancyServiceProvider::class,
+    AppServiceProvider::class,
+    AuditServiceProvider::class,
+    AdminPanelProvider::class,
+    FortifyServiceProvider::class,
+    HorizonServiceProvider::class,
+    TenancyServiceProvider::class,
 ];

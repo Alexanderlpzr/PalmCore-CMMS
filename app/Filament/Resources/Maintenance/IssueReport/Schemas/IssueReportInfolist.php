@@ -4,8 +4,8 @@ namespace App\Filament\Resources\Maintenance\IssueReport\Schemas;
 
 use App\Domain\Assets\Enums\IssueSeverity;
 use App\Domain\Maintenance\Enums\IssueReportStatus;
-use Filament\Infolists\Components\Section;
 use Filament\Infolists\Components\TextEntry;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
 class IssueReportInfolist

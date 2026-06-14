@@ -23,7 +23,7 @@ class UserPolicy
 
     public function update(User $user, User $model): bool
     {
-        return $user->is_super_admin || $user->hasPermissionTo('users.edit');
+        return $user->is_super_admin || $user->hasPermissionTo('users.update');
     }
 
     public function delete(User $user, User $model): bool

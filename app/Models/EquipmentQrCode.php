@@ -3,7 +3,9 @@
 namespace App\Models;
 
 use App\Domain\Shared\Models\BaseModel;
+use Database\Factories\EquipmentQrCodeFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
@@ -20,6 +22,9 @@ use Illuminate\Support\Facades\Storage;
 ])]
 class EquipmentQrCode extends BaseModel
 {
+    /** @use HasFactory<EquipmentQrCodeFactory> */
+    use HasFactory;
+
     // ── Relationships ─────────────────────────────────────────────────────────
 
     public function equipment(): BelongsTo
@@ -67,10 +72,10 @@ class EquipmentQrCode extends BaseModel
     protected function casts(): array
     {
         return [
-            'is_active'       => 'boolean',
-            'generated_at'    => 'datetime',
+            'is_active' => 'boolean',
+            'generated_at' => 'datetime',
             'last_scanned_at' => 'datetime',
-            'scan_count'      => 'integer',
+            'scan_count' => 'integer',
         ];
     }
 }

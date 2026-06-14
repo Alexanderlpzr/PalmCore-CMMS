@@ -46,6 +46,9 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'retired_reason',
     'created_by',
     'updated_by',
+    'current_meter_reading',
+    'meter_unit',
+    'last_failure_at',
 ])]
 class Equipment extends BaseModel
 {
@@ -131,6 +134,36 @@ class Equipment extends BaseModel
         return $this->hasMany(WorkOrder::class);
     }
 
+    public function maintenancePlans(): HasMany
+    {
+        return $this->hasMany(MaintenancePlan::class);
+    }
+
+    public function meterReadings(): HasMany
+    {
+        return $this->hasMany(EquipmentMeterReading::class)->orderByDesc('recorded_at');
+    }
+
+    public function latestMeterReading(): HasOne
+    {
+        return $this->hasOne(EquipmentMeterReading::class)->latestOfMany('recorded_at');
+    }
+
+    public function downtimeEvents(): HasMany
+    {
+        return $this->hasMany(EquipmentDowntimeEvent::class)->orderByDesc('started_at');
+    }
+
+    public function ongoingDowntimeEvent(): HasOne
+    {
+        return $this->hasOne(EquipmentDowntimeEvent::class)->whereNull('ended_at');
+    }
+
+    public function kpi(): HasOne
+    {
+        return $this->hasOne(EquipmentKpi::class);
+    }
+
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
@@ -194,19 +227,21 @@ class Equipment extends BaseModel
     protected function casts(): array
     {
         return [
-            'status'              => EquipmentStatus::class,
-            'criticality'         => EquipmentCriticality::class,
-            'priority'            => EquipmentPriority::class,
-            'purchase_date'       => 'date',
-            'installation_date'   => 'date',
-            'commissioning_date'  => 'date',
+            'status' => EquipmentStatus::class,
+            'criticality' => EquipmentCriticality::class,
+            'priority' => EquipmentPriority::class,
+            'purchase_date' => 'date',
+            'installation_date' => 'date',
+            'commissioning_date' => 'date',
             'warranty_expiry_date' => 'date',
-            'retired_at'          => 'datetime',
-            'useful_life_years'   => 'decimal:2',
-            'purchase_price'      => 'decimal:2',
-            'replacement_cost'    => 'decimal:2',
-            'technical_specs'     => 'array',
-            'is_active'           => 'boolean',
+            'retired_at' => 'datetime',
+            'useful_life_years' => 'decimal:2',
+            'purchase_price' => 'decimal:2',
+            'replacement_cost' => 'decimal:2',
+            'technical_specs' => 'array',
+            'is_active' => 'boolean',
+            'current_meter_reading' => 'float',
+            'last_failure_at' => 'datetime',
         ];
     }
 }

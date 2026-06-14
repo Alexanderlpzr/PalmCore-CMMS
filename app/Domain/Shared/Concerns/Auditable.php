@@ -21,7 +21,7 @@ trait Auditable
                     oldValues: $event !== 'created' ? $model->getOriginal() : null,
                     newValues: $event !== 'deleted' ? $model->getAttributes() : null,
                     userId: auth()->id(),
-                    tenantId: $model->getAttribute('tenant_id'),
+                    tenantId: $model->getAttributes()['tenant_id'] ?? null,
                     ipAddress: request()?->ip(),
                     userAgent: request()?->userAgent(),
                 )->afterResponse();

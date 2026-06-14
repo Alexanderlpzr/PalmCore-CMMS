@@ -4,13 +4,14 @@ namespace App\Filament\Resources\Maintenance\MaintenanceRequest\RelationManagers
 
 use App\Models\MaintenanceRequestAttachment;
 use Filament\Actions\Action;
+use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Components\Section;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -92,7 +93,7 @@ class AttachmentsRelationManager extends RelationManager
                 CreateAction::make()
                     ->mutateFormDataUsing(function (array $data): array {
                         $data['uploaded_by'] = auth()->id();
-                        $data['tenant_id']   = $this->ownerRecord->tenant_id;
+                        $data['tenant_id'] = $this->ownerRecord->tenant_id;
 
                         if (! empty($data['file_path'])) {
                             $disk = Storage::disk('public');
@@ -116,7 +117,7 @@ class AttachmentsRelationManager extends RelationManager
                 DeleteAction::make(),
             ])
             ->toolbarActions([
-                \Filament\Actions\BulkActionGroup::make([
+                BulkActionGroup::make([
                     DeleteBulkAction::make(),
                 ]),
             ])

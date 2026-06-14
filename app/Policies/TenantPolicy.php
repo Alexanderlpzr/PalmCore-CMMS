@@ -24,7 +24,7 @@ class TenantPolicy
 
     public function update(User $user, Tenant $tenant): bool
     {
-        return $user->is_super_admin || $user->hasPermissionTo('tenants.edit');
+        return $user->is_super_admin || $user->hasPermissionTo('tenants.update');
     }
 
     public function delete(User $user, Tenant $tenant): bool

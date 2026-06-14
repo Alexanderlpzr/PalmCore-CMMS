@@ -24,7 +24,7 @@ class PlantPolicy
 
     public function update(User $user, Plant $plant): bool
     {
-        return $user->is_super_admin || $user->hasPermissionTo('plants.edit');
+        return $user->is_super_admin || $user->hasPermissionTo('plants.update');
     }
 
     public function delete(User $user, Plant $plant): bool

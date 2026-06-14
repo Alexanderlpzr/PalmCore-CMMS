@@ -3,5 +3,9 @@
     "allow": [
       "Bash(composer require *)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "laravel-boost"
+  ],
+  "enableAllProjectMcpServers": true
 }

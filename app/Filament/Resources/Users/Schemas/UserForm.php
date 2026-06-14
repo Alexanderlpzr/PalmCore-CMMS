@@ -5,10 +5,10 @@ namespace App\Filament\Resources\Users\Schemas;
 use App\Models\Role;
 use App\Models\User;
 use Filament\Facades\Filament;
-use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Facades\Hash;
 
@@ -38,10 +38,6 @@ class UserForm
                             ->dehydrateStateUsing(fn ($state) => Hash::make($state))
                             ->dehydrated(fn ($state) => filled($state))
                             ->required(fn (string $operation): bool => $operation === 'create'),
-                        TextInput::make('locale')
-                            ->label('Locale')
-                            ->maxLength(10)
-                            ->placeholder('es_CO'),
                         Toggle::make('is_active')
                             ->label('Activo')
                             ->default(true)

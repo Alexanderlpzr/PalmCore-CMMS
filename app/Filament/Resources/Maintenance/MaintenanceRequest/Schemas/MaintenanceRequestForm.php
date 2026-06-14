@@ -6,10 +6,10 @@ use App\Domain\Maintenance\Enums\MaintenanceRequestPriority;
 use App\Domain\Maintenance\Enums\MaintenanceRequestType;
 use App\Models\Equipment;
 use Filament\Forms\Components\DatePicker;
-use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
 class MaintenanceRequestForm

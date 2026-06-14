@@ -3,8 +3,8 @@
 namespace App\Filament\Resources\Tenants\Schemas;
 
 use Filament\Infolists\Components\IconEntry;
-use Filament\Infolists\Components\Section;
 use Filament\Infolists\Components\TextEntry;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
 class TenantInfolist
@@ -30,11 +30,11 @@ class TenantInfolist
                             ->label('Plan')
                             ->badge()
                             ->color(fn (string $state): string => match ($state) {
-                                'trial'        => 'warning',
-                                'starter'      => 'info',
+                                'trial' => 'warning',
+                                'starter' => 'info',
                                 'professional' => 'success',
-                                'enterprise'   => 'primary',
-                                default        => 'gray',
+                                'enterprise' => 'primary',
+                                default => 'gray',
                             }),
                     ]),
 
