@@ -1,0 +1,216 @@
+<template>
+    <div class="p-5 lg:p-8 max-w-5xl mx-auto">
+
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <h1 class="text-xl font-bold text-gray-900">Repuestos</h1>
+                <p v-if="!loading" class="text-sm text-gray-400 mt-0.5">{{ total }} repuestos</p>
+            </div>
+        </div>
+
+        <!-- Search + category filter -->
+        <div class="flex flex-col sm:flex-row gap-3 mb-5">
+            <div class="relative flex-1">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                </svg>
+                <input
+                    v-model="search"
+                    type="text"
+                    placeholder="Buscar por código o nombre..."
+                    class="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
+                />
+            </div>
+        </div>
+
+        <!-- Category filter pills -->
+        <div class="flex gap-1.5 mb-5 overflow-x-auto pb-1">
+            <button
+                v-for="cat in categoryFilters"
+                :key="cat.value"
+                @click="activeCategory = cat.value"
+                class="shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors"
+                :class="activeCategory === cat.value
+                    ? 'bg-slate-900 text-white'
+                    : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300'"
+            >
+                {{ cat.label }}
+            </button>
+        </div>
+
+        <!-- Skeleton -->
+        <div v-if="loading" class="space-y-2">
+            <div v-for="i in 6" :key="i" class="bg-white rounded-2xl border border-gray-100 p-4 flex items-center gap-4">
+                <div class="skeleton w-10 h-10 rounded-xl shrink-0" />
+                <div class="flex-1 space-y-2">
+                    <div class="skeleton h-4 w-1/2 rounded" />
+                    <div class="skeleton h-3 w-1/3 rounded" />
+                </div>
+                <div class="skeleton h-5 w-12 rounded-full" />
+            </div>
+        </div>
+
+        <!-- Spare part list -->
+        <div v-else-if="filteredParts.length" class="space-y-2">
+            <div
+                v-for="part in filteredParts"
+                :key="part.id"
+                class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-start gap-4"
+            >
+                <!-- Category icon -->
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5" :class="categoryBg[part.category_type] ?? 'bg-gray-100'">
+                    <span class="text-base">{{ categoryEmoji[part.category_type] ?? '🔧' }}</span>
+                </div>
+
+                <!-- Content -->
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-start gap-2 flex-wrap mb-1">
+                        <span class="font-mono text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">{{ part.code }}</span>
+                        <span v-if="part.abc_classification" :class="abcBadge[part.abc_classification]" class="text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                            {{ part.abc_classification }}
+                        </span>
+                        <span v-if="part.criticality" :class="criticalityBadge[part.criticality]" class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full">
+                            {{ criticalityLabel[part.criticality] }}
+                        </span>
+                    </div>
+                    <p class="text-sm font-semibold text-gray-900 leading-snug">{{ part.name }}</p>
+                    <p v-if="part.description" class="text-xs text-gray-400 mt-0.5 line-clamp-1">{{ part.description }}</p>
+                    <p v-if="part.manufacturer" class="text-xs text-gray-400 mt-0.5">{{ part.manufacturer.name }}</p>
+                </div>
+
+                <!-- Cost -->
+                <div v-if="part.unit_cost != null" class="text-right shrink-0">
+                    <p class="text-sm font-bold text-gray-900">${{ part.unit_cost.toFixed(2) }}</p>
+                    <p class="text-[10px] text-gray-400">/ {{ part.unit }}</p>
+                </div>
+                <div v-else class="text-right shrink-0">
+                    <p class="text-xs text-gray-400">{{ part.unit }}</p>
+                </div>
+            </div>
+
+            <!-- Load more -->
+            <button
+                v-if="nextCursor"
+                @click="loadMore"
+                :disabled="loadingMore"
+                class="w-full py-3 text-sm text-gray-500 hover:text-gray-700 font-medium transition-colors"
+            >
+                {{ loadingMore ? 'Cargando…' : 'Cargar más' }}
+            </button>
+        </div>
+
+        <!-- Empty -->
+        <div v-else class="flex flex-col items-center justify-center py-20 text-center">
+            <div class="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
+                <svg class="w-8 h-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 7.5l-2.25-1.313M21 7.5v2.25m0-2.25l-2.25 1.313M3 7.5l2.25-1.313M3 7.5l2.25 1.313M3 7.5v2.25m9 3l2.25-1.313M12 12.75l-2.25-1.313M12 12.75V15m0 6.75l2.25-1.313M12 21.75V19.5m0 2.25l-2.25-1.313m0-16.875L12 2.25l2.25 1.313M21 14.25v2.25l-2.25 1.313m-13.5 0L3 16.5v-2.25" />
+                </svg>
+            </div>
+            <p class="text-sm font-medium text-gray-700">Sin repuestos</p>
+            <p class="text-xs text-gray-400 mt-1">
+                {{ search ? 'No se encontraron resultados para tu búsqueda' : 'No hay repuestos registrados' }}
+            </p>
+        </div>
+
+    </div>
+</template>
+
+<script setup>
+import { ref, computed, watch, onMounted } from 'vue'
+import { useApi } from '../composables/useApi.js'
+
+const api = useApi()
+const allParts = ref([])
+const loading = ref(true)
+const loadingMore = ref(false)
+const nextCursor = ref(null)
+const total = ref(0)
+const search = ref('')
+const activeCategory = ref('')
+
+const categoryFilters = [
+    { label: 'Todos', value: '' },
+    { label: 'Mecánico', value: 'mechanical' },
+    { label: 'Eléctrico', value: 'electrical' },
+    { label: 'Instrumentación', value: 'instrumentation' },
+    { label: 'Lubricación', value: 'lubrication' },
+    { label: 'Consumible', value: 'consumable' },
+    { label: 'Seguridad', value: 'safety' },
+    { label: 'Otro', value: 'other' },
+]
+
+const categoryBg = {
+    mechanical: 'bg-blue-50', electrical: 'bg-yellow-50', instrumentation: 'bg-purple-50',
+    lubrication: 'bg-green-50', consumable: 'bg-gray-100', safety: 'bg-red-50', other: 'bg-gray-100',
+}
+
+const categoryEmoji = {
+    mechanical: '⚙️', electrical: '⚡', instrumentation: '📡',
+    lubrication: '🛢️', consumable: '📦', safety: '🦺', other: '🔧',
+}
+
+const criticalityLabel = { critical: 'Crítico', high: 'Alto', medium: 'Medio', low: 'Bajo' }
+const criticalityBadge = {
+    critical: 'bg-red-100 text-red-700',
+    high: 'bg-orange-100 text-orange-700',
+    medium: 'bg-yellow-100 text-yellow-700',
+    low: 'bg-gray-100 text-gray-600',
+}
+const abcBadge = {
+    A: 'bg-red-100 text-red-700',
+    B: 'bg-amber-100 text-amber-700',
+    C: 'bg-gray-100 text-gray-600',
+}
+
+// ── Client-side filter ────────────────────────────────────────────────────────
+
+const filteredParts = computed(() => {
+    const q = search.value.trim().toLowerCase()
+    return allParts.value.filter(p => {
+        const matchesSearch = !q
+            || p.code?.toLowerCase().includes(q)
+            || p.name?.toLowerCase().includes(q)
+            || p.description?.toLowerCase().includes(q)
+        return matchesSearch
+    })
+})
+
+// ── API ───────────────────────────────────────────────────────────────────────
+
+function buildParams(cursor = null) {
+    const params = new URLSearchParams({ per_page: '100' })
+    if (activeCategory.value) { params.set('category_type', activeCategory.value) }
+    params.set('is_active', 'true')
+    if (cursor) { params.set('cursor', cursor) }
+    return params.toString()
+}
+
+async function load() {
+    loading.value = true
+    nextCursor.value = null
+    try {
+        const res = await api.get(`inventory/spare-parts?${buildParams()}`)
+        allParts.value = res?.data ?? []
+        total.value = res?.meta?.total ?? allParts.value.length
+        nextCursor.value = res?.meta?.next_cursor ?? null
+    } catch { /* silent */ } finally {
+        loading.value = false
+    }
+}
+
+async function loadMore() {
+    if (!nextCursor.value || loadingMore.value) { return }
+    loadingMore.value = true
+    try {
+        const res = await api.get(`inventory/spare-parts?${buildParams(nextCursor.value)}`)
+        allParts.value = [...allParts.value, ...(res?.data ?? [])]
+        nextCursor.value = res?.meta?.next_cursor ?? null
+    } catch { /* silent */ } finally {
+        loadingMore.value = false
+    }
+}
+
+watch(activeCategory, load)
+onMounted(load)
+</script>

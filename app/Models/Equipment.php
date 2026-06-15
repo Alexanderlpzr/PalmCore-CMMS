@@ -164,6 +164,11 @@ class Equipment extends BaseModel
         return $this->hasOne(EquipmentKpi::class);
     }
 
+    public function lastWorkOrder(): HasOne
+    {
+        return $this->hasOne(WorkOrder::class)->latestOfMany('created_at');
+    }
+
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');

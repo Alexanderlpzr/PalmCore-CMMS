@@ -42,7 +42,11 @@ class MaintenanceRequestController extends Controller
     {
         abort_if(! $request->user()->tokenCan('maintenance-requests.read') && ! $request->user()->tokenCan('*'), 403);
 
-        $maintenanceRequest = MaintenanceRequest::with(['equipment'])->findOrFail($id);
+        $maintenanceRequest = MaintenanceRequest::with([
+            'equipment',
+            'comments.user',
+            'workOrder',
+        ])->findOrFail($id);
 
         return new MaintenanceRequestResource($maintenanceRequest);
     }

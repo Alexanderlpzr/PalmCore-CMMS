@@ -16,8 +16,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'name',
     'description',
     'icon',
+    'color',
     'sort_order',
     'is_active',
+    'is_component_type',
 ])]
 class EquipmentCategory extends BaseModel
 {
@@ -52,7 +54,8 @@ class EquipmentCategory extends BaseModel
     protected function casts(): array
     {
         return [
-            'is_active'  => 'boolean',
+            'is_active' => 'boolean',
+            'is_component_type' => 'boolean',
             'sort_order' => 'integer',
         ];
     }

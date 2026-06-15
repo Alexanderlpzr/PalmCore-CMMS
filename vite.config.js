@@ -14,6 +14,8 @@ export default defineConfig({
                 'resources/js/passkeys.js',
                 'resources/css/mobile.css',
                 'resources/js/mobile/main.js',
+                'resources/css/ops.css',
+                'resources/js/ops/main.js',
             ],
             refresh: true,
             fonts: [

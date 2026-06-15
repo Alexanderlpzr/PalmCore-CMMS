@@ -64,7 +64,14 @@ class WorkOrderController extends Controller
     {
         abort_if(! $request->user()->tokenCan('work-orders.read') && ! $request->user()->tokenCan('*'), 403);
 
-        $workOrder = WorkOrder::with(['equipment'])->findOrFail($id);
+        $workOrder = WorkOrder::with([
+            'equipment',
+            'plant',
+            'area',
+            'technicians.user',
+            'comments.user',
+            'parts',
+        ])->findOrFail($id);
 
         return new WorkOrderResource($workOrder);
     }

@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+:root {
+    --fronda-primary: #0F4C5C;
+    --fronda-success: #2E8B57;
+    --fronda-sidebar: #0F172A;
+    --fronda-sidebar-hover: rgba(255,255,255,0.06);
+    --fronda-sidebar-active: rgba(46,139,87,0.15);
+    --fronda-sidebar-active-border: #2E8B57;
+}
+
+/* Safe area padding for iOS notch/home bar */
+.pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+.pt-safe { padding-top: env(safe-area-inset-top); }
+
+/* Skeleton loader pulse */
+@keyframes skeleton-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+.skeleton {
+    animation: skeleton-pulse 1.5s ease-in-out infinite;
+    background-color: #e2e8f0;
+    border-radius: 0.375rem;
+}
+
+/* Sidebar transition */
+.sidebar-enter-active,
+.sidebar-leave-active {
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.sidebar-enter-from,
+.sidebar-leave-to {
+    transform: translateX(-100%);
+}

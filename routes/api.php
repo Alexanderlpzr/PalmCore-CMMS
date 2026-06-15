@@ -4,14 +4,18 @@ use App\Http\Controllers\Api\V1\AlertController;
 use App\Http\Controllers\Api\V1\ApiTokenController;
 use App\Http\Controllers\Api\V1\AreaController;
 use App\Http\Controllers\Api\V1\DowntimeEventController;
+use App\Http\Controllers\Api\V1\EquipmentActivityController;
+use App\Http\Controllers\Api\V1\EquipmentCategoryController;
 use App\Http\Controllers\Api\V1\EquipmentController;
 use App\Http\Controllers\Api\V1\EquipmentKpiController;
 use App\Http\Controllers\Api\V1\InventoryTransactionController;
+use App\Http\Controllers\Api\V1\MaintenancePlanController;
 use App\Http\Controllers\Api\V1\MaintenanceRequestController;
 use App\Http\Controllers\Api\V1\PlantController;
 use App\Http\Controllers\Api\V1\PushSubscriptionController;
 use App\Http\Controllers\Api\V1\SparePartController;
 use App\Http\Controllers\Api\V1\TokenRefreshController;
+use App\Http\Controllers\Api\V1\WarehouseController;
 use App\Http\Controllers\Api\V1\WorkOrderCommentController;
 use App\Http\Controllers\Api\V1\WorkOrderController;
 use App\Http\Controllers\Api\V1\WorkOrderMediaController;
@@ -47,7 +51,15 @@ Route::prefix('v1')->group(function () {
         // Equipment — by-qr must be registered before apiResource to avoid {id} catch
         Route::get('equipment/by-qr/{qr_token}', [EquipmentController::class, 'byQrToken'])
             ->name('api.v1.equipment.by-qr');
+        Route::get('equipment/{id}/activity', [EquipmentActivityController::class, 'index'])
+            ->name('api.v1.equipment.activity');
         Route::apiResource('equipment', EquipmentController::class)->only(['index', 'show']);
+        Route::post('equipment', [EquipmentController::class, 'store'])
+            ->middleware('idempotency')
+            ->name('api.v1.equipment.store');
+
+        Route::get('equipment-categories', [EquipmentCategoryController::class, 'index'])
+            ->name('api.v1.equipment-categories.index');
 
         // Work Orders — mine must be registered before apiResource to avoid {id} catch
         Route::get('work-orders/mine', [WorkOrderController::class, 'mine'])
@@ -69,6 +81,8 @@ Route::prefix('v1')->group(function () {
         Route::post('work-orders/{workOrder}/signature', [WorkOrderSignatureController::class, 'store'])
             ->name('api.v1.work-orders.signature.store');
 
+        Route::apiResource('maintenance-plans', MaintenancePlanController::class)->only(['index', 'show']);
+
         Route::apiResource('maintenance-requests', MaintenanceRequestController::class)->only(['index', 'show']);
         Route::post('maintenance-requests', [MaintenanceRequestController::class, 'store'])
             ->middleware('idempotency')
@@ -81,6 +95,7 @@ Route::prefix('v1')->group(function () {
             ->name('api.v1.inventory.transactions.store');
 
         Route::apiResource('inventory/spare-parts', SparePartController::class)->only(['index', 'show']);
+        Route::apiResource('inventory/warehouses', WarehouseController::class)->only(['index', 'show']);
         Route::apiResource('downtime-events', DowntimeEventController::class)->only(['index', 'show']);
         Route::apiResource('plants', PlantController::class)->only(['index', 'show']);
         Route::apiResource('areas', AreaController::class)->only(['index', 'show']);

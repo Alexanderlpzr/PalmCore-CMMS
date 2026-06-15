@@ -50,14 +50,22 @@ class EquipmentCategoryForm
                             ->maxLength(100)
                             ->placeholder('heroicon-o-tag')
                             ->helperText('Nombre de icono Heroicon (opcional)'),
+                        TextInput::make('color')
+                            ->label('Color')
+                            ->maxLength(20)
+                            ->placeholder('emerald, blue, red, amber…')
+                            ->helperText('Nombre de color Tailwind para el badge de categoría'),
                         TextInput::make('sort_order')
                             ->label('Orden')
                             ->numeric()
                             ->default(0),
                         Toggle::make('is_active')
                             ->label('Activa')
-                            ->default(true)
-                            ->columnSpanFull(),
+                            ->default(true),
+                        Toggle::make('is_component_type')
+                            ->label('Es tipo de componente')
+                            ->helperText('Marca esta categoría para usarla al registrar sub-componentes de equipos')
+                            ->default(false),
                     ]),
             ]);
     }

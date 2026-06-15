@@ -26,6 +26,11 @@ Route::middleware(['auth', 'signed'])->group(function () {
 
 require __DIR__.'/settings.php';
 
+// Operations Panel SPA — Vue 3 desktop/mobile app
+Route::get('/app/{any?}', fn () => view('ops.app'))
+    ->where('any', '.*')
+    ->name('ops.app');
+
 // Mobile PWA catch-all — must remain last so it doesn't shadow specific routes
 Route::view('/mobile/{any}', 'mobile.app')
     ->where('any', '.*')
