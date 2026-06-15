@@ -24,7 +24,7 @@
         <!-- Caption -->
         <div class="space-y-1.5">
             <label class="block text-sm font-medium text-zinc-400">
-                Descripción <span class="text-zinc-600">(opcional)</span>
+                Descripción <span class="text-zinc-400">(opcional)</span>
             </label>
             <input
                 v-model="caption"
@@ -65,7 +65,7 @@
                         @click="uploadPreview"
                         class="py-3.5 rounded-2xl font-semibold text-sm transition"
                         :class="status
-                            ? 'bg-zinc-700 text-zinc-500 cursor-not-allowed'
+                            ? 'bg-zinc-700 text-zinc-400 cursor-not-allowed'
                             : 'bg-amber-500 text-zinc-900 active:scale-95'"
                     >
                         {{ status ?? 'Subir esta foto' }}
@@ -92,7 +92,7 @@
                 @click="fileInput.click()"
                 class="w-full py-4 rounded-2xl font-semibold text-base transition"
                 :class="status
-                    ? 'bg-zinc-700 text-zinc-500 cursor-not-allowed'
+                    ? 'bg-zinc-700 text-zinc-400 cursor-not-allowed'
                     : 'bg-amber-500 text-zinc-900 active:scale-95'"
             >
                 {{ status ?? 'Tomar foto' }}

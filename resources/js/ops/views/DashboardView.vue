@@ -1,5 +1,5 @@
 <template>
-    <div class="p-5 lg:p-8 max-w-6xl mx-auto space-y-7">
+    <div class="p-5 lg:p-8 max-w-4xl mx-auto space-y-7">
 
         <!-- Header -->
         <div>
@@ -17,71 +17,39 @@
             />
         </div>
 
-        <!-- Mis OTs + Actividad (2 columns on desktop) -->
-        <div class="grid lg:grid-cols-5 gap-5">
+        <!-- Mis órdenes de trabajo -->
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                <h2 class="text-sm font-semibold text-gray-800">Mis órdenes de trabajo</h2>
+                <RouterLink :to="{ name: 'ops.ordenes' }" class="text-xs text-emerald-600 hover:text-emerald-700 font-medium">Ver todas</RouterLink>
+            </div>
 
-            <!-- Mis órdenes de trabajo (left, wider) -->
-            <div class="lg:col-span-3 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-                    <h2 class="text-sm font-semibold text-gray-800">Mis órdenes de trabajo</h2>
-                    <RouterLink :to="{ name: 'ops.ordenes' }" class="text-xs text-emerald-600 hover:text-emerald-700 font-medium">Ver todas</RouterLink>
-                </div>
-
-                <!-- Loading skeleton -->
-                <div v-if="loadingWOs" class="divide-y divide-gray-50">
-                    <div v-for="i in 3" :key="i" class="px-5 py-4 flex items-center gap-3">
-                        <div class="skeleton w-8 h-8 rounded-lg" />
-                        <div class="flex-1 space-y-2">
-                            <div class="skeleton h-3 w-3/4 rounded" />
-                            <div class="skeleton h-2.5 w-1/2 rounded" />
-                        </div>
+            <!-- Loading skeleton -->
+            <div v-if="loadingWOs" class="divide-y divide-gray-50">
+                <div v-for="i in 3" :key="i" class="px-5 py-4 flex items-center gap-3">
+                    <div class="skeleton w-8 h-8 rounded-lg" />
+                    <div class="flex-1 space-y-2">
+                        <div class="skeleton h-3 w-3/4 rounded" />
+                        <div class="skeleton h-2.5 w-1/2 rounded" />
                     </div>
-                </div>
-
-                <!-- Empty state -->
-                <div v-else-if="myWorkOrders.length === 0" class="flex flex-col items-center justify-center py-12 px-5 text-center">
-                    <div class="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center mb-3">
-                        <svg class="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
-                    </div>
-                    <p class="text-sm font-medium text-gray-700">Sin órdenes asignadas</p>
-                    <p class="text-xs text-gray-400 mt-1">No tienes OTs activas en este momento</p>
-                </div>
-
-                <!-- WO list -->
-                <div v-else class="divide-y divide-gray-50">
-                    <WorkOrderRow v-for="wo in myWorkOrders" :key="wo.id" :wo="wo" />
                 </div>
             </div>
 
-            <!-- Actividad reciente (right, narrower) -->
-            <div class="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-                    <h2 class="text-sm font-semibold text-gray-800">Actividad reciente</h2>
+            <!-- Empty state -->
+            <div v-else-if="myWorkOrders.length === 0" class="flex flex-col items-center justify-center py-12 px-5 text-center">
+                <div class="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center mb-3">
+                    <svg class="w-6 h-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
                 </div>
-
-                <div v-if="loadingActivity" class="px-5 py-4 space-y-4">
-                    <div v-for="i in 4" :key="i" class="flex gap-3">
-                        <div class="skeleton w-6 h-6 rounded-full mt-0.5 shrink-0" />
-                        <div class="flex-1 space-y-1.5">
-                            <div class="skeleton h-2.5 w-full rounded" />
-                            <div class="skeleton h-2 w-2/3 rounded" />
-                        </div>
-                    </div>
-                </div>
-
-                <div v-else class="flex flex-col items-center justify-center py-12 px-5 text-center">
-                    <div class="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center mb-3">
-                        <svg class="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
-                    </div>
-                    <p class="text-sm font-medium text-gray-700">Sin actividad reciente</p>
-                    <p class="text-xs text-gray-400 mt-1">Aquí verás los últimos eventos del sistema</p>
-                </div>
+                <p class="text-sm font-medium text-gray-700">Sin órdenes asignadas</p>
+                <p class="text-xs text-gray-500 mt-1">No tienes OTs activas asignadas en este momento</p>
             </div>
 
+            <!-- WO list -->
+            <div v-else class="divide-y divide-gray-50">
+                <WorkOrderRow v-for="wo in myWorkOrders" :key="wo.id" :wo="wo" />
+            </div>
         </div>
     </div>
 </template>
@@ -97,21 +65,20 @@ const api = useApi()
 
 const loadingStats = ref(true)
 const loadingWOs = ref(true)
-const loadingActivity = ref(false)
 const myWorkOrders = ref([])
 
-const statsData = ref({ openWOs: 0, pendingMRs: 0, criticalAlerts: 0, offlineEquipment: 0 })
+const statsData = ref({ activeWOs: 0, pendingMRs: 0, criticalAlerts: 0, maintenanceEquipment: 0 })
 
 const firstName = computed(() => (auth.userName ?? '').split(' ')[0] || 'Usuario')
 
 const formattedDate = computed(() => {
-    return new Date().toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+    return new Date().toLocaleDateString('es', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
 })
 
 const stats = computed(() => [
     {
-        label: 'OTs abiertas',
-        value: statsData.value.openWOs,
+        label: 'OTs activas',
+        value: statsData.value.activeWOs,
         color: 'text-blue-600',
         bg: 'bg-blue-50',
         icon: `<path stroke-linecap="round" stroke-linejoin="round" d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>`,
@@ -134,8 +101,8 @@ const stats = computed(() => [
         to: 'ops.alertas',
     },
     {
-        label: 'Equipos f. servicio',
-        value: statsData.value.offlineEquipment,
+        label: 'Equipos en mantenimiento',
+        value: statsData.value.maintenanceEquipment,
         color: 'text-slate-600',
         bg: 'bg-slate-100',
         icon: `<path stroke-linecap="round" stroke-linejoin="round" d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>`,
@@ -165,32 +132,49 @@ const WorkOrderRow = defineComponent({
     props: { wo: Object },
     setup(props) {
         const priorityColors = { p1_critical: 'bg-red-100 text-red-700', p2_high: 'bg-orange-100 text-orange-700', p3_medium: 'bg-yellow-100 text-yellow-700', p4_low: 'bg-gray-100 text-gray-600' }
-        const statusColors = { open: 'bg-blue-100 text-blue-700', in_progress: 'bg-indigo-100 text-indigo-700', completed: 'bg-emerald-100 text-emerald-700' }
-        return () => h('div', { class: 'px-5 py-3.5 flex items-start gap-3 hover:bg-gray-50 transition-colors cursor-pointer' }, [
+        return () => h(RouterLink, { to: { name: 'ops.ordenes.show', params: { id: props.wo.id } }, class: 'px-5 py-3.5 flex items-start gap-3 hover:bg-gray-50 transition-colors' }, () => [
             h('div', { class: 'w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0 mt-0.5' }, [
                 h('svg', { class: 'w-4 h-4 text-indigo-600', fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '2', innerHTML: `<path stroke-linecap="round" stroke-linejoin="round" d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>` }),
             ]),
             h('div', { class: 'flex-1 min-w-0' }, [
                 h('p', { class: 'text-sm font-medium text-gray-900 truncate' }, props.wo.title),
-                h('p', { class: 'text-xs text-gray-400 mt-0.5' }, `${props.wo.work_order_number} · ${props.wo.equipment?.code ?? '—'}`),
+                h('p', { class: 'text-xs text-gray-500 mt-0.5' }, `${props.wo.work_order_number} · ${props.wo.equipment?.code ?? '—'}`),
             ]),
-            h('span', { class: `text-[10px] font-semibold px-2 py-0.5 rounded-full ${priorityColors[props.wo.priority] ?? 'bg-gray-100 text-gray-600'}` }, props.wo.priority?.toUpperCase().replace('_', ' ')),
+            h('span', { class: `text-xs font-semibold px-2 py-0.5 rounded-full ${priorityColors[props.wo.priority] ?? 'bg-gray-100 text-gray-600'}` }, props.wo.priority?.toUpperCase().replace('_', ' ')),
         ])
     },
 })
 
+/** Reads meta.total from an offset-paginated list response (page=1). */
+async function countOf(path) {
+    const res = await api.get(path)
+    return res?.meta?.total ?? res?.data?.length ?? 0
+}
+
 onMounted(async () => {
     try {
-        const [woRes, mrRes] = await Promise.allSettled([
-            api.get('work-orders?filter[status]=open,in_progress&per_page=100'),
-            api.get('maintenance-requests?filter[status]=pending,under_review&per_page=100'),
+        const [woMine, activeWOs, pendingMRs, criticalAlerts, maintEquip] = await Promise.allSettled([
+            api.get('work-orders/mine?status=planned,in_progress,on_hold&per_page=5'),
+            countOf('work-orders?status=planned,in_progress,on_hold&page=1&per_page=1'),
+            countOf('maintenance-requests?status=submitted,under_review&page=1&per_page=1'),
+            api.get('alerts/count?severity=critical'),
+            countOf('equipment?status=under_maintenance&page=1&per_page=1'),
         ])
-        if (woRes.status === 'fulfilled') {
-            statsData.value.openWOs = woRes.value?.meta?.total ?? woRes.value?.data?.length ?? 0
-            myWorkOrders.value = (woRes.value?.data ?? []).slice(0, 5)
+
+        if (woMine.status === 'fulfilled') {
+            myWorkOrders.value = woMine.value?.data ?? []
         }
-        if (mrRes.status === 'fulfilled') {
-            statsData.value.pendingMRs = mrRes.value?.meta?.total ?? mrRes.value?.data?.length ?? 0
+        if (activeWOs.status === 'fulfilled') {
+            statsData.value.activeWOs = activeWOs.value
+        }
+        if (pendingMRs.status === 'fulfilled') {
+            statsData.value.pendingMRs = pendingMRs.value
+        }
+        if (criticalAlerts.status === 'fulfilled') {
+            statsData.value.criticalAlerts = criticalAlerts.value?.count ?? 0
+        }
+        if (maintEquip.status === 'fulfilled') {
+            statsData.value.maintenanceEquipment = maintEquip.value
         }
     } catch { /* silent */ } finally {
         loadingStats.value = false

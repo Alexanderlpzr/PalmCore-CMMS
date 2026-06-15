@@ -5,7 +5,7 @@
         <div class="flex items-center justify-between mb-6">
             <div>
                 <h1 class="text-xl font-bold text-gray-900">Alertas</h1>
-                <p v-if="!loading" class="text-sm text-gray-400 mt-0.5">{{ total }} alerta{{ total !== 1 ? 's' : '' }}</p>
+                <p v-if="!loading" class="text-sm text-gray-500 mt-0.5">{{ total }} alerta{{ total !== 1 ? 's' : '' }}</p>
             </div>
         </div>
 
@@ -76,20 +76,20 @@
                         <!-- Content -->
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-2 mb-1 flex-wrap">
-                                <span class="text-[10px] font-bold uppercase tracking-wide" :class="severityTextColor[alert.severity]">
+                                <span class="text-xs font-bold uppercase tracking-wide" :class="severityTextColor[alert.severity]">
                                     {{ severityLabel[alert.severity] }}
                                 </span>
-                                <span class="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{{ categoryLabel[alert.category] ?? alert.category }}</span>
+                                <span class="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full">{{ categoryLabel[alert.category] ?? alert.category }}</span>
                             </div>
                             <p class="text-sm font-semibold text-gray-900 leading-snug">{{ alert.title }}</p>
                             <p class="text-xs text-gray-500 mt-1 leading-relaxed">{{ alert.message }}</p>
-                            <p class="text-[10px] text-gray-400 mt-2">{{ relativeTime(alert.created_at) }}</p>
+                            <p class="text-xs text-gray-500 mt-2">{{ relativeTime(alert.created_at) }}</p>
                         </div>
 
                         <!-- Status badge for closed -->
                         <span
                             v-if="alert.status !== 'open'"
-                            class="shrink-0 text-[10px] font-bold px-2 py-1 rounded-full"
+                            class="shrink-0 text-xs font-bold px-2 py-1 rounded-full"
                             :class="alert.status === 'resolved' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'"
                         >
                             {{ alert.status === 'resolved' ? 'Resuelta' : 'Descartada' }}
@@ -129,15 +129,12 @@
         </div>
 
         <!-- Empty -->
-        <div v-else class="flex flex-col items-center justify-center py-20 text-center">
-            <div class="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
-                <svg class="w-8 h-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
-                </svg>
-            </div>
-            <p class="text-sm font-medium text-gray-700">Sin alertas</p>
-            <p class="text-xs text-gray-400 mt-1">No hay alertas {{ activeStatus === 'open' ? 'abiertas' : 'cerradas' }} con los filtros actuales</p>
-        </div>
+        <EmptyState
+            v-else
+            icon="bell"
+            title="Sin alertas"
+            :subtitle="`No hay alertas ${activeStatus === 'open' ? 'abiertas' : 'cerradas'} con los filtros actuales.`"
+        />
 
     </div>
 </template>
@@ -145,6 +142,7 @@
 <script setup>
 import { ref, watch, onMounted } from 'vue'
 import { useApi } from '../composables/useApi.js'
+import EmptyState from '../components/EmptyState.vue'
 
 const api = useApi()
 const alerts = ref([])
@@ -190,7 +188,7 @@ function relativeTime(iso) {
     if (h < 24) { return `hace ${h}h` }
     const d = Math.floor(h / 24)
     if (d < 7) { return `hace ${d}d` }
-    return new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
+    return new Date(iso).toLocaleDateString('es', { day: 'numeric', month: 'short' })
 }
 
 function buildParams(cursor = null) {

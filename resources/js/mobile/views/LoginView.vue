@@ -5,10 +5,10 @@
         <!-- Branding -->
         <div class="mb-10 text-center">
             <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-amber-500 mb-4">
-                <span class="text-2xl font-bold text-zinc-950">P</span>
+                <span class="text-2xl font-bold text-zinc-950">F</span>
             </div>
-            <h1 class="text-2xl font-bold text-zinc-100">PalmCore</h1>
-            <p class="text-sm text-zinc-500 mt-1">Gestión de mantenimiento</p>
+            <h1 class="text-2xl font-bold text-zinc-100">Fronda</h1>
+            <p class="text-sm text-zinc-400 mt-1">Gestión de mantenimiento</p>
         </div>
 
         <!-- Form -->

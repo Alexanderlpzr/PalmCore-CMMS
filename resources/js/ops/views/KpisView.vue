@@ -4,7 +4,7 @@
         <!-- Header -->
         <div class="mb-6">
             <h1 class="text-xl font-bold text-gray-900">KPIs de Confiabilidad</h1>
-            <p v-if="!loading" class="text-sm text-gray-400 mt-0.5">{{ kpis.length }} equipos con datos del último período</p>
+            <p v-if="!loading" class="text-sm text-gray-500 mt-0.5">{{ kpis.length }} equipos con datos del último período</p>
         </div>
 
         <!-- Skeleton -->
@@ -31,19 +31,19 @@
             <!-- Fleet summary -->
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
                 <div class="bg-white rounded-2xl border border-gray-100 p-4">
-                    <p class="text-xs text-gray-400 mb-1">Disponibilidad flota</p>
+                    <p class="text-xs text-gray-500 mb-1">Disponibilidad flota</p>
                     <p class="text-2xl font-bold" :class="availColor(fleetAvailability)">{{ fleetAvailability.toFixed(1) }}%</p>
                 </div>
                 <div class="bg-white rounded-2xl border border-gray-100 p-4">
-                    <p class="text-xs text-gray-400 mb-1">MTBF promedio</p>
-                    <p class="text-2xl font-bold text-gray-900">{{ fleetMtbf.toFixed(0) }} <span class="text-sm font-normal text-gray-400">h</span></p>
+                    <p class="text-xs text-gray-500 mb-1">MTBF promedio</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ fleetMtbf.toFixed(0) }} <span class="text-sm font-normal text-gray-500">h</span></p>
                 </div>
                 <div class="bg-white rounded-2xl border border-gray-100 p-4">
-                    <p class="text-xs text-gray-400 mb-1">Total fallas</p>
+                    <p class="text-xs text-gray-500 mb-1">Total fallas</p>
                     <p class="text-2xl font-bold text-gray-900">{{ fleetFailures }}</p>
                 </div>
                 <div class="bg-white rounded-2xl border border-gray-100 p-4">
-                    <p class="text-xs text-gray-400 mb-1">Equipos analizados</p>
+                    <p class="text-xs text-gray-500 mb-1">Equipos analizados</p>
                     <p class="text-2xl font-bold text-gray-900">{{ kpis.length }}</p>
                 </div>
             </div>
@@ -65,7 +65,7 @@
 
             <!-- Sort control -->
             <div class="flex items-center gap-3 mb-4">
-                <span class="text-xs text-gray-400">Ordenar por:</span>
+                <span class="text-xs text-gray-500">Ordenar por:</span>
                 <select
                     v-model="sortBy"
                     class="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -98,7 +98,7 @@
                                     :stroke-dasharray="`${(kpi.availability_percentage ?? 0) * 1.1310} 113.10`"
                                 />
                             </svg>
-                            <span class="absolute inset-0 flex items-center justify-center text-[9px] font-bold" :class="availColor(kpi.availability_percentage ?? 0)">
+                            <span class="absolute inset-0 flex items-center justify-center text-xs font-bold" :class="availColor(kpi.availability_percentage ?? 0)">
                                 {{ kpi.availability_percentage != null ? kpi.availability_percentage.toFixed(0) : '—' }}%
                             </span>
                         </div>
@@ -110,11 +110,11 @@
                             >
                                 {{ kpi.equipment.name }}
                             </RouterLink>
-                            <p class="text-xs text-gray-400 font-mono">{{ kpi.equipment.code }}</p>
+                            <p class="text-xs text-gray-500 font-mono">{{ kpi.equipment.code }}</p>
                         </div>
 
                         <div class="text-right shrink-0">
-                            <p class="text-[10px] text-gray-400">Período</p>
+                            <p class="text-xs text-gray-500">Período</p>
                             <p class="text-xs font-medium text-gray-700">{{ formatPeriod(kpi.period_start, kpi.period_end) }}</p>
                         </div>
                     </div>
@@ -122,25 +122,25 @@
                     <!-- Metrics row -->
                     <div class="grid grid-cols-4 gap-0 border-t border-gray-50">
                         <div class="px-3 py-2.5 border-r border-gray-50 text-center">
-                            <p class="text-[10px] text-gray-400 mb-0.5">Disponib.</p>
+                            <p class="text-xs text-gray-500 mb-0.5">Disponib.</p>
                             <p class="text-sm font-bold" :class="availColor(kpi.availability_percentage ?? 0)">
                                 {{ kpi.availability_percentage != null ? kpi.availability_percentage.toFixed(1) + '%' : '—' }}
                             </p>
                         </div>
                         <div class="px-3 py-2.5 border-r border-gray-50 text-center">
-                            <p class="text-[10px] text-gray-400 mb-0.5">MTBF</p>
+                            <p class="text-xs text-gray-500 mb-0.5">MTBF</p>
                             <p class="text-sm font-bold text-gray-900">
                                 {{ kpi.mtbf_hours != null ? kpi.mtbf_hours.toFixed(0) + ' h' : '—' }}
                             </p>
                         </div>
                         <div class="px-3 py-2.5 border-r border-gray-50 text-center">
-                            <p class="text-[10px] text-gray-400 mb-0.5">MTTR</p>
+                            <p class="text-xs text-gray-500 mb-0.5">MTTR</p>
                             <p class="text-sm font-bold text-gray-900">
                                 {{ kpi.mttr_hours != null ? kpi.mttr_hours.toFixed(1) + ' h' : '—' }}
                             </p>
                         </div>
                         <div class="px-3 py-2.5 text-center">
-                            <p class="text-[10px] text-gray-400 mb-0.5">Fallas</p>
+                            <p class="text-xs text-gray-500 mb-0.5">Fallas</p>
                             <p class="text-sm font-bold" :class="kpi.failure_count > 0 ? 'text-red-600' : 'text-gray-900'">
                                 {{ kpi.failure_count ?? 0 }}
                             </p>
@@ -162,15 +162,12 @@
         </template>
 
         <!-- Empty -->
-        <div v-else class="flex flex-col items-center justify-center py-20 text-center">
-            <div class="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
-                <svg class="w-8 h-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
-                </svg>
-            </div>
-            <p class="text-sm font-medium text-gray-700">Sin datos de KPI</p>
-            <p class="text-xs text-gray-400 mt-1">Los KPIs se calculan automáticamente con el registro de mantenimientos</p>
-        </div>
+        <EmptyState
+            v-else
+            icon="chartBar"
+            title="Sin datos de KPI"
+            subtitle="Los KPIs se calculan automáticamente con el registro de mantenimientos."
+        />
 
     </div>
 </template>
@@ -179,6 +176,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useApi } from '../composables/useApi.js'
+import EmptyState from '../components/EmptyState.vue'
 
 const api = useApi()
 const kpis = ref([])
@@ -246,7 +244,7 @@ function availStroke(pct) {
 function formatPeriod(start, end) {
     if (!start || !end) { return '—' }
     const fmt = { month: 'short', year: 'numeric' }
-    return `${new Date(start).toLocaleDateString('es-MX', fmt)} — ${new Date(end).toLocaleDateString('es-MX', fmt)}`
+    return `${new Date(start).toLocaleDateString('es', fmt)} — ${new Date(end).toLocaleDateString('es', fmt)}`
 }
 
 // ── API ───────────────────────────────────────────────────────────────────────

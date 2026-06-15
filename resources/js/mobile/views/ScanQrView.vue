@@ -9,8 +9,8 @@
                     class="rounded-2xl overflow-hidden bg-zinc-900 w-full"
                     style="min-height: 300px;"
                 />
-                <p class="text-sm text-zinc-500 text-center mt-3">
-                    Apuntá al código QR del equipo
+                <p class="text-sm text-zinc-400 text-center mt-3">
+                    Apunta al código QR del equipo
                 </p>
             </div>
 
@@ -28,7 +28,7 @@
                     </svg>
                 </div>
                 <p class="text-sm text-zinc-300 font-medium">{{ cameraError }}</p>
-                <p class="text-xs text-zinc-500">Ingresá el token del QR manualmente</p>
+                <p class="text-xs text-zinc-400">Ingresa el token del QR manualmente</p>
             </div>
 
             <!-- Manual token fallback -->
@@ -50,7 +50,7 @@
                     @click="handleManualLookup"
                     class="w-full py-4 rounded-2xl font-semibold text-base transition"
                     :class="searching
-                        ? 'bg-zinc-700 text-zinc-500 cursor-not-allowed'
+                        ? 'bg-zinc-700 text-zinc-400 cursor-not-allowed'
                         : 'bg-amber-500 text-zinc-900 active:scale-95'"
                 >
                     {{ searching ? 'Buscando…' : 'Buscar equipo' }}
@@ -83,7 +83,7 @@ const manualToken = ref('')
 const searching = ref(false)
 const lookupError = ref(null)
 
-// PalmCore QR tokens are UUID v4
+// Fronda QR tokens are UUID v4
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 let scanner = null
@@ -122,7 +122,7 @@ async function onScanSuccess(decodedText) {
 
     const token = decodedText.trim()
     if (!UUID_V4.test(token)) {
-        toast.info('QR no reconocido como PalmCore')
+        toast.info('QR no reconocido como Fronda')
         return
     }
 

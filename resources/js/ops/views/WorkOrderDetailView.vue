@@ -6,20 +6,14 @@
             <div class="max-w-3xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-3">
                 <RouterLink
                     :to="{ name: 'ops.ordenes' }"
-                    class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 transition-colors"
+                    class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
                 >
                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
                     </svg>
                 </RouterLink>
                 <span class="font-mono text-sm text-gray-500 truncate">{{ wo?.work_order_number ?? '' }}</span>
-                <span
-                    v-if="wo"
-                    class="ml-auto shrink-0 text-xs font-bold px-2.5 py-1 rounded-full"
-                    :class="statusBadge[wo.status]"
-                >
-                    {{ statusLabel[wo.status] ?? wo.status }}
-                </span>
+                <Badge v-if="wo" :tone="status(wo.status).tone" :label="status(wo.status).label" class="ml-auto shrink-0" />
             </div>
         </div>
 
@@ -45,10 +39,8 @@
             <div>
                 <h1 class="text-xl font-bold text-gray-900 leading-tight">{{ wo.title }}</h1>
                 <div class="flex items-center flex-wrap gap-x-2 gap-y-1.5 mt-2">
-                    <span class="text-xs font-semibold px-2 py-0.5 rounded-full" :class="priorityBadge[wo.priority]">
-                        {{ priorityLabel[wo.priority] ?? wo.priority }}
-                    </span>
-                    <span class="text-xs text-gray-400">{{ typeLabel[wo.work_order_type] ?? wo.work_order_type }}</span>
+                    <Badge :tone="priority(wo.priority).tone" :label="priority(wo.priority).label" />
+                    <span class="text-xs text-gray-500">{{ typeLabel[wo.work_order_type] ?? wo.work_order_type }}</span>
                     <RouterLink
                         v-if="wo.equipment"
                         :to="{ name: 'ops.equipos.show', params: { id: wo.equipment.id } }"
@@ -95,7 +87,7 @@
                     {{ tab.label }}
                     <span
                         v-if="tab.count != null && tab.count > 0"
-                        class="ml-1.5 text-[10px] bg-gray-100 text-gray-500 rounded-full px-1.5 py-0.5"
+                        class="ml-1.5 text-xs bg-gray-100 text-gray-500 rounded-full px-1.5 py-0.5"
                     >{{ tab.count }}</span>
                 </button>
             </div>
@@ -120,17 +112,17 @@
                 </div>
 
                 <div v-if="wo.description" class="bg-white rounded-2xl border border-gray-100 p-4">
-                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Descripción</p>
+                    <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Descripción</p>
                     <p class="text-sm text-gray-700 whitespace-pre-line">{{ wo.description }}</p>
                 </div>
 
                 <div v-if="wo.instructions" class="bg-white rounded-2xl border border-gray-100 p-4">
-                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Instrucciones</p>
+                    <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Instrucciones</p>
                     <p class="text-sm text-gray-700 whitespace-pre-line">{{ wo.instructions }}</p>
                 </div>
 
                 <div v-if="wo.work_performed || wo.failure_cause || wo.root_cause" class="bg-white rounded-2xl border border-gray-100 p-4 space-y-4">
-                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Resultado</p>
+                    <p class="text-xs font-bold text-gray-500 uppercase tracking-widest">Resultado</p>
                     <div v-if="wo.work_performed">
                         <p class="text-xs text-gray-500 mb-1">Trabajo realizado</p>
                         <p class="text-sm text-gray-700 whitespace-pre-line">{{ wo.work_performed }}</p>
@@ -150,7 +142,7 @@
             <!-- Tab: Técnicos -->
             <div v-else-if="activeTab === 'technicians'">
                 <div v-if="!wo.technicians?.length" class="py-12 text-center">
-                    <p class="text-sm text-gray-400">Sin técnicos asignados</p>
+                    <p class="text-sm text-gray-500">Sin técnicos asignados</p>
                 </div>
                 <div v-else class="space-y-2">
                     <div
@@ -163,11 +155,11 @@
                         </div>
                         <div class="flex-1 min-w-0">
                             <p class="text-sm font-semibold text-gray-900">{{ t.user?.name ?? 'Sin nombre' }}</p>
-                            <p class="text-xs text-gray-400">{{ roleLabel[t.role] ?? t.role }}</p>
+                            <p class="text-xs text-gray-500">{{ roleLabel[t.role] ?? t.role }}</p>
                         </div>
                         <div v-if="t.planned_hours != null" class="text-right shrink-0">
                             <p class="text-xs font-semibold text-gray-700">{{ t.planned_hours }} h</p>
-                            <p class="text-[10px] text-gray-400">planif.</p>
+                            <p class="text-xs text-gray-500">planif.</p>
                         </div>
                     </div>
                 </div>
@@ -176,7 +168,7 @@
             <!-- Tab: Partes -->
             <div v-else-if="activeTab === 'parts'">
                 <div v-if="!wo.parts?.length" class="py-12 text-center">
-                    <p class="text-sm text-gray-400">Sin partes registradas</p>
+                    <p class="text-sm text-gray-500">Sin partes registradas</p>
                 </div>
                 <div v-else class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
                     <div
@@ -186,14 +178,14 @@
                     >
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-2 mb-1">
-                                <span v-if="p.part_code" class="font-mono text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">{{ p.part_code }}</span>
-                                <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" :class="partStatusBadge[p.status]">{{ partStatusLabel[p.status] ?? p.status }}</span>
+                                <span v-if="p.part_code" class="font-mono text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">{{ p.part_code }}</span>
+                                <span class="text-xs font-semibold px-1.5 py-0.5 rounded-full" :class="partStatusBadge[p.status]">{{ partStatusLabel[p.status] ?? p.status }}</span>
                             </div>
                             <p class="text-sm font-medium text-gray-900">{{ p.description }}</p>
                         </div>
                         <div class="text-right shrink-0">
                             <p class="text-sm font-semibold text-gray-900">{{ p.quantity }} {{ p.unit }}</p>
-                            <p v-if="p.total_cost != null" class="text-xs text-gray-400">${{ p.total_cost.toFixed(2) }}</p>
+                            <p v-if="p.total_cost != null" class="text-xs text-gray-500">${{ p.total_cost.toFixed(2) }}</p>
                         </div>
                     </div>
                     <div v-if="wo.actual_cost_parts != null" class="p-4 flex justify-between items-center bg-gray-50">
@@ -216,8 +208,8 @@
                         <div class="flex items-center justify-between mb-2">
                             <p class="text-sm font-semibold text-gray-900">{{ c.user?.name ?? 'Usuario' }}</p>
                             <div class="flex items-center gap-1.5">
-                                <span v-if="c.is_internal" class="text-[10px] border border-amber-300 text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-full font-semibold">Interno</span>
-                                <span class="text-xs text-gray-400">{{ relativeTime(c.created_at) }}</span>
+                                <span v-if="c.is_internal" class="text-xs border border-amber-300 text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-full font-semibold">Interno</span>
+                                <span class="text-xs text-gray-500">{{ relativeTime(c.created_at) }}</span>
                             </div>
                         </div>
                         <p class="text-sm text-gray-700 whitespace-pre-line">{{ c.body }}</p>
@@ -225,12 +217,12 @@
                 </div>
 
                 <div v-else class="py-6 text-center">
-                    <p class="text-sm text-gray-400">Sin comentarios aún</p>
+                    <p class="text-sm text-gray-500">Sin comentarios aún</p>
                 </div>
 
                 <!-- Compose -->
                 <div class="bg-white rounded-2xl border border-gray-100 p-4">
-                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Añadir comentario</p>
+                    <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Añadir comentario</p>
                     <textarea
                         v-model="newComment"
                         rows="3"
@@ -264,6 +256,8 @@ import { ref, computed, onMounted, defineComponent, h } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import { useApi } from '../composables/useApi.js'
 import { useAuthStore } from '../stores/auth.js'
+import { describe, WORK_ORDER_STATUS, PRIORITY } from '../../shared/design.js'
+import Badge from '../components/Badge.vue'
 
 const route = useRoute()
 const api = useApi()
@@ -282,30 +276,9 @@ const commentError = ref(null)
 
 // ── Label maps ────────────────────────────────────────────────────────────────
 
-const statusLabel = {
-    draft: 'Borrador', planned: 'Planificada', in_progress: 'En Ejecución',
-    on_hold: 'En Espera', completed: 'Completada', verified: 'Verificada',
-    closed: 'Cerrada', cancelled: 'Cancelada',
-}
-const statusBadge = {
-    draft: 'bg-gray-100 text-gray-600',
-    planned: 'bg-blue-100 text-blue-700',
-    in_progress: 'bg-indigo-100 text-indigo-700',
-    on_hold: 'bg-amber-100 text-amber-700',
-    completed: 'bg-emerald-100 text-emerald-700',
-    verified: 'bg-teal-100 text-teal-700',
-    closed: 'bg-gray-100 text-gray-500',
-    cancelled: 'bg-red-100 text-red-600',
-}
-const priorityLabel = {
-    p1_critical: 'Crítica', p2_high: 'Alta', p3_medium: 'Media', p4_low: 'Baja',
-}
-const priorityBadge = {
-    p1_critical: 'bg-red-100 text-red-700',
-    p2_high: 'bg-orange-100 text-orange-700',
-    p3_medium: 'bg-yellow-100 text-yellow-700',
-    p4_low: 'bg-gray-100 text-gray-600',
-}
+const status = (s) => describe(WORK_ORDER_STATUS, s)
+const priority = (p) => describe(PRIORITY, p)
+
 const typeLabel = {
     corrective: 'Correctivo', preventive: 'Preventivo', predictive: 'Predictivo',
     inspection: 'Inspección', emergency: 'Emergencia',
@@ -368,13 +341,13 @@ function initials(name) {
 
 function formatDate(iso) {
     if (!iso) { return null }
-    return new Date(iso).toLocaleString('es-MX', {
+    return new Date(iso).toLocaleString('es', {
         day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
     })
 }
 
 function formatCurrency(amount, code) {
-    return new Intl.NumberFormat('es-MX', { style: 'currency', currency: code ?? 'MXN' }).format(amount)
+    return new Intl.NumberFormat('es', { style: 'currency', currency: code ?? 'MXN' }).format(amount)
 }
 
 function relativeTime(iso) {
@@ -394,7 +367,7 @@ const InfoRow = defineComponent({
         return () => {
             if (props.value == null || props.value === '') { return null }
             return h('div', { class: 'flex items-start justify-between gap-4 px-4 py-2.5 border-b border-gray-50 last:border-0' }, [
-                h('span', { class: 'text-xs text-gray-400 shrink-0 pt-0.5' }, props.label),
+                h('span', { class: 'text-xs text-gray-500 shrink-0 pt-0.5' }, props.label),
                 h('span', { class: 'text-xs font-medium text-gray-900 text-right break-words max-w-[60%]' }, String(props.value)),
             ])
         }

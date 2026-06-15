@@ -28,7 +28,7 @@ export function useApi() {
             }
             auth.logout()
             router.push({ name: 'login' })
-            throw new Error('Sesión expirada. Ingresá nuevamente.')
+            throw new Error('Sesión expirada. Ingresa nuevamente.')
         }
 
         if (!response.ok) {
@@ -60,7 +60,7 @@ export function useApi() {
             }
             auth.logout()
             router.push({ name: 'login' })
-            throw new Error('Sesión expirada. Ingresá nuevamente.')
+            throw new Error('Sesión expirada. Ingresa nuevamente.')
         }
 
         if (!response.ok) {

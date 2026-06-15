@@ -20,7 +20,7 @@
         <span class="truncate font-medium">{{ item.name }}</span>
         <span
             v-if="item.badge"
-            class="ml-auto shrink-0 min-w-[1.125rem] h-[1.125rem] flex items-center justify-center rounded-full text-[10px] font-bold px-1"
+            class="ml-auto shrink-0 min-w-[1.125rem] h-[1.125rem] flex items-center justify-center rounded-full text-xs font-bold px-1"
             :class="isActive ? 'bg-emerald-500 text-white' : 'bg-slate-700 text-slate-300'"
         >{{ item.badge }}</span>
     </RouterLink>

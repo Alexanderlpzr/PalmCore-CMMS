@@ -5,7 +5,7 @@
         <div class="flex items-start justify-between gap-4 mb-6">
             <div>
                 <h1 class="text-xl font-bold text-gray-900">Reportes de Confiabilidad</h1>
-                <p v-if="!loading && kpis.length" class="text-sm text-gray-400 mt-0.5">
+                <p v-if="!loading && kpis.length" class="text-sm text-gray-500 mt-0.5">
                     {{ kpis.length }} equipo{{ kpis.length !== 1 ? 's' : '' }} · Datos al {{ today }}
                 </p>
             </div>
@@ -47,7 +47,7 @@
             <!-- KPI fleet summary strip -->
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
                 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-                    <p class="text-[10px] font-bold uppercase tracking-wider text-emerald-600 mb-1">Disponibilidad prom.</p>
+                    <p class="text-xs font-bold uppercase tracking-wider text-emerald-600 mb-1">Disponibilidad prom.</p>
                     <p class="text-2xl font-bold text-gray-900">
                         {{ avgAvailability != null ? avgAvailability.toFixed(1) + '%' : '—' }}
                     </p>
@@ -60,23 +60,23 @@
                     </div>
                 </div>
                 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-                    <p class="text-[10px] font-bold uppercase tracking-wider text-blue-600 mb-1">MTBF prom.</p>
+                    <p class="text-xs font-bold uppercase tracking-wider text-blue-600 mb-1">MTBF prom.</p>
                     <p class="text-2xl font-bold text-gray-900">
                         {{ avgMtbf != null ? avgMtbf.toFixed(0) + 'h' : '—' }}
                     </p>
-                    <p class="text-[10px] text-gray-400 mt-1">Tiempo medio entre fallas</p>
+                    <p class="text-xs text-gray-500 mt-1">Tiempo medio entre fallas</p>
                 </div>
                 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-                    <p class="text-[10px] font-bold uppercase tracking-wider text-amber-600 mb-1">MTTR prom.</p>
+                    <p class="text-xs font-bold uppercase tracking-wider text-amber-600 mb-1">MTTR prom.</p>
                     <p class="text-2xl font-bold text-gray-900">
                         {{ avgMttr != null ? avgMttr.toFixed(1) + 'h' : '—' }}
                     </p>
-                    <p class="text-[10px] text-gray-400 mt-1">Tiempo medio de reparación</p>
+                    <p class="text-xs text-gray-500 mt-1">Tiempo medio de reparación</p>
                 </div>
                 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-                    <p class="text-[10px] font-bold uppercase tracking-wider text-red-600 mb-1">Fallas totales</p>
+                    <p class="text-xs font-bold uppercase tracking-wider text-red-600 mb-1">Fallas totales</p>
                     <p class="text-2xl font-bold text-gray-900">{{ totalFailures }}</p>
-                    <p class="text-[10px] text-gray-400 mt-1">{{ kpis.length }} equipos evaluados</p>
+                    <p class="text-xs text-gray-500 mt-1">{{ kpis.length }} equipos evaluados</p>
                 </div>
             </div>
 
@@ -87,7 +87,7 @@
                 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm">
                     <div class="px-5 pt-4 pb-3 border-b border-gray-50">
                         <h3 class="text-sm font-bold text-gray-900">Disponibilidad por equipo</h3>
-                        <p class="text-xs text-gray-400 mt-0.5">% — de mayor a menor · 🟢 ≥90% · 🟡 ≥70% · 🔴 &lt;70%</p>
+                        <p class="text-xs text-gray-500 mt-0.5">% — de mayor a menor · 🟢 ≥90% · 🟡 ≥70% · 🔴 &lt;70%</p>
                     </div>
                     <div class="px-5 py-4 space-y-2">
                         <div
@@ -95,7 +95,7 @@
                             :key="kpi.id"
                             class="flex items-center gap-3"
                         >
-                            <div class="w-28 text-[11px] text-gray-500 truncate text-right shrink-0" :title="kpi.equipment?.name">
+                            <div class="w-28 text-xs text-gray-500 truncate text-right shrink-0" :title="kpi.equipment?.name">
                                 {{ kpi.equipment?.name ?? kpi.equipment?.code ?? '—' }}
                             </div>
                             <div class="flex-1 h-5 bg-gray-100 rounded-md overflow-hidden">
@@ -105,7 +105,7 @@
                                     :style="{ width: animated ? (kpi.availability_percentage ?? 0) + '%' : '0%' }"
                                 />
                             </div>
-                            <div class="w-12 text-[11px] font-bold text-right shrink-0" :class="availTextClass(kpi.availability_percentage)">
+                            <div class="w-12 text-xs font-bold text-right shrink-0" :class="availTextClass(kpi.availability_percentage)">
                                 {{ kpi.availability_percentage != null ? kpi.availability_percentage.toFixed(1) + '%' : '—' }}
                             </div>
                         </div>
@@ -116,7 +116,7 @@
                 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm">
                     <div class="px-5 pt-4 pb-3 border-b border-gray-50">
                         <h3 class="text-sm font-bold text-gray-900">Fallas por equipo</h3>
-                        <p class="text-xs text-gray-400 mt-0.5">Cantidad — de mayor a menor</p>
+                        <p class="text-xs text-gray-500 mt-0.5">Cantidad — de mayor a menor</p>
                     </div>
                     <div class="px-5 py-4 space-y-2">
                         <div
@@ -124,7 +124,7 @@
                             :key="kpi.id"
                             class="flex items-center gap-3"
                         >
-                            <div class="w-28 text-[11px] text-gray-500 truncate text-right shrink-0" :title="kpi.equipment?.name">
+                            <div class="w-28 text-xs text-gray-500 truncate text-right shrink-0" :title="kpi.equipment?.name">
                                 {{ kpi.equipment?.name ?? kpi.equipment?.code ?? '—' }}
                             </div>
                             <div class="flex-1 h-5 bg-gray-100 rounded-md overflow-hidden">
@@ -134,7 +134,7 @@
                                     :style="{ width: animated && maxFailures > 0 ? (((kpi.failure_count ?? 0) / maxFailures) * 100) + '%' : '0%' }"
                                 />
                             </div>
-                            <div class="w-12 text-[11px] font-bold text-right shrink-0 text-gray-700">
+                            <div class="w-12 text-xs font-bold text-right shrink-0 text-gray-700">
                                 {{ kpi.failure_count ?? '—' }}
                             </div>
                         </div>
@@ -145,7 +145,7 @@
                 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm">
                     <div class="px-5 pt-4 pb-3 border-b border-gray-50">
                         <h3 class="text-sm font-bold text-gray-900">MTBF por equipo</h3>
-                        <p class="text-xs text-gray-400 mt-0.5">Horas — mayor es mejor confiabilidad</p>
+                        <p class="text-xs text-gray-500 mt-0.5">Horas — mayor es mejor confiabilidad</p>
                     </div>
                     <div class="px-5 py-4 space-y-2">
                         <div
@@ -153,7 +153,7 @@
                             :key="kpi.id"
                             class="flex items-center gap-3"
                         >
-                            <div class="w-28 text-[11px] text-gray-500 truncate text-right shrink-0" :title="kpi.equipment?.name">
+                            <div class="w-28 text-xs text-gray-500 truncate text-right shrink-0" :title="kpi.equipment?.name">
                                 {{ kpi.equipment?.name ?? kpi.equipment?.code ?? '—' }}
                             </div>
                             <div class="flex-1 h-5 bg-gray-100 rounded-md overflow-hidden">
@@ -162,7 +162,7 @@
                                     :style="{ width: animated && maxMtbf > 0 ? (((kpi.mtbf_hours ?? 0) / maxMtbf) * 100) + '%' : '0%' }"
                                 />
                             </div>
-                            <div class="w-16 text-[11px] font-bold text-right shrink-0 text-blue-700">
+                            <div class="w-16 text-xs font-bold text-right shrink-0 text-blue-700">
                                 {{ kpi.mtbf_hours != null ? kpi.mtbf_hours.toFixed(0) + 'h' : '—' }}
                             </div>
                         </div>
@@ -173,7 +173,7 @@
                 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm">
                     <div class="px-5 pt-4 pb-3 border-b border-gray-50">
                         <h3 class="text-sm font-bold text-gray-900">MTTR por equipo</h3>
-                        <p class="text-xs text-gray-400 mt-0.5">Horas — menor es reparación más rápida</p>
+                        <p class="text-xs text-gray-500 mt-0.5">Horas — menor es reparación más rápida</p>
                     </div>
                     <div class="px-5 py-4 space-y-2">
                         <div
@@ -181,7 +181,7 @@
                             :key="kpi.id"
                             class="flex items-center gap-3"
                         >
-                            <div class="w-28 text-[11px] text-gray-500 truncate text-right shrink-0" :title="kpi.equipment?.name">
+                            <div class="w-28 text-xs text-gray-500 truncate text-right shrink-0" :title="kpi.equipment?.name">
                                 {{ kpi.equipment?.name ?? kpi.equipment?.code ?? '—' }}
                             </div>
                             <div class="flex-1 h-5 bg-gray-100 rounded-md overflow-hidden">
@@ -191,7 +191,7 @@
                                     :style="{ width: animated && maxMttr > 0 ? (((kpi.mttr_hours ?? 0) / maxMttr) * 100) + '%' : '0%' }"
                                 />
                             </div>
-                            <div class="w-16 text-[11px] font-bold text-right shrink-0 text-gray-700">
+                            <div class="w-16 text-xs font-bold text-right shrink-0 text-gray-700">
                                 {{ kpi.mttr_hours != null ? kpi.mttr_hours.toFixed(1) + 'h' : '—' }}
                             </div>
                         </div>
@@ -204,9 +204,9 @@
                 <div class="px-5 pt-4 pb-3 border-b border-gray-50 flex items-start justify-between gap-4">
                     <div>
                         <h3 class="text-sm font-bold text-gray-900">Análisis de Pareto — Fallas por equipo</h3>
-                        <p class="text-xs text-gray-400 mt-0.5">Los equipos que cruzan el umbral del 80% concentran la mayoría de las fallas (ley del 80/20)</p>
+                        <p class="text-xs text-gray-500 mt-0.5">Los equipos que cruzan el umbral del 80% concentran la mayoría de las fallas (ley del 80/20)</p>
                     </div>
-                    <div class="flex items-center gap-4 text-[10px] text-gray-400 shrink-0">
+                    <div class="flex items-center gap-4 text-xs text-gray-500 shrink-0">
                         <span class="flex items-center gap-1.5">
                             <span class="w-3 h-3 rounded bg-red-400 shrink-0" />
                             Fallas
@@ -243,8 +243,8 @@
                                 :x="mL - 6"
                                 :y="tick.y + 4"
                                 text-anchor="end"
-                                font-size="9"
-                                fill="#9ca3af"
+                                font-size="12"
+                                fill="#6b7280"
                             >{{ tick.label }}</text>
                         </g>
 
@@ -261,7 +261,7 @@
                         <text
                             :x="mL + cW + 5"
                             :y="mT + cH * 0.2 + 4"
-                            font-size="9"
+                            font-size="12"
                             fill="#3b82f6"
                             font-weight="600"
                         >80%</text>
@@ -309,7 +309,7 @@
                             :x="d.cx"
                             :y="d.pctY - 7"
                             text-anchor="middle"
-                            font-size="8"
+                            font-size="12"
                             fill="#3b82f6"
                         >{{ d.cumulativePct.toFixed(0) }}%</text>
 
@@ -320,7 +320,7 @@
                             :x="d.cx"
                             :y="mT + cH + 12"
                             text-anchor="end"
-                            font-size="9"
+                            font-size="11"
                             fill="#6b7280"
                             :transform="`rotate(-40, ${d.cx}, ${mT + cH + 12})`"
                         >{{ (d.equipment?.code ?? d.equipment?.name ?? '').slice(0, 14) }}</text>
@@ -332,14 +332,14 @@
                             :x="d.cx"
                             :y="d.h > 14 ? d.y + 12 : d.y - 4"
                             text-anchor="middle"
-                            font-size="9"
+                            font-size="11"
                             :fill="d.h > 14 ? 'white' : '#6b7280'"
                             font-weight="600"
                         >{{ d.failure_count }}</text>
                     </svg>
                 </div>
 
-                <div v-else class="px-5 py-8 text-center text-xs text-gray-400">
+                <div v-else class="px-5 py-8 text-center text-xs text-gray-500">
                     No hay datos de fallas registrados para el análisis de Pareto
                 </div>
             </div>
@@ -347,15 +347,12 @@
         </template>
 
         <!-- Empty state -->
-        <div v-else class="flex flex-col items-center justify-center py-24 text-center">
-            <div class="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
-                <svg class="w-8 h-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/>
-                </svg>
-            </div>
-            <p class="text-sm font-medium text-gray-700">Sin datos de confiabilidad</p>
-            <p class="text-xs text-gray-400 mt-1 max-w-xs">Los KPIs se generan al registrar fallas y tiempo de inactividad en los equipos</p>
-        </div>
+        <EmptyState
+            v-else
+            icon="chartBar"
+            title="Sin datos de confiabilidad"
+            subtitle="Los KPIs se generan al registrar fallas y tiempo de inactividad en los equipos."
+        />
 
     </div>
 </template>
@@ -363,6 +360,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useApi } from '../composables/useApi.js'
+import EmptyState from '../components/EmptyState.vue'
 
 const api = useApi()
 const kpis = ref([])
@@ -490,7 +488,7 @@ const availBarClass = (pct) => {
 }
 
 const availTextClass = (pct) => {
-    if (pct == null) { return 'text-gray-400' }
+    if (pct == null) { return 'text-gray-500' }
     if (pct >= 90) { return 'text-emerald-700' }
     if (pct >= 70) { return 'text-amber-600' }
     return 'text-red-600'

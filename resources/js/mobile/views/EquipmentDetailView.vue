@@ -21,7 +21,7 @@
                     <CriticalityBadge v-if="eq.criticality" :criticality="eq.criticality" />
                 </div>
                 <h2 class="text-xl font-semibold text-zinc-100 leading-snug">{{ eq.name }}</h2>
-                <p class="text-xs text-zinc-500 mt-1">{{ eq.code }}</p>
+                <p class="text-xs text-zinc-400 mt-1">{{ eq.code }}</p>
             </div>
 
             <!-- Info -->
@@ -29,30 +29,30 @@
 
                 <!-- Location -->
                 <div class="bg-zinc-900 rounded-2xl p-4 space-y-3">
-                    <p class="text-xs font-medium text-zinc-500 uppercase tracking-wide">Ubicación</p>
+                    <p class="text-xs font-medium text-zinc-400 uppercase tracking-wide">Ubicación</p>
                     <div v-if="eq.plant" class="flex justify-between text-sm">
-                        <span class="text-zinc-500">Planta</span>
+                        <span class="text-zinc-400">Planta</span>
                         <span class="text-zinc-300">{{ eq.plant.name }}</span>
                     </div>
                     <div v-if="eq.area" class="flex justify-between text-sm">
-                        <span class="text-zinc-500">Área</span>
+                        <span class="text-zinc-400">Área</span>
                         <span class="text-zinc-300">{{ eq.area.name }}</span>
                     </div>
                     <div v-if="eq.category" class="flex justify-between text-sm">
-                        <span class="text-zinc-500">Categoría</span>
+                        <span class="text-zinc-400">Categoría</span>
                         <span class="text-zinc-300">{{ eq.category.name }}</span>
                     </div>
                 </div>
 
                 <!-- Technical info -->
                 <div class="bg-zinc-900 rounded-2xl p-4 space-y-3">
-                    <p class="text-xs font-medium text-zinc-500 uppercase tracking-wide">Datos técnicos</p>
+                    <p class="text-xs font-medium text-zinc-400 uppercase tracking-wide">Datos técnicos</p>
                     <div v-if="eq.installation_date" class="flex justify-between text-sm">
-                        <span class="text-zinc-500">Instalación</span>
+                        <span class="text-zinc-400">Instalación</span>
                         <span class="text-zinc-300">{{ formatDate(eq.installation_date) }}</span>
                     </div>
                     <div class="flex justify-between text-sm">
-                        <span class="text-zinc-500">Estado activo</span>
+                        <span class="text-zinc-400">Estado activo</span>
                         <span :class="eq.is_active ? 'text-green-400' : 'text-red-400'">
                             {{ eq.is_active ? 'Sí' : 'No' }}
                         </span>
@@ -61,7 +61,7 @@
 
                 <!-- Notes -->
                 <div v-if="eq.notes" class="bg-zinc-900 rounded-2xl p-4">
-                    <p class="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">Notas</p>
+                    <p class="text-xs font-medium text-zinc-400 uppercase tracking-wide mb-2">Notas</p>
                     <p class="text-sm text-zinc-300 leading-relaxed">{{ eq.notes }}</p>
                 </div>
 

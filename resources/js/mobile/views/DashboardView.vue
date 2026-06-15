@@ -4,11 +4,11 @@
 
             <!-- Greeting -->
             <div>
-                <p class="text-sm text-zinc-500">Bienvenido</p>
+                <p class="text-sm text-zinc-400">Bienvenido</p>
                 <h2 class="text-xl font-semibold text-zinc-100 truncate">
-                    {{ auth.tenantName ?? 'PalmCore' }}
+                    {{ auth.tenantName ?? 'Fronda' }}
                 </h2>
-                <p class="text-xs text-zinc-600 mt-0.5">{{ auth.userEmail }}</p>
+                <p class="text-xs text-zinc-400 mt-0.5">{{ auth.userEmail }}</p>
             </div>
 
             <!-- Quick action: Mis OTs -->
@@ -25,10 +25,10 @@
                     </div>
                     <div>
                         <p class="font-semibold text-zinc-100">Mis órdenes de trabajo</p>
-                        <p class="text-sm text-zinc-500">Ver OTs asignadas</p>
+                        <p class="text-sm text-zinc-400">Ver OTs asignadas</p>
                     </div>
                 </div>
-                <svg class="w-5 h-5 text-zinc-600 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <svg class="w-5 h-5 text-zinc-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
                 </svg>
             </RouterLink>
@@ -53,10 +53,10 @@
                     </div>
                     <div>
                         <p class="font-semibold text-zinc-100">Escanear QR</p>
-                        <p class="text-sm text-zinc-500">Identificar equipo por código</p>
+                        <p class="text-sm text-zinc-400">Identificar equipo por código</p>
                     </div>
                 </div>
-                <svg class="w-5 h-5 text-zinc-600 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <svg class="w-5 h-5 text-zinc-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
                 </svg>
             </RouterLink>
@@ -74,14 +74,14 @@
                         </svg>
                         <span
                             v-if="alerts.criticalCount > 0"
-                            class="absolute -top-1 -right-1 min-w-4.5 h-4.5 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center"
+                            class="absolute -top-1 -right-1 min-w-4.5 h-4.5 px-1 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center"
                         >
                             {{ alerts.criticalCount > 99 ? '99+' : alerts.criticalCount }}
                         </span>
                     </div>
                     <div>
                         <p class="font-semibold text-zinc-100">Centro de Alertas</p>
-                        <p class="text-sm text-zinc-500">
+                        <p class="text-sm text-zinc-400">
                             <template v-if="alerts.criticalCount > 0">
                                 {{ alerts.criticalCount }} alerta{{ alerts.criticalCount > 1 ? 's' : '' }} crítica{{ alerts.criticalCount > 1 ? 's' : '' }} abierta{{ alerts.criticalCount > 1 ? 's' : '' }}
                             </template>
@@ -89,7 +89,7 @@
                         </p>
                     </div>
                 </div>
-                <svg class="w-5 h-5 text-zinc-600 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <svg class="w-5 h-5 text-zinc-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
                 </svg>
             </RouterLink>
@@ -109,12 +109,12 @@
                 </div>
                 <div class="flex-1">
                     <p class="font-semibold text-zinc-100">Activar notificaciones</p>
-                    <p class="text-sm text-zinc-500">Recibí alertas de nuevas OTs asignadas</p>
+                    <p class="text-sm text-zinc-400">Recibe alertas de nuevas OTs asignadas</p>
                 </div>
-                <svg v-if="!enablingPush" class="w-5 h-5 text-zinc-600 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <svg v-if="!enablingPush" class="w-5 h-5 text-zinc-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
                 </svg>
-                <svg v-else class="w-5 h-5 text-zinc-500 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
+                <svg v-else class="w-5 h-5 text-zinc-400 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
                 </svg>
@@ -126,14 +126,14 @@
                 class="flex items-start gap-4 bg-zinc-900 border border-zinc-700 rounded-2xl p-5"
             >
                 <div class="w-12 h-12 rounded-xl bg-zinc-800 flex items-center justify-center shrink-0">
-                    <svg class="w-6 h-6 text-zinc-500" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                    <svg class="w-6 h-6 text-zinc-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round"
                               d="M9.143 17.082a24.248 24.248 0 0 0 3.844.148m-3.844-.148a23.856 23.856 0 0 1-5.455-1.31 8.964 8.964 0 0 0 2.3-5.542m3.155 6.852a3 3 0 0 0 5.667 1.97m1.965-2.277L21 21m-4.225-4.225a23.81 23.81 0 0 0 3.536-1.003A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6.53 6.53m10.245 10.245L6.53 6.53M3 3l3.53 3.53"/>
                     </svg>
                 </div>
                 <div>
                     <p class="font-semibold text-zinc-400 text-sm">Notificaciones desactivadas</p>
-                    <p class="text-xs text-zinc-600 mt-1">Para activarlas, andá a Configuración del sitio en tu navegador y habilitá las notificaciones para esta página.</p>
+                    <p class="text-xs text-zinc-400 mt-1">Para activarlas, ve a la configuración del sitio en tu navegador y habilita las notificaciones para esta página.</p>
                 </div>
             </div>
 

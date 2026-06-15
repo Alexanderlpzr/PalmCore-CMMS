@@ -38,7 +38,7 @@ export function usePushNotifications() {
     }
 
     async function subscribe() {
-        const vapidKey = window.PalmCoreConfig?.vapidPublicKey
+        const vapidKey = window.FrondaConfig?.vapidPublicKey
         if (!vapidKey) {
             return null
         }

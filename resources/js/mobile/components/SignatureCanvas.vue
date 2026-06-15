@@ -8,7 +8,7 @@
                 <button
                     type="button"
                     @click="clearPad"
-                    class="text-xs text-zinc-500 hover:text-zinc-300 transition"
+                    class="text-xs text-zinc-400 hover:text-zinc-300 transition"
                 >
                     Limpiar
                 </button>
@@ -23,13 +23,13 @@
                     style="cursor: crosshair"
                 />
             </div>
-            <p class="text-xs text-zinc-600 text-center">Dibujá tu firma con el dedo</p>
+            <p class="text-xs text-zinc-400 text-center">Dibujá tu firma con el dedo</p>
         </div>
 
         <!-- Notes -->
         <div class="space-y-1.5">
             <label class="block text-sm font-medium text-zinc-400">
-                Notas <span class="text-zinc-600">(opcional)</span>
+                Notas <span class="text-zinc-400">(opcional)</span>
             </label>
             <input
                 v-model="notes"
@@ -48,7 +48,7 @@
             @click="save"
             class="w-full py-4 rounded-2xl font-semibold text-base transition"
             :class="status
-                ? 'bg-zinc-700 text-zinc-500 cursor-not-allowed'
+                ? 'bg-zinc-700 text-zinc-400 cursor-not-allowed'
                 : 'bg-amber-500 text-zinc-900 active:scale-95'"
         >
             {{ status ?? 'Guardar firma' }}

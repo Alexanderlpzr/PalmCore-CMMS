@@ -26,6 +26,18 @@
     --color-accent: var(--color-neutral-800);
     --color-accent-content: var(--color-neutral-800);
     --color-accent-foreground: var(--color-white);
+
+    /* ── Fronda design tokens (DS-1.4) ──────────────────────────────────────
+       Single source for brand + semantic roles shared across Filament, Ops and
+       Mobile. Status/priority colors map to these five roles via shared/design.js:
+         brand/success → emerald · warning → amber · danger → red
+         info → blue · neutral → gray
+       Mobile keeps amber as its dark-theme action accent (see mobile.css). */
+    --color-brand-50: #ecfdf5;
+    --color-brand-100: #d1fae5;
+    --color-brand-500: #059669;
+    --color-brand-600: #047857;
+    --color-brand-700: #065f46;
 }
 
 @layer theme {

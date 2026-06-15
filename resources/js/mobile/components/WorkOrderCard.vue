@@ -2,9 +2,9 @@
     <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 cursor-pointer hover:border-zinc-700 transition active:scale-[0.98]">
         <div class="flex items-start justify-between gap-3">
             <div class="min-w-0 flex-1">
-                <p class="text-xs text-zinc-500 font-mono mb-1">{{ workOrder.work_order_number }}</p>
+                <p class="text-xs text-zinc-400 font-mono mb-1">{{ workOrder.work_order_number }}</p>
                 <p class="font-semibold text-zinc-100 leading-snug line-clamp-2">{{ workOrder.title }}</p>
-                <p v-if="workOrder.equipment" class="text-sm text-zinc-500 mt-1.5 truncate">
+                <p v-if="workOrder.equipment" class="text-sm text-zinc-400 mt-1.5 truncate">
                     {{ workOrder.equipment.name }}
                     <span class="text-zinc-700"> · {{ workOrder.equipment.code }}</span>
                 </p>

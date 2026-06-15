@@ -35,13 +35,16 @@ class AdminPanelProvider extends PanelProvider
             ->brandLogo(asset('images/logo.png'))
             ->brandLogoHeight('4rem')
             ->favicon(asset('images/isotipo.png'))
+            // Brand + semantic colors aligned with the shared Fronda tokens
+            // (resources/css/app.css · resources/js/shared/design.js) so Filament,
+            // Ops and Mobile read as one product. Fronda green = #059669.
             ->colors([
-                'primary' => Color::hex('#0F4C5C'),
-                'success' => Color::hex('#2E8B57'),
+                'primary' => Color::hex('#059669'),
+                'success' => Color::Emerald,
                 'gray' => Color::Slate,
-                'info' => Color::Sky,
+                'info' => Color::Blue,
                 'warning' => Color::Amber,
-                'danger' => Color::Rose,
+                'danger' => Color::Red,
             ])
             ->defaultAvatarProvider(InitialsAvatarProvider::class)
             ->navigationGroups([

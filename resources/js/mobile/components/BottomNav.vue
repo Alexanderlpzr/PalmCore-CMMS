@@ -12,7 +12,7 @@
                 :class="[
                     isActive(tab.to)
                         ? 'text-amber-400'
-                        : 'text-zinc-500 hover:text-zinc-300'
+                        : 'text-zinc-400 hover:text-zinc-300'
                 ]"
             >
                 <component :is="tab.icon" class="w-6 h-6" />

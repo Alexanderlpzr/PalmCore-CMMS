@@ -36,7 +36,7 @@
 
                     <!-- Breadcrumbs -->
                     <div class="flex items-center gap-1 text-xs mb-3 flex-wrap">
-                        <RouterLink :to="{ name: 'ops.equipos' }" class="text-gray-400 hover:text-gray-700 transition-colors shrink-0">
+                        <RouterLink :to="{ name: 'ops.equipos' }" class="text-gray-500 hover:text-gray-700 transition-colors shrink-0">
                             Equipos
                         </RouterLink>
                         <template v-for="anc in (equipment.ancestors ?? [])" :key="anc.id">
@@ -62,19 +62,15 @@
                         </div>
 
                         <div class="flex-1 min-w-0">
-                            <p class="text-[10px] font-mono font-bold text-gray-400 uppercase tracking-widest leading-none">{{ equipment.code }}</p>
+                            <p class="text-xs font-mono font-bold text-gray-500 uppercase tracking-widest leading-none">{{ equipment.code }}</p>
                             <h1 class="text-lg lg:text-2xl font-bold text-gray-900 mt-0.5 leading-tight">{{ equipment.name }}</h1>
                             <div class="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                                <span v-if="equipment.status" class="text-[11px] font-semibold px-2 py-0.5 rounded-full" :class="statusColors[equipment.status] ?? 'bg-gray-100 text-gray-600'">
-                                    {{ statusLabels[equipment.status] ?? equipment.status }}
-                                </span>
-                                <span v-if="equipment.criticality" class="text-[11px] font-semibold px-2 py-0.5 rounded-full" :class="criticalityColors[equipment.criticality] ?? 'bg-gray-100 text-gray-600'">
-                                    {{ criticalityLabels[equipment.criticality] ?? equipment.criticality }}
-                                </span>
-                                <span v-if="equipment.category" class="text-[11px] font-semibold px-2 py-0.5 rounded-full" :class="categoryBadgeClass(equipment.category?.color)">
+                                <Badge v-if="equipment.status" :tone="eqStatus(equipment.status).tone" :label="eqStatus(equipment.status).label" />
+                                <Badge v-if="equipment.criticality" :tone="crit(equipment.criticality).tone" :label="crit(equipment.criticality).label" />
+                                <span v-if="equipment.category" class="text-xs font-semibold px-2 py-0.5 rounded-full" :class="categoryBadgeClass(equipment.category?.color)">
                                     {{ equipment.category.name }}
                                 </span>
-                                <span class="text-xs text-gray-400">
+                                <span class="text-xs text-gray-500">
                                     {{ equipment.plant?.name }}<span v-if="equipment.area"> · {{ equipment.area.name }}</span>
                                 </span>
                             </div>
@@ -84,27 +80,27 @@
                     <!-- KPI strip -->
                     <div v-if="equipment.kpi" class="grid grid-cols-3 lg:grid-cols-5 gap-2 mb-4">
                         <div class="rounded-xl p-2.5 bg-emerald-50">
-                            <p class="text-[9px] font-bold uppercase tracking-wider text-emerald-600 leading-none mb-1">Disponibilidad</p>
+                            <p class="text-xs font-bold uppercase tracking-wider text-emerald-600 leading-none mb-1">Disponibilidad</p>
                             <p class="text-lg font-bold text-gray-900 leading-none">{{ equipment.kpi.availability_percentage != null ? Number(equipment.kpi.availability_percentage).toFixed(1) + '%' : '—' }}</p>
                         </div>
                         <div class="rounded-xl p-2.5 bg-blue-50">
-                            <p class="text-[9px] font-bold uppercase tracking-wider text-blue-600 leading-none mb-1">MTBF</p>
+                            <p class="text-xs font-bold uppercase tracking-wider text-blue-600 leading-none mb-1">MTBF</p>
                             <p class="text-lg font-bold text-gray-900 leading-none">{{ equipment.kpi.mtbf_hours != null ? Number(equipment.kpi.mtbf_hours).toFixed(0) + 'h' : '—' }}</p>
                         </div>
                         <div class="rounded-xl p-2.5 bg-amber-50">
-                            <p class="text-[9px] font-bold uppercase tracking-wider text-amber-600 leading-none mb-1">MTTR</p>
+                            <p class="text-xs font-bold uppercase tracking-wider text-amber-600 leading-none mb-1">MTTR</p>
                             <p class="text-lg font-bold text-gray-900 leading-none">{{ equipment.kpi.mttr_hours != null ? Number(equipment.kpi.mttr_hours).toFixed(0) + 'h' : '—' }}</p>
                         </div>
                         <div class="rounded-xl p-2.5 bg-red-50">
-                            <p class="text-[9px] font-bold uppercase tracking-wider text-red-600 leading-none mb-1">Fallas</p>
+                            <p class="text-xs font-bold uppercase tracking-wider text-red-600 leading-none mb-1">Fallas</p>
                             <p class="text-lg font-bold text-gray-900 leading-none">{{ equipment.kpi.failure_count ?? '—' }}</p>
                         </div>
                         <div class="rounded-xl p-2.5 bg-slate-100 col-span-3 lg:col-span-1">
-                            <p class="text-[9px] font-bold uppercase tracking-wider text-slate-500 leading-none mb-1">Downtime</p>
+                            <p class="text-xs font-bold uppercase tracking-wider text-slate-500 leading-none mb-1">Downtime</p>
                             <p class="text-lg font-bold text-gray-900 leading-none">{{ equipment.kpi.downtime_hours != null ? Number(equipment.kpi.downtime_hours).toFixed(0) + 'h' : '—' }}</p>
                         </div>
                     </div>
-                    <div v-else class="mb-4 py-2 px-3 bg-gray-50 rounded-xl text-xs text-gray-400 text-center">
+                    <div v-else class="mb-4 py-2 px-3 bg-gray-50 rounded-xl text-xs text-gray-500 text-center">
                         KPIs aún no calculados para este equipo
                     </div>
 
@@ -113,7 +109,7 @@
                         <button v-for="sec in visibleDesktopSections" :key="sec.id" @click="scrollToSection(sec.id)"
                             class="shrink-0 px-4 py-3 text-sm font-medium text-gray-500 hover:text-gray-800 transition-colors border-b-2 border-transparent hover:border-gray-300 -mb-px">
                             {{ sec.label }}
-                            <span v-if="sec.count" class="ml-1 text-[10px] font-bold bg-gray-100 text-gray-500 rounded-full px-1.5 py-0.5">{{ sec.count }}</span>
+                            <span v-if="sec.count" class="ml-1 text-xs font-bold bg-gray-100 text-gray-500 rounded-full px-1.5 py-0.5">{{ sec.count }}</span>
                         </button>
                     </div>
 
@@ -138,9 +134,9 @@
                     <!-- Parent banner -->
                     <div v-if="equipment.parent" class="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex items-center justify-between gap-4 mb-4">
                         <div>
-                            <p class="text-[10px] font-semibold uppercase tracking-wider text-indigo-400 mb-0.5">Componente de</p>
+                            <p class="text-xs font-semibold uppercase tracking-wider text-indigo-400 mb-0.5">Componente de</p>
                             <p class="text-sm font-bold text-indigo-900">{{ equipment.parent.name }}</p>
-                            <p class="text-[10px] font-mono text-indigo-400">{{ equipment.parent.code }}</p>
+                            <p class="text-xs font-mono text-indigo-400">{{ equipment.parent.code }}</p>
                         </div>
                         <RouterLink :to="{ name: 'ops.equipos.show', params: { id: equipment.parent.id } }"
                             class="shrink-0 flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors">
@@ -153,7 +149,7 @@
                         <!-- Identification -->
                         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm">
                             <div class="px-4 py-3 border-b border-gray-50">
-                                <h3 class="text-xs font-bold uppercase tracking-wider text-gray-400">Identificación</h3>
+                                <h3 class="text-xs font-bold uppercase tracking-wider text-gray-500">Identificación</h3>
                             </div>
                             <div class="px-4 divide-y divide-gray-50">
                                 <InfoRow label="Código" :value="equipment.code" mono />
@@ -168,7 +164,7 @@
                         <div class="space-y-4">
                             <div class="bg-white rounded-2xl border border-gray-100 shadow-sm">
                                 <div class="px-4 py-3 border-b border-gray-50">
-                                    <h3 class="text-xs font-bold uppercase tracking-wider text-gray-400">Ubicación</h3>
+                                    <h3 class="text-xs font-bold uppercase tracking-wider text-gray-500">Ubicación</h3>
                                 </div>
                                 <div class="px-4 divide-y divide-gray-50">
                                     <InfoRow label="Planta" :value="equipment.plant?.name" />
@@ -178,7 +174,7 @@
                             </div>
                             <div class="bg-white rounded-2xl border border-gray-100 shadow-sm">
                                 <div class="px-4 py-3 border-b border-gray-50">
-                                    <h3 class="text-xs font-bold uppercase tracking-wider text-gray-400">Fabricante & Proveedor</h3>
+                                    <h3 class="text-xs font-bold uppercase tracking-wider text-gray-500">Fabricante & Proveedor</h3>
                                 </div>
                                 <div class="px-4 divide-y divide-gray-50">
                                     <InfoRow label="Fabricante" :value="equipment.manufacturer?.name" />
@@ -190,7 +186,7 @@
                         <!-- Dates -->
                         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm">
                             <div class="px-4 py-3 border-b border-gray-50">
-                                <h3 class="text-xs font-bold uppercase tracking-wider text-gray-400">Fechas</h3>
+                                <h3 class="text-xs font-bold uppercase tracking-wider text-gray-500">Fechas</h3>
                             </div>
                             <div class="px-4 divide-y divide-gray-50">
                                 <InfoRow label="Compra" :value="formatDate(equipment.purchase_date)" />
@@ -204,7 +200,7 @@
                         <!-- Financial -->
                         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm">
                             <div class="px-4 py-3 border-b border-gray-50">
-                                <h3 class="text-xs font-bold uppercase tracking-wider text-gray-400">Financiero</h3>
+                                <h3 class="text-xs font-bold uppercase tracking-wider text-gray-500">Financiero</h3>
                             </div>
                             <div class="px-4 divide-y divide-gray-50">
                                 <InfoRow label="Precio de compra" :value="formatCurrency(equipment.purchase_price, equipment.currency_code)" />
@@ -217,7 +213,7 @@
                     <!-- Notes -->
                     <div v-if="equipment.notes" class="bg-white rounded-2xl border border-gray-100 shadow-sm mt-4">
                         <div class="px-4 py-3 border-b border-gray-50">
-                            <h3 class="text-xs font-bold uppercase tracking-wider text-gray-400">Notas</h3>
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-gray-500">Notas</h3>
                         </div>
                         <p class="px-4 py-3 text-sm text-gray-700 leading-relaxed">{{ equipment.notes }}</p>
                     </div>
@@ -253,7 +249,7 @@
                                         <!-- Content -->
                                         <div class="flex-1 min-w-0 pb-1">
                                             <div class="flex items-start gap-2 flex-wrap">
-                                                <span class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" :class="activityBadgeClass[event.type] ?? 'bg-gray-100 text-gray-500'">
+                                                <span class="text-xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" :class="activityBadgeClass[event.type] ?? 'bg-gray-100 text-gray-500'">
                                                     {{ activityTypeLabel[event.type] ?? event.type }}
                                                 </span>
                                                 <!-- Link to WO if applicable -->
@@ -268,12 +264,12 @@
                                             <p v-if="event.meta?.description" class="text-xs text-gray-500 mt-0.5 leading-snug line-clamp-2">{{ event.meta.description }}</p>
                                             <p v-if="event.meta?.duration_minutes" class="text-xs text-gray-500 mt-0.5">Duración: {{ Math.round(event.meta.duration_minutes / 60 * 10) / 10 }}h</p>
                                             <div v-if="event.meta?.parts?.length" class="mt-1 flex flex-wrap gap-1">
-                                                <span v-for="p in event.meta.parts.slice(0, 3)" :key="p.description" class="text-[10px] bg-orange-50 text-orange-700 px-1.5 py-0.5 rounded">
+                                                <span v-for="p in event.meta.parts.slice(0, 3)" :key="p.description" class="text-xs bg-orange-50 text-orange-700 px-1.5 py-0.5 rounded">
                                                     {{ p.description }} × {{ p.quantity }} {{ p.unit }}
                                                 </span>
-                                                <span v-if="event.meta.parts.length > 3" class="text-[10px] text-gray-400">+{{ event.meta.parts.length - 3 }} más</span>
+                                                <span v-if="event.meta.parts.length > 3" class="text-xs text-gray-500">+{{ event.meta.parts.length - 3 }} más</span>
                                             </div>
-                                            <p class="text-[10px] text-gray-400 mt-1">{{ formatDateTime(event.at) }}</p>
+                                            <p class="text-xs text-gray-500 mt-1">{{ formatDateTime(event.at) }}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -289,7 +285,7 @@
                         </div>
 
                         <!-- Empty -->
-                        <div v-else class="px-5 py-10 text-center text-xs text-gray-400">
+                        <div v-else class="px-5 py-10 text-center text-xs text-gray-500">
                             Aún no hay actividad registrada para este equipo
                         </div>
                     </div>
@@ -319,27 +315,23 @@
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-start justify-between gap-2">
                                     <div class="min-w-0">
-                                        <p class="text-[10px] font-mono font-bold text-gray-400 uppercase">{{ child.code }}</p>
+                                        <p class="text-xs font-mono font-bold text-gray-500 uppercase">{{ child.code }}</p>
                                         <p class="text-sm font-bold text-gray-900 leading-tight mt-0.5 truncate">{{ child.name }}</p>
                                         <p v-if="child.model" class="text-xs text-gray-500">{{ child.model }}</p>
                                     </div>
-                                    <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0" :class="statusColors[child.status] ?? 'bg-gray-100 text-gray-600'">
-                                        {{ statusLabels[child.status] ?? child.status ?? '—' }}
-                                    </span>
+                                    <Badge :tone="eqStatus(child.status).tone" :label="eqStatus(child.status).label" class="shrink-0" />
                                 </div>
 
                                 <!-- Category badge -->
                                 <div class="flex items-center gap-1.5 mt-2 flex-wrap">
-                                    <span v-if="child.category" class="text-[10px] font-semibold px-1.5 py-0.5 rounded" :class="categoryBadgeClass(child.category.color)">
+                                    <span v-if="child.category" class="text-xs font-semibold px-1.5 py-0.5 rounded" :class="categoryBadgeClass(child.category.color)">
                                         {{ child.category.name }}
                                     </span>
-                                    <span v-if="child.criticality && child.criticality !== 'low'" class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" :class="criticalityColors[child.criticality]">
-                                        {{ criticalityLabels[child.criticality] }}
-                                    </span>
+                                    <Badge v-if="child.criticality && child.criticality !== 'low'" :tone="crit(child.criticality).tone" :label="crit(child.criticality).label" />
                                 </div>
 
                                 <!-- Stats row -->
-                                <div class="flex items-center gap-3 mt-2 text-[10px] text-gray-500">
+                                <div class="flex items-center gap-3 mt-2 text-xs text-gray-500">
                                     <span v-if="child.kpi?.failure_count" class="flex items-center gap-0.5">
                                         <span class="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
                                         {{ child.kpi.failure_count }} falla{{ child.kpi.failure_count !== 1 ? 's' : '' }}
@@ -350,7 +342,7 @@
                                 </div>
 
                                 <!-- Next preventive -->
-                                <div v-if="child.next_due_at" class="mt-1.5 flex items-center gap-1 text-[10px]"
+                                <div v-if="child.next_due_at" class="mt-1.5 flex items-center gap-1 text-xs"
                                     :class="isOverdue(child.next_due_at) ? 'text-red-500 font-semibold' : 'text-emerald-600'">
                                     <svg class="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"/>
@@ -378,26 +370,26 @@
                             <div class="w-2.5 h-2.5 rounded-full shrink-0" :class="woTypeDot[wo.work_order_type] ?? 'bg-gray-300'" />
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-center gap-2 flex-wrap">
-                                    <p class="text-xs font-mono font-bold text-gray-400">{{ wo.work_order_number }}</p>
-                                    <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" :class="woStatusColors[wo.status] ?? 'bg-gray-100 text-gray-600'">
+                                    <p class="text-xs font-mono font-bold text-gray-500">{{ wo.work_order_number }}</p>
+                                    <span class="text-xs font-semibold px-1.5 py-0.5 rounded-full" :class="woStatusColors[wo.status] ?? 'bg-gray-100 text-gray-600'">
                                         {{ woStatusLabels[wo.status] ?? wo.status }}
                                     </span>
-                                    <span v-if="wo.priority !== 'medium'" class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" :class="woPriorityColors[wo.priority] ?? 'bg-gray-100 text-gray-600'">
+                                    <span v-if="wo.priority !== 'medium'" class="text-xs font-semibold px-1.5 py-0.5 rounded-full" :class="woPriorityColors[wo.priority] ?? 'bg-gray-100 text-gray-600'">
                                         {{ wo.priority?.toUpperCase() }}
                                     </span>
                                 </div>
                                 <p class="text-sm font-semibold text-gray-800 mt-0.5 truncate">{{ wo.title }}</p>
-                                <p class="text-[10px] text-gray-400 mt-0.5">{{ formatDateTime(wo.created_at) }}</p>
+                                <p class="text-xs text-gray-500 mt-0.5">{{ formatDateTime(wo.created_at) }}</p>
                             </div>
                             <svg class="w-4 h-4 text-gray-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
                         </RouterLink>
 
-                        <RouterLink :to="{ name: 'ops.ordenes' }" class="block text-center text-xs font-semibold text-gray-400 hover:text-gray-700 transition-colors py-2">
+                        <RouterLink :to="{ name: 'ops.ordenes' }" class="block text-center text-xs font-semibold text-gray-500 hover:text-gray-700 transition-colors py-2">
                             Ver todas las órdenes →
                         </RouterLink>
                     </div>
 
-                    <div v-else class="bg-white rounded-2xl border border-gray-100 shadow-sm py-8 text-center text-xs text-gray-400">
+                    <div v-else class="bg-white rounded-2xl border border-gray-100 shadow-sm py-8 text-center text-xs text-gray-500">
                         Sin órdenes de trabajo registradas
                     </div>
                 </section>
@@ -415,11 +407,11 @@
                             <div class="flex items-start justify-between gap-3">
                                 <div class="flex-1 min-w-0">
                                     <div class="flex items-center gap-2 flex-wrap mb-1">
-                                        <p class="text-xs font-mono font-bold text-gray-400">{{ plan.plan_number }}</p>
-                                        <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded" :class="plan.trigger_source === 'time' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'">
+                                        <p class="text-xs font-mono font-bold text-gray-500">{{ plan.plan_number }}</p>
+                                        <span class="text-xs font-semibold px-1.5 py-0.5 rounded" :class="plan.trigger_source === 'time' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'">
                                             {{ plan.trigger_source === 'time' ? 'Tiempo' : 'Medidor' }}
                                         </span>
-                                        <span v-if="!plan.is_active" class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">Inactivo</span>
+                                        <span v-if="!plan.is_active" class="text-xs font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">Inactivo</span>
                                     </div>
                                     <p class="text-sm font-semibold text-gray-800 truncate">{{ plan.name }}</p>
                                     <p v-if="plan.frequency_label" class="text-xs text-gray-500 mt-0.5">{{ plan.frequency_label }}</p>
@@ -427,17 +419,17 @@
                             </div>
                             <div v-if="plan.schedule" class="grid grid-cols-3 gap-3 mt-3 pt-3 border-t border-gray-50">
                                 <div>
-                                    <p class="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Próximo</p>
+                                    <p class="text-xs font-bold uppercase tracking-wider text-gray-500 mb-0.5">Próximo</p>
                                     <p class="text-xs font-semibold" :class="plan.schedule.is_overdue ? 'text-red-600' : 'text-gray-800'">
                                         {{ plan.schedule.is_overdue ? '⚠ VENCIDO' : (formatDate(plan.schedule.next_due_at) ?? '—') }}
                                     </p>
                                 </div>
                                 <div>
-                                    <p class="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Último</p>
+                                    <p class="text-xs font-bold uppercase tracking-wider text-gray-500 mb-0.5">Último</p>
                                     <p class="text-xs font-semibold text-gray-700">{{ formatDate(plan.schedule.last_completed_at) ?? '—' }}</p>
                                 </div>
                                 <div>
-                                    <p class="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Ejecuciones</p>
+                                    <p class="text-xs font-bold uppercase tracking-wider text-gray-500 mb-0.5">Ejecuciones</p>
                                     <p class="text-xs font-semibold text-gray-700">{{ plan.schedule.times_executed ?? 0 }}</p>
                                 </div>
                             </div>
@@ -457,12 +449,12 @@
                                         class="text-xs font-bold text-blue-600 hover:text-blue-800">
                                         OT #{{ event.meta.ref_number }}
                                     </RouterLink>
-                                    <p class="text-[10px] text-gray-400">{{ formatDateTime(event.at) }}</p>
+                                    <p class="text-xs text-gray-500">{{ formatDateTime(event.at) }}</p>
                                 </div>
                             </div>
                             <div class="mt-2 flex flex-wrap gap-1">
                                 <span v-for="p in event.meta.parts" :key="p.description"
-                                    class="text-[10px] bg-orange-50 text-orange-700 border border-orange-100 px-2 py-0.5 rounded-full">
+                                    class="text-xs bg-orange-50 text-orange-700 border border-orange-100 px-2 py-0.5 rounded-full">
                                     {{ p.description }} × {{ p.quantity }} {{ p.unit }}
                                 </span>
                             </div>
@@ -482,7 +474,7 @@
                             <div v-if="photo.is_primary" class="absolute top-1.5 left-1.5 bg-emerald-500 text-white text-[8px] font-bold uppercase px-1.5 py-0.5 rounded">
                                 Principal
                             </div>
-                            <p v-if="photo.caption" class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/50 px-2 pb-2 pt-4 text-[10px] text-white leading-snug">
+                            <p v-if="photo.caption" class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/50 px-2 pb-2 pt-4 text-xs text-white leading-snug">
                                 {{ photo.caption }}
                             </p>
                         </div>
@@ -504,8 +496,8 @@
                             </div>
                             <div class="flex-1 min-w-0">
                                 <p class="text-sm font-semibold text-gray-800 truncate">{{ doc.title ?? doc.name }}</p>
-                                <p class="text-xs text-gray-400">{{ doc.name }}</p>
-                                <p v-if="doc.expires_at" class="text-[10px] text-amber-600 mt-0.5">Expira: {{ formatDate(doc.expires_at) }}</p>
+                                <p class="text-xs text-gray-500">{{ doc.name }}</p>
+                                <p v-if="doc.expires_at" class="text-xs text-amber-600 mt-0.5">Expira: {{ formatDate(doc.expires_at) }}</p>
                             </div>
                             <svg class="w-4 h-4 text-gray-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>
                         </a>
@@ -516,10 +508,11 @@
         </template>
 
         <!-- Not found -->
-        <div v-else class="flex flex-col items-center justify-center py-24 text-center">
-            <p class="text-sm font-medium text-gray-700">Equipo no encontrado</p>
-            <RouterLink :to="{ name: 'ops.equipos' }" class="text-xs text-emerald-600 hover:text-emerald-800 mt-2 transition-colors">← Volver a equipos</RouterLink>
-        </div>
+        <EmptyState v-else icon="cube" title="Equipo no encontrado">
+            <template #action>
+                <RouterLink :to="{ name: 'ops.equipos' }" class="text-xs text-emerald-600 hover:text-emerald-800 transition-colors">← Volver a equipos</RouterLink>
+            </template>
+        </EmptyState>
 
         <!-- Photo lightbox -->
         <Teleport to="body">
@@ -541,6 +534,9 @@
 import { ref, computed, onMounted, onUnmounted, defineComponent, h } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { useApi } from '../composables/useApi.js'
+import { describe, EQUIPMENT_STATUS, CRITICALITY } from '../../shared/design.js'
+import Badge from '../components/Badge.vue'
+import EmptyState from '../components/EmptyState.vue'
 
 // ── Inline sub-components ─────────────────────────────────────────────────────
 
@@ -549,7 +545,7 @@ const InfoRow = defineComponent({
     setup(props) {
         return () => props.value != null && props.value !== ''
             ? h('div', { class: 'flex items-start justify-between py-2.5 gap-4' }, [
-                h('span', { class: 'text-xs text-gray-400 shrink-0' }, props.label),
+                h('span', { class: 'text-xs text-gray-500 shrink-0' }, props.label),
                 h('span', { class: `text-xs font-semibold text-gray-800 text-right ${props.mono ? 'font-mono' : ''}` }, props.value),
             ])
             : null
@@ -559,7 +555,7 @@ const InfoRow = defineComponent({
 const SectionLabel = defineComponent({
     props: { label: String },
     setup(props) {
-        return () => h('h2', { class: 'text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-3' }, props.label)
+        return () => h('h2', { class: 'text-xs font-bold uppercase tracking-widest text-gray-500 mb-3' }, props.label)
     },
 })
 
@@ -625,22 +621,8 @@ const visibleDesktopSections = computed(() => {
 
 // ── Color maps ────────────────────────────────────────────────────────────────
 
-const statusColors = {
-    active: 'bg-emerald-100 text-emerald-700',
-    inactive: 'bg-gray-100 text-gray-600',
-    under_maintenance: 'bg-amber-100 text-amber-700',
-    retired: 'bg-red-100 text-red-600',
-    disposed: 'bg-gray-100 text-gray-500',
-}
-const statusLabels = {
-    active: 'Activo', inactive: 'Inactivo', under_maintenance: 'En mantenimiento',
-    retired: 'Retirado', disposed: 'Dado de baja',
-}
-const criticalityColors = {
-    critical: 'bg-red-100 text-red-700', high: 'bg-orange-100 text-orange-700',
-    medium: 'bg-blue-100 text-blue-700', low: 'bg-gray-100 text-gray-500',
-}
-const criticalityLabels = { critical: 'Crítico', high: 'Alto', medium: 'Medio', low: 'Bajo' }
+const eqStatus = (s) => describe(EQUIPMENT_STATUS, s)
+const crit = (c) => describe(CRITICALITY, c)
 
 const woStatusColors = {
     open: 'bg-gray-100 text-gray-600', assigned: 'bg-blue-100 text-blue-700',
@@ -719,7 +701,7 @@ function isOverdue(iso) {
 
 function formatCurrency(amount, currency) {
     if (amount == null) { return null }
-    return new Intl.NumberFormat('es-MX', { style: 'currency', currency: currency ?? 'USD', minimumFractionDigits: 0 }).format(amount)
+    return new Intl.NumberFormat('es', { style: 'currency', currency: currency ?? 'USD', minimumFractionDigits: 0 }).format(amount)
 }
 
 function scrollToSection(id) {
@@ -741,7 +723,7 @@ function docIconColor(name) {
     if (['pdf'].includes(ext)) { return 'text-red-500' }
     if (['doc', 'docx'].includes(ext)) { return 'text-blue-500' }
     if (['xls', 'xlsx'].includes(ext)) { return 'text-emerald-500' }
-    return 'text-gray-400'
+    return 'text-gray-500'
 }
 
 // ── Data loading ──────────────────────────────────────────────────────────────

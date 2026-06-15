@@ -240,6 +240,84 @@ it('GET /api/v1/equipment supports status filter', function () {
         ->assertJsonCount(1, 'data');
 });
 
+it('GET /api/v1/equipment supports comma-separated status filter', function () {
+    ['tenant' => $tenant, 'token' => $token] = apiTenantWithUser();
+
+    Equipment::factory()->create(['tenant_id' => $tenant->id, 'status' => 'active']);
+    Equipment::factory()->create(['tenant_id' => $tenant->id, 'status' => 'inactive']);
+    Equipment::factory()->create(['tenant_id' => $tenant->id, 'status' => 'under_maintenance']);
+
+    $response = $this->withHeaders(apiHeaders($token))
+        ->getJson('/api/v1/equipment?status=inactive,under_maintenance');
+
+    $response->assertOk()
+        ->assertJsonCount(2, 'data');
+});
+
+it('GET /api/v1/equipment search matches code, name and serial (case-insensitive)', function () {
+    ['tenant' => $tenant, 'token' => $token] = apiTenantWithUser();
+
+    $match = Equipment::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Bomba Hidráulica', 'serial_number' => 'SN-001']);
+    Equipment::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Motor Eléctrico', 'serial_number' => 'SN-999']);
+
+    $response = $this->withHeaders(apiHeaders($token))->getJson('/api/v1/equipment?search=bomba');
+
+    $response->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.id', $match->id);
+});
+
+it('GET /api/v1/equipment search finds a record that exists (no false negatives)', function () {
+    ['tenant' => $tenant, 'token' => $token] = apiTenantWithUser();
+
+    Equipment::factory()->count(60)->create(['tenant_id' => $tenant->id]);
+    $needle = Equipment::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Compresor Atlas Copco XR-77']);
+
+    // Default per_page is 25 — the needle would be invisible with client-side filtering,
+    // but server-side search must surface it regardless of pagination position.
+    $response = $this->withHeaders(apiHeaders($token))->getJson('/api/v1/equipment?search=XR-77');
+
+    $response->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.id', $needle->id);
+});
+
+it('GET /api/v1/equipment supports sort by name with direction', function () {
+    ['tenant' => $tenant, 'token' => $token] = apiTenantWithUser();
+
+    Equipment::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Zeta']);
+    Equipment::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Alfa']);
+
+    $asc = $this->withHeaders(apiHeaders($token))->getJson('/api/v1/equipment?sort=name&direction=asc');
+    $asc->assertOk()->assertJsonPath('data.0.name', 'Alfa');
+
+    $desc = $this->withHeaders(apiHeaders($token))->getJson('/api/v1/equipment?sort=name&direction=desc');
+    $desc->assertOk()->assertJsonPath('data.0.name', 'Zeta');
+});
+
+it('GET /api/v1/equipment ignores a non-whitelisted sort column (falls back to default)', function () {
+    ['tenant' => $tenant, 'token' => $token] = apiTenantWithUser();
+    Equipment::factory()->count(2)->create(['tenant_id' => $tenant->id]);
+
+    $response = $this->withHeaders(apiHeaders($token))->getJson('/api/v1/equipment?sort=password&direction=desc');
+
+    $response->assertOk()
+        ->assertJsonCount(2, 'data');
+});
+
+it('GET /api/v1/inventory/spare-parts search matches code, name and description', function () {
+    ['tenant' => $tenant, 'token' => $token] = apiTenantWithUser(['inventory.read']);
+
+    $match = SparePart::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Rodamiento SKF 6205']);
+    SparePart::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Sello mecánico']);
+
+    $response = $this->withHeaders(apiHeaders($token))->getJson('/api/v1/inventory/spare-parts?search=skf');
+
+    $response->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.id', $match->id);
+});
+
 // ── Work orders ───────────────────────────────────────────────────────────────
 
 it('GET /api/v1/work-orders returns expected JSON structure', function () {
@@ -251,6 +329,58 @@ it('GET /api/v1/work-orders returns expected JSON structure', function () {
 
     $response->assertOk()
         ->assertJsonStructure(['data' => [['id', 'work_order_number', 'status', 'equipment', 'created_at']]]);
+});
+
+it('GET /api/v1/work-orders search matches work_order_number, title and description', function () {
+    ['tenant' => $tenant, 'token' => $token] = apiTenantWithUser(['work-orders.read']);
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+
+    $match = WorkOrder::factory()->create([
+        'tenant_id' => $tenant->id,
+        'equipment_id' => $equipment->id,
+        'title' => 'Cambio de correa transportadora',
+    ]);
+    WorkOrder::factory()->create([
+        'tenant_id' => $tenant->id,
+        'equipment_id' => $equipment->id,
+        'title' => 'Lubricación general',
+    ]);
+
+    $response = $this->withHeaders(apiHeaders($token))->getJson('/api/v1/work-orders?search=correa');
+
+    $response->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.id', $match->id);
+});
+
+it('GET /api/v1/work-orders supports comma-separated status filter', function () {
+    ['tenant' => $tenant, 'token' => $token] = apiTenantWithUser(['work-orders.read']);
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+
+    WorkOrder::factory()->create(['tenant_id' => $tenant->id, 'equipment_id' => $equipment->id, 'status' => 'planned']);
+    WorkOrder::factory()->create(['tenant_id' => $tenant->id, 'equipment_id' => $equipment->id, 'status' => 'in_progress']);
+    WorkOrder::factory()->create(['tenant_id' => $tenant->id, 'equipment_id' => $equipment->id, 'status' => 'closed']);
+
+    $response = $this->withHeaders(apiHeaders($token))
+        ->getJson('/api/v1/work-orders?status=planned,in_progress');
+
+    $response->assertOk()
+        ->assertJsonCount(2, 'data');
+});
+
+it('GET /api/v1/maintenance-requests supports comma-separated status filter', function () {
+    ['tenant' => $tenant, 'token' => $token] = apiTenantWithUser(['maintenance-requests.read']);
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+
+    MaintenanceRequest::factory()->create(['tenant_id' => $tenant->id, 'equipment_id' => $equipment->id, 'status' => 'submitted']);
+    MaintenanceRequest::factory()->create(['tenant_id' => $tenant->id, 'equipment_id' => $equipment->id, 'status' => 'under_review']);
+    MaintenanceRequest::factory()->create(['tenant_id' => $tenant->id, 'equipment_id' => $equipment->id, 'status' => 'approved']);
+
+    $response = $this->withHeaders(apiHeaders($token))
+        ->getJson('/api/v1/maintenance-requests?status=submitted,under_review');
+
+    $response->assertOk()
+        ->assertJsonCount(2, 'data');
 });
 
 // ── Downtime events ───────────────────────────────────────────────────────────

@@ -24,7 +24,7 @@
                 class="p-2 -mr-2 rounded-xl hover:bg-zinc-800 transition shrink-0"
                 aria-label="Cerrar sesión"
             >
-                <svg class="w-5 h-5 text-zinc-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <svg class="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round"
                           d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75"/>
                 </svg>
@@ -54,7 +54,7 @@ import { usePushNotifications } from '../composables/usePushNotifications.js'
 import { useAuthStore } from '../stores/auth.js'
 
 defineProps({
-    title: { type: String, default: 'PalmCore' },
+    title: { type: String, default: 'Fronda' },
     showBack: { type: Boolean, default: false },
 })
 

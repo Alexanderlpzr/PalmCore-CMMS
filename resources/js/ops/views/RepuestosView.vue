@@ -5,14 +5,14 @@
         <div class="flex items-center justify-between mb-6">
             <div>
                 <h1 class="text-xl font-bold text-gray-900">Repuestos</h1>
-                <p v-if="!loading" class="text-sm text-gray-400 mt-0.5">{{ total }} repuestos</p>
+                <p v-if="!loading" class="text-sm text-gray-500 mt-0.5">{{ parts.length }} repuestos</p>
             </div>
         </div>
 
         <!-- Search + category filter -->
         <div class="flex flex-col sm:flex-row gap-3 mb-5">
             <div class="relative flex-1">
-                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
                 </svg>
                 <input
@@ -52,9 +52,9 @@
         </div>
 
         <!-- Spare part list -->
-        <div v-else-if="filteredParts.length" class="space-y-2">
+        <div v-else-if="parts.length" class="space-y-2">
             <div
-                v-for="part in filteredParts"
+                v-for="part in parts"
                 :key="part.id"
                 class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-start gap-4"
             >
@@ -66,26 +66,24 @@
                 <!-- Content -->
                 <div class="flex-1 min-w-0">
                     <div class="flex items-start gap-2 flex-wrap mb-1">
-                        <span class="font-mono text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">{{ part.code }}</span>
-                        <span v-if="part.abc_classification" :class="abcBadge[part.abc_classification]" class="text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                        <span class="font-mono text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">{{ part.code }}</span>
+                        <span v-if="part.abc_classification" :class="abcBadge[part.abc_classification]" class="text-xs font-bold px-1.5 py-0.5 rounded-full">
                             {{ part.abc_classification }}
                         </span>
-                        <span v-if="part.criticality" :class="criticalityBadge[part.criticality]" class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full">
-                            {{ criticalityLabel[part.criticality] }}
-                        </span>
+                        <Badge v-if="part.criticality" :tone="crit(part.criticality).tone" :label="crit(part.criticality).label" />
                     </div>
                     <p class="text-sm font-semibold text-gray-900 leading-snug">{{ part.name }}</p>
-                    <p v-if="part.description" class="text-xs text-gray-400 mt-0.5 line-clamp-1">{{ part.description }}</p>
-                    <p v-if="part.manufacturer" class="text-xs text-gray-400 mt-0.5">{{ part.manufacturer.name }}</p>
+                    <p v-if="part.description" class="text-xs text-gray-500 mt-0.5 line-clamp-1">{{ part.description }}</p>
+                    <p v-if="part.manufacturer" class="text-xs text-gray-500 mt-0.5">{{ part.manufacturer.name }}</p>
                 </div>
 
                 <!-- Cost -->
                 <div v-if="part.unit_cost != null" class="text-right shrink-0">
                     <p class="text-sm font-bold text-gray-900">${{ part.unit_cost.toFixed(2) }}</p>
-                    <p class="text-[10px] text-gray-400">/ {{ part.unit }}</p>
+                    <p class="text-xs text-gray-500">/ {{ part.unit }}</p>
                 </div>
                 <div v-else class="text-right shrink-0">
-                    <p class="text-xs text-gray-400">{{ part.unit }}</p>
+                    <p class="text-xs text-gray-500">{{ part.unit }}</p>
                 </div>
             </div>
 
@@ -101,31 +99,30 @@
         </div>
 
         <!-- Empty -->
-        <div v-else class="flex flex-col items-center justify-center py-20 text-center">
-            <div class="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
-                <svg class="w-8 h-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 7.5l-2.25-1.313M21 7.5v2.25m0-2.25l-2.25 1.313M3 7.5l2.25-1.313M3 7.5l2.25 1.313M3 7.5v2.25m9 3l2.25-1.313M12 12.75l-2.25-1.313M12 12.75V15m0 6.75l2.25-1.313M12 21.75V19.5m0 2.25l-2.25-1.313m0-16.875L12 2.25l2.25 1.313M21 14.25v2.25l-2.25 1.313m-13.5 0L3 16.5v-2.25" />
-                </svg>
-            </div>
-            <p class="text-sm font-medium text-gray-700">Sin repuestos</p>
-            <p class="text-xs text-gray-400 mt-1">
-                {{ search ? 'No se encontraron resultados para tu búsqueda' : 'No hay repuestos registrados' }}
-            </p>
-        </div>
+        <EmptyState
+            v-else
+            icon="package"
+            title="Sin repuestos"
+            :subtitle="search ? 'No se encontraron resultados para tu búsqueda.' : 'No hay repuestos registrados.'"
+        />
 
     </div>
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useApi } from '../composables/useApi.js'
+import { describe, CRITICALITY } from '../../shared/design.js'
+import Badge from '../components/Badge.vue'
+import EmptyState from '../components/EmptyState.vue'
 
 const api = useApi()
-const allParts = ref([])
+const parts = ref([])
+
+const crit = (c) => describe(CRITICALITY, c)
 const loading = ref(true)
 const loadingMore = ref(false)
 const nextCursor = ref(null)
-const total = ref(0)
 const search = ref('')
 const activeCategory = ref('')
 
@@ -150,38 +147,20 @@ const categoryEmoji = {
     lubrication: '🛢️', consumable: '📦', safety: '🦺', other: '🔧',
 }
 
-const criticalityLabel = { critical: 'Crítico', high: 'Alto', medium: 'Medio', low: 'Bajo' }
-const criticalityBadge = {
-    critical: 'bg-red-100 text-red-700',
-    high: 'bg-orange-100 text-orange-700',
-    medium: 'bg-yellow-100 text-yellow-700',
-    low: 'bg-gray-100 text-gray-600',
-}
 const abcBadge = {
     A: 'bg-red-100 text-red-700',
     B: 'bg-amber-100 text-amber-700',
     C: 'bg-gray-100 text-gray-600',
 }
 
-// ── Client-side filter ────────────────────────────────────────────────────────
-
-const filteredParts = computed(() => {
-    const q = search.value.trim().toLowerCase()
-    return allParts.value.filter(p => {
-        const matchesSearch = !q
-            || p.code?.toLowerCase().includes(q)
-            || p.name?.toLowerCase().includes(q)
-            || p.description?.toLowerCase().includes(q)
-        return matchesSearch
-    })
-})
-
 // ── API ───────────────────────────────────────────────────────────────────────
 
 function buildParams(cursor = null) {
-    const params = new URLSearchParams({ per_page: '100' })
+    const params = new URLSearchParams({ per_page: '30' })
     if (activeCategory.value) { params.set('category_type', activeCategory.value) }
     params.set('is_active', 'true')
+    const q = search.value.trim()
+    if (q) { params.set('search', q) }
     if (cursor) { params.set('cursor', cursor) }
     return params.toString()
 }
@@ -191,8 +170,7 @@ async function load() {
     nextCursor.value = null
     try {
         const res = await api.get(`inventory/spare-parts?${buildParams()}`)
-        allParts.value = res?.data ?? []
-        total.value = res?.meta?.total ?? allParts.value.length
+        parts.value = res?.data ?? []
         nextCursor.value = res?.meta?.next_cursor ?? null
     } catch { /* silent */ } finally {
         loading.value = false
@@ -204,13 +182,19 @@ async function loadMore() {
     loadingMore.value = true
     try {
         const res = await api.get(`inventory/spare-parts?${buildParams(nextCursor.value)}`)
-        allParts.value = [...allParts.value, ...(res?.data ?? [])]
+        parts.value = [...parts.value, ...(res?.data ?? [])]
         nextCursor.value = res?.meta?.next_cursor ?? null
     } catch { /* silent */ } finally {
         loadingMore.value = false
     }
 }
 
+// Server-side search with debounce so each keystroke does not fire a request.
+let searchTimer = null
+watch(search, () => {
+    clearTimeout(searchTimer)
+    searchTimer = setTimeout(load, 350)
+})
 watch(activeCategory, load)
 onMounted(load)
 </script>

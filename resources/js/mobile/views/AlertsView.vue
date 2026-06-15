@@ -36,12 +36,12 @@
         <!-- Empty -->
         <div v-else-if="filteredAlerts.length === 0" class="px-4 py-16 text-center">
             <div class="w-16 h-16 rounded-2xl bg-zinc-900 flex items-center justify-center mx-auto mb-4">
-                <svg class="w-8 h-8 text-zinc-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                <svg class="w-8 h-8 text-zinc-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round"
                           d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
                 </svg>
             </div>
-            <p class="text-zinc-500 text-sm">Sin alertas abiertas</p>
+            <p class="text-zinc-400 text-sm">Sin alertas abiertas</p>
         </div>
 
         <!-- Alert cards -->
@@ -61,9 +61,9 @@
                         >
                             {{ severityLabel(alert.severity) }}
                         </span>
-                        <span class="text-xs text-zinc-500">{{ categoryLabel(alert.category) }}</span>
+                        <span class="text-xs text-zinc-400">{{ categoryLabel(alert.category) }}</span>
                     </div>
-                    <span class="text-xs text-zinc-600 shrink-0">{{ formatDate(alert.created_at) }}</span>
+                    <span class="text-xs text-zinc-400 shrink-0">{{ formatDate(alert.created_at) }}</span>
                 </div>
 
                 <!-- Title -->

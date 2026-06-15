@@ -5,7 +5,7 @@
         <div class="flex items-center justify-between mb-6">
             <div>
                 <h1 class="text-xl font-bold text-gray-900">Planes Preventivos</h1>
-                <p v-if="!loading" class="text-sm text-gray-400 mt-0.5">{{ total }} planes</p>
+                <p v-if="!loading" class="text-sm text-gray-500 mt-0.5">{{ total }} planes</p>
             </div>
         </div>
 
@@ -63,8 +63,8 @@
                 <!-- Top row: number + trigger badge -->
                 <div class="flex items-center gap-2 mb-2">
                     <span class="w-2 h-2 rounded-full shrink-0" :class="plan.is_active ? 'bg-emerald-500' : 'bg-gray-300'" />
-                    <span class="font-mono text-xs text-gray-400">{{ plan.plan_number }}</span>
-                    <span class="ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full" :class="triggerBadge[plan.trigger_source]">
+                    <span class="font-mono text-xs text-gray-500">{{ plan.plan_number }}</span>
+                    <span class="ml-auto text-xs font-bold px-2 py-0.5 rounded-full" :class="triggerBadge[plan.trigger_source]">
                         {{ triggerLabel[plan.trigger_source] ?? plan.trigger_source }}
                     </span>
                 </div>
@@ -90,7 +90,7 @@
 
                     <!-- Frequency -->
                     <div class="flex items-center gap-1.5">
-                        <svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <svg class="w-3.5 h-3.5 text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         <span class="text-xs text-gray-600 font-medium">{{ plan.frequency_label }}</span>
@@ -98,7 +98,7 @@
 
                     <!-- Duration -->
                     <div v-if="plan.estimated_duration_minutes" class="flex items-center gap-1.5">
-                        <svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <svg class="w-3.5 h-3.5 text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         <span class="text-xs text-gray-500">{{ formatDuration(plan.estimated_duration_minutes) }}</span>
@@ -106,7 +106,7 @@
 
                     <!-- Times executed -->
                     <div v-if="plan.schedule?.times_executed" class="flex items-center gap-1.5">
-                        <svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <svg class="w-3.5 h-3.5 text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         <span class="text-xs text-gray-500">{{ plan.schedule.times_executed }} ejecuciones</span>
@@ -125,15 +125,15 @@
                             <span v-else-if="plan.schedule.next_due_meter" class="text-xs text-gray-500">
                                 Próx: {{ plan.schedule.next_due_meter.toFixed(0) }} h
                             </span>
-                            <span v-else class="text-xs text-gray-400">Sin fecha próxima</span>
+                            <span v-else class="text-xs text-gray-500">Sin fecha próxima</span>
                         </template>
-                        <span v-else class="text-xs text-gray-400">Sin programa</span>
+                        <span v-else class="text-xs text-gray-500">Sin programa</span>
                     </div>
                 </div>
 
                 <!-- Last completed -->
                 <div v-if="plan.schedule?.last_completed_at" class="mt-2 pt-2 border-t border-gray-50">
-                    <p class="text-[10px] text-gray-400">
+                    <p class="text-xs text-gray-500">
                         Última ejecución: {{ formatDate(plan.schedule.last_completed_at) }}
                     </p>
                 </div>
@@ -151,15 +151,12 @@
         </div>
 
         <!-- Empty -->
-        <div v-else class="flex flex-col items-center justify-center py-20 text-center">
-            <div class="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
-                <svg class="w-8 h-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 9v7.5" />
-                </svg>
-            </div>
-            <p class="text-sm font-medium text-gray-700">Sin planes preventivos</p>
-            <p class="text-xs text-gray-400 mt-1">No hay planes con los filtros seleccionados</p>
-        </div>
+        <EmptyState
+            v-else
+            icon="calendar"
+            title="Sin planes preventivos"
+            subtitle="No hay planes con los filtros seleccionados."
+        />
 
     </div>
 </template>
@@ -168,6 +165,7 @@
 import { ref, watch, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useApi } from '../composables/useApi.js'
+import EmptyState from '../components/EmptyState.vue'
 
 const api = useApi()
 const plans = ref([])
@@ -205,7 +203,7 @@ const triggerBadge = {
 
 function formatDate(iso) {
     if (!iso) { return null }
-    return new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
+    return new Date(iso).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 function formatNextDue(iso) {
@@ -215,7 +213,7 @@ function formatNextDue(iso) {
     if (diffDays === 0) { return 'Hoy' }
     if (diffDays === 1) { return 'Mañana' }
     if (diffDays > 0 && diffDays <= 30) { return `en ${diffDays}d` }
-    return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
+    return d.toLocaleDateString('es', { day: 'numeric', month: 'short' })
 }
 
 function dueSoonClass(iso) {

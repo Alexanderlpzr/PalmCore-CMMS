@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Http\Controllers\Concerns\SortsApiQueries;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\V1\SparePartResource;
 use App\Models\SparePart;
@@ -10,6 +11,8 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class SparePartController extends Controller
 {
+    use SortsApiQueries;
+
     public function index(Request $request): AnonymousResourceCollection
     {
         abort_if(! $request->user()->tokenCan('inventory.read') && ! $request->user()->tokenCan('*'), 403);
@@ -21,7 +24,14 @@ class SparePartController extends Controller
                 $request->has('is_active'),
                 fn ($q) => $q->where('is_active', filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN))
             )
-            ->orderBy('code');
+            ->when($request->search, fn ($q, $v) => $q->where(function ($sub) use ($v) {
+                $like = '%'.$v.'%';
+                $sub->where('code', 'ILIKE', $like)
+                    ->orWhere('name', 'ILIKE', $like)
+                    ->orWhere('description', 'ILIKE', $like);
+            }));
+
+        $this->applySort($query, $request, ['code', 'name', 'unit_cost', 'created_at'], 'code');
 
         $perPage = min((int) ($request->per_page ?? 25), 200);
 

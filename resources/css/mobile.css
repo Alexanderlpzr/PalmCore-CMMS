@@ -2,11 +2,22 @@
 
 @source '../js/mobile/**/*.vue';
 @source '../js/mobile/**/*.js';
+@source '../js/shared/**/*.js';
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
+
+    /* ── Fronda design tokens (DS-1.4) ──────────────────────────────────────
+       Shared brand + semantic palette (same source as the Ops panel). Status
+       and priority colors come from shared/design.js. The mobile dark theme
+       deliberately keeps amber-500 as its primary action accent. */
+    --color-brand-50: #ecfdf5;
+    --color-brand-100: #d1fae5;
+    --color-brand-500: #059669;
+    --color-brand-600: #047857;
+    --color-brand-700: #065f46;
 }
 
 /* Safe-area insets for notch / dynamic island / Android nav bar */

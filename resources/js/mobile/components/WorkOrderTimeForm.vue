@@ -15,7 +15,7 @@
         <!-- Ended at -->
         <div class="space-y-1.5">
             <label class="block text-sm font-medium text-zinc-400">
-                Fin <span class="text-zinc-600">(opcional)</span>
+                Fin <span class="text-zinc-400">(opcional)</span>
             </label>
             <input
                 v-model="form.ended_at"
@@ -32,12 +32,12 @@
         <!-- Description -->
         <div class="space-y-1.5">
             <label class="block text-sm font-medium text-zinc-400">
-                Descripción <span class="text-zinc-600">(opcional)</span>
+                Descripción <span class="text-zinc-400">(opcional)</span>
             </label>
             <textarea
                 v-model="form.description"
                 rows="3"
-                placeholder="Describí el trabajo realizado…"
+                placeholder="Describe el trabajo realizado…"
                 class="w-full bg-zinc-800 text-zinc-100 rounded-xl px-4 py-3 text-sm border border-zinc-700 focus:border-amber-500 focus:outline-none resize-none"
             />
         </div>
@@ -51,7 +51,7 @@
             :disabled="submitting"
             class="w-full py-4 rounded-2xl font-semibold text-base transition"
             :class="submitting
-                ? 'bg-zinc-700 text-zinc-500 cursor-not-allowed'
+                ? 'bg-zinc-700 text-zinc-400 cursor-not-allowed'
                 : 'bg-amber-500 text-zinc-900 active:scale-95'"
         >
             {{ submitting ? 'Guardando…' : 'Registrar tiempo' }}

@@ -75,7 +75,7 @@ self.addEventListener('push', event => {
     const data = event.data.json()
 
     event.waitUntil(
-        self.registration.showNotification(data.title ?? 'PalmCore', {
+        self.registration.showNotification(data.title ?? 'Fronda', {
             body: data.body ?? '',
             icon: data.icon ?? '/icons/icon-192.svg',
             badge: data.badge ?? '/icons/icon-192.svg',

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Domain\Maintenance\Enums\MaintenanceRequestStatus;
 use App\Domain\Maintenance\Services\MaintenanceRequestService;
 use App\Exceptions\BusinessRuleException;
+use App\Http\Controllers\Concerns\SortsApiQueries;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\StoreMaintenanceRequestRequest;
 use App\Http\Requests\Api\V1\UpdateMaintenanceRequestStatusRequest;
@@ -17,6 +18,8 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class MaintenanceRequestController extends Controller
 {
+    use SortsApiQueries;
+
     public function __construct(private readonly MaintenanceRequestService $service) {}
 
     public function index(Request $request): AnonymousResourceCollection
@@ -25,7 +28,7 @@ class MaintenanceRequestController extends Controller
 
         $query = MaintenanceRequest::query()
             ->with(['equipment'])
-            ->when($request->status, fn ($q, $v) => $q->where('status', $v))
+            ->when($request->status, fn ($q, $v) => $q->whereIn('status', $this->statusList($v)))
             ->when($request->equipment_id, fn ($q, $v) => $q->where('equipment_id', $v))
             ->orderByDesc('created_at');
 

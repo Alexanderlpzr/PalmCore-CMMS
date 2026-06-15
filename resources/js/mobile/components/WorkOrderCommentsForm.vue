@@ -8,7 +8,7 @@
                 v-model="form.body"
                 rows="4"
                 required
-                placeholder="Escribí tu comentario…"
+                placeholder="Escribe tu comentario…"
                 class="w-full bg-zinc-800 text-zinc-100 rounded-xl px-4 py-3 text-sm border border-zinc-700 focus:border-amber-500 focus:outline-none resize-none"
             />
         </div>
@@ -17,7 +17,7 @@
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-sm font-medium text-zinc-300">Nota interna</p>
-                <p class="text-xs text-zinc-600">Solo visible para el equipo</p>
+                <p class="text-xs text-zinc-400">Solo visible para el equipo</p>
             </div>
             <button
                 type="button"
@@ -43,7 +43,7 @@
             :disabled="submitting"
             class="w-full py-4 rounded-2xl font-semibold text-base transition"
             :class="submitting
-                ? 'bg-zinc-700 text-zinc-500 cursor-not-allowed'
+                ? 'bg-zinc-700 text-zinc-400 cursor-not-allowed'
                 : 'bg-amber-500 text-zinc-900 active:scale-95'"
         >
             {{ submitting ? 'Guardando…' : 'Agregar comentario' }}

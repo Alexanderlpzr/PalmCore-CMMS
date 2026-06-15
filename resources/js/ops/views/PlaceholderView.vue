@@ -7,11 +7,8 @@
         </div>
         <h2 class="text-lg font-bold text-gray-800">{{ title }}</h2>
         <p class="text-sm text-gray-500 mt-2 max-w-xs">
-            Esta sección está en desarrollo y estará disponible próximamente.
+            No hay información disponible para mostrar en esta sección.
         </p>
-        <div class="mt-6 px-4 py-2 bg-emerald-50 rounded-full text-xs font-semibold text-emerald-700">
-            Próximamente en Sprint 14
-        </div>
     </div>
 </template>
 
@@ -20,5 +17,5 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
-const title = computed(() => route.meta?.title ?? 'Módulo en construcción')
+const title = computed(() => route.meta?.title ?? 'Sección')
 </script>

@@ -21,7 +21,7 @@
                     <PriorityBadge :priority="wo.priority" />
                 </div>
                 <h2 class="text-xl font-semibold text-zinc-100 leading-snug">{{ wo.title }}</h2>
-                <p class="text-xs text-zinc-500 mt-1">{{ wo.work_order_number }}</p>
+                <p class="text-xs text-zinc-400 mt-1">{{ wo.work_order_number }}</p>
             </div>
 
             <!-- Info section -->
@@ -29,16 +29,16 @@
 
                 <!-- Equipment -->
                 <div v-if="wo.equipment" class="bg-zinc-900 rounded-2xl p-4">
-                    <p class="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">Equipo</p>
+                    <p class="text-xs font-medium text-zinc-400 uppercase tracking-wide mb-2">Equipo</p>
                     <RouterLink
                         :to="{ name: 'equipment-detail', params: { id: wo.equipment.id } }"
                         class="flex items-center justify-between group"
                     >
                         <div>
                             <p class="font-semibold text-zinc-100">{{ wo.equipment.name }}</p>
-                            <p class="text-sm text-zinc-500">{{ wo.equipment.code }}</p>
+                            <p class="text-sm text-zinc-400">{{ wo.equipment.code }}</p>
                         </div>
-                        <svg class="w-4 h-4 text-zinc-600 group-hover:text-zinc-400 transition shrink-0"
+                        <svg class="w-4 h-4 text-zinc-400 group-hover:text-zinc-400 transition shrink-0"
                              fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
                         </svg>
@@ -47,30 +47,30 @@
 
                 <!-- Description -->
                 <div v-if="wo.description" class="bg-zinc-900 rounded-2xl p-4">
-                    <p class="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">Descripción</p>
+                    <p class="text-xs font-medium text-zinc-400 uppercase tracking-wide mb-2">Descripción</p>
                     <p class="text-sm text-zinc-300 leading-relaxed">{{ wo.description }}</p>
                 </div>
 
                 <!-- Dates -->
                 <div class="bg-zinc-900 rounded-2xl p-4 space-y-3">
-                    <p class="text-xs font-medium text-zinc-500 uppercase tracking-wide">Fechas</p>
+                    <p class="text-xs font-medium text-zinc-400 uppercase tracking-wide">Fechas</p>
                     <div v-if="wo.planned_start_at" class="flex justify-between text-sm">
-                        <span class="text-zinc-500">Inicio planificado</span>
+                        <span class="text-zinc-400">Inicio planificado</span>
                         <span class="text-zinc-300">{{ formatDate(wo.planned_start_at) }}</span>
                     </div>
                     <div v-if="wo.actual_start_at" class="flex justify-between text-sm">
-                        <span class="text-zinc-500">Inicio real</span>
+                        <span class="text-zinc-400">Inicio real</span>
                         <span class="text-zinc-300">{{ formatDate(wo.actual_start_at) }}</span>
                     </div>
                     <div v-if="wo.completed_at" class="flex justify-between text-sm">
-                        <span class="text-zinc-500">Completada</span>
+                        <span class="text-zinc-400">Completada</span>
                         <span class="text-zinc-300">{{ formatDate(wo.completed_at) }}</span>
                     </div>
                 </div>
 
                 <!-- Actions -->
                 <div class="bg-zinc-900 rounded-2xl overflow-hidden">
-                    <p class="px-4 pt-4 pb-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">
+                    <p class="px-4 pt-4 pb-3 text-xs font-medium text-zinc-400 uppercase tracking-wide">
                         Acciones
                     </p>
                     <div class="divide-y divide-zinc-800">
@@ -86,7 +86,7 @@
                             </div>
                             <div>
                                 <p class="font-medium text-zinc-100 text-sm">Registrar tiempo</p>
-                                <p class="text-xs text-zinc-500">Inicio y fin de trabajo</p>
+                                <p class="text-xs text-zinc-400">Inicio y fin de trabajo</p>
                             </div>
                         </button>
 
@@ -102,7 +102,7 @@
                             </div>
                             <div>
                                 <p class="font-medium text-zinc-100 text-sm">Agregar comentario</p>
-                                <p class="text-xs text-zinc-500">Nota pública o interna</p>
+                                <p class="text-xs text-zinc-400">Nota pública o interna</p>
                             </div>
                         </button>
 
@@ -119,7 +119,7 @@
                             </div>
                             <div>
                                 <p class="font-medium text-zinc-100 text-sm">Subir foto</p>
-                                <p class="text-xs text-zinc-500">Antes, después o evidencia</p>
+                                <p class="text-xs text-zinc-400">Antes, después o evidencia</p>
                             </div>
                         </button>
 
@@ -135,7 +135,7 @@
                             </div>
                             <div>
                                 <p class="font-medium text-zinc-100 text-sm">Firmar OT</p>
-                                <p class="text-xs text-zinc-500">Firma de completado técnico</p>
+                                <p class="text-xs text-zinc-400">Firma de completado técnico</p>
                             </div>
                         </button>
                     </div>

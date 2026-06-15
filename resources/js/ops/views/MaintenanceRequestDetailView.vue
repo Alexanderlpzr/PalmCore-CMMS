@@ -6,20 +6,14 @@
             <div class="max-w-3xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-3">
                 <RouterLink
                     :to="{ name: 'ops.solicitudes' }"
-                    class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 transition-colors"
+                    class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
                 >
                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
                     </svg>
                 </RouterLink>
                 <span class="font-mono text-sm text-gray-500 truncate">{{ mr?.request_number ?? '' }}</span>
-                <span
-                    v-if="mr"
-                    class="ml-auto shrink-0 text-xs font-bold px-2.5 py-1 rounded-full"
-                    :class="statusBadge[mr.status]"
-                >
-                    {{ statusLabel[mr.status] ?? mr.status }}
-                </span>
+                <Badge v-if="mr" :tone="status(mr.status).tone" :label="status(mr.status).label" class="ml-auto shrink-0" />
             </div>
         </div>
 
@@ -45,10 +39,8 @@
             <div>
                 <h1 class="text-xl font-bold text-gray-900 leading-tight">{{ mr.title ?? mr.description }}</h1>
                 <div class="flex items-center flex-wrap gap-x-2 gap-y-1.5 mt-2">
-                    <span class="text-xs font-semibold px-2 py-0.5 rounded-full" :class="priorityBadge[mr.priority]">
-                        {{ priorityLabel[mr.priority] ?? mr.priority }}
-                    </span>
-                    <span class="text-xs text-gray-400">{{ typeLabel[mr.request_type] ?? mr.request_type }}</span>
+                    <Badge :tone="priority(mr.priority).tone" :label="priority(mr.priority).label" />
+                    <span class="text-xs text-gray-500">{{ typeLabel[mr.request_type] ?? mr.request_type }}</span>
                     <RouterLink
                         v-if="mr.equipment"
                         :to="{ name: 'ops.equipos.show', params: { id: mr.equipment.id } }"
@@ -116,7 +108,7 @@
                     {{ tab.label }}
                     <span
                         v-if="tab.count != null && tab.count > 0"
-                        class="ml-1.5 text-[10px] bg-gray-100 text-gray-500 rounded-full px-1.5 py-0.5"
+                        class="ml-1.5 text-xs bg-gray-100 text-gray-500 rounded-full px-1.5 py-0.5"
                     >{{ tab.count }}</span>
                 </button>
             </div>
@@ -126,7 +118,7 @@
 
                 <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
                     <InfoRow label="Tipo" :value="typeLabel[mr.request_type] ?? mr.request_type" />
-                    <InfoRow label="Prioridad" :value="priorityLabel[mr.priority] ?? mr.priority" />
+                    <InfoRow label="Prioridad" :value="priority(mr.priority).label" />
                     <InfoRow label="Equipo" :value="mr.equipment ? `${mr.equipment.code} — ${mr.equipment.name}` : null" />
                     <InfoRow label="Fecha límite solicitada" :value="formatDate(mr.requested_due_date)" />
                     <InfoRow label="Enviado" :value="formatDate(mr.submitted_at)" />
@@ -137,12 +129,12 @@
                 </div>
 
                 <div v-if="mr.description" class="bg-white rounded-2xl border border-gray-100 p-4">
-                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Descripción</p>
+                    <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Descripción</p>
                     <p class="text-sm text-gray-700 whitespace-pre-line">{{ mr.description }}</p>
                 </div>
 
                 <div v-if="mr.rejection_reason" class="bg-red-50 border border-red-200 rounded-2xl p-4">
-                    <p class="text-[10px] font-bold text-red-500 uppercase tracking-widest mb-2">Motivo de rechazo</p>
+                    <p class="text-xs font-bold text-red-500 uppercase tracking-widest mb-2">Motivo de rechazo</p>
                     <p class="text-sm text-red-800 whitespace-pre-line">{{ mr.rejection_reason }}</p>
                 </div>
 
@@ -161,8 +153,8 @@
                         <div class="flex items-center justify-between mb-2">
                             <p class="text-sm font-semibold text-gray-900">{{ c.user?.name ?? 'Usuario' }}</p>
                             <div class="flex items-center gap-1.5">
-                                <span v-if="c.is_internal" class="text-[10px] border border-amber-300 text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-full font-semibold">Interno</span>
-                                <span class="text-xs text-gray-400">{{ relativeTime(c.created_at) }}</span>
+                                <span v-if="c.is_internal" class="text-xs border border-amber-300 text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-full font-semibold">Interno</span>
+                                <span class="text-xs text-gray-500">{{ relativeTime(c.created_at) }}</span>
                             </div>
                         </div>
                         <p class="text-sm text-gray-700 whitespace-pre-line">{{ c.body }}</p>
@@ -170,7 +162,7 @@
                 </div>
 
                 <div v-else class="py-16 text-center">
-                    <p class="text-sm text-gray-400">Sin comentarios</p>
+                    <p class="text-sm text-gray-500">Sin comentarios</p>
                 </div>
 
             </div>
@@ -183,6 +175,8 @@
 import { ref, computed, onMounted, defineComponent, h } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import { useApi } from '../composables/useApi.js'
+import { describe, MAINTENANCE_REQUEST_STATUS, PRIORITY } from '../../shared/design.js'
+import Badge from '../components/Badge.vue'
 
 const route = useRoute()
 const api = useApi()
@@ -196,28 +190,9 @@ const transitionError = ref(null)
 
 // ── Label maps ────────────────────────────────────────────────────────────────
 
-const statusLabel = {
-    draft: 'Borrador', submitted: 'Enviado', under_review: 'En Revisión',
-    approved: 'Aprobado', rejected: 'Rechazado', cancelled: 'Cancelado', converted: 'Convertido a OT',
-}
-const statusBadge = {
-    draft: 'bg-gray-100 text-gray-600',
-    submitted: 'bg-blue-100 text-blue-700',
-    under_review: 'bg-amber-100 text-amber-700',
-    approved: 'bg-emerald-100 text-emerald-700',
-    rejected: 'bg-red-100 text-red-600',
-    cancelled: 'bg-gray-100 text-gray-500',
-    converted: 'bg-indigo-100 text-indigo-700',
-}
-const priorityLabel = {
-    p1_critical: 'Crítica', p2_high: 'Alta', p3_medium: 'Media', p4_low: 'Baja',
-}
-const priorityBadge = {
-    p1_critical: 'bg-red-100 text-red-700',
-    p2_high: 'bg-orange-100 text-orange-700',
-    p3_medium: 'bg-yellow-100 text-yellow-700',
-    p4_low: 'bg-gray-100 text-gray-600',
-}
+const status = (s) => describe(MAINTENANCE_REQUEST_STATUS, s)
+const priority = (p) => describe(PRIORITY, p)
+
 const typeLabel = {
     corrective: 'Correctivo', preventive: 'Preventivo', predictive: 'Predictivo',
     inspection: 'Inspección', emergency: 'Emergencia',
@@ -258,7 +233,7 @@ const tabs = computed(() => [
 
 function formatDate(iso) {
     if (!iso) { return null }
-    return new Date(iso).toLocaleString('es-MX', {
+    return new Date(iso).toLocaleString('es', {
         day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
     })
 }
@@ -280,7 +255,7 @@ const InfoRow = defineComponent({
         return () => {
             if (props.value == null || props.value === '') { return null }
             return h('div', { class: 'flex items-start justify-between gap-4 px-4 py-2.5 border-b border-gray-50 last:border-0' }, [
-                h('span', { class: 'text-xs text-gray-400 shrink-0 pt-0.5' }, props.label),
+                h('span', { class: 'text-xs text-gray-500 shrink-0 pt-0.5' }, props.label),
                 h('span', { class: 'text-xs font-medium text-gray-900 text-right break-words max-w-[60%]' }, String(props.value)),
             ])
         }

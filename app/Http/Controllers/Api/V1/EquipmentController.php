@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\Assets\Enums\EquipmentCriticality;
 use App\Domain\Assets\Enums\EquipmentStatus;
+use App\Http\Controllers\Concerns\SortsApiQueries;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\V1\EquipmentResource;
 use App\Infrastructure\Tenancy\CurrentTenant;
@@ -16,13 +17,15 @@ use Illuminate\Validation\Rule;
 
 class EquipmentController extends Controller
 {
+    use SortsApiQueries;
+
     public function index(Request $request): AnonymousResourceCollection
     {
         abort_if(! $request->user()->tokenCan('equipment.read') && ! $request->user()->tokenCan('*'), 403);
 
         $query = Equipment::query()
             ->with(['plant', 'area', 'category'])
-            ->when($request->status, fn ($q, $v) => $q->where('status', $v))
+            ->when($request->status, fn ($q, $v) => $q->whereIn('status', $this->statusList($v)))
             ->when($request->plant_id, fn ($q, $v) => $q->where('plant_id', $v))
             ->when($request->area_id, fn ($q, $v) => $q->where('area_id', $v))
             ->when($request->criticality, fn ($q, $v) => $q->where('criticality', $v))
@@ -30,7 +33,14 @@ class EquipmentController extends Controller
                 $request->has('is_active'),
                 fn ($q) => $q->where('is_active', filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN))
             )
-            ->orderBy('code');
+            ->when($request->search, fn ($q, $v) => $q->where(function ($sub) use ($v) {
+                $like = '%'.$v.'%';
+                $sub->where('code', 'ILIKE', $like)
+                    ->orWhere('name', 'ILIKE', $like)
+                    ->orWhere('serial_number', 'ILIKE', $like);
+            }));
+
+        $this->applySort($query, $request, ['code', 'name', 'criticality', 'created_at'], 'code');
 
         $perPage = min((int) ($request->per_page ?? 25), 200);
 

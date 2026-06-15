@@ -91,7 +91,7 @@ export function useWatermark() {
 
         ctx.fillStyle = '#F59E0B'
         ctx.font = scaledFont(sizeSm, 'bold')
-        ctx.fillText('PalmCore Artemis', col1X, lineY)
+        ctx.fillText('Fronda CMMS', col1X, lineY)
 
         lineY += Math.round(sizeBase * 1.5)
         ctx.fillStyle = '#FFFFFF'
@@ -163,7 +163,7 @@ export function useWatermark() {
 
         ctx.fillStyle = '#F59E0B'
         ctx.font = scaledFont(sz, 'bold')
-        ctx.fillText('PalmCore Artemis', pad, Math.round(stripH * 0.65))
+        ctx.fillText('Fronda CMMS', pad, Math.round(stripH * 0.65))
 
         ctx.fillStyle = '#FFFFFF'
         ctx.font = scaledFont(sz)

@@ -13,7 +13,7 @@ class SuperAdminSeeder extends Seeder
         User::firstOrCreate(
             ['email' => 'superadmin@palmcore.app'],
             [
-                'name' => 'PalmCore Admin',
+                'name' => 'Fronda Admin',
                 'password' => Hash::make(env('SUPER_ADMIN_PASSWORD', 'change-me-in-production')),
                 'is_active' => true,
                 'is_super_admin' => true,

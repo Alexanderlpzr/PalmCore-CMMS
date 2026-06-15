@@ -1,6 +1,6 @@
 {
-    "name": "PalmCore Mobile",
-    "short_name": "PalmCore",
+    "name": "Fronda CMMS",
+    "short_name": "Fronda",
     "description": "CMMS móvil para técnicos de mantenimiento",
     "start_url": "/mobile/dashboard",
     "scope": "/mobile/",
