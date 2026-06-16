@@ -31,7 +31,7 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 WORKDIR /var/www/html
 COPY . .
 
-# 6. Instalar las dependencias de PHP para producción evitando ejecutar scripts automáticos
+# 6. Instalar las dependencias de PHP para producción evitando ejecutar scripts automáticos en el build
 RUN composer install --no-dev --optimize-autoloader --no-scripts
 
 # 7. Dar los permisos correctos a las carpetas de almacenamiento de Laravel
