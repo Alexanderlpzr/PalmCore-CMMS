@@ -13,6 +13,9 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install gd pdo pdo_mysql pdo_pgsql zip bcmath intl pcntl
 
+# 🔥 SOLUCIÓN AL ERROR MPM: Desactivar el módulo conflictivo mpm_event y forzar mpm_prefork
+RUN a2dismod mpm_event && a2enmod mpm_prefork
+
 # 2. Habilitar mod_rewrite para Apache (esencial para las rutas de Laravel)
 RUN a2enmod rewrite
 
@@ -28,8 +31,7 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 WORKDIR /var/www/html
 COPY . .
 
-# 6. Instalar las dependencias de PHP para producción evitando ejecutar scripts automáticos (--no-scripts)
-# Esto evita que salte el comando "php artisan package:discover" en el build.
+# 6. Instalar las dependencias de PHP para producción evitando ejecutar scripts automáticos
 RUN composer install --no-dev --optimize-autoloader --no-scripts
 
 # 7. Dar los permisos correctos a las carpetas de almacenamiento de Laravel
