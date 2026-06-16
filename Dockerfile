@@ -1,7 +1,6 @@
 FROM php:8.4-apache
 
 # 1. Instalar dependencias del sistema y extensiones de PHP necesarias
-# Se añadió libicu-dev para soportar la extensión 'intl'
 RUN apt-get update && apt-get install -y \
     libpng-dev \
     libjpeg-dev \
@@ -29,8 +28,9 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 WORKDIR /var/www/html
 COPY . .
 
-# 6. Instalar las dependencias de PHP para producción
-RUN composer install --no-dev --optimize-autoloader
+# 6. Instalar las dependencias de PHP para producción evitando ejecutar scripts automáticos (--no-scripts)
+# Esto evita que salte el comando "php artisan package:discover" en el build.
+RUN composer install --no-dev --optimize-autoloader --no-scripts
 
 # 7. Dar los permisos correctos a las carpetas de almacenamiento de Laravel
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
