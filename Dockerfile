@@ -13,8 +13,10 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install gd pdo pdo_mysql pdo_pgsql zip bcmath intl pcntl
 
-# 🔥 SOLUCIÓN AL ERROR MPM: Desactivar el módulo conflictivo mpm_event y forzar mpm_prefork
-RUN a2dismod mpm_event && a2enmod mpm_prefork
+# 🔥 SOLUCIÓN DEFINITIVA MPM: Forzar la carga exclusiva de mpm_prefork directamente en los archivos de Apache
+RUN sed -i 's/LoadModule mpm_event_module/#LoadModule mpm_event_module/' /etc/apache2/mods-available/mpm_event.load \
+    && a2dismod mpm_event || true \
+    && a2enmod mpm_prefork
 
 # 2. Habilitar mod_rewrite para Apache (esencial para las rutas de Laravel)
 RUN a2enmod rewrite
