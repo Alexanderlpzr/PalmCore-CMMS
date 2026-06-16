@@ -28,9 +28,11 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 WORKDIR /var/www/html
 COPY . .
 
-# 6. Instalar las dependencias de PHP para producción evitando ejecutar scripts automáticos (--no-scripts)
-# Esto evita que salte el comando "php artisan package:discover" en el build.
-RUN composer install --no-dev --optimize-autoloader --no-scripts
+# 6. Set APP_ENV=local during build so Laravel skips production security checks
+#    (CORS_ALLOWED_ORIGINS, etc.) when Composer runs "php artisan package:discover".
+#    At runtime, Railway's APP_ENV environment variable overrides this value.
+ENV APP_ENV=local
+RUN composer install --no-dev --optimize-autoloader
 
 # 7. Dar los permisos correctos a las carpetas de almacenamiento de Laravel
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
