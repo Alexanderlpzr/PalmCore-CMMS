@@ -1,16 +1,18 @@
-FROM php:8.3-apache
+FROM php:8.4-apache
 
-# 1. Instalar dependencias del sistema y extensiones de PHP necesarias para Laravel
+# 1. Instalar dependencias del sistema y extensiones de PHP necesarias
+# Se añadió libicu-dev para soportar la extensión 'intl'
 RUN apt-get update && apt-get install -y \
     libpng-dev \
     libjpeg-dev \
     libfreetype6-dev \
     libzip-dev \
     libpq-dev \
+    libicu-dev \
     unzip \
     git \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install gd pdo pdo_mysql pdo_pgsql zip bcmath
+    && docker-php-ext-install gd pdo pdo_mysql pdo_pgsql zip bcmath intl pcntl
 
 # 2. Habilitar mod_rewrite para Apache (esencial para las rutas de Laravel)
 RUN a2enmod rewrite
