@@ -20,7 +20,7 @@ class CreateTokenRequest extends FormRequest
             'tenant_slug' => ['required', 'string', 'exists:tenants,slug'],
             'token_name' => ['required', 'string', 'max:255'],
             'abilities' => ['sometimes', 'array'],
-            'abilities.*' => ['string', 'in:equipment.read,work-orders.read,work-orders.write,maintenance-requests.read,maintenance-requests.write,inventory.read,inventory.write,reliability.read,downtime.read,plants.read,areas.read,*'],
+            'abilities.*' => ['string', 'in:equipment.read,equipment.write,work-orders.read,work-orders.write,maintenance-requests.read,maintenance-requests.write,maintenance-plans.read,inventory.read,inventory.write,reliability.read,reports.read,downtime.read,plants.read,areas.read,alerts.read,alerts.write,*'],
             'expires_at' => ['sometimes', 'nullable', 'date', 'after:now'],
         ];
     }

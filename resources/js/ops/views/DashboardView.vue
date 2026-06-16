@@ -51,6 +51,9 @@
                 <WorkOrderRow v-for="wo in myWorkOrders" :key="wo.id" :wo="wo" />
             </div>
         </div>
+
+        <!-- Favoritos -->
+        <FavoritesPanel />
     </div>
 </template>
 
@@ -59,6 +62,7 @@ import { ref, computed, onMounted, defineComponent, h } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
 import { useApi } from '../composables/useApi.js'
+import FavoritesPanel from '../components/FavoritesPanel.vue'
 
 const auth = useAuthStore()
 const api = useApi()

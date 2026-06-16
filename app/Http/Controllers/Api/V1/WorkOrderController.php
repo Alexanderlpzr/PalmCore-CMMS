@@ -2,22 +2,28 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Domain\Maintenance\Enums\WorkOrderPriority;
 use App\Domain\Maintenance\Enums\WorkOrderStatus;
 use App\Domain\Maintenance\Services\WorkOrderService;
 use App\Exceptions\BusinessRuleException;
+use App\Http\Controllers\Concerns\ProcessesBulkActions;
 use App\Http\Controllers\Concerns\SortsApiQueries;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\StoreWorkOrderRequest;
 use App\Http\Requests\Api\V1\UpdateWorkOrderStatusRequest;
 use App\Http\Resources\Api\V1\WorkOrderResource;
 use App\Infrastructure\Tenancy\CurrentTenant;
+use App\Models\User;
 use App\Models\WorkOrder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 
 class WorkOrderController extends Controller
 {
+    use ProcessesBulkActions;
     use SortsApiQueries;
 
     public function __construct(private readonly WorkOrderService $service) {}
@@ -102,6 +108,62 @@ class WorkOrderController extends Controller
             ->response()
             ->setStatusCode(201)
             ->header('Location', route('work-orders.show', $workOrder->id));
+    }
+
+    public function bulk(Request $request): JsonResponse
+    {
+        abort_if(! $request->user()->tokenCan('work-orders.write') && ! $request->user()->tokenCan('*'), 403);
+
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['uuid'],
+            'action' => ['required', Rule::in(['close', 'cancel', 'set_priority', 'assign_technician'])],
+            'value' => ['nullable', 'string'],
+        ]);
+
+        $user = $request->user();
+        $action = $validated['action'];
+
+        $priority = null;
+        $technician = null;
+
+        if ($action === 'set_priority') {
+            $priority = WorkOrderPriority::tryFrom((string) ($validated['value'] ?? ''));
+            abort_if($priority === null, 422, 'Prioridad inválida.');
+        }
+
+        if ($action === 'assign_technician') {
+            $technician = User::whereHas('tenants', fn ($q) => $q->where('tenants.id', CurrentTenant::id()))
+                ->find($validated['value'] ?? '');
+            abort_if($technician === null, 422, 'Técnico inválido o ajeno al tenant.');
+        }
+
+        $result = $this->runBulk(
+            $validated['ids'],
+            fn (string $id) => WorkOrder::findOrFail($id),
+            function (WorkOrder $workOrder) use ($action, $user, $priority, $technician): void {
+                match ($action) {
+                    'close' => $this->bulkTransition($workOrder, WorkOrderStatus::Closed, 'close', $user),
+                    'cancel' => $this->bulkTransition($workOrder, WorkOrderStatus::Cancelled, 'update', $user),
+                    'set_priority' => $this->bulkUpdate($workOrder, $user, fn () => $this->service->changePriority($workOrder, $priority)),
+                    'assign_technician' => $this->bulkUpdate($workOrder, $user, fn () => $this->service->assignTechnician($workOrder, $technician, 'technician')),
+                };
+            },
+        );
+
+        return response()->json($result);
+    }
+
+    private function bulkTransition(WorkOrder $workOrder, WorkOrderStatus $to, string $ability, User $user): void
+    {
+        Gate::forUser($user)->authorize($ability, $workOrder);
+        $this->service->transition($workOrder, $to, $user);
+    }
+
+    private function bulkUpdate(WorkOrder $workOrder, User $user, callable $apply): void
+    {
+        Gate::forUser($user)->authorize('update', $workOrder);
+        $apply();
     }
 
     public function updateStatus(UpdateWorkOrderStatusRequest $request, string $id): WorkOrderResource

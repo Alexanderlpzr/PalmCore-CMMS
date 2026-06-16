@@ -10,17 +10,23 @@
         </div>
 
         <!-- Trigger filter pills -->
-        <div class="flex gap-1.5 mb-4 overflow-x-auto pb-1">
-            <button
-                v-for="f in triggerFilters"
-                :key="f.value"
-                @click="activeTrigger = f.value"
-                class="shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors"
-                :class="activeTrigger === f.value
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300'"
-            >
-                {{ f.label }}
+        <div class="flex items-center gap-2 mb-4">
+            <div class="flex gap-1.5 overflow-x-auto pb-1 flex-1">
+                <button
+                    v-for="f in triggerFilters"
+                    :key="f.value"
+                    @click="activeTrigger = f.value"
+                    class="shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors"
+                    :class="activeTrigger === f.value
+                        ? 'bg-slate-900 text-white'
+                        : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300'"
+                >
+                    {{ f.label }}
+                </button>
+            </div>
+            <SavedViews view="preventives" :current="{ trigger: activeTrigger, status: activeStatus }" @apply="applySavedView" />
+            <button @click="resetPrefs" class="shrink-0 text-xs text-gray-400 hover:text-gray-600 transition-colors whitespace-nowrap" title="Restablecer preferencias de esta vista">
+                Restablecer
             </button>
         </div>
 
@@ -67,6 +73,7 @@
                     <span class="ml-auto text-xs font-bold px-2 py-0.5 rounded-full" :class="triggerBadge[plan.trigger_source]">
                         {{ triggerLabel[plan.trigger_source] ?? plan.trigger_source }}
                     </span>
+                    <FavoriteStar type="preventives" :id="plan.id" size="w-4 h-4" />
                 </div>
 
                 <!-- Name -->
@@ -165,7 +172,10 @@
 import { ref, watch, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useApi } from '../composables/useApi.js'
+import { useViewPreferences } from '../composables/useViewPreferences.js'
 import EmptyState from '../components/EmptyState.vue'
+import FavoriteStar from '../components/FavoriteStar.vue'
+import SavedViews from '../components/SavedViews.vue'
 
 const api = useApi()
 const plans = ref([])
@@ -173,8 +183,12 @@ const loading = ref(true)
 const loadingMore = ref(false)
 const nextCursor = ref(null)
 const total = ref(0)
-const activeTrigger = ref('')
-const activeStatus = ref('active')
+const { trigger: activeTrigger, status: activeStatus, reset: resetPrefs } = useViewPreferences('preventives', { trigger: '', status: 'active' })
+
+function applySavedView(state) {
+    activeTrigger.value = state.trigger ?? ''
+    activeStatus.value = state.status ?? 'active'
+}
 
 const triggerFilters = [
     { label: 'Todos', value: '' },

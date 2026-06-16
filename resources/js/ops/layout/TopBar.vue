@@ -24,6 +24,15 @@
             <span class="text-sm font-bold text-gray-900 tracking-wide">FRONDA</span>
         </div>
 
+        <!-- Search trigger -->
+        <button
+            @click="palette.open()"
+            class="p-2 rounded-xl text-gray-500 hover:bg-gray-100 transition-colors"
+            aria-label="Buscar"
+        >
+            <AppIcon name="search" class="w-5 h-5" />
+        </button>
+
         <!-- User avatar -->
         <div class="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-700 text-xs font-bold text-white shrink-0">
             {{ auth.userInitials }}
@@ -33,7 +42,10 @@
 
 <script setup>
 import { useAuthStore } from '../stores/auth.js'
+import { useCommandPalette } from '../composables/useCommandPalette.js'
+import AppIcon from '../components/AppIcon.vue'
 
 defineEmits(['toggle-sidebar'])
 const auth = useAuthStore()
+const palette = useCommandPalette()
 </script>

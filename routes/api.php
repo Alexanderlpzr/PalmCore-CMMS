@@ -13,6 +13,8 @@ use App\Http\Controllers\Api\V1\MaintenancePlanController;
 use App\Http\Controllers\Api\V1\MaintenanceRequestController;
 use App\Http\Controllers\Api\V1\PlantController;
 use App\Http\Controllers\Api\V1\PushSubscriptionController;
+use App\Http\Controllers\Api\V1\ReportController;
+use App\Http\Controllers\Api\V1\SearchController;
 use App\Http\Controllers\Api\V1\SparePartController;
 use App\Http\Controllers\Api\V1\TokenRefreshController;
 use App\Http\Controllers\Api\V1\WarehouseController;
@@ -48,11 +50,16 @@ Route::prefix('v1')->group(function () {
 
     // ── Protected resource routes ─────────────────────────────────────────────
     Route::middleware(['auth:sanctum', 'api.tenant', 'throttle:api'])->group(function () {
+        // Global command-palette search across resources
+        Route::get('search', [SearchController::class, 'index'])->name('api.v1.search');
+
         // Equipment — by-qr must be registered before apiResource to avoid {id} catch
         Route::get('equipment/by-qr/{qr_token}', [EquipmentController::class, 'byQrToken'])
             ->name('api.v1.equipment.by-qr');
         Route::get('equipment/{id}/activity', [EquipmentActivityController::class, 'index'])
             ->name('api.v1.equipment.activity');
+        Route::patch('equipment/bulk', [EquipmentController::class, 'bulk'])
+            ->name('api.v1.equipment.bulk');
         Route::apiResource('equipment', EquipmentController::class)->only(['index', 'show']);
         Route::post('equipment', [EquipmentController::class, 'store'])
             ->middleware('idempotency')
@@ -64,6 +71,8 @@ Route::prefix('v1')->group(function () {
         // Work Orders — mine must be registered before apiResource to avoid {id} catch
         Route::get('work-orders/mine', [WorkOrderController::class, 'mine'])
             ->name('api.v1.work-orders.mine');
+        Route::patch('work-orders/bulk', [WorkOrderController::class, 'bulk'])
+            ->name('api.v1.work-orders.bulk');
         Route::apiResource('work-orders', WorkOrderController::class)->only(['index', 'show']);
         Route::post('work-orders', [WorkOrderController::class, 'store'])
             ->middleware('idempotency')
@@ -83,6 +92,8 @@ Route::prefix('v1')->group(function () {
 
         Route::apiResource('maintenance-plans', MaintenancePlanController::class)->only(['index', 'show']);
 
+        Route::patch('maintenance-requests/bulk', [MaintenanceRequestController::class, 'bulk'])
+            ->name('api.v1.maintenance-requests.bulk');
         Route::apiResource('maintenance-requests', MaintenanceRequestController::class)->only(['index', 'show']);
         Route::post('maintenance-requests', [MaintenanceRequestController::class, 'store'])
             ->middleware('idempotency')
@@ -114,8 +125,15 @@ Route::prefix('v1')->group(function () {
             ->name('api.v1.push-subscriptions.destroy');
     });
 
-    // Heavy endpoints: reliability KPIs carry more DB weight
+    // Heavy endpoints: reliability KPIs carry more DB weight; PDF rendering is CPU-heavy
     Route::middleware(['auth:sanctum', 'api.tenant', 'throttle:api-heavy'])->group(function () {
         Route::apiResource('reliability/kpis', EquipmentKpiController::class)->only(['index', 'show']);
+
+        // On-demand PDF reports (DomPDF) — streamed to the token-authenticated SPA
+        Route::get('reports/reliability', [ReportController::class, 'reliability'])->name('api.v1.reports.reliability');
+        Route::get('reports/inventory', [ReportController::class, 'inventory'])->name('api.v1.reports.inventory');
+        Route::get('reports/work-orders/{id}', [ReportController::class, 'workOrder'])->name('api.v1.reports.work-order');
+        Route::get('reports/equipment/{id}', [ReportController::class, 'equipment'])->name('api.v1.reports.equipment');
+        Route::get('reports/maintenance-plans/{id}', [ReportController::class, 'maintenancePlan'])->name('api.v1.reports.maintenance-plan');
     });
 });

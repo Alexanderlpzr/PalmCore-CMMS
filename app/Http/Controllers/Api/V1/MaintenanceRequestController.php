@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Domain\Maintenance\Enums\MaintenanceRequestPriority;
 use App\Domain\Maintenance\Enums\MaintenanceRequestStatus;
 use App\Domain\Maintenance\Services\MaintenanceRequestService;
 use App\Exceptions\BusinessRuleException;
+use App\Http\Controllers\Concerns\ProcessesBulkActions;
 use App\Http\Controllers\Concerns\SortsApiQueries;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\StoreMaintenanceRequestRequest;
@@ -12,12 +14,16 @@ use App\Http\Requests\Api\V1\UpdateMaintenanceRequestStatusRequest;
 use App\Http\Resources\Api\V1\MaintenanceRequestResource;
 use App\Infrastructure\Tenancy\CurrentTenant;
 use App\Models\MaintenanceRequest;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 
 class MaintenanceRequestController extends Controller
 {
+    use ProcessesBulkActions;
     use SortsApiQueries;
 
     public function __construct(private readonly MaintenanceRequestService $service) {}
@@ -69,6 +75,53 @@ class MaintenanceRequestController extends Controller
             ->response()
             ->setStatusCode(201)
             ->header('Location', route('maintenance-requests.show', $maintenanceRequest->id));
+    }
+
+    public function bulk(Request $request): JsonResponse
+    {
+        abort_if(! $request->user()->tokenCan('maintenance-requests.write') && ! $request->user()->tokenCan('*'), 403);
+
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['uuid'],
+            'action' => ['required', Rule::in(['approve', 'reject', 'set_priority'])],
+            'value' => ['nullable', 'string'],
+        ]);
+
+        $user = $request->user();
+        $action = $validated['action'];
+
+        $priority = null;
+        if ($action === 'set_priority') {
+            $priority = MaintenanceRequestPriority::tryFrom((string) ($validated['value'] ?? ''));
+            abort_if($priority === null, 422, 'Prioridad inválida.');
+        }
+
+        $result = $this->runBulk(
+            $validated['ids'],
+            fn (string $id) => MaintenanceRequest::findOrFail($id),
+            function (MaintenanceRequest $mr) use ($action, $user, $priority): void {
+                match ($action) {
+                    'approve' => $this->bulkTransition($mr, MaintenanceRequestStatus::Approved, 'approve', $user),
+                    'reject' => $this->bulkTransition($mr, MaintenanceRequestStatus::Rejected, 'approve', $user),
+                    'set_priority' => $this->bulkSetPriority($mr, $user, $priority),
+                };
+            },
+        );
+
+        return response()->json($result);
+    }
+
+    private function bulkTransition(MaintenanceRequest $mr, MaintenanceRequestStatus $to, string $ability, User $user): void
+    {
+        Gate::forUser($user)->authorize($ability, $mr);
+        $this->service->transition($mr, $to, $user);
+    }
+
+    private function bulkSetPriority(MaintenanceRequest $mr, User $user, MaintenanceRequestPriority $priority): void
+    {
+        Gate::forUser($user)->authorize('update', $mr);
+        $this->service->changePriority($mr, $priority);
     }
 
     public function updateStatus(UpdateMaintenanceRequestStatusRequest $request, string $id): MaintenanceRequestResource

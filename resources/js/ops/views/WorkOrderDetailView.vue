@@ -13,7 +13,18 @@
                     </svg>
                 </RouterLink>
                 <span class="font-mono text-sm text-gray-500 truncate">{{ wo?.work_order_number ?? '' }}</span>
-                <Badge v-if="wo" :tone="status(wo.status).tone" :label="status(wo.status).label" class="ml-auto shrink-0" />
+                <div v-if="wo" class="ml-auto flex items-center gap-2 shrink-0">
+                    <FavoriteStar type="workorders" :id="wo.id" />
+                    <Badge :tone="status(wo.status).tone" :label="status(wo.status).label" />
+                    <button
+                        @click="downloadPdf"
+                        :disabled="downloadingPdf"
+                        class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-gray-200 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                    >
+                        <AppIcon name="fileText" class="w-3.5 h-3.5" />
+                        {{ downloadingPdf ? '…' : 'PDF' }}
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -258,6 +269,8 @@ import { useApi } from '../composables/useApi.js'
 import { useAuthStore } from '../stores/auth.js'
 import { describe, WORK_ORDER_STATUS, PRIORITY } from '../../shared/design.js'
 import Badge from '../components/Badge.vue'
+import AppIcon from '../components/AppIcon.vue'
+import FavoriteStar from '../components/FavoriteStar.vue'
 
 const route = useRoute()
 const api = useApi()
@@ -266,6 +279,17 @@ const auth = useAuthStore()
 const wo = ref(null)
 const loading = ref(true)
 const error = ref(null)
+const downloadingPdf = ref(false)
+
+async function downloadPdf() {
+    if (downloadingPdf.value || ! wo.value) { return }
+    downloadingPdf.value = true
+    try {
+        await api.download(`reports/work-orders/${wo.value.id}`, `${wo.value.work_order_number}.pdf`)
+    } catch { /* ignored */ } finally {
+        downloadingPdf.value = false
+    }
+}
 const activeTab = ref('details')
 const transitioning = ref(false)
 const transitionError = ref(null)

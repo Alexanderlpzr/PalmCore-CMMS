@@ -4,9 +4,11 @@ namespace App\Jobs;
 
 use App\Domain\Reliability\Services\EquipmentKpiService;
 use App\Models\Equipment;
+use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Cache;
 use Throwable;
 
 /**
@@ -40,6 +42,19 @@ class RecalculateEquipmentKpisJob implements ShouldBeUnique, ShouldQueue
     public function uniqueFor(): int
     {
         return 300;
+    }
+
+    /**
+     * Use the file cache driver for unique-job locking instead of the default
+     * database driver. The database driver acquires locks via INSERT + UPDATE;
+     * in PostgreSQL a failed INSERT (duplicate key) aborts the entire connection
+     * transaction, causing subsequent statements to fail with SQLSTATE[25P02].
+     * The file driver uses filesystem locks — acquisition returns false when the
+     * lock is already held, with no database transaction side-effects.
+     */
+    public function uniqueVia(): Repository
+    {
+        return Cache::driver('file');
     }
 
     public function handle(EquipmentKpiService $service): void

@@ -27,6 +27,6 @@ class EquipmentDowntimeEventObserver implements ShouldHandleEventsAfterCommit
 
         $this->service->markStale($event->equipment_id);
 
-        RecalculateEquipmentKpisJob::dispatch($event->equipment_id);
+        RecalculateEquipmentKpisJob::dispatch($event->equipment_id)->afterCommit();
     }
 }

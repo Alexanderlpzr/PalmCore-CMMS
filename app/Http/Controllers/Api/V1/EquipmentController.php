@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\Assets\Enums\EquipmentCriticality;
 use App\Domain\Assets\Enums\EquipmentStatus;
+use App\Domain\Assets\Services\EquipmentService;
+use App\Http\Controllers\Concerns\ProcessesBulkActions;
 use App\Http\Controllers\Concerns\SortsApiQueries;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\V1\EquipmentResource;
@@ -13,11 +15,55 @@ use App\Models\EquipmentQrCode;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
 class EquipmentController extends Controller
 {
+    use ProcessesBulkActions;
     use SortsApiQueries;
+
+    public function __construct(private readonly EquipmentService $service) {}
+
+    public function bulk(Request $request): JsonResponse
+    {
+        abort_if(! $request->user()->tokenCan('equipment.write') && ! $request->user()->tokenCan('*'), 403);
+
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['uuid'],
+            'action' => ['required', Rule::in(['set_status', 'set_criticality'])],
+            'value' => ['required', 'string'],
+        ]);
+
+        $user = $request->user();
+        $action = $validated['action'];
+
+        $status = null;
+        $criticality = null;
+
+        if ($action === 'set_status') {
+            $status = EquipmentStatus::tryFrom($validated['value']);
+            abort_if($status === null, 422, 'Estado inválido.');
+        } else {
+            $criticality = EquipmentCriticality::tryFrom($validated['value']);
+            abort_if($criticality === null, 422, 'Criticidad inválida.');
+        }
+
+        $result = $this->runBulk(
+            $validated['ids'],
+            fn (string $id) => Equipment::findOrFail($id),
+            function (Equipment $equipment) use ($action, $user, $status, $criticality): void {
+                Gate::forUser($user)->authorize('update', $equipment);
+
+                $action === 'set_status'
+                    ? $this->service->changeStatus($equipment, $status)
+                    : $this->service->changeCriticality($equipment, $criticality);
+            },
+        );
+
+        return response()->json($result);
+    }
 
     public function index(Request $request): AnonymousResourceCollection
     {

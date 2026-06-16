@@ -7,6 +7,14 @@
                 <h1 class="text-xl font-bold text-gray-900">Repuestos</h1>
                 <p v-if="!loading" class="text-sm text-gray-500 mt-0.5">{{ parts.length }} repuestos</p>
             </div>
+            <button
+                @click="downloadPdf"
+                :disabled="downloadingPdf"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+            >
+                <AppIcon name="fileText" class="w-3.5 h-3.5" />
+                {{ downloadingPdf ? 'Generando…' : 'PDF inventario' }}
+            </button>
         </div>
 
         <!-- Search + category filter -->
@@ -25,17 +33,23 @@
         </div>
 
         <!-- Category filter pills -->
-        <div class="flex gap-1.5 mb-5 overflow-x-auto pb-1">
-            <button
-                v-for="cat in categoryFilters"
-                :key="cat.value"
-                @click="activeCategory = cat.value"
-                class="shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors"
-                :class="activeCategory === cat.value
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300'"
-            >
-                {{ cat.label }}
+        <div class="flex items-center gap-2 mb-5">
+            <div class="flex gap-1.5 overflow-x-auto pb-1 flex-1">
+                <button
+                    v-for="cat in categoryFilters"
+                    :key="cat.value"
+                    @click="activeCategory = cat.value"
+                    class="shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors"
+                    :class="activeCategory === cat.value
+                        ? 'bg-slate-900 text-white'
+                        : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300'"
+                >
+                    {{ cat.label }}
+                </button>
+            </div>
+            <SavedViews view="spareparts" :current="{ category: activeCategory, search }" @apply="applySavedView" />
+            <button @click="resetPrefs" class="shrink-0 text-xs text-gray-400 hover:text-gray-600 transition-colors whitespace-nowrap" title="Restablecer preferencias de esta vista">
+                Restablecer
             </button>
         </div>
 
@@ -85,6 +99,8 @@
                 <div v-else class="text-right shrink-0">
                     <p class="text-xs text-gray-500">{{ part.unit }}</p>
                 </div>
+
+                <FavoriteStar type="spareparts" :id="part.id" class="mt-0.5" />
             </div>
 
             <!-- Load more -->
@@ -112,19 +128,38 @@
 <script setup>
 import { ref, watch, onMounted } from 'vue'
 import { useApi } from '../composables/useApi.js'
+import { useViewPreferences } from '../composables/useViewPreferences.js'
 import { describe, CRITICALITY } from '../../shared/design.js'
 import Badge from '../components/Badge.vue'
 import EmptyState from '../components/EmptyState.vue'
+import AppIcon from '../components/AppIcon.vue'
+import FavoriteStar from '../components/FavoriteStar.vue'
+import SavedViews from '../components/SavedViews.vue'
 
 const api = useApi()
 const parts = ref([])
+const downloadingPdf = ref(false)
 
 const crit = (c) => describe(CRITICALITY, c)
+
+async function downloadPdf() {
+    if (downloadingPdf.value) { return }
+    downloadingPdf.value = true
+    try {
+        await api.download('reports/inventory', `inventario-${new Date().toISOString().slice(0, 10)}.pdf`)
+    } catch { /* ignored */ } finally {
+        downloadingPdf.value = false
+    }
+}
 const loading = ref(true)
 const loadingMore = ref(false)
 const nextCursor = ref(null)
-const search = ref('')
-const activeCategory = ref('')
+const { category: activeCategory, search, reset: resetPrefs } = useViewPreferences('spareparts', { category: '', search: '' })
+
+function applySavedView(state) {
+    activeCategory.value = state.category ?? ''
+    search.value = state.search ?? ''
+}
 
 const categoryFilters = [
     { label: 'Todos', value: '' },

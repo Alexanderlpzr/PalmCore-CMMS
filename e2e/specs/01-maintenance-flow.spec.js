@@ -13,18 +13,18 @@ test.describe('Maintenance flow', () => {
     test('01 — create a maintenance request', async ({ page }) => {
         await page.goto(adminUrl(`${PATHS.maintenanceRequests}/create`))
 
-        // Equipment (searchable select)
-        await page.getByLabel('Equipo').click()
-        await page.getByLabel('Equipo').fill('E2E-PRE-001')
-        await page.getByRole('option', { name: /E2E-PRE-001/i }).first().click()
+        // Equipment — searchable custom select rendered as a button in Filament v5.
+        // getByLabel finds the hidden native <select>; click the visible trigger instead.
+        // Filament searches by displayed name, not by code.
+        // Equipment name: "[E2E] Prensa Extractora Principal"
+        await page.getByRole('button', { name: /Seleccione una opción/ }).click()
+        await page.keyboard.type('Extractora')
+        await page.getByRole('option', { name: /Prensa Extractora Principal/i }).first().click()
 
-        // Type
-        await page.getByLabel('Tipo').click()
-        await page.getByRole('option', { name: /Correctiv/i }).first().click()
+        // Tipo — non-searchable; rendered as a native <select> in Filament v5.
+        await page.getByLabel('Tipo').selectOption({ label: 'Correctivo' })
 
-        // Priority
-        await page.getByLabel('Prioridad').click()
-        await page.getByRole('option').first().click()
+        // Prioridad — native <select> with default P3 — Medio; accept the default.
 
         // Title
         await page.getByLabel('Título').fill('[E2E] Falla en prensa extractora')
@@ -32,8 +32,10 @@ test.describe('Maintenance flow', () => {
         // Description
         await page.getByLabel('Descripción').fill('La prensa presenta ruido anormal al inicio del ciclo.')
 
-        await page.getByRole('button', { name: /Guardar|Crear/i }).click()
-        await page.waitForURL(/maintenance-requests\/[^/]+$/)
+        await page.getByRole('button', { name: 'Crear', exact: true }).click()
+        // waitForURL with /[^/]+$/ matches the current /create URL immediately.
+        // Wait specifically for the UUID-based view URL.
+        await page.waitForURL(/maintenance-requests\/[0-9a-f-]{36}$/)
         mrUrl = page.url()
 
         await expect(page.getByText('[E2E] Falla en prensa extractora')).toBeVisible()

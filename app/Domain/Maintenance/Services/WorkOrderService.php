@@ -6,6 +6,7 @@ use App\Domain\Assets\Enums\EquipmentDowntimeCauseType;
 use App\Domain\Assets\Enums\EquipmentStatus;
 use App\Domain\Maintenance\Enums\MaintenanceRequestStatus;
 use App\Domain\Maintenance\Enums\TechnicianRole;
+use App\Domain\Maintenance\Enums\WorkOrderPriority;
 use App\Domain\Maintenance\Enums\WorkOrderSignatureType;
 use App\Domain\Maintenance\Enums\WorkOrderStatus;
 use App\Domain\Maintenance\Enums\WorkOrderType;
@@ -44,11 +45,16 @@ class WorkOrderService
     {
         $year = date('Y');
 
+        // orderByDesc on the full VARCHAR string produces wrong results when
+        // equipment codes differ lexicographically (e.g. 'ZZZ' > 'AAA' pushes a
+        // low-sequence ZZZ row above a high-sequence AAA row, making the extracted
+        // suffix too small and generating a duplicate number). Cast the 6-digit
+        // numeric suffix explicitly so the MAX is always the true global sequence.
         $last = WorkOrder::withoutGlobalScopes()
             ->where('tenant_id', $tenantId)
             ->where('work_order_number', 'like', "OT-{$year}-%")
             ->lockForUpdate()
-            ->orderByDesc('work_order_number')
+            ->orderByRaw('CAST(RIGHT(work_order_number, 6) AS INTEGER) DESC')
             ->value('work_order_number');
 
         $sequence = 1;
@@ -185,6 +191,13 @@ class WorkOrderService
         }
 
         return $workOrder;
+    }
+
+    public function changePriority(WorkOrder $workOrder, WorkOrderPriority $priority): WorkOrder
+    {
+        $workOrder->update(['priority' => $priority->value]);
+
+        return $workOrder->refresh();
     }
 
     private function notifyTechniciansOfStatusChange(WorkOrder $workOrder, WorkOrderStatus $toStatus): void

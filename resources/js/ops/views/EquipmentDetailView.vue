@@ -75,6 +75,18 @@
                                 </span>
                             </div>
                         </div>
+
+                        <div class="shrink-0 flex items-center gap-1.5">
+                            <FavoriteStar type="equipment" :id="equipment.id" />
+                            <button
+                                @click="downloadPdf"
+                                :disabled="downloadingPdf"
+                                class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                            >
+                                <AppIcon name="fileText" class="w-3.5 h-3.5" />
+                                {{ downloadingPdf ? '…' : 'PDF' }}
+                            </button>
+                        </div>
                     </div>
 
                     <!-- KPI strip -->
@@ -537,6 +549,8 @@ import { useApi } from '../composables/useApi.js'
 import { describe, EQUIPMENT_STATUS, CRITICALITY } from '../../shared/design.js'
 import Badge from '../components/Badge.vue'
 import EmptyState from '../components/EmptyState.vue'
+import AppIcon from '../components/AppIcon.vue'
+import FavoriteStar from '../components/FavoriteStar.vue'
 
 // ── Inline sub-components ─────────────────────────────────────────────────────
 
@@ -580,6 +594,17 @@ const workOrders   = ref([])
 const plans        = ref([])
 
 const lightboxPhoto = ref(null)
+const downloadingPdf = ref(false)
+
+async function downloadPdf() {
+    if (downloadingPdf.value || ! equipment.value) { return }
+    downloadingPdf.value = true
+    try {
+        await api.download(`reports/equipment/${equipment.value.id}`, `${equipment.value.code}.pdf`)
+    } catch { /* ignored */ } finally {
+        downloadingPdf.value = false
+    }
+}
 
 // ── Responsive ────────────────────────────────────────────────────────────────
 

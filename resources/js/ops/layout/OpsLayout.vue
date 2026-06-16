@@ -33,18 +33,34 @@
             <!-- Mobile bottom nav -->
             <MobileBottomNav class="lg:hidden" />
         </div>
+
+        <!-- Global command palette (Cmd/Ctrl + K) -->
+        <CommandPalette />
     </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
 import AppSidebar from './AppSidebar.vue'
 import TopBar from './TopBar.vue'
 import MobileBottomNav from './MobileBottomNav.vue'
+import CommandPalette from '../components/CommandPalette.vue'
+import { useCommandPalette } from '../composables/useCommandPalette.js'
 
 const sidebarOpen = ref(false)
 const route = useRoute()
+const palette = useCommandPalette()
+
+function onGlobalKey(e) {
+    if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault()
+        palette.toggle()
+    }
+}
+
+onMounted(() => window.addEventListener('keydown', onGlobalKey))
+onUnmounted(() => window.removeEventListener('keydown', onGlobalKey))
 </script>
 
 <style scoped>

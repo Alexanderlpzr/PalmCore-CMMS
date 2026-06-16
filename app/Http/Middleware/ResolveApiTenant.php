@@ -27,6 +27,10 @@ class ResolveApiTenant
 
         CurrentTenant::set($tenant);
 
+        // Make Spatie team-scoped permissions (and therefore policies) resolve
+        // against the token's tenant during API requests.
+        setPermissionsTeamId($tenant->id);
+
         return $next($request);
     }
 }

@@ -24,6 +24,35 @@ export function tenantUrl(slug, path = '') {
     return `${BASE}/admin/${slug}${path ? '/' + path.replace(/^\//, '') : ''}`
 }
 
+// ── Ops SPA (/app) — token-auth single-page app ──────────────────────────────
+
+export const APP_BASE = `${BASE}/app`
+
+/** Build an Ops SPA URL (e.g. appUrl('dashboard') → /app/dashboard). */
+export function appUrl(path = '') {
+    return `${APP_BASE}${path ? '/' + path.replace(/^\//, '') : ''}`
+}
+
+export const OPS_CREDENTIALS = {
+    tenant: TENANT,
+    email: 'admin@elpajuil.demo',
+    password: 'password',
+}
+
+/**
+ * Log in to the Ops SPA through its real login form and wait for the dashboard.
+ * The SPA uses token auth (sets an HttpOnly refresh cookie), independent of the
+ * Filament admin session.
+ */
+export async function loginToApp(page, creds = OPS_CREDENTIALS) {
+    await page.goto(appUrl('login'))
+    await page.locator('input[autocomplete="organization"]').fill(creds.tenant)
+    await page.locator('input[type="email"]').fill(creds.email)
+    await page.locator('input[type="password"]').fill(creds.password)
+    await page.getByRole('button', { name: /Ingresar/i }).click()
+    await page.waitForURL('**/app/dashboard', { timeout: 20_000 })
+}
+
 /**
  * Confirm a Filament modal dialog by clicking the primary action button
  * (not Cancel/Cerrar).

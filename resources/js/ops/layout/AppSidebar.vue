@@ -14,6 +14,18 @@
             </div>
         </div>
 
+        <!-- Global search trigger -->
+        <div class="px-2 pt-3">
+            <button
+                @click="palette.open()"
+                class="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg bg-slate-800/60 hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
+            >
+                <AppIcon name="search" class="w-4 h-4 shrink-0" />
+                <span class="text-sm">Buscar…</span>
+                <kbd class="ml-auto shrink-0 text-[11px] font-semibold text-slate-500 bg-slate-900 rounded px-1.5 py-0.5">⌘K</kbd>
+            </button>
+        </div>
+
         <!-- Navigation -->
         <nav class="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
             <!-- Dashboard -->
@@ -75,13 +87,16 @@
 <script setup>
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
+import { useCommandPalette } from '../composables/useCommandPalette.js'
 import { icons } from '../../shared/icons.js'
+import AppIcon from '../components/AppIcon.vue'
 import NavItem from './NavItem.vue'
 import NavGroup from './NavGroup.vue'
 
 const emit = defineEmits(['close'])
 const router = useRouter()
 const auth = useAuthStore()
+const palette = useCommandPalette()
 
 async function handleLogout() {
     await auth.logout()

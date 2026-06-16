@@ -123,7 +123,18 @@ class E2EDataSeeder extends Seeder
 
         // ── WorkOrder in InProgress (for inventory flow) ──────────────────────
 
-        WorkOrder::withoutGlobalScopes()->firstOrCreate(
+        // Remove WOs created dynamically by previous E2E test runs so the global
+        // sequence counter always starts clean. The static fixture (E2E-WO-0001)
+        // uses a non-OT prefix and is safe to recreate with firstOrCreate below.
+        WorkOrder::withoutGlobalScopes()
+            ->where('tenant_id', $tenant->id)
+            ->where('work_order_number', 'like', 'OT-%')
+            ->delete();
+
+        // updateOrCreate (not firstOrCreate) so that a previous E2E run that
+        // advanced the WO through completed/verified/closed is always reset to
+        // in_progress before the next run. Group 5 requires this start state.
+        WorkOrder::withoutGlobalScopes()->updateOrCreate(
             ['tenant_id' => $tenant->id, 'work_order_number' => 'E2E-WO-0001'],
             [
                 'equipment_id' => $equipment->id,
@@ -138,6 +149,12 @@ class E2EDataSeeder extends Seeder
                 'planned_end_at' => now()->addHours(4),
                 'actual_start_at' => now(),
                 'started_at' => now(),
+                'completed_at' => null,
+                'actual_end_at' => null,
+                'verified_at' => null,
+                'closed_at' => null,
+                'completed_by' => null,
+                'verified_by' => null,
                 'created_by' => $admin->id,
             ]
         );

@@ -19,7 +19,9 @@ export default async function globalSetup() {
     await page.locator('input[name="password"], input[type="password"]').fill('password')
     await page.locator('button[type="submit"]').click()
 
-    await page.waitForURL(`**/${TENANT}/**`, { timeout: 20_000 })
+    // Filament lands on the tenant dashboard root (/admin/<tenant>), with or
+    // without a trailing path — match both.
+    await page.waitForURL(`**/admin/${TENANT}**`, { timeout: 20_000 })
 
     await page.context().storageState({ path: 'e2e/.auth/admin.json' })
     await browser.close()

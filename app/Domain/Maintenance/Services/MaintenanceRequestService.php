@@ -2,6 +2,7 @@
 
 namespace App\Domain\Maintenance\Services;
 
+use App\Domain\Maintenance\Enums\MaintenanceRequestPriority;
 use App\Domain\Maintenance\Enums\MaintenanceRequestStatus;
 use App\Domain\Maintenance\Enums\MaintenanceRequestType;
 use App\Events\MaintenanceRequestApproved;
@@ -124,6 +125,13 @@ class MaintenanceRequestService
         }
 
         return $request;
+    }
+
+    public function changePriority(MaintenanceRequest $request, MaintenanceRequestPriority $priority): MaintenanceRequest
+    {
+        $request->update(['priority' => $priority->value]);
+
+        return $request->refresh();
     }
 
     // ── Notifications ─────────────────────────────────────────────────────────

@@ -18,17 +18,23 @@
         </div>
 
         <!-- Status tabs -->
-        <div class="flex gap-1.5 mb-5 overflow-x-auto pb-1">
-            <button
-                v-for="f in filters"
-                :key="f.value"
-                @click="activeFilter = f.value"
-                class="shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors"
-                :class="activeFilter === f.value
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300'"
-            >
-                {{ f.label }}
+        <div class="flex items-center gap-2 mb-5">
+            <div class="flex gap-1.5 overflow-x-auto pb-1 flex-1">
+                <button
+                    v-for="f in filters"
+                    :key="f.value"
+                    @click="activeFilter = f.value"
+                    class="shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors"
+                    :class="activeFilter === f.value
+                        ? 'bg-slate-900 text-white'
+                        : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300'"
+                >
+                    {{ f.label }}
+                </button>
+            </div>
+            <SavedViews view="requests" :current="{ filter: activeFilter }" @apply="applySavedView" />
+            <button @click="resetPrefs" class="shrink-0 text-xs text-gray-400 hover:text-gray-600 transition-colors whitespace-nowrap" title="Restablecer preferencias de esta vista">
+                Restablecer
             </button>
         </div>
 
@@ -45,12 +51,23 @@
 
         <!-- Request list -->
         <div v-else-if="requests.length" class="space-y-2">
-            <RouterLink
-                v-for="mr in requests"
-                :key="mr.id"
-                :to="{ name: 'ops.solicitudes.show', params: { id: mr.id } }"
-                class="block bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition-all p-4"
-            >
+            <!-- Select all -->
+            <label class="flex items-center gap-2 mb-2 px-1 text-xs text-gray-500 cursor-pointer w-fit">
+                <input type="checkbox" :checked="allSelected" @change="toggleAll" class="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />
+                Seleccionar todo
+            </label>
+
+            <div v-for="mr in requests" :key="mr.id" class="flex items-center gap-2.5">
+                <input
+                    type="checkbox"
+                    :checked="sel.has(mr.id)"
+                    @change="sel.toggle(mr.id)"
+                    class="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 shrink-0 cursor-pointer"
+                />
+                <RouterLink
+                    :to="{ name: 'ops.solicitudes.show', params: { id: mr.id } }"
+                    class="flex-1 min-w-0 block bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition-all p-4"
+                >
                 <div class="flex items-start justify-between gap-3 mb-2">
                     <div class="flex items-start gap-2.5 flex-1 min-w-0">
                         <!-- Priority dot -->
@@ -65,7 +82,8 @@
                     <span v-if="mr.request_type" class="capitalize">{{ mr.request_type }}</span>
                     <span>{{ relativeTime(mr.created_at) }}</span>
                 </div>
-            </RouterLink>
+                </RouterLink>
+            </div>
         </div>
 
         <!-- Empty -->
@@ -76,23 +94,32 @@
             subtitle="No hay solicitudes con los filtros seleccionados."
         />
 
+        <div v-if="sel.count.value" class="h-20" />
+        <BulkActionBar :count="sel.count.value" :actions="bulkActions" @apply="applyBulk" @clear="sel.clear" />
     </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useApi } from '../composables/useApi.js'
 import { useAuthStore } from '../stores/auth.js'
+import { useToast } from '../composables/useToast.js'
+import { useBulkSelection } from '../composables/useBulkSelection.js'
+import { useViewPreferences } from '../composables/useViewPreferences.js'
 import { describe, MAINTENANCE_REQUEST_STATUS } from '../../shared/design.js'
 import Badge from '../components/Badge.vue'
 import EmptyState from '../components/EmptyState.vue'
+import BulkActionBar from '../components/BulkActionBar.vue'
+import SavedViews from '../components/SavedViews.vue'
 
 const api = useApi()
 const auth = useAuthStore()
+const toast = useToast()
+const sel = useBulkSelection()
 const requests = ref([])
 const loading = ref(true)
-const activeFilter = ref('submitted,under_review')
+const { filter: activeFilter, reset: resetPrefs } = useViewPreferences('requests', { filter: 'submitted,under_review' })
 
 const filters = [
     { label: 'Pendientes', value: 'submitted,under_review' },
@@ -100,6 +127,42 @@ const filters = [
     { label: 'Rechazadas', value: 'rejected' },
     { label: 'Todas', value: '' },
 ]
+
+const bulkActions = [
+    { key: 'approve', label: 'Aprobar' },
+    { key: 'reject', label: 'Rechazar', danger: true },
+    { key: 'set_priority', label: 'Prioridad', options: [
+        { value: 'p1_critical', label: 'Crítica' },
+        { value: 'p2_high', label: 'Alta' },
+        { value: 'p3_medium', label: 'Media' },
+        { value: 'p4_low', label: 'Baja' },
+    ] },
+]
+
+function applySavedView(state) {
+    activeFilter.value = state.filter ?? 'submitted,under_review'
+}
+
+const allSelected = computed(() => requests.value.length > 0 && requests.value.every((r) => sel.has(r.id)))
+function toggleAll() {
+    sel.setMany(requests.value.map((r) => r.id), ! allSelected.value)
+}
+
+async function applyBulk({ action, value }) {
+    const ids = sel.ids()
+    try {
+        const res = await api.patch('maintenance-requests/bulk', { ids, action, ...(value != null ? { value } : {}) })
+        const ok = res?.succeeded ?? 0
+        const failed = res?.failed?.length ?? 0
+        failed
+            ? toast.warning(`${ok} solicitudes actualizadas. ${failed} no pudieron modificarse.`)
+            : toast.success(`${ok} solicitudes actualizadas.`)
+        sel.clear()
+        await load()
+    } catch {
+        toast.error('No se pudo aplicar la acción.')
+    }
+}
 
 // Priority dot — colors aligned with the shared PRIORITY tones (danger/warning/info/neutral).
 const priorityDot = { p1_critical: 'bg-red-500', p2_high: 'bg-amber-500', p3_medium: 'bg-blue-500', p4_low: 'bg-gray-300' }

@@ -1,11 +1,18 @@
 {
   "permissions": {
     "allow": [
-      "Bash(composer require *)"
+      "Bash(composer require *)",
+      "Bash(php artisan *)",
+      "Bash(vendor/bin/pint --dirty --format agent)",
+      "Bash(npm run *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(vendor/bin/pint app/Http/Controllers/Api/V1/SearchController.php routes/api.php tests/Feature/SearchEndpointTest.php --format agent)",
+      "Bash(vendor/bin/pint app/Http/Controllers/Api/V1/ReportController.php routes/api.php tests/Feature/ReportApiTest.php --format agent)"
     ]
   },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "laravel-boost"
-  ],
-  "enableAllProjectMcpServers": true
+  ]
 }
