@@ -29,5 +29,5 @@ RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cac
 # 6. Exponer el puerto que usará el servidor interno
 EXPOSE 80
 
-# 7. Arrancar el servidor interno de Laravel apuntando a la red de Railway (0.0.0.0) en el puerto 80
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=80"]
+# 7. 🔥 SOLUCIÓN DEFINITIVA: Forzar la variable CORS directamente en el arranque
+CMD ["sh", "-c", "CORS_ALLOWED_ORIGINS=* php artisan serve --host=0.0.0.0 --port=80"]
