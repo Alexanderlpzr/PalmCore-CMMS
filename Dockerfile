@@ -1,4 +1,4 @@
-FROM php:8.4-apache
+FROM php:8.4-cli
 
 # 1. Instalar dependencias del sistema y extensiones de PHP necesarias
 RUN apt-get update && apt-get install -y \
@@ -13,30 +13,21 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install gd pdo pdo_mysql pdo_pgsql zip bcmath intl pcntl
 
-# 🔥 SOLUCIÓN DEFINITIVA MPM: Desactivar y borrar físicamente cualquier rastro de mpm_event para forzar mpm_prefork
-RUN a2dismod mpm_event || true \
-    && rm -f /etc/apache2/mods-enabled/mpm_event.load /etc/apache2/mods-enabled/mpm_event.conf \
-    && a2enmod mpm_prefork
-
-# 2. Habilitar mod_rewrite para Apache (esencial para las rutas de Laravel)
-RUN a2enmod rewrite
-
-# 3. Apuntar Apache directamente a la carpeta /public de Laravel
-ENV APACHE_DOCUMENT_ROOT /var/www/html/public
-RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
-RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
-
-# 4. Instalar Composer desde su imagen oficial
+# 2. Instalar Composer desde su imagen oficial
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# 5. Copiar los archivos de tu proyecto al contenedor
+# 3. Configurar el directorio de trabajo y copiar archivos
 WORKDIR /var/www/html
 COPY . .
 
-# 6. Instalar las dependencias de PHP para producción evitando ejecutar scripts automáticos en el build
+# 4. Instalar las dependencias de PHP para producción evitando ejecutar scripts automáticos en el build
 RUN composer install --no-dev --optimize-autoloader --no-scripts
 
-# 7. Dar los permisos correctos a las carpetas de almacenamiento de Laravel
+# 5. Dar los permisos correctos a las carpetas de almacenamiento de Laravel
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
+# 6. Exponer el puerto que usará el servidor interno
 EXPOSE 80
+
+# 7. Arrancar el servidor interno de Laravel apuntando a la red de Railway (0.0.0.0) en el puerto 80
+CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=80"]
