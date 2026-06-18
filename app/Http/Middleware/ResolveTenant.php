@@ -7,6 +7,7 @@ use App\Infrastructure\Tenancy\CurrentTenant;
 use App\Infrastructure\Tenancy\TenantResolver;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 
 class ResolveTenant
@@ -33,6 +34,11 @@ class ResolveTenant
             }
 
             CurrentTenant::set($tenant);
+
+            Log::withContext([
+                'tenant_id' => $tenant->id,
+                'user_id' => $request->user()?->id,
+            ]);
 
             // Spatie Permission Teams — must be called before any hasRole() / hasPermissionTo() check.
             // Setting the team context here ensures all permission checks in this request

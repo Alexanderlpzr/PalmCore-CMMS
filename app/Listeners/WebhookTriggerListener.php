@@ -5,6 +5,7 @@ namespace App\Listeners;
 use App\Contracts\WebhookableEvent;
 use App\Domain\Webhooks\Services\WebhookDispatcher;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Support\Facades\Log;
 
 class WebhookTriggerListener implements ShouldQueue
 {
@@ -14,6 +15,12 @@ class WebhookTriggerListener implements ShouldQueue
 
     public function handle(WebhookableEvent $event): void
     {
+        Log::withContext([
+            'event_class' => get_class($event),
+            'tenant_id' => $event->webhookTenantId(),
+        ]);
+        Log::info('webhook.trigger_dispatched');
+
         $this->dispatcher->dispatch(
             $event->webhookEventName(),
             $event->webhookPayload(),

@@ -14,6 +14,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 use Throwable;
 
@@ -33,7 +34,9 @@ class DeliverWebhookJob implements ShouldBeUnique, ShouldQueue
         public readonly string $eventName,
         public readonly array $payload,
         public readonly string $eventId,
-    ) {}
+    ) {
+        $this->onQueue('webhooks');
+    }
 
     /** One delivery attempt per (subscription, event) at a time. */
     public function uniqueId(): string
@@ -43,11 +46,21 @@ class DeliverWebhookJob implements ShouldBeUnique, ShouldQueue
 
     public function handle(AlertService $alertService): void
     {
+        Log::withContext([
+            'webhook_subscription_id' => $this->subscriptionId,
+            'event_name' => $this->eventName,
+            'event_id' => $this->eventId,
+        ]);
+
         $subscription = WebhookSubscription::withoutGlobalScopes()->find($this->subscriptionId);
 
         if (! $subscription || ! $subscription->is_active) {
+            Log::warning('webhook.delivery_skipped', ['reason' => 'inactive_or_missing']);
+
             return;
         }
+
+        Log::info('webhook.delivery_started');
 
         try {
             SsrfValidator::validate($subscription->url);

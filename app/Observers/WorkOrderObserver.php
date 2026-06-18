@@ -7,6 +7,8 @@ use App\Domain\Maintenance\Enums\WorkOrderStatus;
 use App\Domain\Reliability\Services\EquipmentKpiService;
 use App\Jobs\RecalculateEquipmentKpisJob;
 use App\Models\WorkOrder;
+use Illuminate\Support\Facades\Log;
+use Sentry\State\Scope;
 
 class WorkOrderObserver
 {
@@ -27,6 +29,26 @@ class WorkOrderObserver
 
         if (! in_array($workOrder->status, [WorkOrderStatus::Completed, WorkOrderStatus::Closed], strict: true)) {
             return;
+        }
+
+        Log::withContext([
+            'work_order_id' => $workOrder->id,
+            'work_order_number' => $workOrder->work_order_number,
+            'equipment_id' => $workOrder->equipment_id,
+            'tenant_id' => $workOrder->tenant_id,
+            'status' => $workOrder->status->value,
+        ]);
+        Log::info('work_order.status_changed');
+
+        if (app()->bound('sentry')) {
+            \Sentry\configureScope(function (Scope $scope) use ($workOrder): void {
+                $scope->setContext('work_order', [
+                    'id' => $workOrder->id,
+                    'number' => $workOrder->work_order_number,
+                    'equipment_id' => $workOrder->equipment_id,
+                    'status' => $workOrder->status->value,
+                ]);
+            });
         }
 
         $this->service->markStale($workOrder->equipment_id);

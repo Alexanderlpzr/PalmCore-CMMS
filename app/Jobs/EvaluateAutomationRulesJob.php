@@ -28,7 +28,10 @@ class EvaluateAutomationRulesJob implements ShouldBeUnique, ShouldQueue
 
     public int $timeout = 600;
 
-    public function __construct(public readonly string $tenantId) {}
+    public function __construct(public readonly string $tenantId)
+    {
+        $this->onQueue('automations');
+    }
 
     /** One job per tenant at a time. */
     public function uniqueId(): string

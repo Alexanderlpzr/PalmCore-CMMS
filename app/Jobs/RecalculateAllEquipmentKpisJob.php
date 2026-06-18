@@ -19,9 +19,16 @@ class RecalculateAllEquipmentKpisJob implements ShouldQueue
 {
     use Queueable;
 
-    public int $tries = 1;
+    public int $tries = 2;
 
-    public int $timeout = 3600; // 1-hour cap for very large tenant fleets
+    /** @var array<int, int> */
+    public array $backoff = [60];
+
+    /**
+     * Fan-out dispatches only — actual KPI work is done by child RecalculateEquipmentKpisJob
+     * instances which are individually retryable. 120s is sufficient for even very large fleets.
+     */
+    public int $timeout = 120;
 
     /**
      * @param  string|null  $tenantId  null = recalculate for ALL tenants

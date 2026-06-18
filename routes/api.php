@@ -28,9 +28,14 @@ use App\Http\Controllers\Api\V1\WorkOrderController;
 use App\Http\Controllers\Api\V1\WorkOrderMediaController;
 use App\Http\Controllers\Api\V1\WorkOrderSignatureController;
 use App\Http\Controllers\Api\V1\WorkOrderTimeEntryController;
+use App\Http\Controllers\HealthController;
 use App\Models\Tenant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Route;
+
+Route::get('/health', [HealthController::class, '__invoke'])
+    ->name('api.health')
+    ->middleware('throttle:10,1');
 
 Route::prefix('v1')->group(function () {
     // ── Auth: token management & refresh ─────────────────────────────────────

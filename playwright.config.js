@@ -27,10 +27,10 @@ export default defineConfig({
         },
     ],
     webServer: {
-        command: 'php artisan serve --port=8000',
+        command: 'php -d memory_limit=1G -d max_execution_time=0 -d realpath_cache_size=4096k artisan serve --host=127.0.0.1 --port=8000 --no-reload',
         port: 8000,
         reuseExistingServer: !process.env.CI,
-        timeout: 30_000,
+        timeout: 60_000,
         env: {
             QUEUE_CONNECTION: 'sync',
             FAKE_WEBHOOK_RESPONSES: 'true',

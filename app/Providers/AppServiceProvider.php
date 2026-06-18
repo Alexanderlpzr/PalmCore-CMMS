@@ -42,6 +42,8 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use Laravel\Sanctum\Sanctum;
+use Sentry\Breadcrumb;
+use Sentry\EventHint;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -60,6 +62,7 @@ class AppServiceProvider extends ServiceProvider
         $this->configureSanctum();
         $this->configureRateLimiting();
         $this->configureE2EWebhookFakes();
+        $this->configureSentry();
     }
 
     private function configureDefaults(): void
@@ -175,6 +178,33 @@ class AppServiceProvider extends ServiceProvider
         SsrfValidator::setDnsResolver(fn (string $host): array => ['93.184.216.34']);
 
         Http::fake(['*' => Http::response(['ok' => true], 200)]);
+    }
+
+    private function configureSentry(): void
+    {
+        if (! app()->bound('sentry')) {
+            return;
+        }
+
+        $sensitiveKeys = ['password', 'token', 'secret', 'api_key', 'webhook_secret', 'authorization', 'current_password', 'new_password'];
+
+        app('sentry')->getClient()?->getOptions()->setBeforeSendCallback(
+            static function (\Sentry\Event $event, ?EventHint $hint) use ($sensitiveKeys): ?\Sentry\Event {
+                $breadcrumbs = $event->getBreadcrumbs();
+
+                $sanitized = array_map(static function (Breadcrumb $breadcrumb) use ($sensitiveKeys): Breadcrumb {
+                    foreach ($sensitiveKeys as $key) {
+                        if (array_key_exists($key, $breadcrumb->getMetadata())) {
+                            $breadcrumb = $breadcrumb->withMetadata($key, '[Filtered]');
+                        }
+                    }
+
+                    return $breadcrumb;
+                }, $breadcrumbs);
+
+                return $event->setBreadcrumb($sanitized);
+            }
+        );
     }
 
     private function configurePostgres(): void

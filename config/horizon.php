@@ -98,6 +98,8 @@ return [
 
     'waits' => [
         'redis:default' => 60,
+        'redis:automations' => 60,
+        'redis:webhooks' => 60,
     ],
 
     /*
@@ -224,7 +226,7 @@ return [
             'maxJobs' => 0,
             'memory' => 64,
             'tries' => 3,
-            'timeout' => 30,
+            'timeout' => 40, // was 30; DeliverWebhookJob declares $timeout=35 + 5s overhead margin
             'nice' => 5,
         ],
 
@@ -241,6 +243,21 @@ return [
             'tries' => 1,
             'timeout' => 15,
             'nice' => 10,
+        ],
+
+        // Automation rule evaluation — long-running per-tenant jobs (up to 600s)
+        'supervisor-automations' => [
+            'connection' => 'redis',
+            'queue' => ['automations'],
+            'balance' => 'simple',
+            'minProcesses' => 1,
+            'maxProcesses' => 3,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 128,
+            'tries' => 3,
+            'timeout' => 630, // 630 > 600 job timeout, with 30s margin
+            'nice' => 5,
         ],
 
         // Excel/PDF exports — CPU+RAM intensive; isolated to prevent blocking operational jobs
@@ -270,6 +287,9 @@ return [
             'supervisor-webhooks' => [
                 'maxProcesses' => 5,
             ],
+            'supervisor-automations' => [
+                'maxProcesses' => 5,
+            ],
             'supervisor-audit' => [
                 'maxProcesses' => 3,
             ],
@@ -281,6 +301,7 @@ return [
         'local' => [
             'supervisor-default' => ['minProcesses' => 1, 'maxProcesses' => 2],
             'supervisor-webhooks' => ['maxProcesses' => 1],
+            'supervisor-automations' => ['maxProcesses' => 1],
             'supervisor-audit' => ['maxProcesses' => 1],
             'supervisor-exports' => ['maxProcesses' => 1],
         ],
