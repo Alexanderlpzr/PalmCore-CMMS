@@ -21,9 +21,8 @@ class WorkOrderMediaController extends Controller
 
         $workOrder = WorkOrder::findOrFail($workOrder);
         $file = $request->file('file');
-        $disk = config('filesystems.default', 'public');
 
-        $path = Storage::disk($disk)->putFile(
+        $path = Storage::disk('work_orders_private')->putFile(
             "work-orders/{$workOrder->id}/media",
             $file
         );

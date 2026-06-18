@@ -24,7 +24,10 @@ class IdempotencyMiddleware
         }
 
         $tenantId = CurrentTenant::id();
-        $fingerprint = hash('sha256', $request->method().$request->path().$request->getContent());
+        $isMultipart = str_starts_with($request->header('Content-Type', ''), 'multipart/form-data');
+        $fingerprint = $isMultipart
+            ? hash('sha256', $request->method().$request->path())
+            : hash('sha256', $request->method().$request->path().$request->getContent());
 
         $existing = IdempotencyKey::where('tenant_id', $tenantId)
             ->where('idempotency_key', $key)

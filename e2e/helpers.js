@@ -54,12 +54,17 @@ export async function loginToApp(page, creds = OPS_CREDENTIALS) {
 }
 
 /**
- * Confirm a Filament modal dialog by clicking the primary action button
- * (not Cancel/Cerrar).
+ * Confirm a Filament modal dialog by clicking the primary action button.
+ *
+ * Waits for the "Confirmar" button to become visible, then clicks it. This avoids
+ * the ambiguity of selecting a [role="dialog"] element when Filament pre-renders
+ * hidden dialog wrappers for every page action (CSS [role="dialog"]:visible does not
+ * match HTML <dialog> elements, which carry an implicit ARIA role rather than an
+ * explicit attribute).
  */
 export async function confirmModal(page) {
-    const modal = page.locator('[role="dialog"]')
-    await modal.waitFor({ state: 'visible' })
-    await modal.getByRole('button').filter({ hasNotText: /cancelar|cerrar/i }).last().click()
-    await modal.waitFor({ state: 'hidden', timeout: 10_000 })
+    const confirmBtn = page.getByRole('button', { name: 'Confirmar' })
+    await confirmBtn.waitFor({ state: 'visible', timeout: 20_000 })
+    await confirmBtn.click()
+    await confirmBtn.waitFor({ state: 'hidden', timeout: 10_000 })
 }

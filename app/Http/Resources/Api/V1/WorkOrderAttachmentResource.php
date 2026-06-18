@@ -19,7 +19,7 @@ class WorkOrderAttachmentResource extends JsonResource
             'file_size' => $this->file_size,
             'mime_type' => $this->mime_type,
             'caption' => $this->caption,
-            'url' => Storage::disk(config('filesystems.default', 'public'))->url($this->file_path),
+            'url' => Storage::disk('work_orders_private')->url($this->file_path),
             'uploaded_by' => $this->uploaded_by,
             'created_at' => $this->created_at->toISOString(),
         ];

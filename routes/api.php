@@ -1,5 +1,9 @@
 <?php
 
+use App\Domain\Alerts\Data\CreateAlertData;
+use App\Domain\Alerts\Enums\AlertCategory;
+use App\Domain\Alerts\Enums\AlertSeverity;
+use App\Domain\Alerts\Services\AlertService;
 use App\Http\Controllers\Api\V1\AlertController;
 use App\Http\Controllers\Api\V1\ApiTokenController;
 use App\Http\Controllers\Api\V1\AreaController;
@@ -23,6 +27,8 @@ use App\Http\Controllers\Api\V1\WorkOrderController;
 use App\Http\Controllers\Api\V1\WorkOrderMediaController;
 use App\Http\Controllers\Api\V1\WorkOrderSignatureController;
 use App\Http\Controllers\Api\V1\WorkOrderTimeEntryController;
+use App\Models\Tenant;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -33,7 +39,7 @@ Route::prefix('v1')->group(function () {
 
     // Refresh: uses HttpOnly cookie — no auth:sanctum required
     Route::post('/auth/refresh', [TokenRefreshController::class, 'store'])
-        ->middleware('throttle:api-tokens')
+        ->middleware('throttle:api-refresh')
         ->name('api.v1.auth.refresh');
 
     // Logout: works even if access token expired
@@ -82,12 +88,17 @@ Route::prefix('v1')->group(function () {
 
         // Work Order sub-resources (Sprint 10.0 mobile endpoints)
         Route::post('work-orders/{workOrder}/time-entries', [WorkOrderTimeEntryController::class, 'store'])
+            ->middleware('idempotency')
             ->name('api.v1.work-orders.time-entries.store');
         Route::post('work-orders/{workOrder}/comments', [WorkOrderCommentController::class, 'store'])
+            ->middleware('idempotency')
             ->name('api.v1.work-orders.comments.store');
+        // Note: multipart boundaries change per retry so the fingerprint never matches — idempotency header is stored but deduplication is best-effort for media uploads.
         Route::post('work-orders/{workOrder}/media', [WorkOrderMediaController::class, 'store'])
+            ->middleware('idempotency')
             ->name('api.v1.work-orders.media.store');
         Route::post('work-orders/{workOrder}/signature', [WorkOrderSignatureController::class, 'store'])
+            ->middleware('idempotency')
             ->name('api.v1.work-orders.signature.store');
 
         Route::apiResource('maintenance-plans', MaintenancePlanController::class)->only(['index', 'show']);
@@ -136,4 +147,21 @@ Route::prefix('v1')->group(function () {
         Route::get('reports/equipment/{id}', [ReportController::class, 'equipment'])->name('api.v1.reports.equipment');
         Route::get('reports/maintenance-plans/{id}', [ReportController::class, 'maintenancePlan'])->name('api.v1.reports.maintenance-plan');
     });
+
+    // ── E2E test-only routes (never registered in production) ─────────────────
+    if (! app()->isProduction()) {
+        Route::post('e2e/create-alert', function (): JsonResponse {
+            $tenant = Tenant::where('slug', 'el-pajuil')->firstOrFail();
+            $service = app(AlertService::class);
+            $service->create(new CreateAlertData(
+                tenantId: $tenant->id,
+                severity: AlertSeverity::Warning,
+                category: AlertCategory::System,
+                title: '[E2E] Alerta para webhook test',
+                message: 'Alerta creada automáticamente por el test E2E del sistema de webhooks.',
+            ));
+
+            return response()->json(['ok' => true]);
+        });
+    }
 });

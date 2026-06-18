@@ -25,7 +25,10 @@ class WebhookSubscriptionsTable
 
                 TextColumn::make('events')
                     ->label('Eventos')
-                    ->formatStateUsing(fn (array $state): string => implode(', ', $state))
+                    // Avoid strict array type hint: Filament v5 calls formatStateUsing once per
+                    // array element (not the whole array), so $state is a single event string.
+                    // json_decode fails on non-JSON strings, so fall back to [$state] to display it.
+                    ->formatStateUsing(fn ($state): string => implode(', ', is_array($state) ? $state : (json_decode($state, true) ?? [$state])))
                     ->wrap()
                     ->limit(60),
 

@@ -67,7 +67,7 @@ class TokenRefreshController extends Controller
 
         $accessResult = $user->createToken(
             'Fronda Mobile',
-            ['work-orders.read', 'work-orders.write', 'equipment.read', 'maintenance-requests.read', 'maintenance-requests.write', 'inventory.read', 'plants.read', 'areas.read'],
+            ['work-orders.read', 'work-orders.write', 'equipment.read', 'maintenance-requests.read', 'maintenance-requests.write', 'inventory.read', 'plants.read', 'areas.read', 'reliability.read'],
             now()->addHour(),
         );
         $accessResult->accessToken->forceFill(['tenant_id' => $tenant->id])->save();

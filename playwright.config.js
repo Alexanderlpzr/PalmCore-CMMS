@@ -33,6 +33,7 @@ export default defineConfig({
         timeout: 30_000,
         env: {
             QUEUE_CONNECTION: 'sync',
+            FAKE_WEBHOOK_RESPONSES: 'true',
         },
     },
 })

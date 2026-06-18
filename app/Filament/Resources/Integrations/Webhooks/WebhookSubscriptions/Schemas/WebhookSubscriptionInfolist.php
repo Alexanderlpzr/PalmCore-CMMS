@@ -23,7 +23,8 @@ class WebhookSubscriptionInfolist
 
                         TextEntry::make('events')
                             ->label('Eventos suscritos')
-                            ->formatStateUsing(fn (array $state): string => implode("\n", $state))
+                            // Same Filament v5 per-element behavior as the table column (see WebhookSubscriptionsTable).
+                            ->formatStateUsing(fn ($state): string => implode("\n", is_array($state) ? $state : (json_decode($state, true) ?? [$state])))
                             ->columnSpanFull(),
 
                         IconEntry::make('is_active')
@@ -54,7 +55,10 @@ class WebhookSubscriptionInfolist
                     ->schema([
                         TextEntry::make('recentLogs')
                             ->label('')
-                            ->formatStateUsing(fn ($state): string => $state
+                            // Use getStateUsing to return a scalar string from PHP directly.
+                            // formatStateUsing would pass the Collection through Livewire serialization,
+                            // causing Alpine.js to call .includes() on null → 58 JS errors per load.
+                            ->getStateUsing(fn ($record): string => $record->recentLogs
                                 ->map(fn ($log) => "[{$log->delivered_at?->format('d/m H:i')}] {$log->event_name} — HTTP {$log->http_status} ({$log->status}) {$log->duration_ms}ms")
                                 ->implode("\n")
                             )

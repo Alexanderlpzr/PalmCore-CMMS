@@ -28,6 +28,7 @@ use App\Observers\MaintenancePlanObserver;
 use App\Observers\PlantObserver;
 use App\Observers\SparePartObserver;
 use App\Observers\WorkOrderObserver;
+use App\Security\SsrfValidator;
 use Carbon\CarbonImmutable;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
@@ -36,6 +37,7 @@ use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
@@ -57,6 +59,7 @@ class AppServiceProvider extends ServiceProvider
         $this->registerObservers();
         $this->configureSanctum();
         $this->configureRateLimiting();
+        $this->configureE2EWebhookFakes();
     }
 
     private function configureDefaults(): void
@@ -152,6 +155,26 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('api-tokens', function (Request $request) {
             return Limit::perMinute(5)->by($request->ip());
         });
+
+        // Token refresh: uses HttpOnly cookie (not credentials) — higher limit than login
+        RateLimiter::for('api-refresh', function (Request $request) {
+            return Limit::perMinute(30)->by($request->ip());
+        });
+    }
+
+    private function configureE2EWebhookFakes(): void
+    {
+        if (! env('FAKE_WEBHOOK_RESPONSES', false)) {
+            return;
+        }
+
+        // In E2E tests (QUEUE_CONNECTION=sync + FAKE_WEBHOOK_RESPONSES=true):
+        // 1. Override DNS resolver so any hostname resolves to a public IP, bypassing SSRF checks.
+        // 2. Intercept all outgoing Http calls and return 200 immediately, so webhook delivery
+        //    logs record status='success' without any real network call.
+        SsrfValidator::setDnsResolver(fn (string $host): array => ['93.184.216.34']);
+
+        Http::fake(['*' => Http::response(['ok' => true], 200)]);
     }
 
     private function configurePostgres(): void

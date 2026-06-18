@@ -38,6 +38,7 @@ export const useAuthStore = defineStore('auth', () => {
                     'plants.read', 'areas.read',
                     'alerts.read', 'alerts.write',
                     'maintenance-plans.read',
+                    'reliability.read',
                     'reports.read',
                 ],
             }),
