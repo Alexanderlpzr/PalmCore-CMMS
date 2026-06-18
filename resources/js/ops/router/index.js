@@ -85,6 +85,12 @@ const routes = [
                 meta: { title: 'KPIs' },
             },
             {
+                path: 'gerencial',
+                name: 'ops.gerencial',
+                component: () => import('../views/ExecutiveDashboardView.vue'),
+                meta: { title: 'Dashboard Gerencial' },
+            },
+            {
                 path: 'reportes',
                 name: 'ops.reportes',
                 component: () => import('../views/ReportesView.vue'),

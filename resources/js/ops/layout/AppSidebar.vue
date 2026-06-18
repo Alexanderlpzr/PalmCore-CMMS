@@ -52,6 +52,7 @@
             <!-- Análisis -->
             <NavGroup label="Análisis">
                 <NavItem :item="{ name: 'KPIs', to: 'ops.kpis', icon: icons.chartBar }" />
+                <NavItem :item="{ name: 'Gerencial', to: 'ops.gerencial', icon: icons.chartBar }" />
                 <NavItem :item="{ name: 'Reportes', to: 'ops.reportes', icon: icons.fileText }" />
             </NavGroup>
 

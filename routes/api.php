@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\EquipmentActivityController;
 use App\Http\Controllers\Api\V1\EquipmentCategoryController;
 use App\Http\Controllers\Api\V1\EquipmentController;
 use App\Http\Controllers\Api\V1\EquipmentKpiController;
+use App\Http\Controllers\Api\V1\ExecutiveDashboardController;
 use App\Http\Controllers\Api\V1\InventoryTransactionController;
 use App\Http\Controllers\Api\V1\MaintenancePlanController;
 use App\Http\Controllers\Api\V1\MaintenanceRequestController;
@@ -139,6 +140,15 @@ Route::prefix('v1')->group(function () {
     // Heavy endpoints: reliability KPIs carry more DB weight; PDF rendering is CPU-heavy
     Route::middleware(['auth:sanctum', 'api.tenant', 'throttle:api-heavy'])->group(function () {
         Route::apiResource('reliability/kpis', EquipmentKpiController::class)->only(['index', 'show']);
+
+        // Executive dashboard — Sprint 12.5
+        Route::prefix('executive')->controller(ExecutiveDashboardController::class)->group(function () {
+            Route::get('summary', 'summary')->name('api.v1.executive.summary');
+            Route::get('areas', 'areas')->name('api.v1.executive.areas');
+            Route::get('top-equipment', 'topEquipment')->name('api.v1.executive.top-equipment');
+            Route::get('costs', 'costs')->name('api.v1.executive.costs');
+            Route::get('trends', 'trends')->name('api.v1.executive.trends');
+        });
 
         // On-demand PDF reports (DomPDF) — streamed to the token-authenticated SPA
         Route::get('reports/reliability', [ReportController::class, 'reliability'])->name('api.v1.reports.reliability');
