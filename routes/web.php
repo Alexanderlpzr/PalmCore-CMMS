@@ -5,7 +5,10 @@ use App\Http\Controllers\HealthCheckController;
 use App\Http\Controllers\ReportDownloadController;
 use Illuminate\Support\Facades\Route;
 
-Route::view('/', 'welcome')->name('home');
+// Send the root URL straight to the admin panel. Filament's auth middleware
+// bounces unauthenticated visitors to /admin/login and authenticated ones to
+// the dashboard — so no one ever lands on the default Laravel welcome page.
+Route::redirect('/', '/admin')->name('home');
 
 Route::get('/health', HealthCheckController::class)
     ->middleware('throttle:30,1')
