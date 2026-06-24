@@ -39,9 +39,11 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use Laravel\Sanctum\Sanctum;
+use Livewire\Facades\Livewire;
 use Sentry\Breadcrumb;
 use Sentry\EventHint;
 
@@ -63,6 +65,7 @@ class AppServiceProvider extends ServiceProvider
         $this->configureRateLimiting();
         $this->configureE2EWebhookFakes();
         $this->configureSentry();
+        $this->configureLivewire();
     }
 
     private function configureDefaults(): void
@@ -205,6 +208,16 @@ class AppServiceProvider extends ServiceProvider
                 return $event->setBreadcrumb($sanitized);
             }
         );
+    }
+
+    private function configureLivewire(): void
+    {
+        // Replace Livewire's default hash-based asset URL (/livewire-{hash}/livewire.min.js)
+        // with a fixed path. The hash URL was returning 404 on Railway despite the route being
+        // registered, likely due to nginx or OPcache interaction with the dynamic path.
+        Livewire::setScriptRoute(function ($handle) {
+            return Route::get('/livewire/livewire.min.js', $handle);
+        });
     }
 
     private function configurePostgres(): void

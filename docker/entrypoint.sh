@@ -9,6 +9,10 @@ mkdir -p storage/framework/{sessions,views,cache} storage/logs bootstrap/cache
 # Link public storage (non-fatal)
 php artisan storage:link --force 2>/dev/null || true
 
+# Publish Livewire JS to public/vendor/livewire/ so nginx serves it as a static
+# file, bypassing PHP routing entirely (avoids hash-based route 404 issues).
+php artisan vendor:publish --tag=livewire:assets --force 2>/dev/null || true
+
 # Cache config, routes, and views for production performance
 php artisan config:cache   || { echo "config:cache failed";   exit 1; }
 # route:cache excluded: Livewire 4 registers routes via closures that cannot
