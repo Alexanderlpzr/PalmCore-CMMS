@@ -18,7 +18,7 @@ class AdminTenantSeeder extends Seeder
             ['email' => 'admin@elpajuil.demo'],
             [
                 'name' => 'Administrador El Pajuil',
-                'password' => Hash::make('password'),
+                'password' => Hash::make(env('ADMIN_PASSWORD', 'Admin123')),
                 'is_active' => true,
                 'is_super_admin' => false,
                 'email_verified_at' => now(),
