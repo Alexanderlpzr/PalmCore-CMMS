@@ -21,6 +21,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Trust Railway's load balancer so Laravel reads X-Forwarded-Proto: https
+        // and generates https:// URLs for assets, redirects, and cookies.
+        $middleware->trustProxies(at: '*');
+
         $middleware->append(SecurityHeaders::class);
 
         $middleware->api(append: [
