@@ -1,5 +1,9 @@
 #!/bin/sh
 
+# Ensure writable storage dirs exist at runtime (realpath() needs them for config:cache)
+mkdir -p storage/framework/{sessions,views,cache} storage/logs bootstrap/cache
+chmod -R 775 storage bootstrap/cache
+
 # Link public storage (non-fatal)
 php artisan storage:link --force 2>/dev/null || true
 
