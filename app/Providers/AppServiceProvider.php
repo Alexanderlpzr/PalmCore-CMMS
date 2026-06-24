@@ -43,7 +43,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use Laravel\Sanctum\Sanctum;
-use Livewire\Facades\Livewire;
+use Livewire\Livewire;
 use Sentry\Breadcrumb;
 use Sentry\EventHint;
 
