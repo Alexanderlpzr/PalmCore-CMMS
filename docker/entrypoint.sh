@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# Railway assigns a dynamic $PORT; bind nginx to it (fallback to 80 locally)
+sed -i "s/__PORT__/${PORT:-80}/" /etc/nginx/http.d/default.conf
+
 # Ensure writable storage dirs exist at runtime (realpath() needs them for config:cache)
 mkdir -p storage/framework/{sessions,views,cache} storage/logs bootstrap/cache
 chmod -R 775 storage bootstrap/cache
