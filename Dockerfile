@@ -1,16 +1,18 @@
-# ─── Stage 1: Build frontend assets ─────────────────────────────────────────
+# ─── Stage 1: Install PHP dependencies ───────────────────────────────────────
+FROM composer:2 AS vendor
+WORKDIR /app
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --optimize-autoloader --no-scripts --no-interaction --ignore-platform-reqs
+
+# ─── Stage 2: Build frontend assets ──────────────────────────────────────────
+# vendor/ must be present because resources/css/app.css imports flux.css from it
 FROM node:20-alpine AS assets
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
+COPY --from=vendor /app/vendor ./vendor
 RUN npm run build
-
-# ─── Stage 2: Install PHP dependencies ───────────────────────────────────────
-FROM composer:2 AS vendor
-WORKDIR /app
-COPY composer.json composer.lock ./
-RUN composer install --no-dev --optimize-autoloader --no-scripts --no-interaction --ignore-platform-reqs
 
 # ─── Stage 3: Production image ────────────────────────────────────────────────
 FROM php:8.4-fpm-alpine
