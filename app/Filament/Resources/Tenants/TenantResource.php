@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Tenants;
 
+use App\Filament\Resources\Tenants\Pages\CreateTenant;
 use App\Filament\Resources\Tenants\Pages\EditTenant;
 use App\Filament\Resources\Tenants\Pages\ListTenants;
 use App\Filament\Resources\Tenants\Pages\ViewTenant;
@@ -74,8 +75,9 @@ class TenantResource extends Resource
     {
         return [
             'index' => ListTenants::route('/'),
-            'view'  => ViewTenant::route('/{record}'),
-            'edit'  => EditTenant::route('/{record}/edit'),
+            'create' => CreateTenant::route('/create'),
+            'view' => ViewTenant::route('/{record}'),
+            'edit' => EditTenant::route('/{record}/edit'),
         ];
     }
 }
