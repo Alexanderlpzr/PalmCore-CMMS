@@ -11,7 +11,8 @@ php artisan storage:link --force 2>/dev/null || true
 
 # Cache config, routes, and views for production performance
 php artisan config:cache   || { echo "config:cache failed";   exit 1; }
-php artisan route:cache    || { echo "route:cache failed";    exit 1; }
+# route:cache excluded: Livewire 4 registers routes via closures that cannot
+# be serialized, causing its asset routes to 404 when the cache is used.
 php artisan view:cache     || { echo "view:cache failed";     exit 1; }
 php artisan filament:optimize 2>/dev/null || true
 php artisan icons:cache    2>/dev/null || true
