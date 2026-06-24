@@ -5,7 +5,6 @@ sed -i "s/__PORT__/${PORT:-80}/" /etc/nginx/http.d/default.conf
 
 # Ensure writable storage dirs exist at runtime (realpath() needs them for config:cache)
 mkdir -p storage/framework/{sessions,views,cache} storage/logs bootstrap/cache
-chmod -R 775 storage bootstrap/cache
 
 # Link public storage (non-fatal)
 php artisan storage:link --force 2>/dev/null || true
@@ -26,6 +25,12 @@ until php artisan migrate --force; do
     echo "DB not ready, retrying in 5s... ($retries left)"
     sleep 5
 done
+
+# Hand ownership of writable paths to php-fpm's user (www-data) so it can
+# compile views/sessions/cache at runtime. Done last, after the root-run
+# artisan cache commands above created their files.
+chown -R www-data:www-data storage bootstrap/cache
+chmod -R 775 storage bootstrap/cache
 
 # Hand off to CMD (supervisord or horizon)
 exec "$@"
