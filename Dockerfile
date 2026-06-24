@@ -18,7 +18,9 @@ RUN npm run build
 FROM php:8.4-fpm-alpine
 
 # System deps + PHP extensions
+# $PHPIZE_DEPS provides autoconf/gcc needed by both docker-php-ext-install and pecl
 RUN apk add --no-cache \
+        $PHPIZE_DEPS \
         nginx \
         supervisor \
         libpng-dev \
@@ -30,7 +32,8 @@ RUN apk add --no-cache \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install gd pdo pdo_pgsql zip bcmath intl pcntl opcache \
     && pecl install redis \
-    && docker-php-ext-enable redis
+    && docker-php-ext-enable redis \
+    && apk del $PHPIZE_DEPS
 
 WORKDIR /var/www/html
 
