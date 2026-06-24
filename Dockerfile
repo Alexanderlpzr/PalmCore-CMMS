@@ -1,40 +1,57 @@
-FROM php:8.4-cli
+# ─── Stage 1: Build frontend assets ─────────────────────────────────────────
+FROM node:20-alpine AS assets
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
 
-# 1. Instalar dependencias del sistema, extensiones de PHP y NODE.JS con NPM
-RUN apt-get update && apt-get install -y \
-    libpng-dev \
-    libjpeg-dev \
-    libfreetype6-dev \
-    libzip-dev \
-    libpq-dev \
-    libicu-dev \
-    unzip \
-    git \
-    curl \
-    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y nodejs \
+# ─── Stage 2: Install PHP dependencies ───────────────────────────────────────
+FROM composer:2 AS vendor
+WORKDIR /app
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --optimize-autoloader --no-scripts --no-interaction
+
+# ─── Stage 3: Production image ────────────────────────────────────────────────
+FROM php:8.4-fpm-alpine
+
+# System deps + PHP extensions
+RUN apk add --no-cache \
+        nginx \
+        supervisor \
+        libpng-dev \
+        libjpeg-turbo-dev \
+        freetype-dev \
+        libzip-dev \
+        postgresql-dev \
+        icu-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install gd pdo pdo_mysql pdo_pgsql zip bcmath intl pcntl
+    && docker-php-ext-install gd pdo pdo_pgsql zip bcmath intl pcntl opcache \
+    && pecl install redis \
+    && docker-php-ext-enable redis
 
-# 2. Instalar Composer desde su imagen oficial
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
-
-# 3. Configurar el directorio de trabajo y copiar archivos
 WORKDIR /var/www/html
+
+# Copy application code
 COPY . .
 
-# 4. Instalar las dependencias de PHP para producción (sin scripts automáticos)
-RUN composer install --no-dev --optimize-autoloader --no-scripts
+# Copy compiled artifacts from build stages
+COPY --from=vendor /app/vendor ./vendor
+COPY --from=assets /app/public/build ./public/build
 
-# 5. 🔥 COMPILAR EL FRONTEND (VITE) PARA PRODUCCIÓN
-# Esto genera los archivos CSS/JS reales que Laravel necesita para no dar Error 500
-RUN npm install && npm run build
+# Copy runtime config files
+COPY docker/nginx.conf /etc/nginx/http.d/default.conf
+COPY docker/supervisord.conf /etc/supervisord.conf
+COPY docker/php.ini /usr/local/etc/php/conf.d/custom.ini
+COPY docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-# 6. Dar los permisos correctos a las carpetas de almacenamiento de Laravel
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+# Prepare Laravel storage directories and permissions
+RUN mkdir -p storage/framework/{sessions,views,cache} storage/logs bootstrap/cache \
+    && chown -R www-data:www-data storage bootstrap/cache \
+    && chmod -R 775 storage bootstrap/cache
 
-# 7. Exponer el puerto de Railway
 EXPOSE 80
 
-# 8. Arrancar el servidor forzando la variable de CORS
-CMD ["sh", "-c", "CORS_ALLOWED_ORIGINS=* php artisan serve --host=0.0.0.0 --port=80"]
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
