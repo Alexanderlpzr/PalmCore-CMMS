@@ -32,9 +32,9 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login()
             ->brandName('Fronda CMMS')
-            ->brandLogo(asset('images/logo.png'))
+            ->brandLogo(secure_asset('images/logo.png'))
             ->brandLogoHeight('4rem')
-            ->favicon(asset('images/isotipo.png'))
+            ->favicon(secure_asset('images/isotipo.png'))
             // Brand + semantic colors aligned with the shared Fronda tokens
             // (resources/css/app.css · resources/js/shared/design.js) so Filament,
             // Ops and Mobile read as one product. Fronda green = #059669.
