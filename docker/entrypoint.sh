@@ -10,9 +10,11 @@ mkdir -p storage/framework/{sessions,views,cache} storage/logs bootstrap/cache
 php artisan storage:link --force 2>/dev/null || true
 
 # Cache config, routes, and views for production performance
-php artisan config:cache || { echo "config:cache failed"; exit 1; }
-php artisan route:cache  || { echo "route:cache failed";  exit 1; }
-php artisan view:cache   || { echo "view:cache failed";   exit 1; }
+php artisan config:cache   || { echo "config:cache failed";   exit 1; }
+php artisan route:cache    || { echo "route:cache failed";    exit 1; }
+php artisan view:cache     || { echo "view:cache failed";     exit 1; }
+php artisan filament:optimize 2>/dev/null || true
+php artisan icons:cache    2>/dev/null || true
 
 # Wait for DB and run migrations (retry up to 5 times)
 retries=5
