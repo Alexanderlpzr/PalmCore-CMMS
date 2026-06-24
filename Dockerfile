@@ -28,6 +28,7 @@ RUN apk add --no-cache \
         freetype-dev \
         libzip-dev \
         postgresql-dev \
+        postgresql-client \
         icu-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install gd pdo pdo_pgsql zip bcmath intl pcntl opcache \
