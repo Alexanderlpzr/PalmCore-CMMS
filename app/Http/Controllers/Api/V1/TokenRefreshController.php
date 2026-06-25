@@ -76,7 +76,7 @@ class TokenRefreshController extends Controller
             'token' => $accessResult->plainTextToken,
             'expires_at' => now()->addHour()->toISOString(),
             'tenant' => ['id' => $tenant->id, 'name' => $tenant->name],
-            'user' => ['id' => $user->id, 'name' => $user->name],
+            'user' => ['id' => $user->id, 'name' => $user->name, 'is_super_admin' => (bool) $user->is_super_admin],
         ]);
     }
 

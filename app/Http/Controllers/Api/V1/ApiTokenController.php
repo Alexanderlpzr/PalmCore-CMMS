@@ -68,7 +68,7 @@ class ApiTokenController extends Controller
             'abilities' => $abilities,
             'expires_at' => now()->addHour()->toISOString(),
             'tenant' => ['id' => $tenant->id, 'name' => $tenant->name],
-            'user' => ['id' => $user->id, 'name' => $user->name],
+            'user' => ['id' => $user->id, 'name' => $user->name, 'is_super_admin' => (bool) $user->is_super_admin],
         ], 201)->withCookie($refreshCookie);
     }
 

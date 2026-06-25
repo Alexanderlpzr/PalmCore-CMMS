@@ -27,6 +27,7 @@ use App\Observers\EquipmentPhotoObserver;
 use App\Observers\MaintenancePlanObserver;
 use App\Observers\PlantObserver;
 use App\Observers\SparePartObserver;
+use App\Observers\UserObserver;
 use App\Observers\WorkOrderObserver;
 use App\Security\SsrfValidator;
 use Carbon\CarbonImmutable;
@@ -131,6 +132,7 @@ class AppServiceProvider extends ServiceProvider
         Plant::observe(PlantObserver::class);
         Area::observe(AreaObserver::class);
         EquipmentCategory::observe(EquipmentCategoryObserver::class);
+        User::observe(UserObserver::class);
 
         Event::listen(AlertCreated::class, SendAlertNotificationListener::class);
         Event::listen(WebhookableEvent::class, WebhookTriggerListener::class);

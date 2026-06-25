@@ -53,10 +53,10 @@ class PhotosRelationManager extends RelationManager
                             ->label('Imagen')
                             ->required()
                             ->image()
-                            ->disk('public')
+                            ->disk(persistent_disk())
                             ->directory(fn ($livewire) => 'equipment-photos/'.$livewire->ownerRecord->tenant_id.'/'.$livewire->ownerRecord->id)
                             ->storeFileNamesIn('file_name')
-                            ->visibility('public')
+                            ->visibility(persistent_disk() === 'public' ? 'public' : 'private')
                             ->preventFilePathTampering()
                             ->maxSize(10240) // 10 MB
                             ->imageResizeMode('contain')
@@ -85,7 +85,7 @@ class PhotosRelationManager extends RelationManager
             ->columns([
                 ImageColumn::make('file_path')
                     ->label('Vista previa')
-                    ->disk('public')
+                    ->disk(persistent_disk())
                     ->height(60)
                     ->width(80)
                     ->defaultImageUrl(asset('images/no-photo.svg')),
@@ -119,7 +119,7 @@ class PhotosRelationManager extends RelationManager
                         $data['uploaded_by'] = auth()->id();
 
                         if (! empty($data['file_path'])) {
-                            $disk = Storage::disk('public');
+                            $disk = Storage::disk(persistent_disk());
                             if ($disk->exists($data['file_path'])) {
                                 $data['file_size'] = $disk->size($data['file_path']);
                                 $data['mime_type'] = $disk->mimeType($data['file_path']) ?: null;

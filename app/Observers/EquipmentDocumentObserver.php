@@ -14,7 +14,7 @@ class EquipmentDocumentObserver
     public function forceDeleted(EquipmentDocument $document): void
     {
         if ($document->file_path) {
-            Storage::disk('public')->delete($document->file_path);
+            Storage::disk(persistent_disk())->delete($document->file_path);
         }
     }
 }

@@ -48,8 +48,8 @@ class InventoryPdfService implements PdfReport
         }
 
         try {
-            $content = Storage::disk('public')->get($tenant->logo_path);
-            $mime = Storage::disk('public')->mimeType($tenant->logo_path);
+            $content = Storage::disk(persistent_disk())->get($tenant->logo_path);
+            $mime = Storage::disk(persistent_disk())->mimeType($tenant->logo_path);
 
             return "data:{$mime};base64,".base64_encode($content);
         } catch (\Throwable) {

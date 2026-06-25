@@ -14,7 +14,7 @@ class EquipmentPhotoObserver
     public function forceDeleted(EquipmentPhoto $photo): void
     {
         if ($photo->file_path) {
-            Storage::disk('public')->delete($photo->file_path);
+            Storage::disk(persistent_disk())->delete($photo->file_path);
         }
     }
 }

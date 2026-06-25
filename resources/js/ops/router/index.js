@@ -52,7 +52,7 @@ const routes = [
                 path: 'preventivos',
                 name: 'ops.preventivos',
                 component: () => import('../views/PreventivosView.vue'),
-                meta: { title: 'Planes preventivos' },
+                meta: { title: 'Mantenimiento programado' },
             },
             {
                 path: 'equipos',
@@ -82,13 +82,19 @@ const routes = [
                 path: 'kpis',
                 name: 'ops.kpis',
                 component: () => import('../views/KpisView.vue'),
-                meta: { title: 'KPIs' },
+                meta: { title: 'Indicadores' },
             },
             {
                 path: 'gerencial',
                 name: 'ops.gerencial',
                 component: () => import('../views/ExecutiveDashboardView.vue'),
-                meta: { title: 'Dashboard Gerencial' },
+                meta: { title: 'Resumen Ejecutivo' },
+            },
+            {
+                path: 'plataforma',
+                name: 'ops.plataforma',
+                component: () => import('../views/PlatformDashboardView.vue'),
+                meta: { title: 'Dashboard de Plataforma', requiresSuperAdmin: true },
             },
             {
                 path: 'reportes',
@@ -125,6 +131,10 @@ router.beforeEach((to) => {
         return { name: 'ops.login' }
     }
     if (to.meta.guest && auth.isAuthenticated) {
+        return { name: 'ops.dashboard' }
+    }
+    // Platform dashboard is Super Admin only — the backend enforces it too.
+    if (to.meta.requiresSuperAdmin && !auth.isSuperAdmin) {
         return { name: 'ops.dashboard' }
     }
 })

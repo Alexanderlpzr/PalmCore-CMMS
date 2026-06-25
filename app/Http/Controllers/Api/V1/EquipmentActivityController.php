@@ -13,7 +13,6 @@ use App\Models\WorkOrder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 class EquipmentActivityController extends Controller
 {
@@ -181,7 +180,7 @@ class EquipmentActivityController extends Controller
                     'title' => $photo->caption ?? 'Foto agregada',
                     'meta' => [
                         'ref_id' => $photo->id,
-                        'url' => Storage::disk('public')->url($photo->file_path),
+                        'url' => file_signed_url(persistent_disk(), $photo->file_path),
                         'is_primary' => $photo->is_primary,
                     ],
                 ]);

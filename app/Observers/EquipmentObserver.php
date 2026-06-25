@@ -20,7 +20,7 @@ class EquipmentObserver
         $qrCode = $equipment->qrCode()->withTrashed()->first();
 
         if ($qrCode?->qr_image_path) {
-            Storage::disk('public')->delete($qrCode->qr_image_path);
+            Storage::disk(persistent_disk())->delete($qrCode->qr_image_path);
         }
     }
 }

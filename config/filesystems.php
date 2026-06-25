@@ -17,6 +17,31 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Logical Disks for Persistent Files
+    |--------------------------------------------------------------------------
+    |
+    | These indirections decouple call sites from a concrete disk name so the
+    | same code runs on local storage in development and on Cloudflare R2 (or
+    | any S3-compatible object store) in production by changing only env vars.
+    |
+    | - persistent_disk: publicly-referenced persistent assets (equipment
+    |   photos, tenant logos, QR codes, documents). Defaults to the local
+    |   "public" disk to preserve existing behaviour.
+    | - private_disk: access-controlled persistent files (work order media and
+    |   other private attachments). Defaults to the local "work_orders_private"
+    |   disk.
+    |
+    | Set PERSISTENT_DISK=r2 and PRIVATE_DISK=r2 in production to make uploads
+    | survive redeploys, restarts, and horizontal scaling.
+    |
+    */
+
+    'persistent_disk' => env('PERSISTENT_DISK', 'public'),
+
+    'private_disk' => env('PRIVATE_DISK', 'work_orders_private'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Filesystem Disks
     |--------------------------------------------------------------------------
     |
@@ -69,6 +94,22 @@ return [
             'url' => env('AWS_URL'),
             'endpoint' => env('AWS_ENDPOINT'),
             'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
+            'throw' => false,
+            'report' => false,
+        ],
+
+        // Cloudflare R2 — S3-compatible object storage. Private by default;
+        // files are served through time-limited signed URLs (see file_signed_url()).
+        'r2' => [
+            'driver' => 's3',
+            'key' => env('R2_ACCESS_KEY'),
+            'secret' => env('R2_SECRET_KEY'),
+            'region' => env('R2_REGION', 'auto'),
+            'bucket' => env('R2_BUCKET'),
+            'endpoint' => env('R2_ENDPOINT'),
+            // R2 requires path-style addressing.
+            'use_path_style_endpoint' => env('R2_USE_PATH_STYLE', true),
+            'visibility' => 'private',
             'throw' => false,
             'report' => false,
         ],

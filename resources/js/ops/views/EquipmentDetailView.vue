@@ -119,7 +119,10 @@
                     <!-- Desktop anchor nav -->
                     <div class="hidden lg:flex gap-0 overflow-x-auto border-t border-gray-100">
                         <button v-for="sec in visibleDesktopSections" :key="sec.id" @click="scrollToSection(sec.id)"
-                            class="shrink-0 px-4 py-3 text-sm font-medium text-gray-500 hover:text-gray-800 transition-colors border-b-2 border-transparent hover:border-gray-300 -mb-px">
+                            class="shrink-0 px-4 py-3 text-sm font-medium transition-colors border-b-2 -mb-px"
+                            :class="activeSection === sec.id
+                                ? 'border-emerald-500 text-emerald-700 font-semibold'
+                                : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'">
                             {{ sec.label }}
                             <span v-if="sec.count" class="ml-1 text-xs font-bold bg-gray-100 text-gray-500 rounded-full px-1.5 py-0.5">{{ sec.count }}</span>
                         </button>
@@ -153,6 +156,25 @@
                         <RouterLink :to="{ name: 'ops.equipos.show', params: { id: equipment.parent.id } }"
                             class="shrink-0 flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors">
                             Ver perfil
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                        </RouterLink>
+                    </div>
+
+                    <!-- Latest WO context card — only if WOs are loaded and there's at least one -->
+                    <div v-if="workOrders.length && !workOrdersLoading" class="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex items-center justify-between gap-4 mb-4">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wider text-indigo-400 mb-0.5">Última orden de trabajo</p>
+                            <p class="text-sm font-bold text-indigo-900">{{ workOrders[0].title }}</p>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-xs font-mono text-indigo-400">{{ workOrders[0].work_order_number }}</span>
+                                <span class="text-xs font-semibold px-1.5 py-0.5 rounded-full" :class="woStatusColors[workOrders[0].status] ?? 'bg-gray-100 text-gray-600'">
+                                    {{ woStatusLabels[workOrders[0].status] ?? workOrders[0].status }}
+                                </span>
+                            </div>
+                        </div>
+                        <RouterLink :to="{ name: 'ops.ordenes.show', params: { id: workOrders[0].id } }"
+                            class="shrink-0 flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors">
+                            Ver OT
                             <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
                         </RouterLink>
                     </div>
@@ -377,7 +399,7 @@
                     <div v-else-if="workOrders.length" class="space-y-3">
                         <RouterLink v-for="wo in workOrders" :key="wo.id"
                             :to="{ name: 'ops.ordenes.show', params: { id: wo.id } }"
-                            class="bg-white rounded-2xl border border-gray-100 shadow-sm hover:border-gray-200 hover:shadow-md transition-all p-4 flex items-center gap-3 block">
+                            class="bg-white rounded-2xl border border-gray-100 shadow-sm hover:border-gray-200 hover:shadow-md transition-all p-4 flex items-center gap-3">
                             <!-- Type dot -->
                             <div class="w-2.5 h-2.5 rounded-full shrink-0" :class="woTypeDot[wo.work_order_type] ?? 'bg-gray-300'" />
                             <div class="flex-1 min-w-0">
@@ -486,7 +508,7 @@
                             <div v-if="photo.is_primary" class="absolute top-1.5 left-1.5 bg-emerald-500 text-white text-[8px] font-bold uppercase px-1.5 py-0.5 rounded">
                                 Principal
                             </div>
-                            <p v-if="photo.caption" class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/50 px-2 pb-2 pt-4 text-xs text-white leading-snug">
+                            <p v-if="photo.caption" class="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/50 px-2 pb-2 pt-4 text-xs text-white leading-snug">
                                 {{ photo.caption }}
                             </p>
                         </div>
@@ -595,6 +617,7 @@ const plans        = ref([])
 
 const lightboxPhoto = ref(null)
 const downloadingPdf = ref(false)
+const activeSection = ref('info')
 
 async function downloadPdf() {
     if (downloadingPdf.value || ! equipment.value) { return }
@@ -803,11 +826,34 @@ async function loadPlans() {
     }
 }
 
+// ── Intersection Observer for desktop anchor nav ──────────────────────────────
+
+let sectionObserver = null
+
+function initSectionObserver() {
+    if (sectionObserver) { sectionObserver.disconnect() }
+    sectionObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                activeSection.value = entry.target.id
+            }
+        })
+    }, { threshold: 0, rootMargin: '-40% 0px -55% 0px' })
+
+    const sectionIds = ['info', 'timeline', 'components', 'work-orders', 'preventives', 'parts', 'photos', 'documents']
+    sectionIds.forEach(id => {
+        const el = document.getElementById(id)
+        if (el) { sectionObserver.observe(el) }
+    })
+}
+
 // ── Lifecycle ─────────────────────────────────────────────────────────────────
 
 onMounted(() => {
     window.addEventListener('resize', handleResize)
-    loadEquipment()
+    loadEquipment().then(() => {
+        if (equipment.value) { initSectionObserver() }
+    })
     loadActivities()
     loadWorkOrders()
     loadPlans()
@@ -815,5 +861,6 @@ onMounted(() => {
 
 onUnmounted(() => {
     window.removeEventListener('resize', handleResize)
+    if (sectionObserver) { sectionObserver.disconnect() }
 })
 </script>

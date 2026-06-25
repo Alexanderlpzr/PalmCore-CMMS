@@ -35,7 +35,7 @@
             <NavGroup label="Mantenimiento">
                 <NavItem :item="{ name: 'Solicitudes', to: 'ops.solicitudes', icon: icons.clipboard }" />
                 <NavItem :item="{ name: 'Órdenes de trabajo', to: 'ops.ordenes', icon: icons.wrench }" />
-                <NavItem :item="{ name: 'Preventivos', to: 'ops.preventivos', icon: icons.calendar }" />
+                <NavItem :item="{ name: 'Mantenimiento Programado', to: 'ops.preventivos', icon: icons.calendar }" />
             </NavGroup>
 
             <!-- Activos -->
@@ -51,9 +51,14 @@
 
             <!-- Análisis -->
             <NavGroup label="Análisis">
-                <NavItem :item="{ name: 'KPIs', to: 'ops.kpis', icon: icons.chartBar }" />
-                <NavItem :item="{ name: 'Gerencial', to: 'ops.gerencial', icon: icons.chartBar }" />
+                <NavItem :item="{ name: 'Indicadores', to: 'ops.kpis', icon: icons.chartBar }" />
+                <NavItem :item="{ name: 'Resumen Ejecutivo', to: 'ops.gerencial', icon: icons.chartBar }" />
                 <NavItem :item="{ name: 'Reportes', to: 'ops.reportes', icon: icons.fileText }" />
+            </NavGroup>
+
+            <!-- Plataforma — exclusivo Super Admin -->
+            <NavGroup v-if="auth.isSuperAdmin" label="Plataforma">
+                <NavItem :item="{ name: 'Dashboard Global', to: 'ops.plataforma', icon: icons.chartBar }" />
             </NavGroup>
 
             <div class="my-2 border-t border-slate-800" />

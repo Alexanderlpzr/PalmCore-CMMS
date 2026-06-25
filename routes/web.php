@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\EquipmentPublicController;
 use App\Http\Controllers\HealthCheckController;
+use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\ReportDownloadController;
 use Illuminate\Support\Facades\Route;
 
@@ -20,6 +21,16 @@ Route::get('/equipment/qr/{token}', [EquipmentPublicController::class, 'show'])
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::view('dashboard', 'dashboard')->name('dashboard');
+});
+
+// Super Admin impersonation (session-based, CSRF-protected via the web group).
+// Authorization is enforced inside ImpersonationService.
+Route::middleware('auth')->group(function () {
+    // 'leave' is declared first so it is not captured by the {user} wildcard.
+    Route::post('/impersonation/leave', [ImpersonationController::class, 'leave'])
+        ->name('impersonation.leave');
+    Route::post('/impersonation/{user}', [ImpersonationController::class, 'start'])
+        ->name('impersonation.start');
 });
 
 Route::middleware(['auth', 'signed'])->group(function () {

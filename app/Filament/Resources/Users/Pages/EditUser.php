@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Users\Pages;
 
 use App\Filament\Resources\Users\UserResource;
+use App\Services\SuperAdminGuard;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ForceDeleteAction;
 use Filament\Actions\RestoreAction;
@@ -17,9 +18,14 @@ class EditUser extends EditRecord
 
     protected function getHeaderActions(): array
     {
+        // The Gate::before super-admin bypass makes policy-based hiding ineffective
+        // for super admins, so hide the destructive actions explicitly via the guard.
+        $isLastActiveSuperAdmin = fn (): bool => app(SuperAdminGuard::class)
+            ->isLastActiveSuperAdmin($this->getRecord());
+
         return [
-            DeleteAction::make(),
-            ForceDeleteAction::make(),
+            DeleteAction::make()->hidden($isLastActiveSuperAdmin),
+            ForceDeleteAction::make()->hidden($isLastActiveSuperAdmin),
             RestoreAction::make(),
         ];
     }

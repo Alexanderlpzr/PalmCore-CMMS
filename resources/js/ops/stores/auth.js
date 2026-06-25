@@ -7,6 +7,7 @@ export const useAuthStore = defineStore('auth', () => {
     const tenantSlug = ref(localStorage.getItem('fronda_tenant_slug') ?? null)
     const userEmail = ref(localStorage.getItem('fronda_user_email') ?? null)
     const userName = ref(localStorage.getItem('fronda_user_name') ?? null)
+    const isSuperAdmin = ref(localStorage.getItem('fronda_is_super_admin') === '1')
 
     const isAuthenticated = computed(() => token.value !== null)
 
@@ -55,11 +56,13 @@ export const useAuthStore = defineStore('auth', () => {
         tenantSlug.value = data.tenant?.slug ?? slug
         userEmail.value = email
         userName.value = data.user?.name ?? null
+        isSuperAdmin.value = data.user?.is_super_admin === true
 
         localStorage.setItem('fronda_tenant_name', tenantName.value)
         localStorage.setItem('fronda_tenant_slug', tenantSlug.value)
         localStorage.setItem('fronda_user_email', email)
         if (userName.value) localStorage.setItem('fronda_user_name', userName.value)
+        localStorage.setItem('fronda_is_super_admin', isSuperAdmin.value ? '1' : '0')
     }
 
     async function restoreSession() {
@@ -87,6 +90,10 @@ export const useAuthStore = defineStore('auth', () => {
                 userName.value = data.user.name
                 localStorage.setItem('fronda_user_name', data.user.name)
             }
+            if (typeof data.user?.is_super_admin === 'boolean') {
+                isSuperAdmin.value = data.user.is_super_admin
+                localStorage.setItem('fronda_is_super_admin', data.user.is_super_admin ? '1' : '0')
+            }
             return true
         } catch {
             return false
@@ -113,14 +120,16 @@ export const useAuthStore = defineStore('auth', () => {
         tenantSlug.value = null
         userEmail.value = null
         userName.value = null
+        isSuperAdmin.value = false
         localStorage.removeItem('fronda_tenant_name')
         localStorage.removeItem('fronda_tenant_slug')
         localStorage.removeItem('fronda_user_email')
         localStorage.removeItem('fronda_user_name')
+        localStorage.removeItem('fronda_is_super_admin')
     }
 
     return {
-        token, tenantName, tenantSlug, userEmail, userName,
+        token, tenantName, tenantSlug, userEmail, userName, isSuperAdmin,
         isAuthenticated, userInitials,
         login, logout, restoreSession,
     }

@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Users\Schemas;
 
 use App\Models\Role;
 use App\Models\User;
+use App\Services\SuperAdminGuard;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -41,7 +42,15 @@ class UserForm
                         Toggle::make('is_active')
                             ->label('Activo')
                             ->default(true)
-                            ->columnSpanFull(),
+                            ->columnSpanFull()
+                            // Cannot deactivate the last active Super Admin. Disabled fields
+                            // are not dehydrated, so the persisted value is preserved on save.
+                            ->disabled(fn (?User $record): bool => $record !== null
+                                && app(SuperAdminGuard::class)->isLastActiveSuperAdmin($record))
+                            ->helperText(fn (?User $record): ?string => $record !== null
+                                && app(SuperAdminGuard::class)->isLastActiveSuperAdmin($record)
+                                    ? 'Este es el último Super Admin activo de la plataforma: no puede desactivarse.'
+                                    : null),
                     ]),
 
                 Section::make('Rol en el Tenant')

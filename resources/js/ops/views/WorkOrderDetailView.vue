@@ -4,15 +4,13 @@
         <!-- Top bar -->
         <div class="bg-white border-b border-gray-100 sticky top-0 z-10">
             <div class="max-w-3xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-3">
-                <RouterLink
-                    :to="{ name: 'ops.ordenes' }"
-                    class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
-                >
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
-                    </svg>
-                </RouterLink>
-                <span class="font-mono text-sm text-gray-500 truncate">{{ wo?.work_order_number ?? '' }}</span>
+                <nav class="flex items-center gap-1 text-xs flex-wrap flex-1 min-w-0">
+                    <RouterLink :to="{ name: 'ops.ordenes' }" class="text-gray-500 hover:text-gray-700 transition-colors shrink-0">
+                        Órdenes de trabajo
+                    </RouterLink>
+                    <svg class="w-3 h-3 text-gray-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                    <span class="text-gray-700 font-medium font-mono truncate">{{ wo?.work_order_number ?? '…' }}</span>
+                </nav>
                 <div v-if="wo" class="ml-auto flex items-center gap-2 shrink-0">
                     <FavoriteStar type="workorders" :id="wo.id" />
                     <Badge :tone="status(wo.status).tone" :label="status(wo.status).label" />
@@ -52,14 +50,27 @@
                 <div class="flex items-center flex-wrap gap-x-2 gap-y-1.5 mt-2">
                     <Badge :tone="priority(wo.priority).tone" :label="priority(wo.priority).label" />
                     <span class="text-xs text-gray-500">{{ typeLabel[wo.work_order_type] ?? wo.work_order_type }}</span>
-                    <RouterLink
-                        v-if="wo.equipment"
-                        :to="{ name: 'ops.equipos.show', params: { id: wo.equipment.id } }"
-                        class="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
-                    >
-                        · {{ wo.equipment.code }} — {{ wo.equipment.name }}
-                    </RouterLink>
                 </div>
+            </div>
+
+            <!-- Equipment context card -->
+            <div v-if="wo.equipment" class="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex items-center justify-between gap-4">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wider text-indigo-400 mb-0.5">Equipo asociado</p>
+                    <p class="text-sm font-bold text-indigo-900">{{ wo.equipment.name }}</p>
+                    <div class="flex items-center gap-2 mt-0.5 flex-wrap">
+                        <span class="text-xs font-mono text-indigo-400">{{ wo.equipment.code }}</span>
+                        <span v-if="wo.equipment.area?.name" class="text-xs text-indigo-500">{{ wo.equipment.area.name }}</span>
+                        <span v-if="wo.equipment.status" class="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
+                            {{ wo.equipment.status }}
+                        </span>
+                    </div>
+                </div>
+                <RouterLink :to="{ name: 'ops.equipos.show', params: { id: wo.equipment.id } }"
+                    class="shrink-0 flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors">
+                    Ver equipo
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                </RouterLink>
             </div>
 
             <!-- Status actions -->
@@ -84,27 +95,22 @@
                 <p v-if="transitionError" class="w-full text-xs text-red-600">{{ transitionError }}</p>
             </div>
 
-            <!-- Tabs -->
-            <div class="flex border-b border-gray-200 overflow-x-auto">
-                <button
-                    v-for="tab in tabs"
-                    :key="tab.key"
-                    @click="activeTab = tab.key"
-                    class="shrink-0 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors"
-                    :class="activeTab === tab.key
-                        ? 'border-indigo-600 text-indigo-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700'"
-                >
-                    {{ tab.label }}
-                    <span
-                        v-if="tab.count != null && tab.count > 0"
-                        class="ml-1.5 text-xs bg-gray-100 text-gray-500 rounded-full px-1.5 py-0.5"
-                    >{{ tab.count }}</span>
-                </button>
+            <!-- Anchor nav -->
+            <div class="sticky top-14.25 z-10 bg-white border-b border-gray-100 -mx-4 sm:-mx-6 px-4 sm:px-6">
+                <div class="flex gap-0 overflow-x-auto">
+                    <button v-for="sec in anchorSections" :key="sec.id" @click="scrollToSection(sec.id)"
+                        class="shrink-0 px-4 py-3 text-sm font-medium transition-colors border-b-2 -mb-px"
+                        :class="activeSection === sec.id
+                            ? 'border-indigo-500 text-indigo-700 font-semibold'
+                            : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'">
+                        {{ sec.label }}
+                        <span v-if="sec.count" class="ml-1 text-xs bg-gray-100 text-gray-500 rounded-full px-1.5 py-0.5">{{ sec.count }}</span>
+                    </button>
+                </div>
             </div>
 
-            <!-- Tab: Detalles -->
-            <div v-if="activeTab === 'details'" class="space-y-4">
+            <!-- Section: Detalles -->
+            <section id="wo-details" class="scroll-mt-32 space-y-4">
 
                 <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
                     <InfoRow label="Tipo" :value="typeLabel[wo.work_order_type] ?? wo.work_order_type" />
@@ -148,10 +154,10 @@
                     </div>
                 </div>
 
-            </div>
+            </section>
 
-            <!-- Tab: Técnicos -->
-            <div v-else-if="activeTab === 'technicians'">
+            <!-- Section: Técnicos -->
+            <section id="wo-technicians" class="scroll-mt-32">
                 <div v-if="!wo.technicians?.length" class="py-12 text-center">
                     <p class="text-sm text-gray-500">Sin técnicos asignados</p>
                 </div>
@@ -174,10 +180,10 @@
                         </div>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <!-- Tab: Partes -->
-            <div v-else-if="activeTab === 'parts'">
+            <!-- Section: Partes -->
+            <section id="wo-parts" class="scroll-mt-32">
                 <div v-if="!wo.parts?.length" class="py-12 text-center">
                     <p class="text-sm text-gray-500">Sin partes registradas</p>
                 </div>
@@ -204,10 +210,10 @@
                         <span class="text-sm font-bold text-gray-900">${{ wo.actual_cost_parts.toFixed(2) }}</span>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <!-- Tab: Comentarios -->
-            <div v-else-if="activeTab === 'comments'" class="space-y-3">
+            <!-- Section: Comentarios -->
+            <section id="wo-comments" class="scroll-mt-32 space-y-3">
 
                 <div v-if="wo.comments?.length" class="space-y-2">
                     <div
@@ -256,14 +262,14 @@
                     <p v-if="commentError" class="mt-2 text-xs text-red-600">{{ commentError }}</p>
                 </div>
 
-            </div>
+            </section>
 
         </div>
     </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, defineComponent, h } from 'vue'
+import { ref, computed, onMounted, onUnmounted, defineComponent, h } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import { useApi } from '../composables/useApi.js'
 import { useAuthStore } from '../stores/auth.js'
@@ -290,7 +296,8 @@ async function downloadPdf() {
         downloadingPdf.value = false
     }
 }
-const activeTab = ref('details')
+
+const activeSection = ref('wo-details')
 const transitioning = ref(false)
 const transitionError = ref(null)
 const newComment = ref('')
@@ -347,14 +354,19 @@ const transitionMap = {
 const primaryTransition = computed(() => transitionMap[wo.value?.status]?.find(t => t.primary) ?? null)
 const secondaryTransitions = computed(() => transitionMap[wo.value?.status]?.filter(t => !t.primary) ?? [])
 
-// ── Tabs ──────────────────────────────────────────────────────────────────────
+// ── Anchor sections ───────────────────────────────────────────────────────────
 
-const tabs = computed(() => [
-    { key: 'details', label: 'Detalles' },
-    { key: 'technicians', label: 'Técnicos', count: wo.value?.technicians?.length ?? null },
-    { key: 'parts', label: 'Partes', count: wo.value?.parts?.length ?? null },
-    { key: 'comments', label: 'Comentarios', count: wo.value?.comments?.length ?? null },
+const anchorSections = computed(() => [
+    { id: 'wo-details', label: 'Detalles' },
+    { id: 'wo-technicians', label: 'Técnicos', count: wo.value?.technicians?.length || null },
+    { id: 'wo-parts', label: 'Partes', count: wo.value?.parts?.length || null },
+    { id: 'wo-comments', label: 'Comentarios', count: wo.value?.comments?.length || null },
 ])
+
+function scrollToSection(id) {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    activeSection.value = id
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -397,6 +409,27 @@ const InfoRow = defineComponent({
         }
     },
 })
+
+// ── Intersection Observer ─────────────────────────────────────────────────────
+
+let observer
+
+function setupObserver() {
+    observer?.disconnect()
+    observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                activeSection.value = entry.target.id
+            }
+        })
+    }, { rootMargin: '-30% 0px -65% 0px', threshold: 0 })
+    ;['wo-details', 'wo-technicians', 'wo-parts', 'wo-comments'].forEach(id => {
+        const el = document.getElementById(id)
+        if (el) { observer.observe(el) }
+    })
+}
+
+onUnmounted(() => observer?.disconnect())
 
 // ── API ───────────────────────────────────────────────────────────────────────
 
@@ -449,5 +482,8 @@ async function submitComment() {
     }
 }
 
-onMounted(load)
+onMounted(async () => {
+    await load()
+    setupObserver()
+})
 </script>

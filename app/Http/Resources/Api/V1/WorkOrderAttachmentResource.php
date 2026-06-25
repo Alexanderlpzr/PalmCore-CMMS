@@ -4,7 +4,6 @@ namespace App\Http\Resources\Api\V1;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Facades\Storage;
 
 class WorkOrderAttachmentResource extends JsonResource
 {
@@ -19,7 +18,7 @@ class WorkOrderAttachmentResource extends JsonResource
             'file_size' => $this->file_size,
             'mime_type' => $this->mime_type,
             'caption' => $this->caption,
-            'url' => Storage::disk('work_orders_private')->url($this->file_path),
+            'url' => file_signed_url(private_files_disk(), $this->file_path),
             'uploaded_by' => $this->uploaded_by,
             'created_at' => $this->created_at->toISOString(),
         ];

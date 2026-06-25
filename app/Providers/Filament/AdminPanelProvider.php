@@ -15,6 +15,8 @@ use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\View\PanelsRenderHook;
+use Illuminate\Contracts\View\View;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
@@ -35,6 +37,12 @@ class AdminPanelProvider extends PanelProvider
             ->brandLogo(secure_asset('images/logo.png'))
             ->brandLogoHeight('4rem')
             ->favicon(secure_asset('images/isotipo.png'))
+            // Permanent impersonation banner — rendered on every panel page while
+            // a Super Admin is impersonating another user (ADMIN-2).
+            ->renderHook(
+                PanelsRenderHook::BODY_START,
+                fn (): View => view('filament.impersonation-banner'),
+            )
             // Brand + semantic colors aligned with the shared Fronda tokens
             // (resources/css/app.css · resources/js/shared/design.js) so Filament,
             // Ops and Mobile read as one product. Fronda green = #059669.

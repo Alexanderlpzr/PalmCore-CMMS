@@ -1,6 +1,7 @@
 <?php
 
 use App\Exceptions\BusinessRuleException;
+use App\Http\Middleware\EnsureSuperAdmin;
 use App\Http\Middleware\IdempotencyMiddleware;
 use App\Http\Middleware\LogApiRequest;
 use App\Http\Middleware\ResolveApiTenant;
@@ -37,6 +38,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'ability' => CheckForAnyAbility::class,
             'api.tenant' => ResolveApiTenant::class,
             'idempotency' => IdempotencyMiddleware::class,
+            'super-admin' => EnsureSuperAdmin::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\V1\InventoryTransactionController;
 use App\Http\Controllers\Api\V1\MaintenancePlanController;
 use App\Http\Controllers\Api\V1\MaintenanceRequestController;
 use App\Http\Controllers\Api\V1\PlantController;
+use App\Http\Controllers\Api\V1\PlatformDashboardController;
 use App\Http\Controllers\Api\V1\PushSubscriptionController;
 use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\SearchController;
@@ -162,6 +163,17 @@ Route::prefix('v1')->group(function () {
         Route::get('reports/equipment/{id}', [ReportController::class, 'equipment'])->name('api.v1.reports.equipment');
         Route::get('reports/maintenance-plans/{id}', [ReportController::class, 'maintenancePlan'])->name('api.v1.reports.maintenance-plan');
     });
+
+    // ── Platform dashboard (Super Admin only) ─────────────────────────────────
+    // Cross-tenant aggregates — intentionally NOT behind api.tenant. The
+    // super-admin middleware is the sole gate; no tenant role can reach here.
+    Route::middleware(['auth:sanctum', 'super-admin', 'throttle:api-heavy'])
+        ->prefix('platform')
+        ->controller(PlatformDashboardController::class)
+        ->group(function () {
+            Route::get('summary', 'summary')->name('api.v1.platform.summary');
+            Route::get('analytics', 'analytics')->name('api.v1.platform.analytics');
+        });
 
     // ── E2E test-only routes (never registered in production) ─────────────────
     if (! app()->isProduction()) {

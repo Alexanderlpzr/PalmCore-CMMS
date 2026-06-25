@@ -3,7 +3,7 @@
 
         <!-- Header -->
         <div>
-            <h1 class="text-xl font-bold text-gray-900">Dashboard Gerencial</h1>
+            <h1 class="text-xl font-bold text-gray-900">Resumen Ejecutivo</h1>
             <p class="text-sm text-gray-500 mt-0.5">Resumen ejecutivo del período actual</p>
         </div>
 

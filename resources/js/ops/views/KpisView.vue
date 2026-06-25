@@ -3,7 +3,7 @@
 
         <!-- Header -->
         <div class="mb-6">
-            <h1 class="text-xl font-bold text-gray-900">KPIs de Confiabilidad</h1>
+            <h1 class="text-xl font-bold text-gray-900">Indicadores de confiabilidad</h1>
             <p v-if="!loading" class="text-sm text-gray-500 mt-0.5">{{ kpis.length }} equipos con datos del último período</p>
         </div>
 

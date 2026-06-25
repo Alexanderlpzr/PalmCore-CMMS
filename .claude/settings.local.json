@@ -8,7 +8,10 @@
       "Bash(git add *)",
       "Bash(git commit *)",
       "Bash(vendor/bin/pint app/Http/Controllers/Api/V1/SearchController.php routes/api.php tests/Feature/SearchEndpointTest.php --format agent)",
-      "Bash(vendor/bin/pint app/Http/Controllers/Api/V1/ReportController.php routes/api.php tests/Feature/ReportApiTest.php --format agent)"
+      "Bash(vendor/bin/pint app/Http/Controllers/Api/V1/ReportController.php routes/api.php tests/Feature/ReportApiTest.php --format agent)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('PHP:', d.get\\('require',{}\\).get\\('php',''\\)\\); [print\\(k,v\\) for k,v in d.get\\('require',{}\\).items\\(\\) if 'laravel' in k or 'horizon' in k or 'redis' in k]\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('scripts:', list\\(d.get\\('scripts',{}\\).keys\\(\\)\\)\\)\")",
+      "Bash(git push *)"
     ]
   },
   "enableAllProjectMcpServers": true,

@@ -5,7 +5,6 @@ namespace App\Models;
 use App\Domain\Shared\Models\BaseModel;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Facades\Storage;
 
 #[Fillable([
     'tenant_id',
@@ -35,7 +34,7 @@ class MaintenanceRequestAttachment extends BaseModel
 
     public function url(): string
     {
-        return Storage::disk('public')->url($this->file_path);
+        return file_signed_url(persistent_disk(), $this->file_path) ?? '';
     }
 
     public function isImage(): bool

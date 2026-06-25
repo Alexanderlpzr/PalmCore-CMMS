@@ -4,7 +4,6 @@ namespace App\Http\Resources\Api\V1;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Facades\Storage;
 
 class EquipmentResource extends JsonResource
 {
@@ -84,12 +83,12 @@ class EquipmentResource extends JsonResource
                 'name' => $this->supplier->name,
             ] : null),
             'primary_photo_url' => $this->whenLoaded('primaryPhoto', fn () => $this->primaryPhoto
-                ? Storage::disk('public')->url($this->primaryPhoto->file_path)
+                ? file_signed_url(persistent_disk(), $this->primaryPhoto->file_path)
                 : null
             ),
             'photos' => $this->whenLoaded('photos', fn () => $this->photos->map(fn ($p) => [
                 'id' => $p->id,
-                'url' => Storage::disk('public')->url($p->file_path),
+                'url' => file_signed_url(persistent_disk(), $p->file_path),
                 'caption' => $p->caption,
                 'is_primary' => $p->is_primary,
             ])->values()),
@@ -97,7 +96,7 @@ class EquipmentResource extends JsonResource
                 'id' => $d->id,
                 'title' => $d->title,
                 'name' => $d->file_name,
-                'url' => Storage::disk('public')->url($d->file_path),
+                'url' => file_signed_url(persistent_disk(), $d->file_path),
                 'type' => $d->document_type?->value,
                 'size' => $d->file_size,
                 'expires_at' => $d->expires_at?->toDateString(),
@@ -125,7 +124,7 @@ class EquipmentResource extends JsonResource
                     'color' => $c->category->color,
                 ] : null,
                 'primary_photo_url' => $c->primaryPhoto
-                    ? Storage::disk('public')->url($c->primaryPhoto->file_path)
+                    ? file_signed_url(persistent_disk(), $c->primaryPhoto->file_path)
                     : null,
                 'kpi' => $c->kpi ? [
                     'failure_count' => $c->kpi->failure_count,

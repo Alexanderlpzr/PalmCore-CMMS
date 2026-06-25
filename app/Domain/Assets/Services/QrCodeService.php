@@ -14,8 +14,6 @@ use Illuminate\Support\Str;
 
 class QrCodeService
 {
-    private const DISK = 'public';
-
     // ── Token ─────────────────────────────────────────────────────────────────
 
     /**
@@ -42,18 +40,18 @@ class QrCodeService
     public function generateImage(string $url, string $tenantId, string $token): string
     {
         $options = new QROptions;
-        $options->outputType    = QROutputInterface::GDIMAGE_PNG;
-        $options->eccLevel      = EccLevel::H;
-        $options->scale         = 10;
-        $options->outputBase64  = false;
-        $options->addQuietzone  = true;
+        $options->outputType = QROutputInterface::GDIMAGE_PNG;
+        $options->eccLevel = EccLevel::H;
+        $options->scale = 10;
+        $options->outputBase64 = false;
+        $options->addQuietzone = true;
         $options->quietzoneSize = 4;
 
         $pngBinary = (new QRCode($options))->render($url);
 
         $path = "equipment-qr/{$tenantId}/{$token}.png";
 
-        Storage::disk(self::DISK)->put($path, $pngBinary);
+        Storage::disk(persistent_disk())->put($path, $pngBinary);
 
         return $path;
     }
@@ -61,7 +59,7 @@ class QrCodeService
     public function deleteImage(?string $path): void
     {
         if ($path) {
-            Storage::disk(self::DISK)->delete($path);
+            Storage::disk(persistent_disk())->delete($path);
         }
     }
 
@@ -70,16 +68,16 @@ class QrCodeService
     public function createForEquipment(Equipment $equipment): EquipmentQrCode
     {
         $token = $this->generateToken();
-        $url   = $this->buildPublicUrl($token);
-        $path  = $this->generateImage($url, $equipment->tenant_id, $token);
+        $url = $this->buildPublicUrl($token);
+        $path = $this->generateImage($url, $equipment->tenant_id, $token);
 
         return $equipment->qrCode()->create([
-            'tenant_id'     => $equipment->tenant_id,
-            'qr_token'      => $token,
+            'tenant_id' => $equipment->tenant_id,
+            'qr_token' => $token,
             'qr_image_path' => $path,
-            'is_active'     => true,
-            'generated_at'  => now(),
-            'scan_count'    => 0,
+            'is_active' => true,
+            'generated_at' => now(),
+            'scan_count' => 0,
         ]);
     }
 

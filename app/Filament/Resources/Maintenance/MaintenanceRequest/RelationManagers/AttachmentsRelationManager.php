@@ -42,10 +42,10 @@ class AttachmentsRelationManager extends RelationManager
                         FileUpload::make('file_path')
                             ->label('Archivo')
                             ->required()
-                            ->disk('public')
+                            ->disk(persistent_disk())
                             ->directory(fn ($livewire): string => 'maintenance-attachments/'.$livewire->ownerRecord->tenant_id.'/'.$livewire->ownerRecord->id)
                             ->storeFileNamesIn('file_name')
-                            ->visibility('public')
+                            ->visibility(persistent_disk() === 'public' ? 'public' : 'private')
                             ->preventFilePathTampering()
                             ->maxSize(20480)
                             ->acceptedFileTypes([
@@ -96,7 +96,7 @@ class AttachmentsRelationManager extends RelationManager
                         $data['tenant_id'] = $this->ownerRecord->tenant_id;
 
                         if (! empty($data['file_path'])) {
-                            $disk = Storage::disk('public');
+                            $disk = Storage::disk(persistent_disk());
 
                             if ($disk->exists($data['file_path'])) {
                                 $data['file_size'] = $disk->size($data['file_path']);
@@ -112,7 +112,7 @@ class AttachmentsRelationManager extends RelationManager
                     ->label('Descargar')
                     ->icon('heroicon-o-arrow-down-tray')
                     ->color('info')
-                    ->url(fn (MaintenanceRequestAttachment $record): string => Storage::disk('public')->url($record->file_path))
+                    ->url(fn (MaintenanceRequestAttachment $record): ?string => file_signed_url(persistent_disk(), $record->file_path))
                     ->openUrlInNewTab(),
                 DeleteAction::make(),
             ])
