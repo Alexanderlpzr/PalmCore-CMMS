@@ -14,11 +14,17 @@ class AdminTenantSeeder extends Seeder
     {
         $tenant = Tenant::where('slug', 'el-pajuil')->firstOrFail();
 
+        $adminPassword = env('ADMIN_PASSWORD', 'Admin123');
+
+        if (app()->isProduction() && $adminPassword === 'Admin123') {
+            $this->command->warn('SECURITY: AdminTenantSeeder using default password in production. Set ADMIN_PASSWORD env variable.');
+        }
+
         $admin = User::firstOrCreate(
             ['email' => 'admin@elpajuil.demo'],
             [
                 'name' => 'Administrador El Pajuil',
-                'password' => Hash::make(env('ADMIN_PASSWORD', 'Admin123')),
+                'password' => Hash::make($adminPassword),
                 'is_active' => true,
                 'is_super_admin' => false,
                 'email_verified_at' => now(),

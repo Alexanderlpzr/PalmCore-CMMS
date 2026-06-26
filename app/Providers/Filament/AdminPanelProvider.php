@@ -4,6 +4,7 @@ namespace App\Providers\Filament;
 
 use App\Filament\AvatarProviders\InitialsAvatarProvider;
 use App\Http\Middleware\CheckTenantSubscription;
+use App\Http\Middleware\EnforceTwoFactor;
 use App\Http\Middleware\SyncSpatieTeamId;
 use App\Models\Tenant;
 use Filament\Http\Middleware\Authenticate;
@@ -42,6 +43,12 @@ class AdminPanelProvider extends PanelProvider
             ->renderHook(
                 PanelsRenderHook::BODY_START,
                 fn (): View => view('filament.impersonation-banner'),
+            )
+            // Subscription status banner — shown for trial, read_only, and suspended tenants.
+            // Healthy active tenants see no banner; expiring-soon uses a Filament notification.
+            ->renderHook(
+                PanelsRenderHook::BODY_START,
+                fn (): View => view('filament.subscription-banner'),
             )
             // Brand + semantic colors aligned with the shared Fronda tokens
             // (resources/css/app.css · resources/js/shared/design.js) so Filament,
@@ -91,6 +98,7 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
+                EnforceTwoFactor::class,
             ]);
     }
 }

@@ -1,9 +1,9 @@
 /**
- * Grupo 2 — Dashboard (Ops SPA, /app/dashboard)
+ * Grupo 2 — Dashboard Inteligente (PX-1)
  *
- * Valida comportamiento (no estilos/píxeles): carga, ausencia de errores de
- * consola, widgets visibles, datos del backend real, navegación de enlaces,
- * ausencia de textos de desarrollo y un estado vacío que no rompe.
+ * Valida el centro operativo rediseñado: encabezado, indicadores,
+ * actividad reciente, novedades y accesos rápidos.
+ * No valida estilos/píxeles — valida comportamiento y contenido.
  */
 import { execSync } from 'child_process'
 import { test, expect } from '@playwright/test'
@@ -11,39 +11,109 @@ import { loginToApp } from '../helpers.js'
 
 test.use({ storageState: { cookies: [], origins: [] } })
 
-// El endpoint de tokens es 5/min por IP y el SPA gasta cupo al arrancar; un
-// reset por test evita que la ejecución rápida choque con esa protección.
 test.beforeEach(() => {
     execSync('php artisan cache:clear', { stdio: 'ignore' })
 })
 
-const STAT_LABELS = ['OTs activas', 'Solicitudes pendientes', 'Alertas críticas', 'Equipos en mantenimiento']
+const STAT_LABELS = [
+    'OTs activas',
+    'Solicitudes pendientes',
+    'Alertas críticas',
+    'Equipos en mantenimiento',
+]
 
-test.describe('Grupo 2 — Dashboard (Ops SPA)', () => {
-    test('carga correctamente y muestra los widgets principales', async ({ page }) => {
+const QUICK_ACTIONS = [
+    'Crear OT',
+    'Registrar solicitud',
+    'Escanear QR',
+    'Nuevo equipo',
+]
+
+test.describe('Grupo 2 — Dashboard Inteligente (PX-1)', () => {
+    test('2-1 carga correctamente y muestra encabezado', async ({ page }) => {
         await loginToApp(page)
 
         await expect(page).toHaveURL(/\/app\/dashboard/)
         await expect(page.getByRole('heading', { name: /Bienvenido/i })).toBeVisible()
 
+        // Reloj visible (formato HH:MM)
+        await expect(page.locator('p.text-2xl.font-bold.tabular-nums')).toBeVisible()
+        await expect(page.locator('p.text-2xl.font-bold.tabular-nums')).toHaveText(/^\d{1,2}:\d{2}$/)
+    })
+
+    test('2-2 indicadores principales visibles con valores numéricos', async ({ page }) => {
+        await loginToApp(page)
+
         for (const label of STAT_LABELS) {
             await expect(page.getByText(label).first()).toBeVisible()
         }
 
-        await expect(page.getByRole('heading', { name: /Mis órdenes de trabajo/i })).toBeVisible()
-        await expect(page.getByRole('heading', { name: /^Favoritos$/i })).toBeVisible()
+        // Stat values load (skeletons resolve to numbers)
+        const statValues = page.locator('p.text-2xl.font-bold.tabular-nums')
+        await expect(statValues.first()).toBeVisible()
+        await expect(statValues.first()).toHaveText(/^\d+$/)
     })
 
-    test('no produce errores de consola ni excepciones de página', async ({ page }) => {
+    test('2-3 sección actividad reciente visible', async ({ page }) => {
+        await loginToApp(page)
+
+        await expect(page.getByRole('heading', { name: 'Actividad reciente' })).toBeVisible()
+    })
+
+    test('2-4 sección novedades visible', async ({ page }) => {
+        await loginToApp(page)
+
+        await expect(page.getByRole('heading', { name: 'Novedades' })).toBeVisible()
+    })
+
+    test('2-5 accesos rápidos visibles', async ({ page }) => {
+        await loginToApp(page)
+
+        for (const label of QUICK_ACTIONS) {
+            await expect(page.getByText(label).first()).toBeVisible()
+        }
+    })
+
+    test('2-6 datos provienen del backend real (endpoint consolidado)', async ({ page }) => {
+        const summaryPromise = page.waitForResponse(
+            (r) => r.url().includes('/api/v1/dashboard/summary') && r.request().method() === 'GET',
+        )
+        const activityPromise = page.waitForResponse(
+            (r) => r.url().includes('/api/v1/dashboard/activity') && r.request().method() === 'GET',
+        )
+
+        await loginToApp(page)
+
+        const [summary, activity] = await Promise.all([summaryPromise, activityPromise])
+        expect(summary.status()).toBe(200)
+        expect(activity.status()).toBe(200)
+
+        const summaryBody = await summary.json()
+        expect(typeof summaryBody.activeWOs).toBe('number')
+        expect(typeof summaryBody.pendingMRs).toBe('number')
+    })
+
+    test('2-7 los indicadores navegan a sus secciones', async ({ page }) => {
+        await loginToApp(page)
+
+        // Click the "Equipos en mantenimiento" stat card
+        await page.getByRole('link').filter({ hasText: 'Equipos en mantenimiento' }).click()
+        await expect(page).toHaveURL(/\/app\/equipos/)
+
+        await page.goBack()
+        await expect(page).toHaveURL(/\/app\/dashboard/)
+
+        // Click "Alertas críticas"
+        await page.getByRole('link').filter({ hasText: 'Alertas críticas' }).click()
+        await expect(page).toHaveURL(/\/app\/alertas/)
+    })
+
+    test('2-8 no produce errores de consola', async ({ page }) => {
         const errors = []
         page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`))
         page.on('console', (msg) => {
             if (msg.type() !== 'error') { return }
             const text = msg.text()
-            // Ruido de entorno, no fallos de JS del producto:
-            //  - carga de recursos (favicon/manifest/404);
-            //  - violación de CSP del script inline `browser-logger-active` que
-            //    inyecta Laravel Boost SOLO en desarrollo (no existe en producción).
             if (/favicon|manifest|Failed to load resource|net::ERR/i.test(text)) { return }
             if (/Content Security Policy/i.test(text)) { return }
             errors.push(`console: ${text}`)
@@ -51,43 +121,12 @@ test.describe('Grupo 2 — Dashboard (Ops SPA)', () => {
 
         await loginToApp(page)
         await expect(page.getByRole('heading', { name: /Bienvenido/i })).toBeVisible()
-        await page.waitForTimeout(1200) // dejar asentar las llamadas async del dashboard
+        await page.waitForTimeout(1500)
 
         expect(errors).toEqual([])
     })
 
-    test('los datos provienen del backend real', async ({ page }) => {
-        // Capturamos una de las llamadas reales del dashboard antes de que ocurra.
-        const minePromise = page.waitForResponse(
-            (r) => r.url().includes('/api/v1/work-orders/mine') && r.request().method() === 'GET',
-        )
-
-        await loginToApp(page)
-
-        const mine = await minePromise
-        expect(mine.status()).toBe(200)
-
-        // Las stat cards muestran valores numéricos (ya no skeletons).
-        const firstStatValue = page.locator('p.text-2xl.font-bold').first()
-        await expect(firstStatValue).toBeVisible()
-        await expect(firstStatValue).toHaveText(/^\d+$/)
-    })
-
-    test('los enlaces principales navegan', async ({ page }) => {
-        await loginToApp(page)
-
-        // "Ver todas" → lista de órdenes de trabajo.
-        await page.getByRole('link', { name: /Ver todas/i }).click()
-        await expect(page).toHaveURL(/\/app\/ordenes/)
-
-        // Volver y navegar desde una stat card.
-        await page.goBack()
-        await expect(page).toHaveURL(/\/app\/dashboard/)
-        await page.getByRole('link').filter({ hasText: 'Equipos en mantenimiento' }).click()
-        await expect(page).toHaveURL(/\/app\/equipos/)
-    })
-
-    test('no muestra placeholders ni textos de desarrollo', async ({ page }) => {
+    test('2-9 no muestra textos de desarrollo ni placeholders', async ({ page }) => {
         await loginToApp(page)
         await expect(page.getByRole('heading', { name: /Bienvenido/i })).toBeVisible()
 
@@ -96,9 +135,10 @@ test.describe('Grupo 2 — Dashboard (Ops SPA)', () => {
         ).toHaveCount(0)
     })
 
-    test('el estado vacío de Favoritos se renderiza sin romper', async ({ page }) => {
-        // Contexto limpio → sin favoritos en localStorage → estado vacío determinista.
+    test('2-10 acceso rápido Crear OT navega correctamente', async ({ page }) => {
         await loginToApp(page)
-        await expect(page.getByText('No hay favoritos todavía.')).toBeVisible()
+
+        await page.getByText('Crear OT').click()
+        await expect(page).toHaveURL(/\/app\/ordenes/)
     })
 })

@@ -5,9 +5,10 @@
         <div class="bg-white border-b border-gray-100 sticky top-0 z-10">
             <div class="max-w-3xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-3">
                 <nav class="flex items-center gap-1 text-xs flex-wrap flex-1 min-w-0">
-                    <RouterLink :to="{ name: 'ops.ordenes' }" class="text-gray-500 hover:text-gray-700 transition-colors shrink-0">
-                        Órdenes de trabajo
-                    </RouterLink>
+                    <button @click="goBack" class="flex items-center gap-1 text-gray-500 hover:text-gray-700 transition-colors shrink-0">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+                        {{ backLabel }}
+                    </button>
                     <svg class="w-3 h-3 text-gray-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
                     <span class="text-gray-700 font-medium font-mono truncate">{{ wo?.work_order_number ?? '…' }}</span>
                 </nav>
@@ -270,7 +271,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, defineComponent, h } from 'vue'
-import { useRoute, RouterLink } from 'vue-router'
+import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useApi } from '../composables/useApi.js'
 import { useAuthStore } from '../stores/auth.js'
 import { describe, WORK_ORDER_STATUS, PRIORITY } from '../../shared/design.js'
@@ -279,8 +280,31 @@ import AppIcon from '../components/AppIcon.vue'
 import FavoriteStar from '../components/FavoriteStar.vue'
 
 const route = useRoute()
+const router = useRouter()
 const api = useApi()
 const auth = useAuthStore()
+
+// ── Back navigation ───────────────────────────────────────────────────────────
+
+const backLabel = computed(() => {
+    const from = route.query.from
+    if (from === 'ops.equipos.show') { return 'Equipo' }
+    if (from === 'ops.solicitudes.show') { return 'Solicitud' }
+    if (from === 'ops.preventivos') { return 'Preventivos' }
+    return 'Órdenes de trabajo'
+})
+
+function goBack() {
+    const from = route.query.from
+    const fromId = route.query.fromId
+    if (from && fromId && ['ops.equipos.show', 'ops.solicitudes.show'].includes(from)) {
+        router.push({ name: from, params: { id: fromId } })
+    } else if (from && ['ops.preventivos'].includes(from)) {
+        router.push({ name: from })
+    } else {
+        router.push({ name: 'ops.ordenes' })
+    }
+}
 
 const wo = ref(null)
 const loading = ref(true)

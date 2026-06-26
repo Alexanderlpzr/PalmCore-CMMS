@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\Tenants\Schemas;
 
+use App\Domain\Shared\Enums\SubscriptionStatus;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -66,6 +68,16 @@ class TenantForm
                             ])
                             ->required()
                             ->default('starter'),
+                        Select::make('subscription_status')
+                            ->label('Estado de suscripción')
+                            ->options(SubscriptionStatus::class)
+                            ->required()
+                            ->default(SubscriptionStatus::Active),
+                        DatePicker::make('subscription_expires_at')
+                            ->label('Vencimiento de suscripción')
+                            ->native(false)
+                            ->nullable()
+                            ->helperText('Vacío = sin fecha de vencimiento (útil para plan trial)'),
                         Toggle::make('is_active')
                             ->label('Activo')
                             ->default(true)

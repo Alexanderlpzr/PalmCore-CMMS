@@ -4,14 +4,15 @@
         <!-- Top bar -->
         <div class="bg-white border-b border-gray-100 sticky top-0 z-10">
             <div class="max-w-3xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-3">
-                <RouterLink
-                    :to="{ name: 'ops.solicitudes' }"
-                    class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+                <button
+                    @click="goBack"
+                    class="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 transition-colors shrink-0"
                 >
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
                     </svg>
-                </RouterLink>
+                    {{ backLabel }}
+                </button>
                 <span class="font-mono text-sm text-gray-500 truncate">{{ mr?.request_number ?? '' }}</span>
                 <Badge v-if="mr" :tone="status(mr.status).tone" :label="status(mr.status).label" class="ml-auto shrink-0" />
             </div>
@@ -173,12 +174,31 @@
 
 <script setup>
 import { ref, computed, onMounted, defineComponent, h } from 'vue'
-import { useRoute, RouterLink } from 'vue-router'
+import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useApi } from '../composables/useApi.js'
 import { describe, MAINTENANCE_REQUEST_STATUS, PRIORITY } from '../../shared/design.js'
 import Badge from '../components/Badge.vue'
 
 const route = useRoute()
+const router = useRouter()
+
+// ── Back navigation ───────────────────────────────────────────────────────────
+
+const backLabel = computed(() => {
+    const from = route.query.from
+    if (from === 'ops.equipos.show') { return 'Equipo' }
+    return 'Solicitudes'
+})
+
+function goBack() {
+    const from = route.query.from
+    const fromId = route.query.fromId
+    if (from === 'ops.equipos.show' && fromId) {
+        router.push({ name: from, params: { id: fromId } })
+    } else {
+        router.push({ name: 'ops.solicitudes' })
+    }
+}
 const api = useApi()
 
 const mr = ref(null)

@@ -8,6 +8,8 @@ export const useAuthStore = defineStore('auth', () => {
     const userEmail = ref(localStorage.getItem('fronda_user_email') ?? null)
     const userName = ref(localStorage.getItem('fronda_user_name') ?? null)
     const isSuperAdmin = ref(localStorage.getItem('fronda_is_super_admin') === '1')
+    const isImpersonating = ref(false)
+    const impersonationContext = ref(null)
 
     const isAuthenticated = computed(() => token.value !== null)
 
@@ -94,9 +96,28 @@ export const useAuthStore = defineStore('auth', () => {
                 isSuperAdmin.value = data.user.is_super_admin
                 localStorage.setItem('fronda_is_super_admin', data.user.is_super_admin ? '1' : '0')
             }
+
+            // Check if this SPA session is being viewed under impersonation
+            checkImpersonationStatus().catch(() => {})
+
             return true
         } catch {
             return false
+        }
+    }
+
+    async function checkImpersonationStatus() {
+        try {
+            const response = await fetch('/api/v1/impersonation/status', {
+                credentials: 'include',
+                headers: { Accept: 'application/json' },
+            })
+            if (!response.ok) { return }
+            const data = await response.json()
+            isImpersonating.value = data.active === true
+            impersonationContext.value = data.active ? data.context : null
+        } catch {
+            // non-critical — impersonation banner is best-effort
         }
     }
 
@@ -121,6 +142,8 @@ export const useAuthStore = defineStore('auth', () => {
         userEmail.value = null
         userName.value = null
         isSuperAdmin.value = false
+        isImpersonating.value = false
+        impersonationContext.value = null
         localStorage.removeItem('fronda_tenant_name')
         localStorage.removeItem('fronda_tenant_slug')
         localStorage.removeItem('fronda_user_email')
@@ -130,7 +153,8 @@ export const useAuthStore = defineStore('auth', () => {
 
     return {
         token, tenantName, tenantSlug, userEmail, userName, isSuperAdmin,
+        isImpersonating, impersonationContext,
         isAuthenticated, userInitials,
-        login, logout, restoreSession,
+        login, logout, restoreSession, checkImpersonationStatus,
     }
 })

@@ -10,6 +10,8 @@ return [
 
     'tenant_model' => Tenant::class,
 
+    'billing_email' => env('PALMCORE_BILLING_EMAIL', 'hola@palmcore.app'),
+
     /*
     |--------------------------------------------------------------------------
     | Audit Configuration
@@ -20,7 +22,7 @@ return [
     'audit' => [
         'enabled' => env('PALMCORE_AUDIT_ENABLED', true),
         'queue' => env('PALMCORE_AUDIT_QUEUE', 'audit'),
-        'events' => ['created', 'updated', 'deleted'],
+        'events' => ['created', 'updated', 'deleted', 'restored'],
         'exclude_models' => [],
     ],
 
@@ -67,6 +69,17 @@ return [
     */
     'tenancy' => [
         'resolution' => env('PALMCORE_TENANT_RESOLUTION', 'subdomain'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Security Policy
+    |--------------------------------------------------------------------------
+    | require_two_factor_for_owners: when true, tenant owners are prompted to
+    | enable 2FA in addition to super admins (who are always prompted).
+    */
+    'security' => [
+        'require_two_factor_for_owners' => env('PALMCORE_REQUIRE_2FA_FOR_OWNERS', false),
     ],
 
 ];

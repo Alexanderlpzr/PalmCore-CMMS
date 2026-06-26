@@ -108,6 +108,19 @@ const routes = [
                 component: () => import('../views/AlertsView.vue'),
                 meta: { title: 'Alertas' },
             },
+            // PX-3 — Contextual navigation
+            {
+                path: 'plantes/:id',
+                name: 'ops.plantes.show',
+                component: () => import('../views/PlantDetailView.vue'),
+                meta: { title: 'Planta' },
+            },
+            {
+                path: 'areas/:id',
+                name: 'ops.areas.show',
+                component: () => import('../views/AreaDetailView.vue'),
+                meta: { title: 'Área' },
+            },
         ],
     },
 

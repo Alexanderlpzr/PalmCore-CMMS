@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Tenants\Tables;
 
+use App\Domain\Shared\Enums\SubscriptionStatus;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -43,6 +44,17 @@ class TenantsTable
                         'enterprise' => 'primary',
                         default => 'gray',
                     }),
+                TextColumn::make('subscription_status')
+                    ->label('Estado')
+                    ->badge()
+                    ->color(fn (SubscriptionStatus $state): string => $state->color())
+                    ->formatStateUsing(fn (SubscriptionStatus $state): string => $state->label()),
+                TextColumn::make('subscription_expires_at')
+                    ->label('Vencimiento')
+                    ->date('d/m/Y')
+                    ->placeholder('—')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 IconColumn::make('is_active')
                     ->label('Activo')
                     ->boolean(),
@@ -61,6 +73,9 @@ class TenantsTable
                         'professional' => 'Profesional',
                         'enterprise' => 'Empresarial',
                     ]),
+                SelectFilter::make('subscription_status')
+                    ->label('Estado')
+                    ->options(SubscriptionStatus::class),
                 TrashedFilter::make(),
             ])
             ->recordActions([

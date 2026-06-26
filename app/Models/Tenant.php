@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Domain\Shared\Concerns\Auditable;
+use App\Domain\Shared\Enums\SubscriptionStatus;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -24,6 +25,8 @@ use Illuminate\Support\Str;
     'timezone',
     'locale',
     'subscription_plan',
+    'subscription_status',
+    'subscription_expires_at',
     'is_active',
     'logo_path',
     'settings',
@@ -55,10 +58,55 @@ class Tenant extends Model
         return $this->hasMany(Area::class);
     }
 
+    // ── Subscription helpers ──────────────────────────────────────────────────
+
+    /**
+     * Derives the tenant's operational access state.
+     * If the stored status is trial/active but the subscription has expired, the
+     * effective status is automatically downgraded to read_only so Super Admins
+     * do not need to manually update the status on every expiry date.
+     */
+    public function effectiveSubscriptionStatus(): SubscriptionStatus
+    {
+        $stored = $this->subscription_status ?? SubscriptionStatus::Active;
+
+        if (
+            $stored->allowsMutations()
+            && $this->subscription_expires_at !== null
+            && $this->subscription_expires_at->isPast()
+        ) {
+            return SubscriptionStatus::ReadOnly;
+        }
+
+        return $stored;
+    }
+
+    /** Days until the subscription expires (negative when already expired). */
+    public function daysUntilExpiry(): ?int
+    {
+        if ($this->subscription_expires_at === null) {
+            return null;
+        }
+
+        // Use today() (midnight) for whole-day arithmetic: subscription_expires_at is a date column.
+        return (int) today()->diffInDays($this->subscription_expires_at, false);
+    }
+
+    /** True when the subscription expires within $withinDays days and is not yet expired. */
+    public function isExpiringSoon(int $withinDays = 30): bool
+    {
+        $days = $this->daysUntilExpiry();
+
+        return $days !== null && $days >= 0 && $days <= $withinDays;
+    }
+
+    // ── Casts ─────────────────────────────────────────────────────────────────
+
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'subscription_status' => SubscriptionStatus::class,
             'subscription_expires_at' => 'date',
             'settings' => 'array',
         ];

@@ -1,6 +1,8 @@
 <template>
     <aside class="flex flex-col w-60 h-full bg-slate-900 border-r border-slate-800 select-none shrink-0">
 
+        <ImpersonationBanner />
+
         <!-- Logo + Tenant -->
         <div class="flex items-center gap-3 px-4 h-16 border-b border-slate-800 shrink-0">
             <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-600 shrink-0">
@@ -96,6 +98,7 @@ import { useAuthStore } from '../stores/auth.js'
 import { useCommandPalette } from '../composables/useCommandPalette.js'
 import { icons } from '../../shared/icons.js'
 import AppIcon from '../components/AppIcon.vue'
+import ImpersonationBanner from '../components/ImpersonationBanner.vue'
 import NavItem from './NavItem.vue'
 import NavGroup from './NavGroup.vue'
 

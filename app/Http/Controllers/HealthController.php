@@ -23,7 +23,7 @@ class HealthController
         }
 
         if ($cached !== null) {
-            $statusCode = $cached['status'] === 'ok' ? Response::HTTP_OK : Response::HTTP_SERVICE_UNAVAILABLE;
+            $statusCode = $cached['status'] === 'healthy' ? Response::HTTP_OK : Response::HTTP_SERVICE_UNAVAILABLE;
 
             return response()->json($cached, $statusCode);
         }
@@ -36,9 +36,10 @@ class HealthController
         ];
 
         $result = [
-            'status' => in_array(false, $checks, strict: true) ? 'degraded' : 'ok',
-            'checks' => $checks,
+            'status' => in_array(false, $checks, strict: true) ? 'degraded' : 'healthy',
             'timestamp' => now()->toIso8601String(),
+            'version' => config('palmcore.version', '0.0.0'),
+            'checks' => $checks,
         ];
 
         try {
@@ -47,7 +48,7 @@ class HealthController
             // Cache unavailable — return fresh result without caching
         }
 
-        $statusCode = $result['status'] === 'ok' ? Response::HTTP_OK : Response::HTTP_SERVICE_UNAVAILABLE;
+        $statusCode = $result['status'] === 'healthy' ? Response::HTTP_OK : Response::HTTP_SERVICE_UNAVAILABLE;
 
         return response()->json($result, $statusCode);
     }

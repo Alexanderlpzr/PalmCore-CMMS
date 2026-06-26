@@ -172,7 +172,7 @@
                                 </span>
                             </div>
                         </div>
-                        <RouterLink :to="{ name: 'ops.ordenes.show', params: { id: workOrders[0].id } }"
+                        <RouterLink :to="{ name: 'ops.ordenes.show', params: { id: workOrders[0].id }, query: { from: 'ops.equipos.show', fromId: equipment.id } }"
                             class="shrink-0 flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors">
                             Ver OT
                             <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
@@ -201,8 +201,22 @@
                                     <h3 class="text-xs font-bold uppercase tracking-wider text-gray-500">Ubicación</h3>
                                 </div>
                                 <div class="px-4 divide-y divide-gray-50">
-                                    <InfoRow label="Planta" :value="equipment.plant?.name" />
-                                    <InfoRow label="Área" :value="equipment.area?.name" />
+                                    <div v-if="equipment.plant" class="flex items-start justify-between py-2.5 gap-4">
+                                        <span class="text-xs text-gray-500 shrink-0">Planta</span>
+                                        <RouterLink
+                                            :to="{ name: 'ops.plantes.show', params: { id: equipment.plant.id }, query: { from: 'ops.equipos.show', fromId: equipment.id } }"
+                                            class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors text-right">
+                                            {{ equipment.plant.name }}
+                                        </RouterLink>
+                                    </div>
+                                    <div v-if="equipment.area" class="flex items-start justify-between py-2.5 gap-4">
+                                        <span class="text-xs text-gray-500 shrink-0">Área</span>
+                                        <RouterLink
+                                            :to="{ name: 'ops.areas.show', params: { id: equipment.area.id }, query: { from: 'ops.equipos.show', fromId: equipment.id } }"
+                                            class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors text-right">
+                                            {{ equipment.area.name }}
+                                        </RouterLink>
+                                    </div>
                                     <InfoRow label="Notas" :value="equipment.location_notes" />
                                 </div>
                             </div>
@@ -325,9 +339,14 @@
                     </div>
                 </section>
 
-                <!-- ── COMPONENTES ────────────────────────────────────────────── -->
+                <!-- ── PARTES / COMPONENTES (PX-2) ──────────────────────────────── -->
+                <section id="partes" class="scroll-mt-56" v-show="isDesktop || mobileTab === 'partes'">
+                    <EquipmentComponentsTab :equipment-id="equipId" ref="componentsTabRef" />
+                </section>
+
+                <!-- ── SUB-EQUIPOS ────────────────────────────────────────────── -->
                 <section v-if="equipment.children?.length" id="components" class="scroll-mt-56" v-show="isDesktop || mobileTab === 'componentes'">
-                    <SectionLabel :label="`Componentes (${equipment.children.length})`" />
+                    <SectionLabel :label="`Sub-equipos (${equipment.children.length})`" />
 
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         <RouterLink
@@ -398,7 +417,7 @@
 
                     <div v-else-if="workOrders.length" class="space-y-3">
                         <RouterLink v-for="wo in workOrders" :key="wo.id"
-                            :to="{ name: 'ops.ordenes.show', params: { id: wo.id } }"
+                            :to="{ name: 'ops.ordenes.show', params: { id: wo.id }, query: { from: 'ops.equipos.show', fromId: equipment.id } }"
                             class="bg-white rounded-2xl border border-gray-100 shadow-sm hover:border-gray-200 hover:shadow-md transition-all p-4 flex items-center gap-3">
                             <!-- Type dot -->
                             <div class="w-2.5 h-2.5 rounded-full shrink-0" :class="woTypeDot[wo.work_order_type] ?? 'bg-gray-300'" />
@@ -573,6 +592,7 @@ import Badge from '../components/Badge.vue'
 import EmptyState from '../components/EmptyState.vue'
 import AppIcon from '../components/AppIcon.vue'
 import FavoriteStar from '../components/FavoriteStar.vue'
+import EquipmentComponentsTab from '../components/EquipmentComponentsTab.vue'
 
 // ── Inline sub-components ─────────────────────────────────────────────────────
 
@@ -644,10 +664,12 @@ const recentParts = computed(() =>
     activities.value.filter(e => e.type === 'parts_consumed').slice(0, 10)
 )
 
+const componentsTabRef = ref(null)
+
 const mobileTabs = [
     { id: 'info',        label: 'Info' },
     { id: 'timeline',    label: 'Timeline' },
-    { id: 'componentes', label: 'Componentes' },
+    { id: 'partes',      label: 'Partes' },
     { id: 'fotos',       label: 'Fotos' },
     { id: 'docs',        label: 'Docs' },
 ]
@@ -657,14 +679,15 @@ const visibleDesktopSections = computed(() => {
     const sections = [
         { id: 'info',         label: 'Información' },
         { id: 'timeline',     label: 'Timeline', count: activitiesMeta.value.total || null },
-        { id: 'components',   label: 'Componentes', count: equipment.value.children?.length || null },
+        { id: 'partes',       label: 'Partes', count: null },
+        { id: 'components',   label: 'Sub-equipos', count: equipment.value.children?.length || null },
         { id: 'work-orders',  label: 'OTs', count: workOrders.value.length || null },
         { id: 'preventives',  label: 'Preventivos', count: plans.value.length || null },
         { id: 'parts',        label: 'Repuestos', count: recentParts.value.length || null },
         { id: 'photos',       label: 'Fotos', count: equipment.value.photos?.length || null },
         { id: 'documents',    label: 'Docs', count: equipment.value.documents?.length || null },
     ]
-    return sections.filter(s => s.count == null || s.count > 0 || ['info', 'timeline', 'work-orders'].includes(s.id))
+    return sections.filter(s => s.count == null || s.count > 0 || ['info', 'timeline', 'work-orders', 'partes'].includes(s.id))
 })
 
 // ── Color maps ────────────────────────────────────────────────────────────────
@@ -840,7 +863,7 @@ function initSectionObserver() {
         })
     }, { threshold: 0, rootMargin: '-40% 0px -55% 0px' })
 
-    const sectionIds = ['info', 'timeline', 'components', 'work-orders', 'preventives', 'parts', 'photos', 'documents']
+    const sectionIds = ['info', 'timeline', 'partes', 'components', 'work-orders', 'preventives', 'parts', 'photos', 'documents']
     sectionIds.forEach(id => {
         const el = document.getElementById(id)
         if (el) { sectionObserver.observe(el) }

@@ -7,9 +7,12 @@ use App\Domain\Alerts\Services\AlertService;
 use App\Http\Controllers\Api\V1\AlertController;
 use App\Http\Controllers\Api\V1\ApiTokenController;
 use App\Http\Controllers\Api\V1\AreaController;
+use App\Http\Controllers\Api\V1\AreaSummaryController;
+use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\DowntimeEventController;
 use App\Http\Controllers\Api\V1\EquipmentActivityController;
 use App\Http\Controllers\Api\V1\EquipmentCategoryController;
+use App\Http\Controllers\Api\V1\EquipmentComponentController;
 use App\Http\Controllers\Api\V1\EquipmentController;
 use App\Http\Controllers\Api\V1\EquipmentKpiController;
 use App\Http\Controllers\Api\V1\ExecutiveDashboardController;
@@ -17,6 +20,7 @@ use App\Http\Controllers\Api\V1\InventoryTransactionController;
 use App\Http\Controllers\Api\V1\MaintenancePlanController;
 use App\Http\Controllers\Api\V1\MaintenanceRequestController;
 use App\Http\Controllers\Api\V1\PlantController;
+use App\Http\Controllers\Api\V1\PlantSummaryController;
 use App\Http\Controllers\Api\V1\PlatformDashboardController;
 use App\Http\Controllers\Api\V1\PushSubscriptionController;
 use App\Http\Controllers\Api\V1\ReportController;
@@ -63,6 +67,14 @@ Route::prefix('v1')->group(function () {
 
     // ── Protected resource routes ─────────────────────────────────────────────
     Route::middleware(['auth:sanctum', 'api.tenant', 'throttle:api'])->group(function () {
+        // ── Dashboard home (PX-1) ─────────────────────────────────────────────────
+        Route::prefix('dashboard')->name('api.v1.dashboard.')->group(function () {
+            Route::get('summary', [DashboardController::class, 'summary'])->name('summary');
+            Route::get('activity', [DashboardController::class, 'activity'])->name('activity');
+            Route::get('novedades', [DashboardController::class, 'novedades'])->name('novedades');
+            Route::get('images', [DashboardController::class, 'images'])->name('images');
+        });
+
         // Global command-palette search across resources
         Route::get('search', [SearchController::class, 'index'])->name('api.v1.search');
 
@@ -77,6 +89,18 @@ Route::prefix('v1')->group(function () {
         Route::post('equipment', [EquipmentController::class, 'store'])
             ->middleware('idempotency')
             ->name('api.v1.equipment.store');
+
+        // Equipment components — nested sub-resource (PX-2)
+        Route::get('equipment/{equipment}/components', [EquipmentComponentController::class, 'index'])
+            ->name('api.v1.equipment.components.index');
+        Route::post('equipment/{equipment}/components', [EquipmentComponentController::class, 'store'])
+            ->name('api.v1.equipment.components.store');
+        Route::get('equipment/{equipment}/components/{component}', [EquipmentComponentController::class, 'show'])
+            ->name('api.v1.equipment.components.show');
+        Route::patch('equipment/{equipment}/components/{component}', [EquipmentComponentController::class, 'update'])
+            ->name('api.v1.equipment.components.update');
+        Route::delete('equipment/{equipment}/components/{component}', [EquipmentComponentController::class, 'destroy'])
+            ->name('api.v1.equipment.components.destroy');
 
         Route::get('equipment-categories', [EquipmentCategoryController::class, 'index'])
             ->name('api.v1.equipment-categories.index');
@@ -127,7 +151,9 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('inventory/warehouses', WarehouseController::class)->only(['index', 'show']);
         Route::apiResource('downtime-events', DowntimeEventController::class)->only(['index', 'show']);
         Route::apiResource('plants', PlantController::class)->only(['index', 'show']);
+        Route::get('plants/{id}/summary', PlantSummaryController::class)->name('api.v1.plants.summary');
         Route::apiResource('areas', AreaController::class)->only(['index', 'show']);
+        Route::get('areas/{id}/summary', AreaSummaryController::class)->name('api.v1.areas.summary');
 
         // Alerts — Sprint 11.1 (read) + Sprint 11.2 (actions)
         // count must be registered before {alert} to avoid being caught as a route parameter

@@ -32,6 +32,9 @@ class UserFactory extends Factory
             'remember_token' => Str::random(10),
             'is_active' => true,
             'is_super_admin' => false,
+            'two_factor_secret' => null,
+            'two_factor_recovery_codes' => null,
+            'two_factor_confirmed_at' => null,
         ];
     }
 
@@ -45,8 +48,14 @@ class UserFactory extends Factory
         ]);
     }
 
-    /**
-     * Indicate that the model has two-factor authentication configured.
-     */
-    public function withTwoFactor(): static {}
+    public function withTwoFactor(): static
+    {
+        return $this->state([
+            'two_factor_secret' => encrypt('JBSWY3DPEHPK3PXP'),
+            'two_factor_recovery_codes' => encrypt(json_encode([
+                'recovery-code-one', 'recovery-code-two', 'recovery-code-three',
+            ])),
+            'two_factor_confirmed_at' => now(),
+        ]);
+    }
 }

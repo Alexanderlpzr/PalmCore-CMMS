@@ -14,19 +14,23 @@ class CheckTenantSubscription
     {
         $tenant = Filament::getTenant();
 
-        if ($tenant && $tenant->subscription_expires_at !== null) {
-            $expiresAt = $tenant->subscription_expires_at;
-            $now = now();
+        if ($tenant === null) {
+            return $next($request);
+        }
 
-            if ($expiresAt->isPast()) {
-                Notification::make()
-                    ->title('Suscripción vencida')
-                    ->body('El plan de tu empresa venció el '.$expiresAt->format('d/m/Y').'. Renueva tu suscripción para continuar usando el sistema.')
-                    ->danger()
-                    ->persistent()
-                    ->send();
-            } elseif ($now->diffInDays($expiresAt) <= 30) {
-                $days = (int) $now->diffInDays($expiresAt);
+        $effectiveStatus = $tenant->effectiveSubscriptionStatus();
+
+        // Expose status to Gate::before for mutation enforcement
+        app()->instance('subscription.status', $effectiveStatus);
+
+        // Show a one-per-session notification when subscription expires soon
+        // (healthy active/trial tenants only — degraded states use the persistent banner)
+        if ($effectiveStatus->allowsMutations() && $tenant->isExpiringSoon()) {
+            $sessionKey = "sub_warning_{$tenant->id}";
+
+            if (! session()->has($sessionKey)) {
+                $days = $tenant->daysUntilExpiry();
+                $expiresAt = $tenant->subscription_expires_at;
 
                 Notification::make()
                     ->title('Suscripción por vencer')
@@ -34,6 +38,8 @@ class CheckTenantSubscription
                     ->warning()
                     ->persistent()
                     ->send();
+
+                session()->put($sessionKey, true);
             }
         }
 

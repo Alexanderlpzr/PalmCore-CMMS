@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Contracts\WebhookableEvent;
+use App\Domain\Shared\Enums\SubscriptionStatus;
 use App\Events\AlertCreated;
 use App\Listeners\SendAlertNotificationListener;
 use App\Listeners\WebhookTriggerListener;
@@ -112,11 +113,28 @@ class AppServiceProvider extends ServiceProvider
 
     private function configureSuperAdmin(): void
     {
-        // Users with is_super_admin=true bypass ALL Gate checks.
-        // Returning null (not false) tells Gate to continue evaluating other checks for non-super-admins.
-        // This is PalmCore internal staff only — never assignable from the tenant UI.
+        // Super admins bypass ALL Gate checks, including subscription enforcement.
+        // Non-super-admins are additionally gated by their tenant's subscription status.
         Gate::before(function (User $user, string $ability): ?bool {
-            return $user->is_super_admin ? true : null;
+            if ($user->is_super_admin) {
+                return true;
+            }
+
+            // Block mutation abilities for read_only / suspended tenants.
+            // The bound value is set by CheckTenantSubscription middleware on every request.
+            if (app()->bound('subscription.status')) {
+                $status = app('subscription.status');
+
+                if (
+                    $status instanceof SubscriptionStatus
+                    && ! $status->allowsMutations()
+                    && in_array($ability, SubscriptionStatus::BLOCKED_ABILITIES, strict: true)
+                ) {
+                    return false;
+                }
+            }
+
+            return null;
         });
     }
 

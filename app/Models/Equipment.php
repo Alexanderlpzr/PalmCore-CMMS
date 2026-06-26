@@ -149,6 +149,11 @@ class Equipment extends BaseModel
         return $this->hasOne(EquipmentMeterReading::class)->latestOfMany('recorded_at');
     }
 
+    public function components(): HasMany
+    {
+        return $this->hasMany(EquipmentComponent::class)->orderBy('name');
+    }
+
     public function downtimeEvents(): HasMany
     {
         return $this->hasMany(EquipmentDowntimeEvent::class)->orderByDesc('started_at');

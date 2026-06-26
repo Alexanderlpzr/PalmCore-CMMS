@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Admin\AuditLogExportController;
+use App\Http\Controllers\Api\V1\ImpersonationStatusController;
 use App\Http\Controllers\EquipmentPublicController;
 use App\Http\Controllers\HealthCheckController;
 use App\Http\Controllers\ImpersonationController;
@@ -37,6 +39,17 @@ Route::middleware(['auth', 'signed'])->group(function () {
     Route::get('/reports/download', [ReportDownloadController::class, 'download'])
         ->name('reports.download');
 });
+
+Route::middleware(['auth', 'super-admin'])->group(function () {
+    Route::get('/admin/audit-logs/export', [AuditLogExportController::class, 'export'])
+        ->name('admin.audit-logs.export');
+});
+
+// Impersonation status for the SPA — served via web routes to have session access.
+// Credentials-include fetches from the SPA will include the Laravel session cookie.
+Route::get('/api/v1/impersonation/status', ImpersonationStatusController::class)
+    ->middleware('throttle:60,1')
+    ->name('api.v1.impersonation.status');
 
 require __DIR__.'/settings.php';
 

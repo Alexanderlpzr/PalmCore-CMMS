@@ -15,6 +15,7 @@ class ReferenceDataService
     {
         return Cache::remember("reference:plants:{$tenantId}", self::TTL, fn () => Plant::withoutGlobalScopes()
             ->where('tenant_id', $tenantId)
+            ->whereNull('deleted_at')
             ->orderBy('name')
             ->pluck('name', 'id')
             ->toArray()
@@ -26,6 +27,7 @@ class ReferenceDataService
         return Cache::remember("reference:areas:{$plantId}", self::TTL, fn () => Area::withoutGlobalScopes()
             ->where('plant_id', $plantId)
             ->where('is_active', true)
+            ->whereNull('deleted_at')
             ->orderBy('name')
             ->pluck('name', 'id')
             ->toArray()
@@ -37,6 +39,7 @@ class ReferenceDataService
     {
         return Cache::remember("reference:all_areas:{$tenantId}", self::TTL, fn () => Area::withoutGlobalScopes()
             ->whereHas('plant', fn ($q) => $q->where('tenant_id', $tenantId))
+            ->whereNull('deleted_at')
             ->orderBy('name')
             ->pluck('name', 'id')
             ->toArray()

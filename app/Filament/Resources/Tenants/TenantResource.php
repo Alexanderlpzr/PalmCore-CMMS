@@ -36,6 +36,16 @@ class TenantResource extends Resource
 
     protected static bool $isScopedToTenant = false;
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        return auth()->user()?->is_super_admin ?? false;
+    }
+
+    public static function canViewAny(): bool
+    {
+        return auth()->user()?->is_super_admin ?? false;
+    }
+
     public static function form(Schema $schema): Schema
     {
         return TenantForm::configure($schema);

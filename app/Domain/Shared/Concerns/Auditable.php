@@ -12,7 +12,7 @@ trait Auditable
             return;
         }
 
-        foreach (config('palmcore.audit.events', ['created', 'updated', 'deleted']) as $event) {
+        foreach (config('palmcore.audit.events', ['created', 'updated', 'deleted', 'restored']) as $event) {
             static::$event(function (self $model) use ($event): void {
                 WriteAuditLog::dispatch(
                     modelClass: get_class($model),
