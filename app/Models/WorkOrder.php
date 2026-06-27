@@ -46,6 +46,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'actual_cost_external',
     'actual_cost_total',
     'currency_code',
+    'equipment_component_id',
     'created_by',
     'assigned_supervisor',
     'completed_by',
@@ -80,6 +81,11 @@ class WorkOrder extends BaseModel
     public function equipment(): BelongsTo
     {
         return $this->belongsTo(Equipment::class);
+    }
+
+    public function component(): BelongsTo
+    {
+        return $this->belongsTo(EquipmentComponent::class, 'equipment_component_id');
     }
 
     public function plant(): BelongsTo

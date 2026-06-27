@@ -25,6 +25,9 @@ class EquipmentComponentFactory extends Factory
             'model' => fake()->optional(0.5)->bothify('MDL-???##'),
             'serial_number' => fake()->optional(0.4)->bothify('SN-########'),
             'criticality' => fake()->randomElement(EquipmentCriticality::cases())->value,
+            'part_number' => null,
+            'status' => 'active',
+            'worked_hours' => null,
             'useful_life_hours' => fake()->optional(0.5)->numberBetween(500, 50000),
             'notes' => fake()->optional(0.3)->sentence(),
         ];

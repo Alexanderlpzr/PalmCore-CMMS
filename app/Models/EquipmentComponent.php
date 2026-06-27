@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Domain\Assets\Enums\ComponentStatus;
 use App\Domain\Assets\Enums\EquipmentCriticality;
 use App\Domain\Shared\Models\BaseModel;
 use Database\Factories\EquipmentComponentFactory;
@@ -19,8 +20,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'manufacturer',
     'model',
     'serial_number',
+    'part_number',
     'criticality',
+    'status',
     'useful_life_hours',
+    'worked_hours',
     'notes',
 ])]
 class EquipmentComponent extends BaseModel
@@ -43,10 +47,22 @@ class EquipmentComponent extends BaseModel
         return $this->hasMany(EquipmentComponent::class, 'parent_id');
     }
 
+    public function history(): HasMany
+    {
+        return $this->hasMany(ComponentHistory::class)->orderByDesc('occurred_at');
+    }
+
+    public function workOrders(): HasMany
+    {
+        return $this->hasMany(WorkOrder::class);
+    }
+
     protected function casts(): array
     {
         return [
             'criticality' => EquipmentCriticality::class,
+            'status' => ComponentStatus::class,
+            'worked_hours' => 'float',
         ];
     }
 }

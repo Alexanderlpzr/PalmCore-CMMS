@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\AlertController;
 use App\Http\Controllers\Api\V1\ApiTokenController;
 use App\Http\Controllers\Api\V1\AreaController;
 use App\Http\Controllers\Api\V1\AreaSummaryController;
+use App\Http\Controllers\Api\V1\ComponentHistoryController;
 use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\DowntimeEventController;
 use App\Http\Controllers\Api\V1\EquipmentActivityController;
@@ -104,6 +105,9 @@ Route::prefix('v1')->group(function () {
             ->name('api.v1.equipment.store');
 
         // Equipment components — nested sub-resource (PX-2)
+        Route::get('equipment/{equipment}/components/tree', [EquipmentComponentController::class, 'tree'])->name('api.v1.equipment.components.tree');
+        Route::get('equipment/{equipment}/components/{component}/history', [ComponentHistoryController::class, 'index'])->name('api.v1.equipment.components.history.index');
+        Route::post('equipment/{equipment}/components/{component}/history', [ComponentHistoryController::class, 'store'])->name('api.v1.equipment.components.history.store');
         Route::get('equipment/{equipment}/components', [EquipmentComponentController::class, 'index'])
             ->name('api.v1.equipment.components.index');
         Route::post('equipment/{equipment}/components', [EquipmentComponentController::class, 'store'])
@@ -131,6 +135,14 @@ Route::prefix('v1')->group(function () {
             ->name('api.v1.work-orders.update-status');
 
         // Work Order sub-resources (Sprint 10.0 mobile endpoints)
+        // Lazy-load list endpoints for the tabbed detail view (Sprint UX-3)
+        Route::get('work-orders/{workOrder}/media', [WorkOrderMediaController::class, 'index'])
+            ->name('api.v1.work-orders.media.index');
+        Route::get('work-orders/{workOrder}/signatures', [WorkOrderSignatureController::class, 'index'])
+            ->name('api.v1.work-orders.signatures.index');
+        Route::get('work-orders/{workOrder}/time-entries', [WorkOrderTimeEntryController::class, 'index'])
+            ->name('api.v1.work-orders.time-entries.index');
+
         Route::post('work-orders/{workOrder}/time-entries', [WorkOrderTimeEntryController::class, 'store'])
             ->middleware('idempotency')
             ->name('api.v1.work-orders.time-entries.store');
