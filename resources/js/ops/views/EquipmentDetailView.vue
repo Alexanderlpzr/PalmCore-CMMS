@@ -267,81 +267,49 @@
                     </div>
                 </section>
 
-                <!-- ── TIMELINE ───────────────────────────────────────────────── -->
-                <section id="timeline" class="scroll-mt-56" v-show="isDesktop || mobileTab === 'timeline'">
-                    <SectionLabel label="Timeline" />
+                <!-- ── ESTADO DEL ACTIVO ──────────────────────────────────────── -->
+                <section id="estado" class="scroll-mt-56" v-show="isDesktop || mobileTab === 'estado'">
+                    <SectionLabel label="Estado del activo" />
 
                     <div class="bg-white rounded-2xl border border-gray-100 shadow-sm">
-                        <!-- Loading -->
-                        <div v-if="activitiesLoading" class="px-5 py-6 space-y-4">
-                            <div v-for="i in 5" :key="i" class="flex gap-3">
-                                <div class="skeleton w-3 h-3 rounded-full mt-1 shrink-0" />
-                                <div class="flex-1 space-y-1.5">
-                                    <div class="skeleton h-3 w-3/4 rounded" />
-                                    <div class="skeleton h-2.5 w-1/3 rounded" />
-                                </div>
-                            </div>
+                        <div class="px-4 py-3 border-b border-gray-50 flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full" :class="equipment.kpi ? 'bg-emerald-400' : 'bg-gray-300'" />
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-gray-500">Indicadores de gestión</h3>
                         </div>
-
-                        <!-- Events -->
-                        <div v-else-if="activities.length" class="px-5 py-4">
-                            <div class="relative">
-                                <!-- Vertical line -->
-                                <div class="absolute left-1.5 top-3 bottom-3 w-px bg-gray-100" />
-
-                                <div class="space-y-5">
-                                    <div v-for="event in activities" :key="event.id" class="flex gap-4 relative">
-                                        <!-- Dot -->
-                                        <div class="w-3 h-3 rounded-full shrink-0 mt-1 ring-2 ring-white relative z-10" :class="activityDotBg[event.type] ?? 'bg-gray-300'" />
-
-                                        <!-- Content -->
-                                        <div class="flex-1 min-w-0 pb-1">
-                                            <div class="flex items-start gap-2 flex-wrap">
-                                                <span class="text-xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" :class="activityBadgeClass[event.type] ?? 'bg-gray-100 text-gray-500'">
-                                                    {{ activityTypeLabel[event.type] ?? event.type }}
-                                                </span>
-                                                <!-- Link to WO if applicable -->
-                                                <RouterLink v-if="event.meta?.ref_id && (event.type === 'work_order_created' || event.type === 'work_order_closed' || event.type === 'preventive_executed')"
-                                                    :to="{ name: 'ops.ordenes.show', params: { id: event.meta.ref_id } }"
-                                                    class="text-xs text-blue-600 hover:text-blue-800 font-medium">
-                                                    OT #{{ event.meta.ref_number }}
-                                                </RouterLink>
-                                            </div>
-                                            <p class="text-sm text-gray-800 mt-0.5 leading-snug">{{ event.title }}</p>
-                                            <!-- Meta details -->
-                                            <p v-if="event.meta?.description" class="text-xs text-gray-500 mt-0.5 leading-snug line-clamp-2">{{ event.meta.description }}</p>
-                                            <p v-if="event.meta?.duration_minutes" class="text-xs text-gray-500 mt-0.5">Duración: {{ Math.round(event.meta.duration_minutes / 60 * 10) / 10 }}h</p>
-                                            <div v-if="event.meta?.parts?.length" class="mt-1 flex flex-wrap gap-1">
-                                                <span v-for="p in event.meta.parts.slice(0, 3)" :key="p.description" class="text-xs bg-orange-50 text-orange-700 px-1.5 py-0.5 rounded">
-                                                    {{ p.description }} × {{ p.quantity }} {{ p.unit }}
-                                                </span>
-                                                <span v-if="event.meta.parts.length > 3" class="text-xs text-gray-500">+{{ event.meta.parts.length - 3 }} más</span>
-                                            </div>
-                                            <p class="text-xs text-gray-500 mt-1">{{ formatDateTime(event.at) }}</p>
-                                        </div>
-                                    </div>
-                                </div>
+                        <div class="grid grid-cols-2 lg:grid-cols-3 gap-px bg-gray-50">
+                            <div class="bg-white p-4">
+                                <p class="text-xs font-bold uppercase tracking-widest text-emerald-600 mb-1.5">Disponibilidad</p>
+                                <p class="text-2xl font-bold text-gray-900 leading-none">{{ equipment.kpi?.availability_percentage != null ? Number(equipment.kpi.availability_percentage).toFixed(1) + '%' : '—' }}</p>
                             </div>
-
-                            <!-- Load more -->
-                            <div v-if="activitiesMeta.has_more" class="mt-4 pt-3 border-t border-gray-50 text-center">
-                                <button @click="loadMoreActivities" :disabled="activitiesLoadingMore"
-                                    class="text-xs font-semibold text-gray-500 hover:text-gray-800 transition-colors disabled:opacity-50">
-                                    {{ activitiesLoadingMore ? 'Cargando…' : `Ver más (${activitiesMeta.total - activities.length} eventos)` }}
-                                </button>
+                            <div class="bg-white p-4">
+                                <p class="text-xs font-bold uppercase tracking-widest text-amber-600 mb-1.5">MTTR</p>
+                                <p class="text-2xl font-bold text-gray-900 leading-none">{{ equipment.kpi?.mttr_hours != null ? Number(equipment.kpi.mttr_hours).toFixed(0) + 'h' : '—' }}</p>
                             </div>
-                        </div>
-
-                        <!-- Empty -->
-                        <div v-else class="px-5 py-10 text-center text-xs text-gray-500">
-                            Aún no hay actividad registrada para este equipo
+                            <div class="bg-white p-4">
+                                <p class="text-xs font-bold uppercase tracking-widest text-blue-600 mb-1.5">MTBF</p>
+                                <p class="text-2xl font-bold text-gray-900 leading-none">{{ equipment.kpi?.mtbf_hours != null ? Number(equipment.kpi.mtbf_hours).toFixed(0) + 'h' : '—' }}</p>
+                            </div>
+                            <div class="bg-white p-4">
+                                <p class="text-xs font-bold uppercase tracking-widest text-indigo-600 mb-1.5">Costo acumulado</p>
+                                <p class="text-2xl font-bold text-gray-900 leading-none">{{ accumulatedCost ?? '—' }}</p>
+                            </div>
+                            <div class="bg-white p-4">
+                                <p class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Horas de parada</p>
+                                <p class="text-2xl font-bold text-gray-900 leading-none">{{ equipment.kpi?.downtime_hours != null ? Number(equipment.kpi.downtime_hours).toFixed(0) + 'h' : '—' }}</p>
+                            </div>
+                            <div class="bg-white p-4">
+                                <p class="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1.5">Última intervención</p>
+                                <p class="text-sm font-bold text-gray-900 leading-tight mt-1.5">{{ lastInterventionDate ?? '—' }}</p>
+                                <p v-if="lastInterventionRelative" class="text-xs text-gray-400 mt-0.5">{{ lastInterventionRelative }}</p>
+                            </div>
                         </div>
                     </div>
                 </section>
 
                 <!-- ── PARTES / COMPONENTES (PX-2) ──────────────────────────────── -->
-                <section id="partes" class="scroll-mt-56" v-show="isDesktop || mobileTab === 'partes'">
+                <section id="partes" class="scroll-mt-56" v-show="isDesktop || mobileTab === 'componentes'">
                     <EquipmentComponentsTab :equipment-id="equipId" ref="componentsTabRef" />
+                    <p class="text-xs text-gray-400 mt-2 px-1">Preparado para explosión BOM</p>
                 </section>
 
                 <!-- ── SUB-EQUIPOS ────────────────────────────────────────────── -->
@@ -408,7 +376,7 @@
                 </section>
 
                 <!-- ── ÓRDENES DE TRABAJO RECIENTES ───────────────────────────── -->
-                <section id="work-orders" class="scroll-mt-56" v-show="isDesktop || mobileTab === 'info'">
+                <section id="work-orders" class="scroll-mt-56" v-show="isDesktop || mobileTab === 'ots'">
                     <SectionLabel :label="`Órdenes de trabajo recientes`" />
 
                     <div v-if="workOrdersLoading" class="space-y-3">
@@ -448,7 +416,7 @@
                 </section>
 
                 <!-- ── PLANES PREVENTIVOS ─────────────────────────────────────── -->
-                <section v-if="plans.length || plansLoading" id="preventives" class="scroll-mt-56" v-show="isDesktop || mobileTab === 'info'">
+                <section v-if="plans.length || plansLoading" id="preventives" class="scroll-mt-56" v-show="isDesktop || mobileTab === 'mantenimiento'">
                     <SectionLabel label="Planes preventivos" />
 
                     <div v-if="plansLoading" class="space-y-3">
@@ -491,7 +459,7 @@
                 </section>
 
                 <!-- ── REPUESTOS UTILIZADOS ───────────────────────────────────── -->
-                <section v-if="recentParts.length" id="parts" class="scroll-mt-56" v-show="isDesktop || mobileTab === 'info'">
+                <section v-if="recentParts.length" id="parts" class="scroll-mt-56" v-show="isDesktop || mobileTab === 'ots'">
                     <SectionLabel label="Repuestos utilizados" />
 
                     <div class="bg-white rounded-2xl border border-gray-100 shadow-sm divide-y divide-gray-50">
@@ -516,7 +484,7 @@
                 </section>
 
                 <!-- ── FOTOS ──────────────────────────────────────────────────── -->
-                <section v-if="equipment.photos?.length" id="photos" class="scroll-mt-56" v-show="isDesktop || mobileTab === 'fotos'">
+                <section v-if="equipment.photos?.length" id="photos" class="scroll-mt-56" v-show="isDesktop || mobileTab === 'docs'">
                     <SectionLabel :label="`Fotos (${equipment.photos.length})`" />
 
                     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -554,6 +522,78 @@
                             </div>
                             <svg class="w-4 h-4 text-gray-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>
                         </a>
+                    </div>
+                </section>
+
+                <!-- ── HISTORIAL (Timeline) ───────────────────────────────────── -->
+                <section id="timeline" class="scroll-mt-56" v-show="isDesktop || mobileTab === 'historial'">
+                    <SectionLabel label="Historial" />
+
+                    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm">
+                        <!-- Loading -->
+                        <div v-if="activitiesLoading" class="px-5 py-6 space-y-4">
+                            <div v-for="i in 5" :key="i" class="flex gap-3">
+                                <div class="skeleton w-3 h-3 rounded-full mt-1 shrink-0" />
+                                <div class="flex-1 space-y-1.5">
+                                    <div class="skeleton h-3 w-3/4 rounded" />
+                                    <div class="skeleton h-2.5 w-1/3 rounded" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Events -->
+                        <div v-else-if="activities.length" class="px-5 py-4">
+                            <div class="relative">
+                                <!-- Vertical line -->
+                                <div class="absolute left-1.5 top-3 bottom-3 w-px bg-gray-100" />
+
+                                <div class="space-y-5">
+                                    <div v-for="event in activities" :key="event.id" class="flex gap-4 relative">
+                                        <!-- Dot -->
+                                        <div class="w-3 h-3 rounded-full shrink-0 mt-1 ring-2 ring-white relative z-10" :class="activityDotBg[event.type] ?? 'bg-gray-300'" />
+
+                                        <!-- Content -->
+                                        <div class="flex-1 min-w-0 pb-1">
+                                            <div class="flex items-start gap-2 flex-wrap">
+                                                <span class="text-xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" :class="activityBadgeClass[event.type] ?? 'bg-gray-100 text-gray-500'">
+                                                    {{ activityTypeLabel[event.type] ?? event.type }}
+                                                </span>
+                                                <!-- Link to WO if applicable -->
+                                                <RouterLink v-if="event.meta?.ref_id && (event.type === 'work_order_created' || event.type === 'work_order_closed' || event.type === 'preventive_executed')"
+                                                    :to="{ name: 'ops.ordenes.show', params: { id: event.meta.ref_id } }"
+                                                    class="text-xs text-blue-600 hover:text-blue-800 font-medium">
+                                                    OT #{{ event.meta.ref_number }}
+                                                </RouterLink>
+                                            </div>
+                                            <p class="text-sm text-gray-800 mt-0.5 leading-snug">{{ event.title }}</p>
+                                            <!-- Meta details -->
+                                            <p v-if="event.meta?.description" class="text-xs text-gray-500 mt-0.5 leading-snug line-clamp-2">{{ event.meta.description }}</p>
+                                            <p v-if="event.meta?.duration_minutes" class="text-xs text-gray-500 mt-0.5">Duración: {{ Math.round(event.meta.duration_minutes / 60 * 10) / 10 }}h</p>
+                                            <div v-if="event.meta?.parts?.length" class="mt-1 flex flex-wrap gap-1">
+                                                <span v-for="p in event.meta.parts.slice(0, 3)" :key="p.description" class="text-xs bg-orange-50 text-orange-700 px-1.5 py-0.5 rounded">
+                                                    {{ p.description }} × {{ p.quantity }} {{ p.unit }}
+                                                </span>
+                                                <span v-if="event.meta.parts.length > 3" class="text-xs text-gray-500">+{{ event.meta.parts.length - 3 }} más</span>
+                                            </div>
+                                            <p class="text-xs text-gray-500 mt-1">{{ formatDateTime(event.at) }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Load more -->
+                            <div v-if="activitiesMeta.has_more" class="mt-4 pt-3 border-t border-gray-50 text-center">
+                                <button @click="loadMoreActivities" :disabled="activitiesLoadingMore"
+                                    class="text-xs font-semibold text-gray-500 hover:text-gray-800 transition-colors disabled:opacity-50">
+                                    {{ activitiesLoadingMore ? 'Cargando…' : `Ver más (${activitiesMeta.total - activities.length} eventos)` }}
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Empty -->
+                        <div v-else class="px-5 py-10 text-center text-xs text-gray-500">
+                            Aún no hay actividad registrada para este equipo
+                        </div>
                     </div>
                 </section>
 
@@ -664,30 +704,49 @@ const recentParts = computed(() =>
     activities.value.filter(e => e.type === 'parts_consumed').slice(0, 10)
 )
 
+// ── Estado del activo derived metrics ─────────────────────────────────────────
+// Costo acumulado: only render if present in the KPI payload; otherwise "—".
+const accumulatedCost = computed(() => {
+    const kpi = equipment.value?.kpi
+    const raw = kpi?.total_cost ?? kpi?.cost_accumulated ?? equipment.value?.cost_accumulated
+    if (raw == null) { return null }
+    return formatCurrency(raw, equipment.value?.currency_code)
+})
+
+// Última intervención: prefer explicit field, else most recent WO created_at.
+const lastInterventionIso = computed(() =>
+    equipment.value?.last_work_order_at ?? workOrders.value[0]?.created_at ?? null
+)
+const lastInterventionDate = computed(() => formatDate(lastInterventionIso.value))
+const lastInterventionRelative = computed(() => relativeTime(lastInterventionIso.value))
+
 const componentsTabRef = ref(null)
 
 const mobileTabs = [
-    { id: 'info',        label: 'Info' },
-    { id: 'timeline',    label: 'Timeline' },
-    { id: 'partes',      label: 'Partes' },
-    { id: 'fotos',       label: 'Fotos' },
-    { id: 'docs',        label: 'Docs' },
+    { id: 'info',          label: 'Info' },
+    { id: 'estado',        label: 'Estado' },
+    { id: 'componentes',   label: 'Componentes' },
+    { id: 'ots',           label: 'OTs' },
+    { id: 'mantenimiento', label: 'Mantenimiento' },
+    { id: 'docs',          label: 'Documentos' },
+    { id: 'historial',     label: 'Historial' },
 ]
 
+// Desktop anchor nav grouped into the 7 "Ficha 360" sections.
+// Each entry targets the scroll anchor of the first section in its group.
 const visibleDesktopSections = computed(() => {
     if (!equipment.value) { return [] }
+    const docsCount = (equipment.value.documents?.length || 0) + (equipment.value.photos?.length || 0)
     const sections = [
-        { id: 'info',         label: 'Información' },
-        { id: 'timeline',     label: 'Timeline', count: activitiesMeta.value.total || null },
-        { id: 'partes',       label: 'Partes', count: null },
-        { id: 'components',   label: 'Sub-equipos', count: equipment.value.children?.length || null },
-        { id: 'work-orders',  label: 'OTs', count: workOrders.value.length || null },
-        { id: 'preventives',  label: 'Preventivos', count: plans.value.length || null },
-        { id: 'parts',        label: 'Repuestos', count: recentParts.value.length || null },
-        { id: 'photos',       label: 'Fotos', count: equipment.value.photos?.length || null },
-        { id: 'documents',    label: 'Docs', count: equipment.value.documents?.length || null },
+        { id: 'info',        label: 'Información' },
+        { id: 'estado',      label: 'Estado' },
+        { id: 'partes',      label: 'Componentes', count: equipment.value.children?.length || null },
+        { id: 'work-orders', label: 'OTs', count: workOrders.value.length || null },
+        { id: 'preventives', label: 'Mantenimiento', count: plans.value.length || null },
+        { id: equipment.value.documents?.length ? 'documents' : 'photos', label: 'Documentos', count: docsCount || null },
+        { id: 'timeline',    label: 'Historial', count: activitiesMeta.value.total || null },
     ]
-    return sections.filter(s => s.count == null || s.count > 0 || ['info', 'timeline', 'work-orders', 'partes'].includes(s.id))
+    return sections.filter(s => s.count == null || s.count > 0 || ['info', 'estado', 'partes', 'work-orders', 'timeline'].includes(s.id))
 })
 
 // ── Color maps ────────────────────────────────────────────────────────────────
@@ -855,15 +914,22 @@ let sectionObserver = null
 
 function initSectionObserver() {
     if (sectionObserver) { sectionObserver.disconnect() }
+    // Map secondary section anchors to the nav group that owns them so the
+    // correct desktop nav tab stays highlighted while scrolling.
+    const navGroupForSection = {
+        components: 'partes',     // Sub-equipos lives under "Componentes"
+        parts: 'work-orders',     // Repuestos lives under "OTs"
+        photos: equipment.value?.documents?.length ? 'documents' : 'photos',
+    }
     sectionObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
-                activeSection.value = entry.target.id
+                activeSection.value = navGroupForSection[entry.target.id] ?? entry.target.id
             }
         })
     }, { threshold: 0, rootMargin: '-40% 0px -55% 0px' })
 
-    const sectionIds = ['info', 'timeline', 'partes', 'components', 'work-orders', 'preventives', 'parts', 'photos', 'documents']
+    const sectionIds = ['info', 'estado', 'timeline', 'partes', 'components', 'work-orders', 'preventives', 'parts', 'photos', 'documents']
     sectionIds.forEach(id => {
         const el = document.getElementById(id)
         if (el) { sectionObserver.observe(el) }

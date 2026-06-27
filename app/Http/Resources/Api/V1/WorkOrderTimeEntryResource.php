@@ -14,6 +14,7 @@ class WorkOrderTimeEntryResource extends JsonResource
             'id' => $this->id,
             'work_order_id' => $this->work_order_id,
             'user_id' => $this->user_id,
+            'user' => $this->whenLoaded('user', fn () => $this->user ? ['id' => $this->user->id, 'name' => $this->user->name] : null),
             'started_at' => $this->started_at?->toISOString(),
             'ended_at' => $this->ended_at?->toISOString(),
             'hours' => $this->hours !== null ? (float) $this->hours : null,

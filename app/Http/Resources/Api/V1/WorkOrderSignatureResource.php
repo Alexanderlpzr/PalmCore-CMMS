@@ -15,6 +15,7 @@ class WorkOrderSignatureResource extends JsonResource
             'work_order_id' => $this->work_order_id,
             'signature_type' => $this->signature_type?->value,
             'user_id' => $this->user_id,
+            'user' => $this->whenLoaded('user', fn () => $this->user ? ['id' => $this->user->id, 'name' => $this->user->name] : null),
             'signed_at' => $this->signed_at?->toISOString(),
             'notes' => $this->notes,
             'created_at' => $this->created_at->toISOString(),

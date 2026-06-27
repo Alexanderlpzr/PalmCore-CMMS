@@ -9,11 +9,24 @@ use App\Http\Resources\Api\V1\WorkOrderAttachmentResource;
 use App\Models\WorkOrder;
 use App\Services\ActivityLocationService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Storage;
 
 class WorkOrderMediaController extends Controller
 {
     public function __construct(private readonly ActivityLocationService $locationService) {}
+
+    public function index(Request $request, string $workOrder): AnonymousResourceCollection
+    {
+        abort_if(! $request->user()->tokenCan('work-orders.read') && ! $request->user()->tokenCan('*'), 403);
+
+        $workOrder = WorkOrder::findOrFail($workOrder);
+
+        return WorkOrderAttachmentResource::collection(
+            $workOrder->attachments()->latest()->get()
+        );
+    }
 
     public function store(StoreWorkOrderMediaRequest $request, string $workOrder): JsonResponse
     {
