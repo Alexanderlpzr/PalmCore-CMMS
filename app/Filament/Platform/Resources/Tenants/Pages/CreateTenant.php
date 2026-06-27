@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Filament\Resources\Tenants\Pages;
+namespace App\Filament\Platform\Resources\Tenants\Pages;
 
 use App\Actions\Tenants\CreateTenantAdmin;
 use App\Actions\Tenants\ProvisionTenantBaseStructure;
-use App\Filament\Resources\Tenants\TenantResource;
+use App\Filament\Platform\Resources\Tenants\TenantResource;
 use App\Models\Tenant;
 use Filament\Resources\Pages\CreateRecord;
 

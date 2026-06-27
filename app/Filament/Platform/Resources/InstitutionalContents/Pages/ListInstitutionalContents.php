@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Filament\Resources\InstitutionalContents\Pages;
+namespace App\Filament\Platform\Resources\InstitutionalContents\Pages;
 
-use App\Filament\Resources\InstitutionalContents\InstitutionalContentResource;
+use App\Filament\Platform\Resources\InstitutionalContents\InstitutionalContentResource;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 

@@ -1,17 +1,16 @@
 <?php
 
-namespace App\Filament\Resources\Tenants;
+namespace App\Filament\Platform\Resources\Tenants;
 
-use App\Filament\Resources\Tenants\Pages\CreateTenant;
-use App\Filament\Resources\Tenants\Pages\EditTenant;
-use App\Filament\Resources\Tenants\Pages\ListTenants;
-use App\Filament\Resources\Tenants\Pages\ViewTenant;
+use App\Filament\Platform\Resources\Tenants\Pages\CreateTenant;
+use App\Filament\Platform\Resources\Tenants\Pages\EditTenant;
+use App\Filament\Platform\Resources\Tenants\Pages\ListTenants;
+use App\Filament\Platform\Resources\Tenants\Pages\ViewTenant;
 use App\Filament\Resources\Tenants\Schemas\TenantForm;
 use App\Filament\Resources\Tenants\Schemas\TenantInfolist;
 use App\Filament\Resources\Tenants\Tables\TenantsTable;
 use App\Models\Tenant;
 use BackedEnum;
-use Filament\Facades\Filament;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
@@ -30,16 +29,13 @@ class TenantResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Empresas';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Empresa';
+    protected static ?string $navigationLabel = 'Empresas';
+
+    protected static string|UnitEnum|null $navigationGroup = 'Empresas';
 
     protected static ?int $navigationSort = 1;
 
     protected static bool $isScopedToTenant = false;
-
-    public static function shouldRegisterNavigation(): bool
-    {
-        return auth()->user()?->is_super_admin ?? false;
-    }
 
     public static function canViewAny(): bool
     {
@@ -63,17 +59,7 @@ class TenantResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        $user = auth()->user();
-
-        if ($user?->is_super_admin) {
-            return parent::getEloquentQuery()->withoutGlobalScopes([SoftDeletingScope::class]);
-        }
-
-        $tenantId = Filament::getTenant()?->id;
-
-        return parent::getEloquentQuery()
-            ->withoutGlobalScopes([SoftDeletingScope::class])
-            ->where('id', $tenantId);
+        return parent::getEloquentQuery()->withoutGlobalScopes([SoftDeletingScope::class]);
     }
 
     public static function getRelations(): array

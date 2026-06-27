@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Filament\Resources\InstitutionalContents;
+namespace App\Filament\Platform\Resources\InstitutionalContents;
 
-use App\Filament\Resources\InstitutionalContents\Pages\CreateInstitutionalContent;
-use App\Filament\Resources\InstitutionalContents\Pages\EditInstitutionalContent;
-use App\Filament\Resources\InstitutionalContents\Pages\ListInstitutionalContents;
+use App\Filament\Platform\Resources\InstitutionalContents\Pages\CreateInstitutionalContent;
+use App\Filament\Platform\Resources\InstitutionalContents\Pages\EditInstitutionalContent;
+use App\Filament\Platform\Resources\InstitutionalContents\Pages\ListInstitutionalContents;
 use App\Filament\Resources\InstitutionalContents\Schemas\InstitutionalContentForm;
 use App\Filament\Resources\InstitutionalContents\Tables\InstitutionalContentsTable;
 use App\Models\InstitutionalContent;
@@ -14,7 +14,6 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use UnitEnum;
 
@@ -24,7 +23,9 @@ class InstitutionalContentResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Plataforma';
+    protected static string|UnitEnum|null $navigationGroup = 'Contenido';
+
+    protected static ?int $navigationSort = 1;
 
     protected static ?string $navigationLabel = 'Contenido CMS';
 
@@ -34,27 +35,7 @@ class InstitutionalContentResource extends Resource
 
     protected static bool $isScopedToTenant = false;
 
-    public static function shouldRegisterNavigation(): bool
-    {
-        return auth()->user()?->is_super_admin ?? false;
-    }
-
     public static function canViewAny(): bool
-    {
-        return auth()->user()?->is_super_admin ?? false;
-    }
-
-    public static function canCreate(): bool
-    {
-        return auth()->user()?->is_super_admin ?? false;
-    }
-
-    public static function canEdit(Model $record): bool
-    {
-        return auth()->user()?->is_super_admin ?? false;
-    }
-
-    public static function canDelete(Model $record): bool
     {
         return auth()->user()?->is_super_admin ?? false;
     }

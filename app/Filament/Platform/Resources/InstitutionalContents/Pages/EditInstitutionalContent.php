@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Filament\Resources\InstitutionalContents\Pages;
+namespace App\Filament\Platform\Resources\InstitutionalContents\Pages;
 
-use App\Filament\Resources\InstitutionalContents\InstitutionalContentResource;
+use App\Filament\Platform\Resources\InstitutionalContents\InstitutionalContentResource;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ForceDeleteAction;
 use Filament\Actions\RestoreAction;
@@ -24,8 +24,6 @@ class EditInstitutionalContent extends EditRecord
 
     protected function afterSave(): void
     {
-        // Flush after save ensures pivot (tenant) changes also invalidate the cache,
-        // since BelongsToMany sync doesn't trigger the model observer.
         Cache::tags(['institutional-content'])->flush();
     }
 }

@@ -8,10 +8,12 @@ use App\Filament\Resources\Audit\Schemas\AuditLogInfolist;
 use App\Filament\Resources\Audit\Tables\AuditLogTable;
 use App\Models\AuditLog;
 use BackedEnum;
+use Filament\Facades\Filament;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use UnitEnum;
 
 class AuditLogResource extends Resource
@@ -30,9 +32,28 @@ class AuditLogResource extends Resource
 
     protected static bool $isScopedToTenant = false;
 
+    public static function canViewAny(): bool
+    {
+        return auth()->user()?->is_super_admin
+            || auth()->user()?->hasPermissionTo('audit-logs.view');
+    }
+
     public static function canCreate(): bool
     {
         return false;
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+
+        // Super admins see all audit logs; tenant admins only see their own tenant's logs.
+        if (! auth()->user()?->is_super_admin) {
+            $tenantId = Filament::getTenant()?->id;
+            $query->where('tenant_id', $tenantId);
+        }
+
+        return $query;
     }
 
     public static function infolist(Schema $schema): Schema

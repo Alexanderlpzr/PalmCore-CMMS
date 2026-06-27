@@ -62,17 +62,28 @@ class AdminPanelProvider extends PanelProvider
                 'danger' => Color::Red,
             ])
             ->defaultAvatarProvider(InitialsAvatarProvider::class)
+            // Orden maestro del menú (UX-2). Operación primero, administración
+            // después y los grupos exclusivos de Super Admin (Plataforma, Sistema)
+            // al final — coherente con el orden del SPA Ops.
             ->navigationGroups([
-                NavigationGroup::make('Centro de Alertas'),
+                NavigationGroup::make('Inicio'),
                 NavigationGroup::make('Mantenimiento'),
                 NavigationGroup::make('Gestión de Activos'),
-                NavigationGroup::make('Inventario'),
                 NavigationGroup::make('Estructura Operativa'),
-                NavigationGroup::make('Empresa'),
+                NavigationGroup::make('Inventario'),
+                NavigationGroup::make('Centro de Alertas'),
+                NavigationGroup::make('Indicadores'),
                 NavigationGroup::make('Usuarios & Acceso'),
                 NavigationGroup::make('Integraciones'),
+                NavigationGroup::make('Automatizaciones'),
                 NavigationGroup::make('Configuración'),
             ])
+            ->renderHook(
+                PanelsRenderHook::SIDEBAR_NAV_END,
+                fn (): string => auth()->user()?->is_super_admin
+                    ? '<div class="p-2"><a href="/platform" class="block text-xs text-center text-violet-600 hover:text-violet-800 font-medium py-2 px-3 bg-violet-50 hover:bg-violet-100 rounded-lg transition-colors">→ Panel de Plataforma</a></div>'
+                    : '',
+            )
             ->tenant(Tenant::class, slugAttribute: 'slug')
             ->tenantMiddleware([
                 SyncSpatieTeamId::class,
