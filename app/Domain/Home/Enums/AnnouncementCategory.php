@@ -2,6 +2,18 @@
 
 namespace App\Domain\Home\Enums;
 
+/**
+ * Categoría/tipo del recurso unificado "Contenido" (UX-2).
+ *
+ * El Centro de Inicio usa un único recurso de Contenido cuya diferenciación
+ * se hace por esta categoría — NO por recursos Filament separados. Para
+ * habilitar un nuevo tipo de contenido basta con agregar aquí el case y su
+ * entrada en label()/color(); el resto de la arquitectura (recurso, formulario,
+ * tabla, API y feed) ya consume la categoría de forma genérica.
+ *
+ * Tipos previstos a futuro (aún no implementados): Eventos, Campañas, Videos,
+ * Banners, Encuestas.
+ */
 enum AnnouncementCategory: string
 {
     case News = 'news';

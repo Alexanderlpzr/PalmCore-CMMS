@@ -23,13 +23,15 @@ class AnnouncementResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedNewspaper;
 
-    protected static ?string $navigationLabel = 'Noticias';
+    protected static ?string $navigationLabel = 'Contenido';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Contenido';
+    protected static string|UnitEnum|null $navigationGroup = 'Inicio';
 
-    protected static ?string $modelLabel = 'Noticia';
+    protected static ?int $navigationSort = 2;
 
-    protected static ?string $pluralModelLabel = 'Noticias y Comunicados';
+    protected static ?string $modelLabel = 'Contenido';
+
+    protected static ?string $pluralModelLabel = 'Contenido';
 
     public static function form(Schema $schema): Schema
     {
