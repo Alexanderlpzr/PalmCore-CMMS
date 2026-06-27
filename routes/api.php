@@ -16,6 +16,8 @@ use App\Http\Controllers\Api\V1\EquipmentComponentController;
 use App\Http\Controllers\Api\V1\EquipmentController;
 use App\Http\Controllers\Api\V1\EquipmentKpiController;
 use App\Http\Controllers\Api\V1\ExecutiveDashboardController;
+use App\Http\Controllers\Api\V1\FeedController;
+use App\Http\Controllers\Api\V1\HomeController;
 use App\Http\Controllers\Api\V1\InventoryTransactionController;
 use App\Http\Controllers\Api\V1\MaintenancePlanController;
 use App\Http\Controllers\Api\V1\MaintenanceRequestController;
@@ -68,6 +70,17 @@ Route::prefix('v1')->group(function () {
     // ── Protected resource routes ─────────────────────────────────────────────
     Route::middleware(['auth:sanctum', 'api.tenant', 'throttle:api'])->group(function () {
         // ── Dashboard home (PX-1) ─────────────────────────────────────────────────
+        // ── Home (Inicio) ─────────────────────────────────────────────────────────
+        Route::get('home/feed', [FeedController::class, 'index'])->name('api.v1.home.feed');
+
+        Route::prefix('home')->name('api.v1.home.')->controller(HomeController::class)->group(function () {
+            Route::get('carousel', 'carousel')->name('carousel');
+            Route::get('notices', 'notices')->name('notices');
+            Route::get('announcements', 'announcements')->name('announcements');
+            Route::get('activity', 'activity')->name('activity');
+            Route::get('content', 'content')->name('content');
+        });
+
         Route::prefix('dashboard')->name('api.v1.dashboard.')->group(function () {
             Route::get('summary', [DashboardController::class, 'summary'])->name('summary');
             Route::get('activity', [DashboardController::class, 'activity'])->name('activity');

@@ -30,8 +30,10 @@
 
         <!-- Navigation -->
         <nav class="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
+            <!-- Inicio -->
+            <NavItem :item="{ name: 'Inicio', to: 'ops.inicio', icon: icons.home }" />
             <!-- Dashboard -->
-            <NavItem :item="{ name: 'Dashboard', to: 'ops.dashboard', icon: icons.home }" />
+            <NavItem :item="{ name: 'Dashboard', to: 'ops.dashboard', icon: icons.chartBar }" />
 
             <!-- Mantenimiento -->
             <NavGroup label="Mantenimiento">

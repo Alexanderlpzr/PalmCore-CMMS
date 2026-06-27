@@ -17,7 +17,13 @@ const routes = [
         component: () => import('../layout/OpsLayout.vue'),
         meta: { requiresAuth: true },
         children: [
-            { path: '', redirect: { name: 'ops.dashboard' } },
+            { path: '', redirect: { name: 'ops.inicio' } },
+            {
+                path: 'inicio',
+                name: 'ops.inicio',
+                component: () => import('../views/HomeView.vue'),
+                meta: { title: 'Inicio' },
+            },
             {
                 path: 'dashboard',
                 name: 'ops.dashboard',
