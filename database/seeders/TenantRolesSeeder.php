@@ -49,6 +49,8 @@ class TenantRolesSeeder extends Seeder
             'spare-parts.view', 'spare-parts.create', 'spare-parts.update', 'spare-parts.delete',
             'warehouses.view', 'warehouses.create', 'warehouses.update', 'warehouses.delete',
             'inventory.view', 'inventory.entry', 'inventory.exit', 'inventory.adjust', 'inventory.transfer',
+            'announcements.view', 'announcements.create', 'announcements.update', 'announcements.delete',
+            'carousel-slides.view', 'carousel-slides.create', 'carousel-slides.update', 'carousel-slides.delete',
         ],
 
         // Read-only executive oversight across all modules.

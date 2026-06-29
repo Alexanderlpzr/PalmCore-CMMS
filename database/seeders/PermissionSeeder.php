@@ -165,6 +165,16 @@ class PermissionSeeder extends Seeder
         'inventory.exit',
         'inventory.adjust',
         'inventory.transfer',
+
+        // Home CMS — institutional content shown on the Inicio portal.
+        'announcements.view',
+        'announcements.create',
+        'announcements.update',
+        'announcements.delete',
+        'carousel-slides.view',
+        'carousel-slides.create',
+        'carousel-slides.update',
+        'carousel-slides.delete',
     ];
 
     public function run(): void
