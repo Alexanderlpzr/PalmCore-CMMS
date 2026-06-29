@@ -2,10 +2,12 @@
 
 use App\Actions\Tenants\ProvisionTenantBaseStructure;
 use App\Models\Area;
+use App\Models\Permission;
 use App\Models\Plant;
 use App\Models\Role;
 use App\Models\Tenant;
 use Database\Seeders\PermissionSeeder;
+use Spatie\Permission\PermissionRegistrar;
 
 beforeEach(function () {
     // Roles sync global permissions, which PermissionSeeder creates. In production
@@ -50,6 +52,27 @@ it('provisions the full per-tenant role matrix', function () {
         'administrador-general', 'gerencia', 'plant-manager', 'ingeniero-mantenimiento',
         'supervisor', 'tecnico', 'almacenista', 'compras', 'operario',
     ]);
+});
+
+it('self-heals a missing permission catalogue instead of throwing', function () {
+    // Simulate a DB where the permission catalogue has not been seeded yet
+    // (e.g. the rollout migration has not run). Provisioning must seed the
+    // permissions itself so syncPermissions() never hits PermissionDoesNotExist.
+    Permission::query()->delete();
+    app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+    $tenant = Tenant::factory()->create();
+
+    app(ProvisionTenantBaseStructure::class)->handle($tenant);
+
+    setPermissionsTeamId($tenant->id);
+    app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+    $admin = Role::where('team_id', $tenant->id)->where('name', 'administrador-general')->first();
+
+    expect($admin)->not->toBeNull()
+        ->and($admin->hasPermissionTo('announcements.view'))->toBeTrue()
+        ->and($admin->hasPermissionTo('carousel-slides.view'))->toBeTrue();
 });
 
 it('is idempotent — re-running does not duplicate structure', function () {

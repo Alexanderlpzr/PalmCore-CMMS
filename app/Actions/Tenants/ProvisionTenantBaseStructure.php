@@ -5,6 +5,7 @@ namespace App\Actions\Tenants;
 use App\Models\Area;
 use App\Models\Plant;
 use App\Models\Tenant;
+use Database\Seeders\PermissionSeeder;
 use Database\Seeders\TenantRolesSeeder;
 use Illuminate\Support\Facades\DB;
 
@@ -54,6 +55,11 @@ class ProvisionTenantBaseStructure
                 );
             }
 
+            // Guarantee the full permission catalogue exists before roles are
+            // synced: TenantRolesSeeder::syncPermissions() throws if any matrix
+            // permission is missing, so provisioning must not depend on a prior
+            // migration/seeder having run. Both seeders are idempotent.
+            (new PermissionSeeder)->run();
             (new TenantRolesSeeder)->run($tenant);
         });
     }
