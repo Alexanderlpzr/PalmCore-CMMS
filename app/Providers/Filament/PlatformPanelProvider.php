@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\AvatarProviders\InitialsAvatarProvider;
 use App\Http\Middleware\EnsureSuperAdmin;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -39,6 +40,9 @@ class PlatformPanelProvider extends PanelProvider
                 'warning' => Color::Amber,
                 'danger' => Color::Red,
             ])
+            // Local data-URI initials avatars — keeps the strict CSP (no
+            // ui-avatars.com request) consistent with the admin panel.
+            ->defaultAvatarProvider(InitialsAvatarProvider::class)
             ->navigationGroups([
                 NavigationGroup::make('Empresas'),
                 NavigationGroup::make('Contenido'),
