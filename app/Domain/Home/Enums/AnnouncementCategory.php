@@ -36,7 +36,7 @@ enum AnnouncementCategory: string
         return match ($this) {
             self::News => 'blue',
             self::Communication => 'emerald',
-            self::Training => 'violet',
+            self::Training => 'blue',
             self::MaintenanceScheduled => 'amber',
         };
     }

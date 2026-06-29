@@ -1,0 +1,13 @@
+/*
+ * Custom Filament theme for the admin panel (HOME-2.1).
+ *
+ * The default Filament stylesheet only ships the utilities Filament itself
+ * uses, so the bespoke Tailwind classes in our custom pages (Inicio portal,
+ * resource Blade views) were never compiled. This theme imports the Filament
+ * preset and registers our own files as Tailwind content sources so every
+ * utility we author is generated. Registered on the panel via ->viteTheme().
+ */
+@import '../../../../vendor/filament/filament/resources/css/theme.css';
+
+@source '../../../../app/Filament/**/*.php';
+@source '../../../../resources/views/filament/**/*.blade.php';

@@ -12,7 +12,6 @@ use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Navigation\NavigationGroup;
-use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
@@ -38,6 +37,10 @@ class AdminPanelProvider extends PanelProvider
             ->brandLogo(secure_asset('images/logo.png'))
             ->brandLogoHeight('4rem')
             ->favicon(secure_asset('images/isotipo.png'))
+            // Custom theme (HOME-2.1) — compiles the bespoke Tailwind utilities
+            // used by the Inicio portal and custom resource views, which the
+            // default Filament stylesheet does not ship.
+            ->viteTheme('resources/css/filament/admin/theme.css')
             // Permanent impersonation banner — rendered on every panel page while
             // a Super Admin is impersonating another user (ADMIN-2).
             ->renderHook(
@@ -90,10 +93,9 @@ class AdminPanelProvider extends PanelProvider
                 CheckTenantSubscription::class,
             ], isPersistent: true)
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
+            // Inicio (portal de entrada) y Dashboard (analítica) se auto-descubren
+            // desde App\Filament\Pages — Inicio ocupa la raíz, Dashboard vive en /dashboard.
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
-            ->pages([
-                Dashboard::class,
-            ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([])
             ->middleware([
