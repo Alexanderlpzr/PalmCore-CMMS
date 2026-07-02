@@ -38,7 +38,7 @@ class EquipmentsRelationManager extends RelationManager
     {
         return $table
             ->recordTitleAttribute('name')
-            ->recordUrl(fn (Equipment $record): string => EquipmentResource::getUrl('view', ['record' => $record, 'tenant' => $record->tenant_id]))
+            ->recordUrl(fn (Equipment $record): string => EquipmentResource::getUrl('view', ['record' => $record]))
             ->columns([
                 TextColumn::make('code')
                     ->label('Código')
