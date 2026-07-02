@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Areas;
 use App\Filament\Resources\Areas\Pages\CreateArea;
 use App\Filament\Resources\Areas\Pages\EditArea;
 use App\Filament\Resources\Areas\Pages\ListAreas;
+use App\Filament\Resources\Areas\RelationManagers\EquipmentsRelationManager;
 use App\Filament\Resources\Areas\Schemas\AreaForm;
 use App\Filament\Resources\Areas\Tables\AreasTable;
 use App\Models\Area;
@@ -45,15 +46,17 @@ class AreaResource extends Resource
 
     public static function getRelations(): array
     {
-        return [];
+        return [
+            EquipmentsRelationManager::class,
+        ];
     }
 
     public static function getPages(): array
     {
         return [
-            'index'  => ListAreas::route('/'),
+            'index' => ListAreas::route('/'),
             'create' => CreateArea::route('/create'),
-            'edit'   => EditArea::route('/{record}/edit'),
+            'edit' => EditArea::route('/{record}/edit'),
         ];
     }
 
