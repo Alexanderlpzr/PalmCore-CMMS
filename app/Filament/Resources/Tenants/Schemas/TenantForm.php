@@ -41,6 +41,11 @@ class TenantForm
                             ->label('Teléfono')
                             ->tel()
                             ->maxLength(50),
+                        TextInput::make('address')
+                            ->label('Dirección')
+                            ->maxLength(500)
+                            ->columnSpanFull()
+                            ->helperText('Se muestra en el encabezado de los documentos PDF generados.'),
                     ]),
 
                 Section::make('Ubicación y Configuración')

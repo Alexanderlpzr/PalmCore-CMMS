@@ -4,18 +4,18 @@ namespace App\Domain\Assets\Enums;
 
 enum EquipmentPriority: string
 {
-    case P1 = 'p1';
-    case P2 = 'p2';
-    case P3 = 'p3';
-    case P4 = 'p4';
+    case P1 = 'p1_critical';
+    case P2 = 'p2_high';
+    case P3 = 'p3_medium';
+    case P4 = 'p4_low';
 
     public function label(): string
     {
         return match ($this) {
-            self::P1 => 'P1 — Inmediato',
-            self::P2 => 'P2 — Urgente',
-            self::P3 => 'P3 — Normal',
-            self::P4 => 'P4 — Programado',
+            self::P1 => 'P1 — Crítico',
+            self::P2 => 'P2 — Alto',
+            self::P3 => 'P3 — Medio',
+            self::P4 => 'P4 — Bajo',
         };
     }
 

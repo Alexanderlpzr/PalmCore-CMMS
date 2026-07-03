@@ -18,6 +18,7 @@ class WorkOrderSignatureResource extends JsonResource
             'user' => $this->whenLoaded('user', fn () => $this->user ? ['id' => $this->user->id, 'name' => $this->user->name] : null),
             'signed_at' => $this->signed_at?->toISOString(),
             'notes' => $this->notes,
+            'image_url' => file_signed_url(private_files_disk(), $this->image_path),
             'created_at' => $this->created_at->toISOString(),
         ];
     }

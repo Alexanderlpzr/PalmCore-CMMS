@@ -17,6 +17,17 @@
             </button>
         </div>
 
+        <!-- Equipment context banner -->
+        <div v-if="equipmentId" class="bg-indigo-50 border border-indigo-100 rounded-2xl px-4 py-3 flex items-center justify-between gap-4 mb-4">
+            <p class="text-xs font-semibold text-indigo-700">
+                Mostrando solo órdenes de trabajo de este equipo
+            </p>
+            <RouterLink :to="{ name: 'ops.equipos.show', params: { id: equipmentId } }"
+                class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors shrink-0">
+                ← Volver al equipo
+            </RouterLink>
+        </div>
+
         <!-- Search -->
         <div class="relative mb-4">
             <svg class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -139,7 +150,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import { useApi } from '../composables/useApi.js'
 import { useAuthStore } from '../stores/auth.js'
 import { useToast } from '../composables/useToast.js'
@@ -156,12 +167,16 @@ import SavedViews from '../components/SavedViews.vue'
 const api = useApi()
 const auth = useAuthStore()
 const toast = useToast()
+const route = useRoute()
 const sel = useBulkSelection()
 const workOrders = ref([])
 const loading = ref(true)
 const loadingMore = ref(false)
 const nextCursor = ref(null)
 const { filter: activeFilter, search, reset: resetPrefs } = useViewPreferences('workorders', { filter: 'planned,in_progress,on_hold', search: '' })
+
+// Equipment context filter — set from route query when arriving from equipment ficha
+const equipmentId = ref(route.query.equipment_id ?? null)
 
 const bulkActions = [
     { key: 'close', label: 'Cerrar' },
@@ -222,6 +237,7 @@ function relativeTime(dateStr) {
 function buildUrl(cursor = null) {
     const params = new URLSearchParams({ per_page: '25' })
     if (activeFilter.value) { params.set('status', activeFilter.value) }
+    if (equipmentId.value) { params.set('equipment_id', equipmentId.value) }
     const q = search.value.trim()
     if (q) { params.set('search', q) }
     if (cursor) { params.set('cursor', cursor) }

@@ -176,8 +176,7 @@ export function usePendingActions() {
     }
 
     async function queueOrSubmitSignature(workOrderId, blob, signatureType, notes = '', gps = null) {
-        const mediaKey = crypto.randomUUID()
-        const sigKey = crypto.randomUUID()
+        const idempotencyKey = crypto.randomUUID()
         loading.value = true
         error.value = null
 
@@ -187,31 +186,21 @@ export function usePendingActions() {
                 await db.pendingActions.add(newPendingAction({
                     action_type: 'SIGNATURE',
                     work_order_id: workOrderId,
-                    payload: { signature_type: signatureType, notes, sig_key: sigKey, ...(gps ? { gps } : {}) },
+                    payload: { signature_type: signatureType, notes, ...(gps ? { gps } : {}) },
                     media_blob: blob,
-                    idempotency_key: mediaKey,
+                    idempotency_key: idempotencyKey,
                 }))
                 await registerBackgroundSync()
                 return { queued: true }
             }
 
             try {
-                // Step 1: upload PNG (no GPS — media-level GPS is on the attachment record)
-                const form = new FormData()
-                form.append('file', blob, `signature_${Date.now()}.png`)
-                form.append('attachment_type', 'evidence')
-                form.append('caption', 'Firma técnico')
-                await api.upload(`work-orders/${workOrderId}/media`, form, {
-                    'Idempotency-Key': mediaKey,
+                // Single request: the signature image travels with its own record,
+                // so it can never be orphaned from the metadata that describes it.
+                const form = buildSignatureForm(blob, signatureType, notes, gps)
+                await api.upload(`work-orders/${workOrderId}/signature`, form, {
+                    'Idempotency-Key': idempotencyKey,
                 })
-
-                // Step 2: record signature event with GPS
-                const sigPayload = { signature_type: signatureType, notes: notes || undefined, ...(gps ? { gps } : {}) }
-                await api.post(
-                    `work-orders/${workOrderId}/signature`,
-                    sigPayload,
-                    { 'Idempotency-Key': sigKey },
-                )
                 return { queued: false }
             } catch (e) {
                 if (e instanceof TypeError) {
@@ -219,9 +208,9 @@ export function usePendingActions() {
                     await db.pendingActions.add(newPendingAction({
                         action_type: 'SIGNATURE',
                         work_order_id: workOrderId,
-                        payload: { signature_type: signatureType, notes, sig_key: sigKey, ...(gps ? { gps } : {}) },
+                        payload: { signature_type: signatureType, notes, ...(gps ? { gps } : {}) },
                         media_blob: blob,
-                        idempotency_key: mediaKey,
+                        idempotency_key: idempotencyKey,
                     }))
                     await registerBackgroundSync()
                     return { queued: true }
@@ -302,6 +291,21 @@ export function usePendingActions() {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+function buildSignatureForm(blob, signatureType, notes, gps) {
+    const form = new FormData()
+    form.append('signature_image', blob, `signature_${Date.now()}.png`)
+    form.append('signature_type', signatureType)
+    if (notes) form.append('notes', notes)
+    if (gps) {
+        form.append('gps[latitude]', gps.latitude)
+        form.append('gps[longitude]', gps.longitude)
+        form.append('gps[accuracy]', gps.accuracy)
+        if (gps.source) form.append('gps[source]', gps.source)
+        if (gps.gps_timestamp) form.append('gps[gps_timestamp]', gps.gps_timestamp)
+    }
+    return form
+}
 
 function buildMediaForm(blob, attachmentType, caption, gps) {
     const ext = blob.type === 'image/png' ? 'png' : 'jpg'

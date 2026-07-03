@@ -16,6 +16,8 @@ class EditUser extends EditRecord
 
     protected ?array $pendingRoles = null;
 
+    protected string|false|null $pendingAvatarPath = false;
+
     protected function getHeaderActions(): array
     {
         // The Gate::before super-admin bypass makes policy-based hiding ineffective
@@ -35,6 +37,11 @@ class EditUser extends EditRecord
         $this->pendingRoles = $data['roles'] ?? null;
         unset($data['roles']);
 
+        if (array_key_exists('avatar_path', $data)) {
+            $this->pendingAvatarPath = $data['avatar_path'];
+            unset($data['avatar_path']);
+        }
+
         return $data;
     }
 
@@ -44,6 +51,13 @@ class EditUser extends EditRecord
             $tenantId = Filament::getTenant()?->id;
             setPermissionsTeamId($tenantId);
             $this->record->syncRoles($this->pendingRoles);
+        }
+
+        if ($this->pendingAvatarPath !== false) {
+            $this->record->profile()->updateOrCreate(
+                ['user_id' => $this->record->id],
+                ['avatar_path' => $this->pendingAvatarPath],
+            );
         }
     }
 }

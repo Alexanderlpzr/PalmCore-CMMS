@@ -6,10 +6,11 @@ use App\Domain\Reports\Contracts\PdfReport;
 use App\Models\Equipment;
 use App\Models\Tenant;
 use Barryvdh\DomPDF\Facade\Pdf;
-use Illuminate\Support\Facades\Storage;
 
 class EquipmentPdfService implements PdfReport
 {
+    public function __construct(private readonly ReportBrandingService $branding) {}
+
     public function generate(string $tenantId, ?string $recordId = null): string
     {
         $equipment = Equipment::withoutGlobalScopes()
@@ -27,11 +28,21 @@ class EquipmentPdfService implements PdfReport
             ->firstOrFail();
 
         $tenant = Tenant::withoutGlobalScopes()->find($tenantId);
+        $documentNumber = 'FICHA-'.$equipment->code;
+
+        $qrTarget = $this->branding->recordUrl(
+            'filament.admin.resources.equipment.view',
+            $tenant,
+            $equipment->id,
+        ) ?? $this->branding->documentIdentityPayload($documentNumber, $tenant);
 
         return Pdf::loadView('reports.equipment', [
             'equipment' => $equipment,
             'tenant' => $tenant,
-            'logoBase64' => $this->logoBase64($tenant),
+            'logoBase64' => $this->branding->logoBase64($tenant),
+            'documentNumber' => $documentNumber,
+            'documentVersion' => ReportBrandingService::DOCUMENT_VERSION,
+            'qrBase64' => $this->branding->qrBase64($qrTarget),
             'generatedAt' => now(),
         ])
             ->setPaper('a4', 'portrait')
@@ -47,21 +58,5 @@ class EquipmentPdfService implements PdfReport
             ->value('code') ?? $recordId;
 
         return 'EQ-'.str_replace('/', '-', (string) $code).'-'.now()->format('Ymd').'.pdf';
-    }
-
-    private function logoBase64(?Tenant $tenant): ?string
-    {
-        if (! $tenant?->logo_path) {
-            return null;
-        }
-
-        try {
-            $content = Storage::disk(persistent_disk())->get($tenant->logo_path);
-            $mime = Storage::disk(persistent_disk())->mimeType($tenant->logo_path);
-
-            return "data:{$mime};base64,".base64_encode($content);
-        } catch (\Throwable) {
-            return null;
-        }
     }
 }

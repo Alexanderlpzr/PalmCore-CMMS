@@ -21,6 +21,7 @@ use Illuminate\Support\Str;
     'tax_id',
     'contact_email',
     'contact_phone',
+    'address',
     'country_code',
     'timezone',
     'locale',

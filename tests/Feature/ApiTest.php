@@ -1,10 +1,14 @@
 <?php
 
+use App\Domain\Assets\Enums\EquipmentPriority;
 use App\Models\Area;
 use App\Models\Equipment;
 use App\Models\EquipmentDowntimeEvent;
 use App\Models\EquipmentKpi;
+use App\Models\MaintenancePlan;
+use App\Models\MaintenancePlanTask;
 use App\Models\MaintenanceRequest;
+use App\Models\MaintenanceSchedule;
 use App\Models\PersonalAccessToken;
 use App\Models\Plant;
 use App\Models\SparePart;
@@ -13,6 +17,7 @@ use App\Models\User;
 use App\Models\Warehouse;
 use App\Models\WarehouseSparePart;
 use App\Models\WorkOrder;
+use App\Models\WorkOrderAttachment;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -303,6 +308,46 @@ it('GET /api/v1/equipment ignores a non-whitelisted sort column (falls back to d
 
     $response->assertOk()
         ->assertJsonCount(2, 'data');
+});
+
+it('GET /api/v1/equipment marks has_overdue_preventives on list items', function () {
+    ['tenant' => $tenant, 'token' => $token] = apiTenantWithUser();
+
+    $withOverdue = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+    MaintenanceSchedule::factory()->overdue()->create([
+        'tenant_id' => $tenant->id,
+        'maintenance_plan_id' => MaintenancePlan::factory()->create([
+            'tenant_id' => $tenant->id,
+            'equipment_id' => $withOverdue->id,
+            'is_active' => true,
+        ])->id,
+    ]);
+
+    $withoutOverdue = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+
+    $response = $this->withHeaders(apiHeaders($token))->getJson('/api/v1/equipment');
+
+    $response->assertOk();
+    $byId = collect($response->json('data'))->keyBy('id');
+    expect($byId[$withOverdue->id]['has_overdue_preventives'])->toBeTrue();
+    expect($byId[$withoutOverdue->id]['has_overdue_preventives'])->toBeFalse();
+});
+
+it('GET /api/v1/equipment includes kpi data on list items when available', function () {
+    ['tenant' => $tenant, 'token' => $token] = apiTenantWithUser();
+
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+    EquipmentKpi::factory()->create([
+        'tenant_id' => $tenant->id,
+        'equipment_id' => $equipment->id,
+        'availability_percentage' => 92.5,
+    ]);
+
+    $response = $this->withHeaders(apiHeaders($token))->getJson('/api/v1/equipment');
+
+    $response->assertOk();
+    $item = collect($response->json('data'))->firstWhere('id', $equipment->id);
+    expect((float) $item['kpi']['availability_percentage'])->toBe(92.5);
 });
 
 it('GET /api/v1/inventory/spare-parts search matches code, name and description', function () {
@@ -606,6 +651,130 @@ it('PATCH /api/v1/work-orders/{id}/status returns 404 for WO of another tenant',
     $response->assertNotFound();
 });
 
+// ── PATCH /api/v1/work-orders/{id}/status — Completion Experience fields ────
+
+it('PATCH .../status persists work_performed when completing the work order', function () {
+    ['tenant' => $tenant, 'token' => $token] = apiTenantWithUser(['work-orders.write']);
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+    $workOrder = WorkOrder::factory()->inProgress()->create([
+        'tenant_id' => $tenant->id,
+        'equipment_id' => $equipment->id,
+    ]);
+
+    $response = $this->withHeaders(apiHeaders($token))
+        ->patchJson('/api/v1/work-orders/'.$workOrder->id.'/status', [
+            'status' => 'completed',
+            'work_performed' => 'Se reemplazó el rodamiento y se realineó el eje.',
+        ]);
+
+    $response->assertOk()
+        ->assertJsonPath('data.status', 'completed')
+        ->assertJsonPath('data.work_performed', 'Se reemplazó el rodamiento y se realineó el eje.');
+
+    $this->assertDatabaseHas('work_orders', [
+        'id' => $workOrder->id,
+        'work_performed' => 'Se reemplazó el rodamiento y se realineó el eje.',
+    ]);
+});
+
+it('PATCH .../status without work_performed does not blank out an existing value', function () {
+    ['tenant' => $tenant, 'token' => $token] = apiTenantWithUser(['work-orders.write']);
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+    $workOrder = WorkOrder::factory()->completed()->create([
+        'tenant_id' => $tenant->id,
+        'equipment_id' => $equipment->id,
+        'work_performed' => 'Diagnóstico inicial registrado.',
+    ]);
+
+    $response = $this->withHeaders(apiHeaders($token))
+        ->patchJson('/api/v1/work-orders/'.$workOrder->id.'/status', ['status' => 'verified']);
+
+    $response->assertOk();
+    $this->assertDatabaseHas('work_orders', [
+        'id' => $workOrder->id,
+        'work_performed' => 'Diagnóstico inicial registrado.',
+    ]);
+});
+
+// ── GET /api/v1/work-orders/{id} — Evidence Zone data ────────────────────────
+
+it('GET /api/v1/work-orders/{id} includes attachments, signatures, checklist and completion in mission', function () {
+    ['tenant' => $tenant, 'token' => $token] = apiTenantWithUser(['work-orders.read']);
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+    $plan = MaintenancePlan::factory()->create(['tenant_id' => $tenant->id]);
+    MaintenancePlanTask::factory()->create(['tenant_id' => $tenant->id, 'maintenance_plan_id' => $plan->id]);
+    $workOrder = WorkOrder::factory()->create([
+        'tenant_id' => $tenant->id,
+        'equipment_id' => $equipment->id,
+        'maintenance_plan_id' => $plan->id,
+    ]);
+    WorkOrderAttachment::factory()->create(['tenant_id' => $tenant->id, 'work_order_id' => $workOrder->id]);
+
+    $response = $this->withHeaders(apiHeaders($token))
+        ->getJson('/api/v1/work-orders/'.$workOrder->id);
+
+    $response->assertOk()
+        ->assertJsonCount(1, 'data.attachments')
+        ->assertJsonCount(1, 'data.mission.checklist')
+        ->assertJsonStructure(['data' => ['mission' => ['completion' => ['readiness', 'summary']]]]);
+});
+
+// ── GET /api/v1/work-orders/{id} — Mission Workspace data ───────────────────
+
+it('GET /api/v1/work-orders/{id} includes mission data for a single work order', function () {
+    ['tenant' => $tenant, 'token' => $token] = apiTenantWithUser(['work-orders.read']);
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+    $workOrder = WorkOrder::factory()->create([
+        'tenant_id' => $tenant->id,
+        'equipment_id' => $equipment->id,
+        'work_order_type' => 'corrective',
+        'equipment_stopped' => true,
+        'status' => 'draft',
+    ]);
+
+    $response = $this->withHeaders(apiHeaders($token))
+        ->getJson('/api/v1/work-orders/'.$workOrder->id);
+
+    $response->assertOk()
+        ->assertJsonPath('data.mission.expected_outcome', 'Restablecer la operación del equipo')
+        ->assertJsonPath('data.mission.progress.percentage', 0)
+        ->assertJsonPath('data.mission.progress.current_status', 'draft')
+        ->assertJsonStructure(['data' => ['mission' => ['expected_outcome', 'progress', 'previous_intervention', 'origin']]]);
+});
+
+it('GET /api/v1/work-orders (list) does not compute mission data — avoids N+1 per row', function () {
+    ['tenant' => $tenant, 'token' => $token] = apiTenantWithUser(['work-orders.read']);
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+    WorkOrder::factory()->create(['tenant_id' => $tenant->id, 'equipment_id' => $equipment->id]);
+
+    $response = $this->withHeaders(apiHeaders($token))->getJson('/api/v1/work-orders');
+
+    $response->assertOk()
+        ->assertJsonPath('data.0.mission', null);
+});
+
+it('GET /api/v1/work-orders/{id} reports the originating maintenance request in mission.origin', function () {
+    ['tenant' => $tenant, 'token' => $token] = apiTenantWithUser(['work-orders.read']);
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+    $request = MaintenanceRequest::factory()->create([
+        'tenant_id' => $tenant->id,
+        'equipment_id' => $equipment->id,
+        'title' => 'Vibración anormal en el eje',
+    ]);
+    $workOrder = WorkOrder::factory()->create([
+        'tenant_id' => $tenant->id,
+        'equipment_id' => $equipment->id,
+        'maintenance_request_id' => $request->id,
+    ]);
+
+    $response = $this->withHeaders(apiHeaders($token))
+        ->getJson('/api/v1/work-orders/'.$workOrder->id);
+
+    $response->assertOk()
+        ->assertJsonPath('data.mission.origin.type', 'request')
+        ->assertJsonPath('data.mission.origin.description', 'Vibración anormal en el eje');
+});
+
 // ── POST /api/v1/maintenance-requests ────────────────────────────────────────
 
 it('POST /api/v1/maintenance-requests creates a request and returns 201', function () {
@@ -770,4 +939,134 @@ it('POST /api/v1/inventory/transactions returns 403 without inventory.write abil
     ]);
 
     $response->assertForbidden();
+});
+
+// ── RC1 — DT-01: EquipmentPriority enum values aligned with shared contract ──
+
+it('GET /api/v1/equipment returns priority with p1_critical format after enum alignment', function () {
+    ['tenant' => $tenant, 'token' => $token] = apiTenantWithUser(['equipment.read']);
+
+    Equipment::factory()->create([
+        'tenant_id' => $tenant->id,
+        'priority' => EquipmentPriority::P1,
+    ]);
+
+    $response = $this->withHeaders(apiHeaders($token))->getJson('/api/v1/equipment');
+
+    $response->assertOk();
+
+    $priority = $response->json('data.0.priority');
+    expect($priority)->toBe('p1_critical');
+});
+
+it('GET /api/v1/equipment returns all four priority values in the aligned format', function () {
+    ['tenant' => $tenant, 'token' => $token] = apiTenantWithUser(['equipment.read']);
+
+    foreach (EquipmentPriority::cases() as $case) {
+        Equipment::factory()->create(['tenant_id' => $tenant->id, 'priority' => $case]);
+    }
+
+    $response = $this->withHeaders(apiHeaders($token))->getJson('/api/v1/equipment?per_page=100');
+
+    $response->assertOk();
+
+    $priorities = collect($response->json('data'))->pluck('priority')->unique()->sort()->values()->toArray();
+    expect($priorities)->toContain('p1_critical', 'p2_high', 'p3_medium', 'p4_low');
+});
+
+// ── RC1 — DT-04: WO list preserves equipment context ─────────────────────────
+
+it('GET /api/v1/work-orders?equipment_id=X returns only WOs for that equipment', function () {
+    ['tenant' => $tenant, 'token' => $token] = apiTenantWithUser(['work-orders.read']);
+
+    $equipA = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+    $equipB = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+
+    WorkOrder::factory()->count(2)->create(['tenant_id' => $tenant->id, 'equipment_id' => $equipA->id]);
+    WorkOrder::factory()->count(3)->create(['tenant_id' => $tenant->id, 'equipment_id' => $equipB->id]);
+
+    $response = $this->withHeaders(apiHeaders($token))
+        ->getJson('/api/v1/work-orders?equipment_id='.$equipA->id);
+
+    $response->assertOk();
+
+    $ids = collect($response->json('data'))->pluck('equipment.id')->unique()->values()->toArray();
+    expect($ids)->toBe([$equipA->id])
+        ->and(count($response->json('data')))->toBe(2);
+});
+
+it('GET /api/v1/work-orders?equipment_id from another tenant returns empty', function () {
+    ['token' => $tokenA] = apiTenantWithUser(['work-orders.read']);
+
+    $tenantB = Tenant::factory()->create();
+    $equipB = Equipment::factory()->create(['tenant_id' => $tenantB->id]);
+    WorkOrder::factory()->create(['tenant_id' => $tenantB->id, 'equipment_id' => $equipB->id]);
+
+    $response = $this->withHeaders(apiHeaders($tokenA))
+        ->getJson('/api/v1/work-orders?equipment_id='.$equipB->id);
+
+    $response->assertOk();
+    expect($response->json('data'))->toBeEmpty();
+});
+
+// ── RC1 — Security: QuickReportPanel (POST /api/v1/maintenance-requests) ─────
+
+it('POST /api/v1/maintenance-requests rejects equipment from another tenant', function () {
+    ['token' => $token] = apiTenantWithUser(['maintenance-requests.write']);
+    $otherTenant = Tenant::factory()->create();
+    $otherEquipment = Equipment::factory()->create(['tenant_id' => $otherTenant->id]);
+
+    $response = $this->withHeaders(apiHeaders($token))->postJson('/api/v1/maintenance-requests', [
+        'equipment_id' => $otherEquipment->id,
+        'request_type' => 'corrective',
+        'priority' => 'p3_medium',
+        'title' => 'Test cross-tenant',
+        'description' => 'Tenant isolation test.',
+    ]);
+
+    $response->assertUnprocessable();
+});
+
+it('POST /api/v1/maintenance-requests returns 422 for invalid equipment_id', function () {
+    ['token' => $token] = apiTenantWithUser(['maintenance-requests.write']);
+
+    $response = $this->withHeaders(apiHeaders($token))->postJson('/api/v1/maintenance-requests', [
+        'equipment_id' => 'non-existent-uuid',
+        'request_type' => 'corrective',
+        'priority' => 'p3_medium',
+        'title' => 'Test',
+        'description' => 'Test',
+    ]);
+
+    $response->assertUnprocessable();
+});
+
+it('POST /api/v1/maintenance-requests returns 422 for invalid priority value', function () {
+    ['tenant' => $tenant, 'token' => $token] = apiTenantWithUser(['maintenance-requests.write']);
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+
+    $response = $this->withHeaders(apiHeaders($token))->postJson('/api/v1/maintenance-requests', [
+        'equipment_id' => $equipment->id,
+        'request_type' => 'corrective',
+        'priority' => 'p3',
+        'title' => 'Test',
+        'description' => 'Test',
+    ]);
+
+    $response->assertUnprocessable();
+});
+
+it('POST /api/v1/work-orders returns 422 for invalid priority value', function () {
+    ['tenant' => $tenant, 'token' => $token] = apiTenantWithUser(['work-orders.write']);
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+
+    $response = $this->withHeaders(apiHeaders($token))->postJson('/api/v1/work-orders', [
+        'equipment_id' => $equipment->id,
+        'work_order_type' => 'corrective',
+        'priority' => 'p2',
+        'title' => 'Test',
+        'description' => 'Test',
+    ]);
+
+    $response->assertUnprocessable();
 });

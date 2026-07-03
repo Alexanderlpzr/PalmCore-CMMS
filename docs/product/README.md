@@ -59,29 +59,46 @@
 
 ---
 
-### PARTE III — TECHNOLOGY
-*Cómo se construye Fronda. Qué decisiones no están abiertas a debate. Qué sí lo está.*
+### PARTE III — DESIGN
+*Cómo se ve y se siente Fronda. La constitución visual del producto.*
 
-| # | Capítulo | Estado |
+| # | Capítulo | Tiempo |
 |---|---|---|
-| 7 | Decisiones de Arquitectura | Próximamente |
-| 8 | El Modelo de Datos | Próximamente |
-| 9 | Performance y Fiabilidad | Próximamente |
+| 7 | [The Fronda Design Language](PART-III-Design/07-Design-Language.md) | 35 min |
+| 8 | Catálogo de Componentes | Próximamente |
 
 ---
 
-### PARTE IV — FUTURE
+### PARTE IV — ENGINEERING
+*Cómo se desarrolla software en Fronda. Cómo se piensa antes de escribir código.*
+
+| # | Capítulo | Tiempo |
+|---|---|---|
+| 8 | [The Fronda Engineering Handbook](PART-IV-Engineering/08-Engineering-Handbook.md) | 30 min |
+
+---
+
+### PARTE V — FUTURE
 *A dónde va Fronda. Qué no construiremos. Qué sí construiremos cuando llegue el momento.*
 
 | # | Capítulo | Estado |
 |---|---|---|
-| 10 | El Roadmap de Fronda | Próximamente |
-| 11 | IoT y Mantenimiento Predictivo | Próximamente |
-| 12 | Fronda 2030 | Próximamente |
+| 9 | El Roadmap de Fronda | Próximamente |
+| 10 | IoT y Mantenimiento Predictivo | Próximamente |
+| 11 | Fronda 2030 | Próximamente |
 
 ---
 
-### PARTE V — DECISIONS
+### PARTE VI — EXPERIENCES
+*La especificación de diseño de cada módulo. Lo que existe, lo que falla, lo que debe ser.*
+
+| Módulo | Discovery | Blueprint | Estado |
+|---|---|---|---|
+| Equipos | [UX-3.0 — Equipment Discovery](PART-VI-Discovery/UX-3.0-Equipment-Discovery.md) | [Equipment Experience Blueprint](PART-VI-Experiences/Equipment-Experience-Blueprint.md) | `Borrador` |
+
+---
+
+### PARTE VIII — DECISIONS
 *Por qué el producto es como es. Las decisiones que no se toman dos veces.*
 
 | # | Registro | Fecha | Estado |

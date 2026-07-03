@@ -143,6 +143,16 @@ class EquipmentResource extends JsonResource
                         ?->toISOString()
                     : null,
             ])->values()),
+            'active_work_orders_count' => $this->whenCounted('workOrders', fn () => $this->active_work_orders_count),
+            'has_overdue_preventives' => $this->resource->offsetExists('overdue_preventives_flag')
+                ? (bool) $this->overdue_preventives_flag
+                : $this->whenLoaded('maintenancePlans',
+                    fn () => $this->maintenancePlans
+                        ->where('is_active', true)
+                        ->filter(fn ($p) => $p->schedule?->next_due_at !== null && $p->schedule->next_due_at->isPast())
+                        ->isNotEmpty(),
+                    false
+                ),
             'created_at' => $this->created_at->toISOString(),
             'updated_at' => $this->updated_at->toISOString(),
         ];

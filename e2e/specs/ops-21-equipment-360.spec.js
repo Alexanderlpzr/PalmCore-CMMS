@@ -1,14 +1,15 @@
 /**
- * Grupo 21 — UX-3 Ficha 360° del Equipo (EquipmentDetailView)
+ * Grupo 21 — UX-3.1 Ficha 360° del Equipo (EquipmentDetailView)
  *
- * Validates the redesigned 360° equipment detail view:
+ * Validates the redesigned Equipment Detail View (Sprint UX-3.1):
  *   A. Breadcrumbs visible, starting with "Equipos"
  *   B. KPI strip visible (Disponibilidad / MTBF / MTTR)
- *   C. Desktop anchor-nav tabs navigate to each section
- *      (Información, Estado, Componentes, OTs, Mantenimiento, Documentos, Historial)
- *   D. "Estado del activo" section shows its 6 management metrics
- *   E. Componentes tab renders the EquipmentComponentsTab area (#partes)
- *   F. Historial timeline renders (events or empty-state — either accepted)
+ *   C. Desktop anchor-nav tabs navigate to new sections
+ *      (Operación, Mantenimiento, Activo, Docs & Fotos, Historial)
+ *   D. Primary action bar visible: Crear OT, Reportar problema, Registrar lectura
+ *   E. Componentes tab renders the EquipmentComponentsTab area (#operacion)
+ *   F. Historial timeline renders with filter tabs
+ *   G. "Estado del activo" section no longer exists (eliminated duplication)
  *
  * Tolerant of empty data: asserts sections / labels / empty-states render,
  * not specific record counts.
@@ -70,86 +71,74 @@ test.describe('Grupo 21 — Ficha 360° del Equipo', () => {
         await expect(page.getByText('MTTR', { exact: true }).first()).toBeVisible()
     })
 
-    test('21C: navegación de pestañas activa cada sección', async ({ page }) => {
+    test('21C: navegación de pestañas activa las nuevas secciones (UX-3.1)', async ({ page }) => {
         await loginToApp(page)
         await navigateToEquipmentDetail(page)
 
-        // section id rendered for each desktop nav label
+        // New section IDs per Blueprint: Operación, Mantenimiento, Activo, Docs & Fotos, Historial
         const tabs = [
-            { label: 'Información', section: '#info' },
-            { label: 'Estado', section: '#estado' },
-            { label: 'Componentes', section: '#partes' },
-            { label: 'OTs', section: '#work-orders' },
-            { label: 'Historial', section: '#timeline' },
+            { label: 'Operación', section: '#operacion' },
+            { label: 'Activo', section: '#activo' },
+            { label: 'Historial', section: '#historial' },
         ]
 
         for (const { label, section } of tabs) {
             await clickDesktopTab(page, label)
-            // Sections scroll into view on desktop; assert the anchor exists & is visible.
             await expect(page.locator(section)).toBeVisible({ timeout: 10_000 })
         }
 
-        // Mantenimiento and Documentos nav tabs only render when there is data.
-        // Assert they navigate when present, but tolerate their absence (empty demo data).
-        for (const { label, section } of [
-            { label: 'Mantenimiento', section: '#preventives' },
-            { label: 'Documentos', section: '#documents' },
-        ]) {
-            const btn = page.getByRole('button', { name: label, exact: true }).filter({ visible: true }).first()
-            if (await btn.count()) {
-                await btn.click()
-                await expect(page.locator(section)).toBeVisible({ timeout: 10_000 })
-            }
+        // Mantenimiento tab renders when there are plans or WOs
+        const mantenimientoBtn = page.getByRole('button', { name: 'Mantenimiento', exact: true }).filter({ visible: true }).first()
+        if (await mantenimientoBtn.count()) {
+            await mantenimientoBtn.click()
+            await expect(page.locator('#mantenimiento')).toBeVisible({ timeout: 10_000 })
         }
     })
 
-    test('21D: sección "Estado del activo" muestra sus 6 métricas', async ({ page }) => {
+    test('21D: sección "Estado del activo" no existe — KPIs solo en el header strip', async ({ page }) => {
         await loginToApp(page)
         await navigateToEquipmentDetail(page)
 
-        await clickDesktopTab(page, 'Estado')
+        // The old #estado section must not exist in the new design
+        await expect(page.locator('#estado')).toHaveCount(0)
 
-        const estado = page.locator('#estado')
-        await expect(estado).toBeVisible({ timeout: 10_000 })
-        await expect(estado.getByText('Estado del activo')).toBeVisible()
-
-        for (const label of [
-            'Disponibilidad',
-            'MTTR',
-            'MTBF',
-            'Costo acumulado',
-            'Horas de parada',
-            'Última intervención',
-        ]) {
-            await expect(estado.getByText(label, { exact: true })).toBeVisible()
-        }
+        // KPIs are only in the sticky header strip (not duplicated in a body section)
+        await expect(page.getByText('Disponibilidad', { exact: true }).first()).toBeVisible({ timeout: 10_000 })
     })
 
-    test('21E: pestaña Componentes renderiza el área de componentes', async ({ page }) => {
+    test('21E: sección Operación visible — muestra BOM o estado sin intervenciones', async ({ page }) => {
         await loginToApp(page)
         await navigateToEquipmentDetail(page)
 
-        await clickDesktopTab(page, 'Componentes')
+        const operacion = page.locator('#operacion')
+        await expect(operacion).toBeVisible({ timeout: 10_000 })
 
-        const partes = page.locator('#partes')
-        await expect(partes).toBeVisible({ timeout: 10_000 })
-        // EquipmentComponentsTab is mounted here, with the BOM hint underneath.
-        await expect(partes.getByText('Preparado para explosión BOM')).toBeVisible()
+        // Either active WOs or "sin intervenciones" empty state
+        const sinIntervenciones = operacion.getByText('Sin intervenciones activas')
+        const activeWoBanner = operacion.locator('.bg-amber-50').first()
+        await expect(sinIntervenciones.or(activeWoBanner)).toBeVisible({ timeout: 10_000 })
+
+        // BOM hint always present
+        await expect(operacion.getByText('Preparado para explosión BOM')).toBeVisible()
     })
 
-    test('21F: el Historial renderiza (timeline o estado vacío)', async ({ page }) => {
+    test('21F: historial tiene tabs de filtro (Todos, OTs, Preventivos, Paradas, Lecturas)', async ({ page }) => {
         await loginToApp(page)
         await navigateToEquipmentDetail(page)
 
         await clickDesktopTab(page, 'Historial')
 
-        const timeline = page.locator('#timeline')
-        await expect(timeline).toBeVisible({ timeout: 10_000 })
-        await expect(timeline.getByText('Historial', { exact: true })).toBeVisible()
+        const historial = page.locator('#historial')
+        await expect(historial).toBeVisible({ timeout: 10_000 })
 
-        // Either the empty-state message OR at least one activity entry is acceptable.
-        const empty = timeline.getByText('Aún no hay actividad registrada para este equipo')
-        const anyEvent = timeline.locator('.ring-2.ring-white').first()
+        // All filter tabs must be present
+        for (const label of ['Todos', 'OTs', 'Preventivos', 'Paradas', 'Lecturas']) {
+            await expect(historial.getByRole('button', { name: label, exact: true })).toBeVisible()
+        }
+
+        // Either events or empty state
+        const empty = historial.getByText('Aún no hay actividad registrada para este equipo')
+        const anyEvent = historial.locator('.ring-2.ring-white').first()
         await expect(empty.or(anyEvent)).toBeVisible({ timeout: 10_000 })
     })
 })

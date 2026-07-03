@@ -70,7 +70,7 @@ class User extends Authenticatable implements FilamentUser, HasAvatar, HasTenant
 
     public function getFilamentAvatarUrl(): ?string
     {
-        return $this->profile?->avatar_path;
+        return file_signed_url(persistent_disk(), $this->profile?->avatar_path);
     }
 
     // ─── Relationships ───────────────────────────────────────────────────────

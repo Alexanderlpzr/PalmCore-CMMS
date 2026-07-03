@@ -3,47 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'DejaVu Sans', sans-serif; font-size: 9px; color: #1e293b; background: #fff; }
-
-    #header { position: fixed; top: -50px; left: 0; right: 0; height: 50px; }
-    #footer { position: fixed; bottom: -30px; left: 0; right: 0; height: 30px; }
-
-    .report-title { background: #1e3a5f; color: #fff; padding: 8px 12px; margin-bottom: 12px; border-radius: 3px; }
-    .report-title h1 { font-size: 14px; font-weight: bold; }
-    .report-title p  { font-size: 9px; color: #93c5fd; margin-top: 2px; }
-
-    .kpi-grid { width: 100%; margin-bottom: 14px; border-collapse: separate; border-spacing: 4px; }
-    .kpi-box { background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 3px; padding: 8px; text-align: center; }
-    .kpi-value { font-size: 16px; font-weight: bold; color: #1e3a5f; }
-    .kpi-label { font-size: 7px; color: #64748b; margin-top: 2px; }
-
-    table.data-table { width: 100%; border-collapse: collapse; font-size: 8px; }
-    table.data-table th { background: #1e3a5f; color: #fff; text-align: left; padding: 5px;
-                          font-weight: bold; border: 1px solid #1e3a5f; font-size: 7px; }
-    table.data-table td { padding: 4px 5px; border: 1px solid #e2e8f0; vertical-align: middle; }
-    table.data-table tr:nth-child(even) td { background: #f8fafc; }
-
-    .avail-bar-outer { width: 60px; height: 7px; background: #e2e8f0; border-radius: 3px; display: inline-block; vertical-align: middle; }
-    .avail-bar-inner { height: 7px; border-radius: 3px; }
-    .bar-high   { background: #16a34a; }
-    .bar-medium { background: #d97706; }
-    .bar-low    { background: #dc2626; }
-
-    .section-title { font-size: 9px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em;
-                     color: #1e3a5f; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px; margin-bottom: 7px; }
+    @include('reports.partials.styles')
 </style>
 </head>
 <body>
 
-<div id="header">
-    @include('reports.partials.header')
-</div>
-<div id="footer">
-    @include('reports.partials.footer')
-</div>
+@include('reports.partials.header')
+@include('reports.partials.footer')
 
-<div style="padding-top: 60px; padding-bottom: 35px;">
+<div class="doc-body">
 
     <div class="report-title">
         <h1>Reporte de Confiabilidad</h1>

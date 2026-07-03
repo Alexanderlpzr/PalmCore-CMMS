@@ -40,6 +40,7 @@ class WorkOrderSignatureController extends Controller
             $type,
             $request->validated('notes'),
             $request->validated('gps'),
+            $request->file('signature_image'),
         );
 
         return (new WorkOrderSignatureResource($signature))

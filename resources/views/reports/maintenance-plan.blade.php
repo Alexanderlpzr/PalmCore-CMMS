@@ -3,51 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'DejaVu Sans', sans-serif; font-size: 10px; color: #1e293b; background: #fff; }
-
-    #header { position: fixed; top: -50px; left: 0; right: 0; height: 50px; }
-    #footer { position: fixed; bottom: -30px; left: 0; right: 0; height: 30px; }
-
-    .report-title { background: #1e3a5f; color: #fff; padding: 10px 14px; margin-bottom: 14px; border-radius: 3px; }
-    .report-title h1 { font-size: 15px; font-weight: bold; }
-    .report-title p { font-size: 9px; color: #93c5fd; margin-top: 2px; }
-
-    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 8px; font-weight: bold; }
-    .badge-success { background: #dcfce7; color: #166534; }
-    .badge-gray    { background: #f1f5f9; color: #475569; }
-
-    .section { margin-bottom: 14px; page-break-inside: avoid; }
-    .section-title { font-size: 9px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em;
-                     color: #1e3a5f; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px; margin-bottom: 7px; }
-
-    .grid-2 { width: 100%; }
-    .grid-2 td { width: 50%; vertical-align: top; padding: 0 6px 0 0; }
-
-    .field-label { font-size: 8px; color: #64748b; margin-bottom: 1px; }
-    .field-value { font-size: 10px; color: #1e293b; margin-bottom: 8px; }
-
-    table.data-table { width: 100%; border-collapse: collapse; font-size: 9px; }
-    table.data-table th { background: #f1f5f9; color: #475569; text-align: left; padding: 4px 6px;
-                          font-weight: bold; border: 1px solid #e2e8f0; font-size: 8px; }
-    table.data-table td { padding: 5px 6px; border: 1px solid #e2e8f0; vertical-align: top; }
-    table.data-table tr:nth-child(even) td { background: #f8fafc; }
-
-    .task-num { width: 28px; font-weight: bold; color: #1e3a5f; }
-    .checkbox-col { width: 20px; text-align: center; }
-    .checkbox { display: inline-block; width: 10px; height: 10px; border: 1px solid #94a3b8; border-radius: 2px; }
+    @include('reports.partials.styles')
 </style>
 </head>
 <body>
 
-<div id="header">
-    @include('reports.partials.header')
-</div>
-<div id="footer">
-    @include('reports.partials.footer')
-</div>
+@include('reports.partials.header')
+@include('reports.partials.footer')
 
-<div style="padding-top: 60px; padding-bottom: 35px;">
+<div class="doc-body">
 
     <div class="report-title">
         <h1>Plan de Mantenimiento — {{ $plan->plan_number }}</h1>
@@ -113,10 +77,7 @@
     @if($plan->description)
     <div class="section">
         <div class="section-title">Descripción</div>
-        <div style="font-size:9px; line-height:1.5; color:#374151; background:#f8fafc;
-                    border:1px solid #e2e8f0; border-radius:3px; padding:6px;">
-            {{ $plan->description }}
-        </div>
+        <div class="text-block">{{ $plan->description }}</div>
     </div>
     @endif
 

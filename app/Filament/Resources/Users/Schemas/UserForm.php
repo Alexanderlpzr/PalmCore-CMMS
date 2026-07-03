@@ -6,6 +6,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Services\SuperAdminGuard;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -51,6 +52,26 @@ class UserForm
                                 && app(SuperAdminGuard::class)->isLastActiveSuperAdmin($record)
                                     ? 'Este es el último Super Admin activo de la plataforma: no puede desactivarse.'
                                     : null),
+                    ]),
+
+                Section::make('Foto de perfil')
+                    ->hiddenOn('create')
+                    ->schema([
+                        FileUpload::make('avatar_path')
+                            ->label('Avatar')
+                            ->image()
+                            ->disk(persistent_disk())
+                            ->directory(fn (?User $record): string => 'avatars/'.($record?->id ?? 'temp'))
+                            ->visibility(persistent_disk() === 'public' ? 'public' : 'private')
+                            ->preventFilePathTampering()
+                            ->maxSize(5120)
+                            ->imageCropAspectRatio('1:1')
+                            ->imageResizeMode('cover')
+                            ->imageResizeTargetWidth('400')
+                            ->imageResizeTargetHeight('400')
+                            ->afterStateHydrated(function (FileUpload $component, ?User $record): void {
+                                $component->state($record?->profile?->avatar_path);
+                            }),
                     ]),
 
                 Section::make('Rol en el Tenant')

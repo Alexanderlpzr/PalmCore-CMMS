@@ -5,10 +5,11 @@
  *   A. Breadcrumbs + número de OT visibles
  *   B. Franja de KPIs (Tiempo real / Paro / Costo total)
  *   C. Navegación de pestañas (Resumen, Historial, Componentes,
- *      Tiempo & Repuestos, Evidencias, Firmas, Comentarios)
- *   D. Carga diferida: Evidencias/Firmas cargan al activar la pestaña
+ *      Tiempo & Repuestos, Evidencia)
+ *   D. La sección Evidencia llega en la carga inicial de la OT — sin
+ *      peticiones adicionales al activar la pestaña (WXA-2B: Evidence Zone)
  *   E. Timeline de estados (Historial) muestra al menos "Creada"
- *   F. Compositor de comentarios presente
+ *   F. Notas técnicas (compositor) viven dentro de la Evidence Zone
  *
  * Tolerant of empty data: asserts sections / labels / empty-states render,
  * not specific record counts.
@@ -40,9 +41,13 @@ async function navigateToWoDetail(page) {
     await page.waitForLoadState('networkidle', { timeout: 15_000 })
 }
 
-/** Click a desktop anchor-nav tab by its visible label. */
+/**
+ * Click a desktop anchor-nav tab by its visible label. Matches by prefix,
+ * not exact text — tabs with items show a count badge next to the label
+ * (e.g. "Historial 3"), which breaks an exact-name match.
+ */
 async function clickDesktopTab(page, label) {
-    const btn = page.getByRole('button', { name: label, exact: true }).filter({ visible: true }).first()
+    const btn = page.getByRole('button', { name: new RegExp(`^${label}`) }).filter({ visible: true }).first()
     await btn.click()
 }
 
@@ -76,9 +81,7 @@ test.describe('Grupo 22 — Ficha 360° de la Orden de Trabajo', () => {
             { label: 'Historial', section: '#historial' },
             { label: 'Componentes', section: '#componentes' },
             { label: 'Tiempo & Repuestos', section: '#tiempo' },
-            { label: 'Evidencias', section: '#evidencias' },
-            { label: 'Firmas', section: '#firmas' },
-            { label: 'Comentarios', section: '#comentarios' },
+            { label: 'Evidencia', section: '#evidencia' },
         ]
 
         for (const { label, section } of tabs) {
@@ -87,28 +90,27 @@ test.describe('Grupo 22 — Ficha 360° de la Orden de Trabajo', () => {
         }
     })
 
-    test('22D: carga diferida de Evidencias y Firmas al activar la pestaña', async ({ page }) => {
+    test('22D: la Evidence Zone llega con la OT — sin petición adicional al abrir la pestaña', async ({ page }) => {
         await loginToApp(page)
 
-        // Track the lazy requests fired only when their tabs are activated.
-        const mediaRequested = page.waitForResponse(
-            (r) => /\/api\/v1\/work-orders\/[^/]+\/media/.test(r.url()) && r.request().method() === 'GET',
-            { timeout: 10_000 },
-        )
-        const signaturesRequested = page.waitForResponse(
-            (r) => /\/api\/v1\/work-orders\/[^/]+\/signatures/.test(r.url()) && r.request().method() === 'GET',
-            { timeout: 10_000 },
-        )
+        // The work order's own GET already carries attachments/signatures/checklist
+        // (WXA-2B), so activating the Evidencia tab must NOT fire separate
+        // /media or /signatures requests the way the old lazy tabs did.
+        let mediaOrSignaturesRequested = false
+        page.on('request', (req) => {
+            if (/\/api\/v1\/work-orders\/[^/]+\/(media|signatures)(\?|$)/.test(req.url()) && req.method() === 'GET') {
+                mediaOrSignaturesRequested = true
+            }
+        })
 
         await navigateToWoDetail(page)
+        await clickDesktopTab(page, 'Evidencia')
 
-        await clickDesktopTab(page, 'Evidencias')
-        await mediaRequested
-        await expect(page.locator('#evidencias')).toBeVisible({ timeout: 10_000 })
-
-        await clickDesktopTab(page, 'Firmas')
-        await signaturesRequested
-        await expect(page.locator('#firmas')).toBeVisible({ timeout: 10_000 })
+        const evidencia = page.locator('#evidencia')
+        await expect(evidencia).toBeVisible({ timeout: 10_000 })
+        await expect(evidencia.getByText('Fotos y documentos')).toBeVisible()
+        await expect(evidencia.getByRole('heading', { name: /^Firmas/ })).toBeVisible()
+        expect(mediaOrSignaturesRequested).toBe(false)
     })
 
     test('22E: el Historial muestra el timeline de estados (al menos "Creada")', async ({ page }) => {
@@ -122,14 +124,15 @@ test.describe('Grupo 22 — Ficha 360° de la Orden de Trabajo', () => {
         await expect(historial.getByText('Creada', { exact: true })).toBeVisible({ timeout: 10_000 })
     })
 
-    test('22F: compositor de comentarios presente', async ({ page }) => {
+    test('22F: notas técnicas (compositor) presente dentro de la Evidence Zone', async ({ page }) => {
         await loginToApp(page)
         await navigateToWoDetail(page)
 
-        await clickDesktopTab(page, 'Comentarios')
+        await clickDesktopTab(page, 'Evidencia')
 
-        const comentarios = page.locator('#comentarios')
-        await expect(comentarios).toBeVisible({ timeout: 10_000 })
-        await expect(comentarios.locator('textarea[placeholder*="comentario"]')).toBeVisible()
+        const evidencia = page.locator('#evidencia')
+        await expect(evidencia).toBeVisible({ timeout: 10_000 })
+        await expect(evidencia.getByRole('heading', { name: /^Notas técnicas/ })).toBeVisible()
+        await expect(evidencia.locator('textarea[placeholder*="nota técnica"]')).toBeVisible()
     })
 })

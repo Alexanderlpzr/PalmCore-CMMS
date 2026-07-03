@@ -25,7 +25,9 @@ use App\Models\WorkOrderTechnician;
 use App\Models\WorkOrderTimeLog;
 use App\Services\ActivityLocationService;
 use Carbon\CarbonInterface;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class WorkOrderService
 {
@@ -321,15 +323,25 @@ class WorkOrderService
         WorkOrderSignatureType $type,
         ?string $notes = null,
         ?array $gps = null,
+        ?UploadedFile $image = null,
     ): WorkOrderSignature {
+        $attributes = [
+            'tenant_id' => $workOrder->tenant_id,
+            'user_id' => $user->id,
+            'signed_at' => now(),
+            'notes' => $notes,
+        ];
+
+        if ($image !== null) {
+            $attributes['image_path'] = Storage::disk(private_files_disk())->putFile(
+                "work-orders/{$workOrder->id}/signatures",
+                $image
+            );
+        }
+
         $signature = $workOrder->signatures()->updateOrCreate(
             ['signature_type' => $type->value],
-            [
-                'tenant_id' => $workOrder->tenant_id,
-                'user_id' => $user->id,
-                'signed_at' => now(),
-                'notes' => $notes,
-            ]
+            $attributes
         );
 
         if ($gps !== null) {

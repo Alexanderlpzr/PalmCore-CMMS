@@ -6,10 +6,11 @@ use App\Domain\Reports\Contracts\PdfReport;
 use App\Models\SparePart;
 use App\Models\Tenant;
 use Barryvdh\DomPDF\Facade\Pdf;
-use Illuminate\Support\Facades\Storage;
 
 class InventoryPdfService implements PdfReport
 {
+    public function __construct(private readonly ReportBrandingService $branding) {}
+
     public function generate(string $tenantId, ?string $recordId = null): string
     {
         $parts = SparePart::withoutGlobalScopes()
@@ -24,11 +25,15 @@ class InventoryPdfService implements PdfReport
             ->get();
 
         $tenant = Tenant::withoutGlobalScopes()->find($tenantId);
+        $documentNumber = $this->branding->generateDocumentNumber('INV');
 
         return Pdf::loadView('reports.inventory', [
             'parts' => $parts,
             'tenant' => $tenant,
-            'logoBase64' => $this->logoBase64($tenant),
+            'logoBase64' => $this->branding->logoBase64($tenant),
+            'documentNumber' => $documentNumber,
+            'documentVersion' => ReportBrandingService::DOCUMENT_VERSION,
+            'qrBase64' => $this->branding->qrBase64($this->branding->documentIdentityPayload($documentNumber, $tenant)),
             'generatedAt' => now(),
         ])
             ->setPaper('a4', 'landscape')
@@ -39,21 +44,5 @@ class InventoryPdfService implements PdfReport
     public function filename(string $tenantId, ?string $recordId = null): string
     {
         return 'INV-'.now()->format('Ymd-His').'.pdf';
-    }
-
-    private function logoBase64(?Tenant $tenant): ?string
-    {
-        if (! $tenant?->logo_path) {
-            return null;
-        }
-
-        try {
-            $content = Storage::disk(persistent_disk())->get($tenant->logo_path);
-            $mime = Storage::disk(persistent_disk())->mimeType($tenant->logo_path);
-
-            return "data:{$mime};base64,".base64_encode($content);
-        } catch (\Throwable) {
-            return null;
-        }
     }
 }

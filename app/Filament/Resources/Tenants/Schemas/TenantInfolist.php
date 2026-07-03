@@ -26,6 +26,9 @@ class TenantInfolist
                             ->label('Email de contacto'),
                         TextEntry::make('contact_phone')
                             ->label('Teléfono'),
+                        TextEntry::make('address')
+                            ->label('Dirección')
+                            ->columnSpanFull(),
                         TextEntry::make('subscription_plan')
                             ->label('Plan')
                             ->badge()

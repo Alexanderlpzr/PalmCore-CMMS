@@ -4,7 +4,6 @@ namespace App\Models;
 
 use App\Domain\Maintenance\Enums\WorkOrderSignatureType;
 use App\Domain\Shared\Concerns\BelongsToTenant;
-use Database\Factories\WorkOrderSignatureFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -18,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'signature_type',
     'signed_at',
     'notes',
+    'image_path',
 ])]
 class WorkOrderSignature extends Model
 {
@@ -45,7 +45,7 @@ class WorkOrderSignature extends Model
     {
         return [
             'signature_type' => WorkOrderSignatureType::class,
-            'signed_at'      => 'datetime',
+            'signed_at' => 'datetime',
         ];
     }
 }

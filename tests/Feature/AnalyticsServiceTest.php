@@ -38,18 +38,21 @@ it('failuresByMonth only counts unplanned events (was_planned = false)', functio
     $tenant = analyticsTenant();
     $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
 
+    // now()->startOfMonth()->addDay(), not subDays(5): the trend bucket asserted
+    // below is the CURRENT month, and subDays(5) rolls into the previous month
+    // whenever the test runs in the first few days of a month.
     EquipmentDowntimeEvent::factory()->create([
         'tenant_id' => $tenant->id,
         'equipment_id' => $equipment->id,
         'was_planned' => false,
-        'started_at' => now()->subDays(5),
+        'started_at' => now()->startOfMonth()->addDay(),
     ]);
 
     EquipmentDowntimeEvent::factory()->create([
         'tenant_id' => $tenant->id,
         'equipment_id' => $equipment->id,
         'was_planned' => true,
-        'started_at' => now()->subDays(5),
+        'started_at' => now()->startOfMonth()->addDay(),
     ]);
 
     $points = service()->failuresByMonth($tenant->id);
@@ -114,7 +117,7 @@ it('downtimeTrend converts duration_minutes to hours', function () {
         'tenant_id' => $tenant->id,
         'equipment_id' => $equipment->id,
         'duration_minutes' => 120,
-        'started_at' => now()->subDays(5),
+        'started_at' => now()->startOfMonth()->addDay(),
     ]);
 
     $points = service()->downtimeTrend($tenant->id);
@@ -132,7 +135,7 @@ it('downtimeTrend includes planned events in total downtime', function () {
         'equipment_id' => $equipment->id,
         'duration_minutes' => 60,
         'was_planned' => true,
-        'started_at' => now()->subDays(5),
+        'started_at' => now()->startOfMonth()->addDay(),
     ]);
 
     $points = service()->downtimeTrend($tenant->id);
@@ -162,7 +165,7 @@ it('mtbfTrend calculates a positive value when there are failures', function () 
         'equipment_id' => $equipment->id,
         'was_planned' => false,
         'duration_minutes' => 120,
-        'started_at' => now()->subDays(5),
+        'started_at' => now()->startOfMonth()->addDay(),
     ]);
 
     $points = service()->mtbfTrend($tenant->id);
@@ -193,7 +196,7 @@ it('mttrTrend calculates hours correctly from duration_minutes', function () {
         'equipment_id' => $equipment->id,
         'was_planned' => false,
         'duration_minutes' => 60,
-        'started_at' => now()->subDays(5),
+        'started_at' => now()->startOfMonth()->addDay(),
     ]);
 
     $points = service()->mttrTrend($tenant->id);

@@ -60,4 +60,21 @@ class StoreWorkOrderRequest extends FormRequest
             ],
         ];
     }
+
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return [
+            'equipment_id.required' => 'Debes indicar sobre qué equipo es esta orden de trabajo.',
+            'equipment_id.exists' => 'No encontramos ese equipo. Puede que haya sido eliminado.',
+            'work_order_type.required' => 'Debes elegir un tipo de orden de trabajo.',
+            'work_order_type.in' => 'Ese tipo de orden de trabajo no es válido.',
+            'priority.required' => 'Debes elegir una prioridad.',
+            'priority.in' => 'Esa prioridad no es válida.',
+            'title.required' => 'Debes escribir un título para la orden de trabajo.',
+            'title.max' => 'El título es demasiado largo (máximo 255 caracteres).',
+            'description.required' => 'Debes describir el trabajo a realizar.',
+            'planned_end_at.after_or_equal' => 'La fecha de fin planificada no puede ser anterior al inicio.',
+        ];
+    }
 }

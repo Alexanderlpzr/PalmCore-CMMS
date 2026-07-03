@@ -20,6 +20,7 @@
                     <div class="grid grid-cols-3 lg:grid-cols-5 gap-2 mt-5">
                         <div v-for="i in 5" :key="i" class="skeleton h-16 rounded-xl" />
                     </div>
+                    <div class="skeleton h-10 rounded-lg mt-4" />
                 </div>
             </div>
             <div class="max-w-5xl mx-auto px-4 lg:px-8 py-6 space-y-4">
@@ -84,13 +85,13 @@
                                 class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
                             >
                                 <AppIcon name="fileText" class="w-3.5 h-3.5" />
-                                {{ downloadingPdf ? '…' : 'PDF' }}
+                                {{ downloadingPdf ? 'Generando…' : 'PDF' }}
                             </button>
                         </div>
                     </div>
 
                     <!-- KPI strip -->
-                    <div v-if="equipment.kpi" class="grid grid-cols-3 lg:grid-cols-5 gap-2 mb-4">
+                    <div v-if="equipment.kpi" class="grid grid-cols-3 lg:grid-cols-5 gap-2 mb-3">
                         <div class="rounded-xl p-2.5 bg-emerald-50">
                             <p class="text-xs font-bold uppercase tracking-wider text-emerald-600 leading-none mb-1">Disponibilidad</p>
                             <p class="text-lg font-bold text-gray-900 leading-none">{{ equipment.kpi.availability_percentage != null ? Number(equipment.kpi.availability_percentage).toFixed(1) + '%' : '—' }}</p>
@@ -112,13 +113,62 @@
                             <p class="text-lg font-bold text-gray-900 leading-none">{{ equipment.kpi.downtime_hours != null ? Number(equipment.kpi.downtime_hours).toFixed(0) + 'h' : '—' }}</p>
                         </div>
                     </div>
-                    <div v-else class="mb-4 py-2 px-3 bg-gray-50 rounded-xl text-xs text-gray-500 text-center">
-                        KPIs aún no calculados para este equipo
+                    <p v-else class="text-[11px] text-gray-400 text-center mb-3 italic">Sin KPIs calculados</p>
+
+                    <!-- Primary action bar -->
+                    <div class="flex items-center gap-2 py-3 border-t border-gray-50" v-if="equipment.status !== 'retired'">
+                        <!-- Crear OT dropdown -->
+                        <div class="relative" ref="woDropdownRef">
+                            <div class="flex rounded-xl overflow-hidden border border-indigo-200">
+                                <button
+                                    @click="openWoPanel('corrective')"
+                                    class="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-3 py-2 transition-colors"
+                                >
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                    Crear OT
+                                </button>
+                                <button
+                                    @click="woDropdownOpen = !woDropdownOpen"
+                                    class="bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-2 border-l border-indigo-500 transition-colors"
+                                    aria-label="Opciones de tipo de OT"
+                                >
+                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                                </button>
+                            </div>
+                            <!-- Dropdown -->
+                            <div v-if="woDropdownOpen" class="absolute left-0 top-full mt-1 z-30 bg-white rounded-xl border border-gray-100 shadow-lg py-1 min-w-[160px]">
+                                <button v-for="t in woTypes" :key="t.value"
+                                    @click="openWoPanel(t.value)"
+                                    class="w-full text-left px-4 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                                    {{ t.label }}
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Reportar problema -->
+                        <button
+                            @click="showReportPanel = true"
+                            class="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+                            Reportar problema
+                        </button>
+
+                        <!-- Registrar lectura -->
+                        <a
+                            :href="`/admin/${tenantSlug}/meter-readings/create?equipment_id=${equipment.id}`"
+                            target="_blank"
+                            rel="noopener"
+                            class="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25m18 0A2.25 2.25 0 0 0 18.75 3H5.25A2.25 2.25 0 0 0 3 5.25m18 0H3"/></svg>
+                            Registrar lectura
+                        </a>
                     </div>
 
                     <!-- Desktop anchor nav -->
                     <div class="hidden lg:flex gap-0 overflow-x-auto border-t border-gray-100">
-                        <button v-for="sec in visibleDesktopSections" :key="sec.id" @click="scrollToSection(sec.id)"
+                        <button v-for="sec in desktopSections" :key="sec.id" @click="scrollToSection(sec.id)"
                             class="shrink-0 px-4 py-3 text-sm font-medium transition-colors border-b-2 -mb-px"
                             :class="activeSection === sec.id
                                 ? 'border-emerald-500 text-emerald-700 font-semibold'
@@ -142,11 +192,11 @@
             <!-- ── Content sections ────────────────────────────────────────────── -->
             <div class="max-w-5xl mx-auto px-4 lg:px-8 py-6 space-y-8">
 
-                <!-- ── INFORMACIÓN ───────────────────────────────────────────── -->
-                <section id="info" class="scroll-mt-56" v-show="isDesktop || mobileTab === 'info'">
-                    <SectionLabel label="Información" />
+                <!-- ── OPERACIÓN ──────────────────────────────────────────────── -->
+                <section id="operacion" class="scroll-mt-64" v-show="isDesktop || mobileTab === 'operacion'">
+                    <SectionLabel label="Operación" />
 
-                    <!-- Parent banner -->
+                    <!-- Parent banner (componente de) -->
                     <div v-if="equipment.parent" class="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex items-center justify-between gap-4 mb-4">
                         <div>
                             <p class="text-xs font-semibold uppercase tracking-wider text-indigo-400 mb-0.5">Componente de</p>
@@ -160,24 +210,245 @@
                         </RouterLink>
                     </div>
 
-                    <!-- Latest WO context card — only if WOs are loaded and there's at least one -->
-                    <div v-if="workOrders.length && !workOrdersLoading" class="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex items-center justify-between gap-4 mb-4">
-                        <div>
-                            <p class="text-xs font-semibold uppercase tracking-wider text-indigo-400 mb-0.5">Última orden de trabajo</p>
-                            <p class="text-sm font-bold text-indigo-900">{{ workOrders[0].title }}</p>
-                            <div class="flex items-center gap-2 mt-0.5">
-                                <span class="text-xs font-mono text-indigo-400">{{ workOrders[0].work_order_number }}</span>
-                                <span class="text-xs font-semibold px-1.5 py-0.5 rounded-full" :class="woStatusColors[workOrders[0].status] ?? 'bg-gray-100 text-gray-600'">
-                                    {{ woStatusLabels[workOrders[0].status] ?? workOrders[0].status }}
-                                </span>
+                    <!-- Active WOs (under_maintenance or open WOs) -->
+                    <template v-if="!workOrdersLoading">
+                        <div v-if="activeWorkOrders.length" class="space-y-3 mb-4">
+                            <div v-for="wo in activeWorkOrders" :key="wo.id"
+                                class="bg-amber-50 border border-amber-100 rounded-2xl p-4 flex items-start justify-between gap-4">
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-2 flex-wrap mb-1">
+                                        <span class="text-xs font-bold text-amber-700 uppercase tracking-wider">En intervención</span>
+                                        <span class="text-xs font-mono text-amber-600">{{ wo.work_order_number }}</span>
+                                        <span class="text-xs font-semibold px-1.5 py-0.5 rounded-full" :class="woStatusColors[wo.status] ?? 'bg-gray-100 text-gray-600'">
+                                            {{ woStatusLabels[wo.status] ?? wo.status }}
+                                        </span>
+                                    </div>
+                                    <p class="text-sm font-semibold text-gray-900 truncate">{{ wo.title }}</p>
+                                    <p class="text-xs text-gray-500 mt-0.5">{{ formatDateTime(wo.created_at) }}</p>
+                                </div>
+                                <RouterLink :to="{ name: 'ops.ordenes.show', params: { id: wo.id }, query: { from: 'ops.equipos.show', fromId: equipment.id } }"
+                                    class="shrink-0 flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors">
+                                    Ver OT
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                                </RouterLink>
+                            </div>
+
+                            <!-- Link to all equipment WOs -->
+                            <RouterLink :to="{ name: 'ops.ordenes', query: { equipment_id: equipment.id } }"
+                                class="block text-center text-xs font-semibold text-gray-500 hover:text-gray-700 transition-colors py-1">
+                                Ver todas las OTs de {{ equipment.name }} →
+                            </RouterLink>
+                        </div>
+
+                        <div v-else class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-4">
+                            <p class="text-sm text-gray-500 text-center">Sin intervenciones activas</p>
+                            <p v-if="lastInterventionRelative" class="text-xs text-gray-400 text-center mt-0.5">Última: {{ lastInterventionRelative }}</p>
+                        </div>
+                    </template>
+                    <div v-else class="space-y-3 mb-4">
+                        <div v-for="i in 2" :key="i" class="skeleton h-20 rounded-2xl" />
+                    </div>
+
+                    <!-- Sub-equipos with alerts -->
+                    <template v-if="childrenWithAlerts.length">
+                        <SectionLabel label="Sub-equipos con alertas" />
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                            <RouterLink v-for="child in childrenWithAlerts" :key="child.id"
+                                :to="{ name: 'ops.equipos.show', params: { id: child.id } }"
+                                class="bg-white rounded-2xl border border-amber-100 shadow-sm hover:border-amber-200 transition-all p-3 flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg overflow-hidden bg-amber-50 shrink-0 flex items-center justify-center">
+                                    <svg class="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-xs font-mono font-bold text-gray-500">{{ child.code }}</p>
+                                    <p class="text-sm font-semibold text-gray-800 truncate">{{ child.name }}</p>
+                                    <p class="text-xs text-amber-600">{{ child.status === 'under_maintenance' ? 'En mantenimiento' : 'Prev. vencido' }}</p>
+                                </div>
+                                <svg class="w-4 h-4 text-gray-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                            </RouterLink>
+                        </div>
+                    </template>
+
+                    <!-- Components tab (BOM) -->
+                    <div class="mt-4">
+                        <EquipmentComponentsTab :equipment-id="equipId" ref="componentsTabRef" />
+                    </div>
+                </section>
+
+                <!-- ── MANTENIMIENTO ──────────────────────────────────────────── -->
+                <section id="mantenimiento" class="scroll-mt-64" v-show="isDesktop || mobileTab === 'mantenimiento'">
+                    <SectionLabel label="Mantenimiento" />
+
+                    <!-- Accumulated cost + last intervention (moved from Estado section) -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-4">
+                        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+                            <p class="text-xs font-bold uppercase tracking-widest text-indigo-600 mb-1">Costo acumulado</p>
+                            <p class="text-2xl font-bold text-gray-900 leading-none">{{ accumulatedCost ?? '—' }}</p>
+                        </div>
+                        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+                            <p class="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">Última intervención</p>
+                            <p class="text-lg font-bold text-gray-900 leading-tight">{{ lastInterventionDate ?? '—' }}</p>
+                            <p v-if="lastInterventionRelative" class="text-xs text-gray-400 mt-0.5">{{ lastInterventionRelative }}</p>
+                        </div>
+                    </div>
+
+                    <!-- Preventive plans -->
+                    <template v-if="plans.length || plansLoading">
+                        <h3 class="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3">Planes preventivos</h3>
+                        <div v-if="plansLoading" class="space-y-3 mb-6">
+                            <div v-for="i in 2" :key="i" class="skeleton h-20 rounded-2xl" />
+                        </div>
+                        <div v-else class="space-y-3 mb-6">
+                            <div v-for="plan in plans" :key="plan.id" class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center gap-2 flex-wrap mb-1">
+                                            <p class="text-xs font-mono font-bold text-gray-500">{{ plan.plan_number }}</p>
+                                            <span class="text-xs font-semibold px-1.5 py-0.5 rounded" :class="plan.trigger_source === 'time' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'">
+                                                {{ plan.trigger_source === 'time' ? 'Tiempo' : 'Medidor' }}
+                                            </span>
+                                            <span v-if="!plan.is_active" class="text-xs font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">Inactivo</span>
+                                            <span v-if="plan.schedule?.is_overdue" class="text-xs font-semibold px-1.5 py-0.5 rounded bg-red-100 text-red-600">⚠ Vencido</span>
+                                        </div>
+                                        <p class="text-sm font-semibold text-gray-800 truncate">{{ plan.name }}</p>
+                                        <p v-if="plan.frequency_label" class="text-xs text-gray-500 mt-0.5">{{ plan.frequency_label }}</p>
+                                    </div>
+                                </div>
+                                <div v-if="plan.schedule" class="grid grid-cols-3 gap-3 mt-3 pt-3 border-t border-gray-50">
+                                    <div>
+                                        <p class="text-xs font-bold uppercase tracking-wider text-gray-500 mb-0.5">Próximo</p>
+                                        <p class="text-xs font-semibold" :class="plan.schedule.is_overdue ? 'text-red-600' : 'text-gray-800'">
+                                            {{ plan.schedule.is_overdue ? '⚠ VENCIDO' : (formatDate(plan.schedule.next_due_at) ?? '—') }}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs font-bold uppercase tracking-wider text-gray-500 mb-0.5">Último</p>
+                                        <p class="text-xs font-semibold text-gray-700">{{ formatDate(plan.schedule.last_completed_at) ?? '—' }}</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs font-bold uppercase tracking-wider text-gray-500 mb-0.5">Ejecuciones</p>
+                                        <p class="text-xs font-semibold text-gray-700">{{ plan.schedule.times_executed ?? 0 }}</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <RouterLink :to="{ name: 'ops.ordenes.show', params: { id: workOrders[0].id }, query: { from: 'ops.equipos.show', fromId: equipment.id } }"
-                            class="shrink-0 flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors">
-                            Ver OT
-                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                    </template>
+
+                    <!-- Recent work orders -->
+                    <h3 class="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3">Órdenes de trabajo recientes</h3>
+                    <div v-if="workOrdersLoading" class="space-y-3">
+                        <div v-for="i in 3" :key="i" class="skeleton h-20 rounded-2xl" />
+                    </div>
+                    <div v-else-if="workOrders.length" class="space-y-3">
+                        <RouterLink v-for="wo in workOrders" :key="wo.id"
+                            :to="{ name: 'ops.ordenes.show', params: { id: wo.id }, query: { from: 'ops.equipos.show', fromId: equipment.id } }"
+                            class="bg-white rounded-2xl border border-gray-100 shadow-sm hover:border-gray-200 hover:shadow-md transition-all p-4 flex items-center gap-3">
+                            <div class="w-2.5 h-2.5 rounded-full shrink-0" :class="woTypeDot[wo.work_order_type] ?? 'bg-gray-300'" />
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <p class="text-xs font-mono font-bold text-gray-500">{{ wo.work_order_number }}</p>
+                                    <span class="text-xs font-semibold px-1.5 py-0.5 rounded-full" :class="woStatusColors[wo.status] ?? 'bg-gray-100 text-gray-600'">
+                                        {{ woStatusLabels[wo.status] ?? wo.status }}
+                                    </span>
+                                    <span v-if="wo.priority !== 'p3_medium'" class="text-xs font-semibold px-1.5 py-0.5 rounded-full" :class="woPriorityColors[wo.priority] ?? 'bg-gray-100 text-gray-600'">
+                                        {{ wo.priority?.toUpperCase() }}
+                                    </span>
+                                </div>
+                                <p class="text-sm font-semibold text-gray-800 mt-0.5 truncate">{{ wo.title }}</p>
+                                <p class="text-xs text-gray-500 mt-0.5">{{ formatDateTime(wo.created_at) }}</p>
+                            </div>
+                            <svg class="w-4 h-4 text-gray-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                        </RouterLink>
+
+                        <RouterLink :to="{ name: 'ops.ordenes', query: { equipment_id: equipment.id } }"
+                            class="block text-center text-xs font-semibold text-gray-500 hover:text-gray-700 transition-colors py-2">
+                            Ver todas las OTs de {{ equipment.name }} →
                         </RouterLink>
                     </div>
+                    <div v-else class="bg-white rounded-2xl border border-gray-100 shadow-sm py-6 text-center text-xs text-gray-500">
+                        Sin órdenes de trabajo registradas
+                        <div class="mt-3">
+                            <button @click="openWoPanel('corrective')"
+                                class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors">
+                                + Crear primera orden de trabajo
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Spare parts used -->
+                    <template v-if="recentParts.length">
+                        <h3 class="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3 mt-6">Repuestos utilizados</h3>
+                        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm divide-y divide-gray-50">
+                            <div v-for="event in recentParts" :key="event.id" class="px-4 py-3">
+                                <div class="flex items-center justify-between gap-3">
+                                    <div class="flex-1 min-w-0">
+                                        <RouterLink :to="{ name: 'ops.ordenes.show', params: { id: event.meta.ref_id } }"
+                                            class="text-xs font-bold text-blue-600 hover:text-blue-800">
+                                            OT #{{ event.meta.ref_number }}
+                                        </RouterLink>
+                                        <p class="text-xs text-gray-500">{{ formatDateTime(event.at) }}</p>
+                                    </div>
+                                </div>
+                                <div class="mt-2 flex flex-wrap gap-1">
+                                    <span v-for="p in event.meta.parts" :key="p.description"
+                                        class="text-xs bg-orange-50 text-orange-700 border border-orange-100 px-2 py-0.5 rounded-full">
+                                        {{ p.description }} × {{ p.quantity }} {{ p.unit }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </section>
+
+                <!-- ── ACTIVO ─────────────────────────────────────────────────── -->
+                <section id="activo" class="scroll-mt-64" v-show="isDesktop || mobileTab === 'activo'">
+                    <SectionLabel label="Activo" />
+
+                    <!-- Sub-equipos (todos) -->
+                    <template v-if="equipment.children?.length">
+                        <h3 class="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3">Sub-equipos ({{ equipment.children.length }})</h3>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+                            <RouterLink
+                                v-for="child in equipment.children"
+                                :key="child.id"
+                                :to="{ name: 'ops.equipos.show', params: { id: child.id } }"
+                                class="bg-white rounded-2xl border border-gray-100 shadow-sm hover:border-indigo-200 hover:shadow-md transition-all p-4 flex gap-3"
+                            >
+                                <div class="w-12 h-12 rounded-xl overflow-hidden bg-slate-100 shrink-0 border border-gray-100">
+                                    <img v-if="child.primary_photo_url" :src="child.primary_photo_url" :alt="child.name" class="w-full h-full object-cover" />
+                                    <div v-else class="w-full h-full flex items-center justify-center text-slate-300">
+                                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11.42 15.17 17.25 21A2.652 2.652 0 0 0 21 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 1 1-3.586-3.586l5.653-4.655"/></svg>
+                                    </div>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-start justify-between gap-2">
+                                        <div class="min-w-0">
+                                            <p class="text-xs font-mono font-bold text-gray-500 uppercase">{{ child.code }}</p>
+                                            <p class="text-sm font-bold text-gray-900 leading-tight mt-0.5 truncate">{{ child.name }}</p>
+                                            <p v-if="child.model" class="text-xs text-gray-500">{{ child.model }}</p>
+                                        </div>
+                                        <Badge :tone="eqStatus(child.status).tone" :label="eqStatus(child.status).label" class="shrink-0" />
+                                    </div>
+                                    <div class="flex items-center gap-1.5 mt-2 flex-wrap">
+                                        <span v-if="child.category" class="text-xs font-semibold px-1.5 py-0.5 rounded" :class="categoryBadgeClass(child.category.color)">{{ child.category.name }}</span>
+                                        <Badge v-if="child.criticality && child.criticality !== 'low'" :tone="crit(child.criticality).tone" :label="crit(child.criticality).label" />
+                                    </div>
+                                    <div class="flex items-center gap-3 mt-2 text-xs text-gray-500">
+                                        <span v-if="child.kpi?.failure_count" class="flex items-center gap-0.5">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+                                            {{ child.kpi.failure_count }} falla{{ child.kpi.failure_count !== 1 ? 's' : '' }}
+                                        </span>
+                                        <span v-if="child.last_work_order_at" class="truncate">Última OT: {{ relativeTime(child.last_work_order_at) }}</span>
+                                    </div>
+                                    <div v-if="child.next_due_at" class="mt-1.5 flex items-center gap-1 text-xs"
+                                        :class="isOverdue(child.next_due_at) ? 'text-red-500 font-semibold' : 'text-emerald-600'">
+                                        <svg class="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"/></svg>
+                                        Próximo: {{ isOverdue(child.next_due_at) ? 'VENCIDO ' : '' }}{{ formatDate(child.next_due_at) }}
+                                    </div>
+                                </div>
+                            </RouterLink>
+                        </div>
+                    </template>
 
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         <!-- Identification -->
@@ -267,269 +538,74 @@
                     </div>
                 </section>
 
-                <!-- ── ESTADO DEL ACTIVO ──────────────────────────────────────── -->
-                <section id="estado" class="scroll-mt-56" v-show="isDesktop || mobileTab === 'estado'">
-                    <SectionLabel label="Estado del activo" />
+                <!-- ── DOCS & FOTOS ────────────────────────────────────────────── -->
+                <section id="docs" class="scroll-mt-64" v-show="isDesktop || mobileTab === 'docs'">
+                    <SectionLabel label="Docs & Fotos" />
 
-                    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm">
-                        <div class="px-4 py-3 border-b border-gray-50 flex items-center gap-2">
-                            <span class="w-2 h-2 rounded-full" :class="equipment.kpi ? 'bg-emerald-400' : 'bg-gray-300'" />
-                            <h3 class="text-xs font-bold uppercase tracking-wider text-gray-500">Indicadores de gestión</h3>
-                        </div>
-                        <div class="grid grid-cols-2 lg:grid-cols-3 gap-px bg-gray-50">
-                            <div class="bg-white p-4">
-                                <p class="text-xs font-bold uppercase tracking-widest text-emerald-600 mb-1.5">Disponibilidad</p>
-                                <p class="text-2xl font-bold text-gray-900 leading-none">{{ equipment.kpi?.availability_percentage != null ? Number(equipment.kpi.availability_percentage).toFixed(1) + '%' : '—' }}</p>
-                            </div>
-                            <div class="bg-white p-4">
-                                <p class="text-xs font-bold uppercase tracking-widest text-amber-600 mb-1.5">MTTR</p>
-                                <p class="text-2xl font-bold text-gray-900 leading-none">{{ equipment.kpi?.mttr_hours != null ? Number(equipment.kpi.mttr_hours).toFixed(0) + 'h' : '—' }}</p>
-                            </div>
-                            <div class="bg-white p-4">
-                                <p class="text-xs font-bold uppercase tracking-widest text-blue-600 mb-1.5">MTBF</p>
-                                <p class="text-2xl font-bold text-gray-900 leading-none">{{ equipment.kpi?.mtbf_hours != null ? Number(equipment.kpi.mtbf_hours).toFixed(0) + 'h' : '—' }}</p>
-                            </div>
-                            <div class="bg-white p-4">
-                                <p class="text-xs font-bold uppercase tracking-widest text-indigo-600 mb-1.5">Costo acumulado</p>
-                                <p class="text-2xl font-bold text-gray-900 leading-none">{{ accumulatedCost ?? '—' }}</p>
-                            </div>
-                            <div class="bg-white p-4">
-                                <p class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Horas de parada</p>
-                                <p class="text-2xl font-bold text-gray-900 leading-none">{{ equipment.kpi?.downtime_hours != null ? Number(equipment.kpi.downtime_hours).toFixed(0) + 'h' : '—' }}</p>
-                            </div>
-                            <div class="bg-white p-4">
-                                <p class="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1.5">Última intervención</p>
-                                <p class="text-sm font-bold text-gray-900 leading-tight mt-1.5">{{ lastInterventionDate ?? '—' }}</p>
-                                <p v-if="lastInterventionRelative" class="text-xs text-gray-400 mt-0.5">{{ lastInterventionRelative }}</p>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- ── PARTES / COMPONENTES (PX-2) ──────────────────────────────── -->
-                <section id="partes" class="scroll-mt-56" v-show="isDesktop || mobileTab === 'componentes'">
-                    <EquipmentComponentsTab :equipment-id="equipId" ref="componentsTabRef" />
-                    <p class="text-xs text-gray-400 mt-2 px-1">Preparado para explosión BOM</p>
-                </section>
-
-                <!-- ── SUB-EQUIPOS ────────────────────────────────────────────── -->
-                <section v-if="equipment.children?.length" id="components" class="scroll-mt-56" v-show="isDesktop || mobileTab === 'componentes'">
-                    <SectionLabel :label="`Sub-equipos (${equipment.children.length})`" />
-
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        <RouterLink
-                            v-for="child in equipment.children"
-                            :key="child.id"
-                            :to="{ name: 'ops.equipos.show', params: { id: child.id } }"
-                            class="bg-white rounded-2xl border border-gray-100 shadow-sm hover:border-indigo-200 hover:shadow-md transition-all p-4 flex gap-3"
-                        >
-                            <!-- Photo / icon -->
-                            <div class="w-12 h-12 rounded-xl overflow-hidden bg-slate-100 shrink-0 border border-gray-100">
-                                <img v-if="child.primary_photo_url" :src="child.primary_photo_url" :alt="child.name" class="w-full h-full object-cover" />
-                                <div v-else class="w-full h-full flex items-center justify-center text-slate-300">
-                                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M11.42 15.17 17.25 21A2.652 2.652 0 0 0 21 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 1 1-3.586-3.586l5.653-4.655"/>
+                    <!-- Documents -->
+                    <template v-if="equipment.documents?.length">
+                        <h3 class="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3">Documentos ({{ equipment.documents.length }})</h3>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-6">
+                            <a v-for="doc in equipment.documents" :key="doc.id" :href="doc.url" target="_blank" rel="noopener"
+                                class="bg-white rounded-2xl border border-gray-100 shadow-sm hover:border-gray-200 hover:shadow-md transition-all p-4 flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" :class="docIconBg(doc.name)">
+                                    <svg class="w-5 h-5" :class="docIconColor(doc.name)" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/>
                                     </svg>
                                 </div>
-                            </div>
-
-                            <div class="flex-1 min-w-0">
-                                <div class="flex items-start justify-between gap-2">
-                                    <div class="min-w-0">
-                                        <p class="text-xs font-mono font-bold text-gray-500 uppercase">{{ child.code }}</p>
-                                        <p class="text-sm font-bold text-gray-900 leading-tight mt-0.5 truncate">{{ child.name }}</p>
-                                        <p v-if="child.model" class="text-xs text-gray-500">{{ child.model }}</p>
-                                    </div>
-                                    <Badge :tone="eqStatus(child.status).tone" :label="eqStatus(child.status).label" class="shrink-0" />
-                                </div>
-
-                                <!-- Category badge -->
-                                <div class="flex items-center gap-1.5 mt-2 flex-wrap">
-                                    <span v-if="child.category" class="text-xs font-semibold px-1.5 py-0.5 rounded" :class="categoryBadgeClass(child.category.color)">
-                                        {{ child.category.name }}
-                                    </span>
-                                    <Badge v-if="child.criticality && child.criticality !== 'low'" :tone="crit(child.criticality).tone" :label="crit(child.criticality).label" />
-                                </div>
-
-                                <!-- Stats row -->
-                                <div class="flex items-center gap-3 mt-2 text-xs text-gray-500">
-                                    <span v-if="child.kpi?.failure_count" class="flex items-center gap-0.5">
-                                        <span class="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
-                                        {{ child.kpi.failure_count }} falla{{ child.kpi.failure_count !== 1 ? 's' : '' }}
-                                    </span>
-                                    <span v-if="child.last_work_order_at" class="truncate">
-                                        Última OT: {{ relativeTime(child.last_work_order_at) }}
-                                    </span>
-                                </div>
-
-                                <!-- Next preventive -->
-                                <div v-if="child.next_due_at" class="mt-1.5 flex items-center gap-1 text-xs"
-                                    :class="isOverdue(child.next_due_at) ? 'text-red-500 font-semibold' : 'text-emerald-600'">
-                                    <svg class="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"/>
-                                    </svg>
-                                    Próximo: {{ isOverdue(child.next_due_at) ? 'VENCIDO ' : '' }}{{ formatDate(child.next_due_at) }}
-                                </div>
-                            </div>
-                        </RouterLink>
-                    </div>
-                </section>
-
-                <!-- ── ÓRDENES DE TRABAJO RECIENTES ───────────────────────────── -->
-                <section id="work-orders" class="scroll-mt-56" v-show="isDesktop || mobileTab === 'ots'">
-                    <SectionLabel :label="`Órdenes de trabajo recientes`" />
-
-                    <div v-if="workOrdersLoading" class="space-y-3">
-                        <div v-for="i in 3" :key="i" class="skeleton h-20 rounded-2xl" />
-                    </div>
-
-                    <div v-else-if="workOrders.length" class="space-y-3">
-                        <RouterLink v-for="wo in workOrders" :key="wo.id"
-                            :to="{ name: 'ops.ordenes.show', params: { id: wo.id }, query: { from: 'ops.equipos.show', fromId: equipment.id } }"
-                            class="bg-white rounded-2xl border border-gray-100 shadow-sm hover:border-gray-200 hover:shadow-md transition-all p-4 flex items-center gap-3">
-                            <!-- Type dot -->
-                            <div class="w-2.5 h-2.5 rounded-full shrink-0" :class="woTypeDot[wo.work_order_type] ?? 'bg-gray-300'" />
-                            <div class="flex-1 min-w-0">
-                                <div class="flex items-center gap-2 flex-wrap">
-                                    <p class="text-xs font-mono font-bold text-gray-500">{{ wo.work_order_number }}</p>
-                                    <span class="text-xs font-semibold px-1.5 py-0.5 rounded-full" :class="woStatusColors[wo.status] ?? 'bg-gray-100 text-gray-600'">
-                                        {{ woStatusLabels[wo.status] ?? wo.status }}
-                                    </span>
-                                    <span v-if="wo.priority !== 'medium'" class="text-xs font-semibold px-1.5 py-0.5 rounded-full" :class="woPriorityColors[wo.priority] ?? 'bg-gray-100 text-gray-600'">
-                                        {{ wo.priority?.toUpperCase() }}
-                                    </span>
-                                </div>
-                                <p class="text-sm font-semibold text-gray-800 mt-0.5 truncate">{{ wo.title }}</p>
-                                <p class="text-xs text-gray-500 mt-0.5">{{ formatDateTime(wo.created_at) }}</p>
-                            </div>
-                            <svg class="w-4 h-4 text-gray-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-                        </RouterLink>
-
-                        <RouterLink :to="{ name: 'ops.ordenes' }" class="block text-center text-xs font-semibold text-gray-500 hover:text-gray-700 transition-colors py-2">
-                            Ver todas las órdenes →
-                        </RouterLink>
-                    </div>
-
-                    <div v-else class="bg-white rounded-2xl border border-gray-100 shadow-sm py-8 text-center text-xs text-gray-500">
-                        Sin órdenes de trabajo registradas
-                    </div>
-                </section>
-
-                <!-- ── PLANES PREVENTIVOS ─────────────────────────────────────── -->
-                <section v-if="plans.length || plansLoading" id="preventives" class="scroll-mt-56" v-show="isDesktop || mobileTab === 'mantenimiento'">
-                    <SectionLabel label="Planes preventivos" />
-
-                    <div v-if="plansLoading" class="space-y-3">
-                        <div v-for="i in 2" :key="i" class="skeleton h-20 rounded-2xl" />
-                    </div>
-
-                    <div v-else class="space-y-3">
-                        <div v-for="plan in plans" :key="plan.id" class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-                            <div class="flex items-start justify-between gap-3">
                                 <div class="flex-1 min-w-0">
-                                    <div class="flex items-center gap-2 flex-wrap mb-1">
-                                        <p class="text-xs font-mono font-bold text-gray-500">{{ plan.plan_number }}</p>
-                                        <span class="text-xs font-semibold px-1.5 py-0.5 rounded" :class="plan.trigger_source === 'time' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'">
-                                            {{ plan.trigger_source === 'time' ? 'Tiempo' : 'Medidor' }}
-                                        </span>
-                                        <span v-if="!plan.is_active" class="text-xs font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">Inactivo</span>
-                                    </div>
-                                    <p class="text-sm font-semibold text-gray-800 truncate">{{ plan.name }}</p>
-                                    <p v-if="plan.frequency_label" class="text-xs text-gray-500 mt-0.5">{{ plan.frequency_label }}</p>
+                                    <p class="text-sm font-semibold text-gray-800 truncate">{{ doc.title ?? doc.name }}</p>
+                                    <p class="text-xs text-gray-500">{{ doc.name }}</p>
+                                    <p v-if="doc.expires_at" class="text-xs text-amber-600 mt-0.5">Expira: {{ formatDate(doc.expires_at) }}</p>
                                 </div>
-                            </div>
-                            <div v-if="plan.schedule" class="grid grid-cols-3 gap-3 mt-3 pt-3 border-t border-gray-50">
-                                <div>
-                                    <p class="text-xs font-bold uppercase tracking-wider text-gray-500 mb-0.5">Próximo</p>
-                                    <p class="text-xs font-semibold" :class="plan.schedule.is_overdue ? 'text-red-600' : 'text-gray-800'">
-                                        {{ plan.schedule.is_overdue ? '⚠ VENCIDO' : (formatDate(plan.schedule.next_due_at) ?? '—') }}
-                                    </p>
+                                <svg class="w-4 h-4 text-gray-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>
+                            </a>
+                        </div>
+                    </template>
+
+                    <!-- Photos -->
+                    <template v-if="equipment.photos?.length">
+                        <h3 class="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3">Fotos ({{ equipment.photos.length }})</h3>
+                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                            <div v-for="photo in equipment.photos" :key="photo.id"
+                                @click="lightboxPhoto = photo"
+                                class="aspect-square rounded-2xl overflow-hidden bg-slate-100 cursor-pointer hover:opacity-90 transition-opacity relative border border-gray-100">
+                                <img :src="photo.url" :alt="photo.caption ?? ''" class="w-full h-full object-cover" />
+                                <div v-if="photo.is_primary" class="absolute top-1.5 left-1.5 bg-emerald-500 text-white text-[8px] font-bold uppercase px-1.5 py-0.5 rounded">
+                                    Principal
                                 </div>
-                                <div>
-                                    <p class="text-xs font-bold uppercase tracking-wider text-gray-500 mb-0.5">Último</p>
-                                    <p class="text-xs font-semibold text-gray-700">{{ formatDate(plan.schedule.last_completed_at) ?? '—' }}</p>
-                                </div>
-                                <div>
-                                    <p class="text-xs font-bold uppercase tracking-wider text-gray-500 mb-0.5">Ejecuciones</p>
-                                    <p class="text-xs font-semibold text-gray-700">{{ plan.schedule.times_executed ?? 0 }}</p>
-                                </div>
+                                <p v-if="photo.caption" class="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/50 px-2 pb-2 pt-4 text-xs text-white leading-snug">
+                                    {{ photo.caption }}
+                                </p>
                             </div>
                         </div>
-                    </div>
-                </section>
+                    </template>
 
-                <!-- ── REPUESTOS UTILIZADOS ───────────────────────────────────── -->
-                <section v-if="recentParts.length" id="parts" class="scroll-mt-56" v-show="isDesktop || mobileTab === 'ots'">
-                    <SectionLabel label="Repuestos utilizados" />
-
-                    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm divide-y divide-gray-50">
-                        <div v-for="event in recentParts" :key="event.id" class="px-4 py-3">
-                            <div class="flex items-center justify-between gap-3">
-                                <div class="flex-1 min-w-0">
-                                    <RouterLink :to="{ name: 'ops.ordenes.show', params: { id: event.meta.ref_id } }"
-                                        class="text-xs font-bold text-blue-600 hover:text-blue-800">
-                                        OT #{{ event.meta.ref_number }}
-                                    </RouterLink>
-                                    <p class="text-xs text-gray-500">{{ formatDateTime(event.at) }}</p>
-                                </div>
-                            </div>
-                            <div class="mt-2 flex flex-wrap gap-1">
-                                <span v-for="p in event.meta.parts" :key="p.description"
-                                    class="text-xs bg-orange-50 text-orange-700 border border-orange-100 px-2 py-0.5 rounded-full">
-                                    {{ p.description }} × {{ p.quantity }} {{ p.unit }}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- ── FOTOS ──────────────────────────────────────────────────── -->
-                <section v-if="equipment.photos?.length" id="photos" class="scroll-mt-56" v-show="isDesktop || mobileTab === 'docs'">
-                    <SectionLabel :label="`Fotos (${equipment.photos.length})`" />
-
-                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                        <div v-for="photo in equipment.photos" :key="photo.id"
-                            @click="lightboxPhoto = photo"
-                            class="aspect-square rounded-2xl overflow-hidden bg-slate-100 cursor-pointer hover:opacity-90 transition-opacity relative border border-gray-100">
-                            <img :src="photo.url" :alt="photo.caption ?? ''" class="w-full h-full object-cover" />
-                            <div v-if="photo.is_primary" class="absolute top-1.5 left-1.5 bg-emerald-500 text-white text-[8px] font-bold uppercase px-1.5 py-0.5 rounded">
-                                Principal
-                            </div>
-                            <p v-if="photo.caption" class="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/50 px-2 pb-2 pt-4 text-xs text-white leading-snug">
-                                {{ photo.caption }}
-                            </p>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- ── DOCUMENTOS ─────────────────────────────────────────────── -->
-                <section v-if="equipment.documents?.length" id="documents" class="scroll-mt-56" v-show="isDesktop || mobileTab === 'docs'">
-                    <SectionLabel :label="`Documentos (${equipment.documents.length})`" />
-
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                        <a v-for="doc in equipment.documents" :key="doc.id" :href="doc.url" target="_blank" rel="noopener"
-                            class="bg-white rounded-2xl border border-gray-100 shadow-sm hover:border-gray-200 hover:shadow-md transition-all p-4 flex items-center gap-3">
-                            <!-- File icon -->
-                            <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" :class="docIconBg(doc.name)">
-                                <svg class="w-5 h-5" :class="docIconColor(doc.name)" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/>
-                                </svg>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <p class="text-sm font-semibold text-gray-800 truncate">{{ doc.title ?? doc.name }}</p>
-                                <p class="text-xs text-gray-500">{{ doc.name }}</p>
-                                <p v-if="doc.expires_at" class="text-xs text-amber-600 mt-0.5">Expira: {{ formatDate(doc.expires_at) }}</p>
-                            </div>
-                            <svg class="w-4 h-4 text-gray-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>
-                        </a>
+                    <!-- Empty docs + photos -->
+                    <div v-if="!equipment.documents?.length && !equipment.photos?.length"
+                        class="bg-white rounded-2xl border border-gray-100 shadow-sm py-8 text-center text-xs text-gray-500">
+                        Sin documentación ni fotos registradas
                     </div>
                 </section>
 
                 <!-- ── HISTORIAL (Timeline) ───────────────────────────────────── -->
-                <section id="timeline" class="scroll-mt-56" v-show="isDesktop || mobileTab === 'historial'">
+                <section id="historial" class="scroll-mt-64" v-show="isDesktop || mobileTab === 'historial'">
                     <SectionLabel label="Historial" />
 
                     <div class="bg-white rounded-2xl border border-gray-100 shadow-sm">
+                        <!-- Filter tabs -->
+                        <div class="flex items-center gap-0 px-2 pt-2 border-b border-gray-50 overflow-x-auto">
+                            <button v-for="f in activityFilters" :key="f.value"
+                                @click="activityFilter = f.value"
+                                class="shrink-0 px-3 py-2 text-xs font-medium transition-colors border-b-2 -mb-px"
+                                :class="activityFilter === f.value
+                                    ? 'border-emerald-500 text-emerald-700 font-semibold'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700'">
+                                {{ f.label }}
+                                <span v-if="f.value === 'all' && activitiesMeta.total" class="ml-1 text-xs text-gray-400">({{ activitiesMeta.total }})</span>
+                            </button>
+                        </div>
+
                         <!-- Loading -->
                         <div v-if="activitiesLoading" class="px-5 py-6 space-y-4">
                             <div v-for="i in 5" :key="i" class="flex gap-3">
@@ -542,23 +618,17 @@
                         </div>
 
                         <!-- Events -->
-                        <div v-else-if="activities.length" class="px-5 py-4">
+                        <div v-else-if="filteredActivities.length" class="px-5 py-4">
                             <div class="relative">
-                                <!-- Vertical line -->
                                 <div class="absolute left-1.5 top-3 bottom-3 w-px bg-gray-100" />
-
                                 <div class="space-y-5">
-                                    <div v-for="event in activities" :key="event.id" class="flex gap-4 relative">
-                                        <!-- Dot -->
+                                    <div v-for="event in filteredActivities" :key="event.id" class="flex gap-4 relative">
                                         <div class="w-3 h-3 rounded-full shrink-0 mt-1 ring-2 ring-white relative z-10" :class="activityDotBg[event.type] ?? 'bg-gray-300'" />
-
-                                        <!-- Content -->
                                         <div class="flex-1 min-w-0 pb-1">
                                             <div class="flex items-start gap-2 flex-wrap">
                                                 <span class="text-xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" :class="activityBadgeClass[event.type] ?? 'bg-gray-100 text-gray-500'">
                                                     {{ activityTypeLabel[event.type] ?? event.type }}
                                                 </span>
-                                                <!-- Link to WO if applicable -->
                                                 <RouterLink v-if="event.meta?.ref_id && (event.type === 'work_order_created' || event.type === 'work_order_closed' || event.type === 'preventive_executed')"
                                                     :to="{ name: 'ops.ordenes.show', params: { id: event.meta.ref_id } }"
                                                     class="text-xs text-blue-600 hover:text-blue-800 font-medium">
@@ -566,7 +636,6 @@
                                                 </RouterLink>
                                             </div>
                                             <p class="text-sm text-gray-800 mt-0.5 leading-snug">{{ event.title }}</p>
-                                            <!-- Meta details -->
                                             <p v-if="event.meta?.description" class="text-xs text-gray-500 mt-0.5 leading-snug line-clamp-2">{{ event.meta.description }}</p>
                                             <p v-if="event.meta?.duration_minutes" class="text-xs text-gray-500 mt-0.5">Duración: {{ Math.round(event.meta.duration_minutes / 60 * 10) / 10 }}h</p>
                                             <div v-if="event.meta?.parts?.length" class="mt-1 flex flex-wrap gap-1">
@@ -582,7 +651,7 @@
                             </div>
 
                             <!-- Load more -->
-                            <div v-if="activitiesMeta.has_more" class="mt-4 pt-3 border-t border-gray-50 text-center">
+                            <div v-if="activitiesMeta.has_more && activityFilter === 'all'" class="mt-4 pt-3 border-t border-gray-50 text-center">
                                 <button @click="loadMoreActivities" :disabled="activitiesLoadingMore"
                                     class="text-xs font-semibold text-gray-500 hover:text-gray-800 transition-colors disabled:opacity-50">
                                     {{ activitiesLoadingMore ? 'Cargando…' : `Ver más (${activitiesMeta.total - activities.length} eventos)` }}
@@ -592,7 +661,12 @@
 
                         <!-- Empty -->
                         <div v-else class="px-5 py-10 text-center text-xs text-gray-500">
-                            Aún no hay actividad registrada para este equipo
+                            <template v-if="activityFilter !== 'all'">
+                                Sin eventos de tipo "{{ activityFilters.find(f => f.value === activityFilter)?.label }}"
+                            </template>
+                            <template v-else>
+                                Aún no hay actividad registrada para este equipo
+                            </template>
                         </div>
                     </div>
                 </section>
@@ -620,6 +694,23 @@
             </div>
         </Teleport>
 
+        <!-- Quick create panels -->
+        <QuickCreateWoPanel
+            :equipment-id="equipId"
+            :open="showWoPanel"
+            :default-type="woPanelType"
+            @close="showWoPanel = false; woDropdownOpen = false"
+            @created="onWoCreated"
+        />
+        <QuickReportPanel
+            :equipment-id="equipId"
+            :open="showReportPanel"
+            @close="showReportPanel = false"
+            @created="onReportCreated"
+        />
+
+        <!-- WO dropdown outside click handler -->
+        <div v-if="woDropdownOpen" class="fixed inset-0 z-20" @click="woDropdownOpen = false" />
     </div>
 </template>
 
@@ -627,12 +718,15 @@
 import { ref, computed, onMounted, onUnmounted, defineComponent, h } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { useApi } from '../composables/useApi.js'
+import { useAuthStore } from '../stores/auth.js'
 import { describe, EQUIPMENT_STATUS, CRITICALITY } from '../../shared/design.js'
 import Badge from '../components/Badge.vue'
 import EmptyState from '../components/EmptyState.vue'
 import AppIcon from '../components/AppIcon.vue'
 import FavoriteStar from '../components/FavoriteStar.vue'
 import EquipmentComponentsTab from '../components/EquipmentComponentsTab.vue'
+import QuickCreateWoPanel from '../components/QuickCreateWoPanel.vue'
+import QuickReportPanel from '../components/QuickReportPanel.vue'
 
 // ── Inline sub-components ─────────────────────────────────────────────────────
 
@@ -651,33 +745,86 @@ const InfoRow = defineComponent({
 const SectionLabel = defineComponent({
     props: { label: String },
     setup(props) {
-        return () => h('h2', { class: 'text-xs font-bold uppercase tracking-widest text-gray-500 mb-3' }, props.label)
+        return () => h('h2', { class: 'text-[11px] font-bold uppercase tracking-widest text-gray-400 pb-2 mb-4 border-b border-gray-100' }, props.label)
     },
 })
 
 // ── Route + API ───────────────────────────────────────────────────────────────
 
-const route  = useRoute()
-const api    = useApi()
-const equipId = computed(() => route.params.id)
+const route    = useRoute()
+const api      = useApi()
+const auth     = useAuthStore()
+const equipId  = computed(() => route.params.id)
+const tenantSlug = computed(() => auth.tenantSlug)
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
-const equipmentLoading     = ref(true)
-const activitiesLoading    = ref(true)
+const equipmentLoading      = ref(true)
+const activitiesLoading     = ref(true)
 const activitiesLoadingMore = ref(false)
-const workOrdersLoading    = ref(true)
-const plansLoading         = ref(true)
+const workOrdersLoading     = ref(true)
+const plansLoading          = ref(true)
 
-const equipment    = ref(null)
-const activities   = ref([])
+const equipment  = ref(null)
+const activities = ref([])
 const activitiesMeta = ref({ has_more: false, total: 0, current_page: 1 })
-const workOrders   = ref([])
-const plans        = ref([])
+const workOrders = ref([])
+const plans      = ref([])
 
-const lightboxPhoto = ref(null)
+const lightboxPhoto  = ref(null)
 const downloadingPdf = ref(false)
-const activeSection = ref('info')
+const activeSection  = ref('operacion')
+
+// Quick action panels
+const showWoPanel     = ref(false)
+const showReportPanel = ref(false)
+const woPanelType     = ref('corrective')
+const woDropdownOpen  = ref(false)
+
+// Timeline filter
+const activityFilter = ref('all')
+
+const activityFilters = [
+    { label: 'Todos', value: 'all' },
+    { label: 'OTs', value: 'work_orders' },
+    { label: 'Preventivos', value: 'preventives' },
+    { label: 'Paradas', value: 'downtime' },
+    { label: 'Lecturas', value: 'readings' },
+]
+
+const activityFilterTypes = {
+    work_orders: ['work_order_created', 'work_order_closed', 'failure_reported'],
+    preventives: ['preventive_executed'],
+    downtime: ['downtime'],
+    readings: ['meter_reading'],
+}
+
+// WO type options for dropdown
+const woTypes = [
+    { value: 'corrective', label: 'Correctiva' },
+    { value: 'preventive', label: 'Preventiva' },
+    { value: 'predictive', label: 'Predictiva' },
+    { value: 'inspection', label: 'Inspección' },
+    { value: 'improvement', label: 'Mejora' },
+    { value: 'emergency', label: 'Emergencia' },
+]
+
+// ── Actions ───────────────────────────────────────────────────────────────────
+
+function openWoPanel(type) {
+    woPanelType.value = type
+    showWoPanel.value = true
+    woDropdownOpen.value = false
+}
+
+function onWoCreated() {
+    loadWorkOrders()
+    loadActivities()
+}
+
+function onReportCreated() {
+    loadActivities()
+}
 
 async function downloadPdf() {
     if (downloadingPdf.value || ! equipment.value) { return }
@@ -692,7 +839,7 @@ async function downloadPdf() {
 // ── Responsive ────────────────────────────────────────────────────────────────
 
 const isDesktop = ref(typeof window !== 'undefined' && window.innerWidth >= 1024)
-const mobileTab = ref('info')
+const mobileTab = ref('operacion')
 
 function handleResize() {
     isDesktop.value = window.innerWidth >= 1024
@@ -700,12 +847,26 @@ function handleResize() {
 
 // ── Computed ──────────────────────────────────────────────────────────────────
 
+const activeWorkOrders = computed(() =>
+    workOrders.value.filter(wo => ['draft', 'planned', 'in_progress', 'on_hold'].includes(wo.status))
+)
+
+const childrenWithAlerts = computed(() =>
+    (equipment.value?.children ?? []).filter(c =>
+        c.status === 'under_maintenance' || (c.next_due_at && new Date(c.next_due_at) < new Date())
+    ).slice(0, 3)
+)
+
 const recentParts = computed(() =>
     activities.value.filter(e => e.type === 'parts_consumed').slice(0, 10)
 )
 
-// ── Estado del activo derived metrics ─────────────────────────────────────────
-// Costo acumulado: only render if present in the KPI payload; otherwise "—".
+const filteredActivities = computed(() => {
+    if (activityFilter.value === 'all') { return activities.value }
+    const types = activityFilterTypes[activityFilter.value] ?? []
+    return activities.value.filter(e => types.includes(e.type))
+})
+
 const accumulatedCost = computed(() => {
     const kpi = equipment.value?.kpi
     const raw = kpi?.total_cost ?? kpi?.cost_accumulated ?? equipment.value?.cost_accumulated
@@ -713,64 +874,58 @@ const accumulatedCost = computed(() => {
     return formatCurrency(raw, equipment.value?.currency_code)
 })
 
-// Última intervención: prefer explicit field, else most recent WO created_at.
 const lastInterventionIso = computed(() =>
     equipment.value?.last_work_order_at ?? workOrders.value[0]?.created_at ?? null
 )
-const lastInterventionDate = computed(() => formatDate(lastInterventionIso.value))
+const lastInterventionDate     = computed(() => formatDate(lastInterventionIso.value))
 const lastInterventionRelative = computed(() => relativeTime(lastInterventionIso.value))
 
 const componentsTabRef = ref(null)
 
 const mobileTabs = [
-    { id: 'info',          label: 'Info' },
-    { id: 'estado',        label: 'Estado' },
-    { id: 'componentes',   label: 'Componentes' },
-    { id: 'ots',           label: 'OTs' },
+    { id: 'operacion',    label: 'Operación' },
     { id: 'mantenimiento', label: 'Mantenimiento' },
-    { id: 'docs',          label: 'Documentos' },
-    { id: 'historial',     label: 'Historial' },
+    { id: 'activo',       label: 'Activo' },
+    { id: 'docs',         label: 'Docs' },
+    { id: 'historial',    label: 'Historial' },
 ]
 
-// Desktop anchor nav grouped into the 7 "Ficha 360" sections.
-// Each entry targets the scroll anchor of the first section in its group.
-const visibleDesktopSections = computed(() => {
+const desktopSections = computed(() => {
     if (!equipment.value) { return [] }
     const docsCount = (equipment.value.documents?.length || 0) + (equipment.value.photos?.length || 0)
-    const sections = [
-        { id: 'info',        label: 'Información' },
-        { id: 'estado',      label: 'Estado' },
-        { id: 'partes',      label: 'Componentes', count: equipment.value.children?.length || null },
-        { id: 'work-orders', label: 'OTs', count: workOrders.value.length || null },
-        { id: 'preventives', label: 'Mantenimiento', count: plans.value.length || null },
-        { id: equipment.value.documents?.length ? 'documents' : 'photos', label: 'Documentos', count: docsCount || null },
-        { id: 'timeline',    label: 'Historial', count: activitiesMeta.value.total || null },
+    return [
+        { id: 'operacion',    label: 'Operación', count: activeWorkOrders.value.length || null },
+        { id: 'mantenimiento', label: 'Mantenimiento', count: plans.value.length || null },
+        { id: 'activo',       label: 'Activo' },
+        { id: 'docs',         label: 'Docs & Fotos', count: docsCount || null },
+        { id: 'historial',    label: 'Historial', count: activitiesMeta.value.total || null },
     ]
-    return sections.filter(s => s.count == null || s.count > 0 || ['info', 'estado', 'partes', 'work-orders', 'timeline'].includes(s.id))
 })
 
 // ── Color maps ────────────────────────────────────────────────────────────────
 
 const eqStatus = (s) => describe(EQUIPMENT_STATUS, s)
-const crit = (c) => describe(CRITICALITY, c)
+const crit     = (c) => describe(CRITICALITY, c)
 
 const woStatusColors = {
-    open: 'bg-gray-100 text-gray-600', assigned: 'bg-blue-100 text-blue-700',
+    draft: 'bg-gray-100 text-gray-500', planned: 'bg-blue-100 text-blue-700',
     in_progress: 'bg-amber-100 text-amber-700', on_hold: 'bg-orange-100 text-orange-700',
     completed: 'bg-emerald-100 text-emerald-700', closed: 'bg-green-100 text-green-700',
     cancelled: 'bg-red-100 text-red-500', rejected: 'bg-red-100 text-red-600',
 }
 const woStatusLabels = {
-    open: 'Abierta', assigned: 'Asignada', in_progress: 'En progreso', on_hold: 'En pausa',
+    draft: 'Borrador', planned: 'Planificada', in_progress: 'En progreso', on_hold: 'En pausa',
     completed: 'Completada', closed: 'Cerrada', cancelled: 'Cancelada', rejected: 'Rechazada',
 }
 const woPriorityColors = {
-    low: 'bg-gray-100 text-gray-500', medium: 'bg-blue-100 text-blue-600',
-    high: 'bg-orange-100 text-orange-700', critical: 'bg-red-100 text-red-700',
+    p1_critical: 'bg-red-100 text-red-700', p2_high: 'bg-orange-100 text-orange-700',
+    p3_medium: 'bg-blue-100 text-blue-600', p4_low: 'bg-gray-100 text-gray-500',
+    p5_planned: 'bg-gray-100 text-gray-400',
 }
 const woTypeDot = {
     corrective: 'bg-red-400', preventive: 'bg-blue-500',
     predictive: 'bg-purple-500', inspection: 'bg-emerald-500',
+    improvement: 'bg-sky-500', emergency: 'bg-red-600',
 }
 
 const activityDotBg = {
@@ -836,6 +991,7 @@ function formatCurrency(amount, currency) {
 
 function scrollToSection(id) {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    activeSection.value = id
 }
 
 function docExt(name) {
@@ -868,9 +1024,10 @@ async function loadEquipment() {
 }
 
 async function loadActivities() {
+    activitiesLoading.value = true
     try {
         const res = await api.get(`equipment/${equipId.value}/activity?per_page=50`)
-        activities.value   = res?.data ?? []
+        activities.value     = res?.data ?? []
         activitiesMeta.value = res?.meta ?? {}
     } catch { /* silent */ } finally {
         activitiesLoading.value = false
@@ -883,7 +1040,7 @@ async function loadMoreActivities() {
     try {
         const nextPage = (activitiesMeta.value.current_page ?? 1) + 1
         const res = await api.get(`equipment/${equipId.value}/activity?per_page=50&page=${nextPage}`)
-        activities.value = [...activities.value, ...(res?.data ?? [])]
+        activities.value     = [...activities.value, ...(res?.data ?? [])]
         activitiesMeta.value = res?.meta ?? {}
     } catch { /* silent */ } finally {
         activitiesLoadingMore.value = false
@@ -891,6 +1048,7 @@ async function loadMoreActivities() {
 }
 
 async function loadWorkOrders() {
+    workOrdersLoading.value = true
     try {
         const res = await api.get(`work-orders?equipment_id=${equipId.value}&per_page=6`)
         workOrders.value = res?.data ?? []
@@ -914,22 +1072,15 @@ let sectionObserver = null
 
 function initSectionObserver() {
     if (sectionObserver) { sectionObserver.disconnect() }
-    // Map secondary section anchors to the nav group that owns them so the
-    // correct desktop nav tab stays highlighted while scrolling.
-    const navGroupForSection = {
-        components: 'partes',     // Sub-equipos lives under "Componentes"
-        parts: 'work-orders',     // Repuestos lives under "OTs"
-        photos: equipment.value?.documents?.length ? 'documents' : 'photos',
-    }
     sectionObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
-                activeSection.value = navGroupForSection[entry.target.id] ?? entry.target.id
+                activeSection.value = entry.target.id
             }
         })
     }, { threshold: 0, rootMargin: '-40% 0px -55% 0px' })
 
-    const sectionIds = ['info', 'estado', 'timeline', 'partes', 'components', 'work-orders', 'preventives', 'parts', 'photos', 'documents']
+    const sectionIds = ['operacion', 'mantenimiento', 'activo', 'docs', 'historial']
     sectionIds.forEach(id => {
         const el = document.getElementById(id)
         if (el) { sectionObserver.observe(el) }

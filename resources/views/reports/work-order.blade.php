@@ -3,69 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'DejaVu Sans', sans-serif; font-size: 10px; color: #1e293b; background: #fff; }
-
-    #header { position: fixed; top: -50px; left: 0; right: 0; height: 50px; }
-    #footer { position: fixed; bottom: -30px; left: 0; right: 0; height: 30px; }
-    .page { content: counter(page); }
-    .topage { content: counter(pages); }
-
-    .report-title { background: #1e3a5f; color: #fff; padding: 10px 14px; margin-bottom: 14px; border-radius: 3px; }
-    .report-title h1 { font-size: 15px; font-weight: bold; }
-    .report-title p { font-size: 9px; color: #93c5fd; margin-top: 2px; }
-
-    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 8px; font-weight: bold; }
-    .badge-success { background: #dcfce7; color: #166534; }
-    .badge-warning { background: #fef9c3; color: #854d0e; }
-    .badge-danger  { background: #fee2e2; color: #991b1b; }
-    .badge-info    { background: #dbeafe; color: #1e40af; }
-    .badge-gray    { background: #f1f5f9; color: #475569; }
-
-    .section { margin-bottom: 14px; page-break-inside: avoid; }
-    .section-title { font-size: 9px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em;
-                     color: #1e3a5f; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px; margin-bottom: 7px; }
-
-    .grid-2 { width: 100%; }
-    .grid-2 td { width: 50%; vertical-align: top; padding: 0 6px 0 0; }
-
-    .field-label { font-size: 8px; color: #64748b; margin-bottom: 1px; }
-    .field-value { font-size: 10px; color: #1e293b; margin-bottom: 8px; }
-
-    table.data-table { width: 100%; border-collapse: collapse; font-size: 9px; }
-    table.data-table th { background: #f1f5f9; color: #475569; text-align: left; padding: 4px 6px;
-                          font-weight: bold; border: 1px solid #e2e8f0; font-size: 8px; }
-    table.data-table td { padding: 4px 6px; border: 1px solid #e2e8f0; vertical-align: top; }
-    table.data-table tr:nth-child(even) td { background: #f8fafc; }
-
-    .cost-total { background: #1e3a5f; color: #fff; padding: 6px 10px; text-align: right;
-                  font-size: 11px; font-weight: bold; margin-top: 4px; border-radius: 3px; }
-
-    .signature-box { border: 1px solid #e2e8f0; padding: 8px; min-height: 50px; text-align: center;
-                     border-radius: 3px; }
-    .signature-name { font-size: 8px; color: #475569; margin-top: 4px; border-top: 1px solid #e2e8f0;
-                      padding-top: 3px; }
-
-    .text-block { font-size: 9px; line-height: 1.5; color: #374151; background: #f8fafc;
-                  border: 1px solid #e2e8f0; border-radius: 3px; padding: 6px; }
-
-    .empty { color: #94a3b8; font-style: italic; }
+    @include('reports.partials.styles')
 </style>
 </head>
 <body>
 
-{{-- Running header --}}
-<div id="header">
-    @include('reports.partials.header')
-</div>
-
-{{-- Running footer --}}
-<div id="footer">
-    @include('reports.partials.footer')
-</div>
+{{-- Running header/footer — the partials already provide the #header/#footer
+     div DomPDF positions; wrapping them again created a duplicate id and
+     silently broke rendering (see reports.partials.styles for the fix). --}}
+@include('reports.partials.header')
+@include('reports.partials.footer')
 
 {{-- Main content — padding accounts for fixed header/footer --}}
-<div style="padding-top: 60px; padding-bottom: 35px;">
+<div class="doc-body">
 
     {{-- Report title bar --}}
     <div class="report-title">
@@ -303,14 +253,21 @@
                 @foreach($workOrder->signatures as $sig)
                 <td style="width:{{ intdiv(100, $workOrder->signatures->count()) }}%; padding: 0 8px 0 0; vertical-align:top;">
                     <div class="signature-box">
-                        @if($sig->signature_path ?? null)
-                            <img src="{{ $sig->signature_path }}" style="max-height:40px;" alt="Firma">
+                        @if($signatureImages[$sig->id] ?? null)
+                            <img src="{{ $signatureImages[$sig->id] }}" style="max-height:40px;" alt="Firma">
                         @else
-                            <div style="height:40px;"></div>
+                            <div class="empty" style="height:40px; line-height:40px; font-size:8px;">Sin firma registrada</div>
                         @endif
                         <div class="signature-name">
-                            {{ $sig->user?->name ?? '—' }}<br>
-                            <span style="font-size:7px; color:#94a3b8;">{{ $sig->signature_type }}</span>
+                            <div style="font-weight:bold; color:#1e293b; font-size:9px;">{{ $sig->user?->name ?? '—' }}</div>
+                            @if($sig->user?->email)
+                                <div style="font-size:7px; color:#94a3b8;">{{ $sig->user->email }}</div>
+                            @endif
+                            <div style="font-size:7px; color:#64748b; margin-top:2px;">{{ $sig->signature_type->label() }} · {{ $sig->signed_at?->format('d/m/Y H:i') }}</div>
+                            @if($signatureLocations[$sig->id] ?? null)
+                                @php($loc = $signatureLocations[$sig->id])
+                                <div style="font-size:7px; color:#94a3b8;">Ubicación: {{ number_format($loc->latitude, 4) }}, {{ number_format($loc->longitude, 4) }} (±{{ round($loc->accuracy) }} m)</div>
+                            @endif
                         </div>
                     </div>
                 </td>

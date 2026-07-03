@@ -119,24 +119,22 @@ async function processAction(action) {
         }
 
         case 'SIGNATURE': {
-            // Step 1: upload PNG blob via /media
+            // Single request: the image and its metadata are one atomic record, so a
+            // retry can never leave a signature without its image (or vice versa).
             const form = new FormData()
-            form.append('file', action.media_blob, `signature_${action.id}.png`)
-            form.append('attachment_type', 'evidence')
-            form.append('caption', 'Firma técnico')
-            const r1 = await syncUpload(`work-orders/${wid}/media`, form, action.idempotency_key)
-            const c1 = classify(r1.status)
-            if (c1 !== 'ok') return { classification: c1, response: r1 }
-
-            // Step 2: record signature event — uses a separate idempotency key stored in payload
-            const sigBody = { signature_type: action.payload.signature_type, notes: action.payload.notes }
-            if (action.payload.gps) sigBody.gps = action.payload.gps
-            const r2 = await syncPost(
-                `work-orders/${wid}/signature`,
-                sigBody,
-                action.payload.sig_key,
-            )
-            return { classification: classify(r2.status), response: r2 }
+            form.append('signature_image', action.media_blob, `signature_${action.id}.png`)
+            form.append('signature_type', action.payload.signature_type)
+            if (action.payload.notes) form.append('notes', action.payload.notes)
+            if (action.payload.gps) {
+                const gps = action.payload.gps
+                form.append('gps[latitude]', gps.latitude)
+                form.append('gps[longitude]', gps.longitude)
+                form.append('gps[accuracy]', gps.accuracy)
+                if (gps.source) form.append('gps[source]', gps.source)
+                if (gps.gps_timestamp) form.append('gps[gps_timestamp]', gps.gps_timestamp)
+            }
+            const r = await syncUpload(`work-orders/${wid}/signature`, form, action.idempotency_key)
+            return { classification: classify(r.status), response: r }
         }
 
         case 'ALERT_RESOLVE': {

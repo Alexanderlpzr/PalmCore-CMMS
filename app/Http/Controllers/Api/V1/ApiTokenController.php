@@ -19,20 +19,20 @@ class ApiTokenController extends Controller
         $credentials = $request->only('email', 'password');
 
         if (! Auth::once($credentials)) {
-            return response()->json(['message' => 'The provided credentials are incorrect.'], 401);
+            return response()->json(['message' => 'El correo o la contraseña no son correctos.'], 401);
         }
 
         /** @var User $user */
         $user = Auth::user();
 
         if (! $user->is_active) {
-            return response()->json(['message' => 'Your account is inactive.'], 403);
+            return response()->json(['message' => 'Tu cuenta está inactiva. Contacta a tu administrador.'], 403);
         }
 
         $tenant = Tenant::where('slug', $request->tenant_slug)->first();
 
         if (! $user->canAccessTenant($tenant)) {
-            return response()->json(['message' => 'You do not have access to this tenant.'], 403);
+            return response()->json(['message' => 'No tienes acceso a esta empresa.'], 403);
         }
 
         $abilities = $request->abilities ?? ['work-orders.read', 'work-orders.write', 'equipment.read', 'maintenance-requests.read', 'maintenance-requests.write', 'inventory.read', 'plants.read', 'areas.read'];
@@ -77,12 +77,12 @@ class ApiTokenController extends Controller
         $token = $request->user()->tokens()->find($tokenId);
 
         if (! $token) {
-            return response()->json(['message' => 'Token not found.'], 404);
+            return response()->json(['message' => 'No encontramos ese token de acceso.'], 404);
         }
 
         $token->delete();
 
-        return response()->json(['message' => 'Token revoked.']);
+        return response()->json(['message' => 'Token revocado correctamente.']);
     }
 
     public function index(Request $request): JsonResponse

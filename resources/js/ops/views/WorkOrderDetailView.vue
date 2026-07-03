@@ -1,28 +1,24 @@
 <template>
     <div class="min-h-full bg-gray-50">
 
-        <!-- Loading skeleton -->
+        <!-- Loading skeleton — mirrors Mission Hero / Progress / Context so there's no layout jump on load -->
         <div v-if="loading">
             <div class="bg-white border-b border-gray-100 px-4 lg:px-8 py-5">
                 <div class="max-w-5xl mx-auto">
-                    <div class="skeleton h-3 w-40 rounded mb-4" />
-                    <div class="flex gap-4 items-start">
-                        <div class="flex-1 space-y-2">
-                            <div class="skeleton h-3 w-24 rounded" />
-                            <div class="skeleton h-7 w-2/3 rounded" />
-                            <div class="flex gap-2 mt-1">
-                                <div class="skeleton h-5 w-16 rounded-full" />
-                                <div class="skeleton h-5 w-24 rounded-full" />
-                            </div>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 lg:grid-cols-5 gap-2 mt-5">
-                        <div v-for="i in 5" :key="i" class="skeleton h-16 rounded-xl" />
-                    </div>
+                    <div class="skeleton h-3 w-40 rounded" />
                 </div>
             </div>
             <div class="max-w-5xl mx-auto px-4 lg:px-8 py-6 space-y-4">
-                <div v-for="i in 4" :key="i" class="skeleton h-32 rounded-2xl" />
+                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
+                    <div class="skeleton h-3 w-32 rounded" />
+                    <div class="skeleton h-7 w-2/3 rounded" />
+                    <div class="flex gap-2"><div class="skeleton h-5 w-16 rounded-full" /><div class="skeleton h-5 w-20 rounded-full" /></div>
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-3">
+                        <div v-for="i in 4" :key="i" class="skeleton h-10 rounded-lg" />
+                    </div>
+                </div>
+                <div class="skeleton h-24 rounded-2xl" />
+                <div v-for="i in 2" :key="i" class="skeleton h-32 rounded-2xl" />
             </div>
         </div>
 
@@ -35,34 +31,20 @@
         <!-- Main content -->
         <template v-else-if="wo">
 
-            <!-- ── Sticky header ──────────────────────────────────────────────── -->
+            <!-- ── Sticky header (slim) ─────────────────────────────────────────── -->
             <div class="bg-white border-b border-gray-100 sticky top-0 z-20 shadow-sm">
                 <div class="max-w-5xl mx-auto px-4 lg:px-8 pt-3 pb-0">
 
-                    <!-- Breadcrumbs -->
-                    <nav class="flex items-center gap-1 text-xs mb-3 flex-wrap">
-                        <button @click="goBack" class="flex items-center gap-1 text-gray-500 hover:text-gray-700 transition-colors shrink-0">
-                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
-                            {{ backLabel }}
-                        </button>
-                        <svg class="w-3 h-3 text-gray-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-                        <span class="text-gray-700 font-medium font-mono truncate">{{ wo.work_order_number }}</span>
-                    </nav>
-
-                    <!-- Identity row -->
-                    <div class="flex items-start gap-3 mb-4">
-                        <div class="flex-1 min-w-0">
-                            <p class="text-xs font-mono font-bold text-gray-500 uppercase tracking-widest leading-none">{{ wo.work_order_number }}</p>
-                            <h1 class="text-lg lg:text-2xl font-bold text-gray-900 mt-0.5 leading-tight">{{ wo.title }}</h1>
-                            <div class="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                                <Badge :tone="status(wo.status).tone" :label="status(wo.status).label" />
-                                <Badge :tone="priority(wo.priority).tone" :label="priority(wo.priority).label" />
-                                <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
-                                    {{ typeLabel[wo.work_order_type] ?? wo.work_order_type }}
-                                </span>
-                            </div>
-                        </div>
-
+                    <!-- Breadcrumbs + utility actions -->
+                    <div class="flex items-center justify-between gap-3 mb-3">
+                        <nav class="flex items-center gap-1 text-xs flex-wrap min-w-0">
+                            <button @click="goBack" class="flex items-center gap-1 text-gray-500 hover:text-gray-700 transition-colors shrink-0">
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+                                {{ backLabel }}
+                            </button>
+                            <svg class="w-3 h-3 text-gray-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                            <span class="text-gray-700 font-medium font-mono truncate">{{ wo.work_order_number }}</span>
+                        </nav>
                         <div class="shrink-0 flex items-center gap-1.5">
                             <FavoriteStar type="workorders" :id="wo.id" />
                             <button
@@ -74,52 +56,6 @@
                                 {{ downloadingPdf ? '…' : 'PDF' }}
                             </button>
                         </div>
-                    </div>
-
-                    <!-- KPI strip -->
-                    <div class="grid grid-cols-2 lg:grid-cols-5 gap-2 mb-4">
-                        <div class="rounded-xl p-2.5 bg-emerald-50">
-                            <p class="text-xs font-bold uppercase tracking-wider text-emerald-600 leading-none mb-1">Tiempo real</p>
-                            <p class="text-lg font-bold text-gray-900 leading-none">{{ wo.actual_labor_hours != null ? Number(wo.actual_labor_hours).toFixed(1) + 'h' : '—' }}</p>
-                        </div>
-                        <div class="rounded-xl p-2.5 bg-red-50">
-                            <p class="text-xs font-bold uppercase tracking-wider text-red-600 leading-none mb-1">Paro</p>
-                            <p class="text-lg font-bold text-gray-900 leading-none">{{ wo.downtime_minutes != null ? (wo.downtime_minutes / 60).toFixed(1) + 'h' : '—' }}</p>
-                        </div>
-                        <div class="rounded-xl p-2.5 bg-blue-50">
-                            <p class="text-xs font-bold uppercase tracking-wider text-blue-600 leading-none mb-1">Costo total</p>
-                            <p class="text-lg font-bold text-gray-900 leading-none truncate">{{ wo.actual_cost_total != null ? formatCurrency(wo.actual_cost_total, wo.currency_code) : '—' }}</p>
-                        </div>
-                        <div class="rounded-xl p-2.5 bg-sky-50">
-                            <p class="text-xs font-bold uppercase tracking-wider text-sky-600 leading-none mb-1">Evidencias</p>
-                            <p class="text-lg font-bold text-gray-900 leading-none">{{ tabs.evidencias.loaded ? media.length : '—' }}</p>
-                        </div>
-                        <div class="rounded-xl p-2.5 bg-slate-100 col-span-2 lg:col-span-1">
-                            <p class="text-xs font-bold uppercase tracking-wider text-slate-500 leading-none mb-1">Firmas</p>
-                            <p class="text-lg font-bold text-gray-900 leading-none">{{ tabs.firmas.loaded ? signatures.length : '—' }}</p>
-                        </div>
-                    </div>
-
-                    <!-- Status transition actions -->
-                    <div v-if="primaryTransition || secondaryTransitions.length" class="flex gap-2 flex-wrap mb-4">
-                        <button
-                            v-if="primaryTransition"
-                            @click="transition(primaryTransition.status)"
-                            :disabled="transitioning"
-                            class="flex-1 lg:flex-none flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 transition-colors"
-                        >
-                            {{ transitioning ? '…' : primaryTransition.label }}
-                        </button>
-                        <button
-                            v-for="t in secondaryTransitions"
-                            :key="t.status"
-                            @click="transition(t.status)"
-                            :disabled="transitioning"
-                            class="px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-700 bg-white border border-gray-200 hover:border-gray-300 disabled:opacity-60 transition-colors"
-                        >
-                            {{ t.label }}
-                        </button>
-                        <p v-if="transitionError" class="w-full text-xs text-red-600">{{ transitionError }}</p>
                     </div>
 
                     <!-- Desktop anchor nav -->
@@ -146,32 +82,52 @@
                 </div>
             </div>
 
+            <!-- ── Mission Workspace: Hero / Progress / Context ─────────────────── -->
+            <div class="max-w-5xl mx-auto px-4 lg:px-8 pt-6 space-y-4">
+                <MissionHero :work-order="wo" :expected-outcome="wo.mission?.expected_outcome" />
+
+                <QuickDecisions
+                    :work-order="wo"
+                    :transitioning="transitioning"
+                    :transition-error="transitionError"
+                    @transition="transition"
+                    @open-completion="completionOpen = true"
+                    @open-evidence="evidenceZoneRef?.openUpload()"
+                    @open-support="evidenceZoneRef?.openSupport()"
+                    @download-pdf="downloadPdf"
+                />
+
+                <MissionProgress v-if="wo.mission?.progress" :progress="wo.mission.progress" />
+
+                <MissionContext
+                    :work-order="wo"
+                    :origin="wo.mission?.origin"
+                    :previous-intervention="wo.mission?.previous_intervention"
+                />
+
+                <!-- KPI strip -->
+                <div class="grid grid-cols-3 gap-2">
+                    <div class="rounded-xl p-2.5 bg-emerald-50">
+                        <p class="text-xs font-bold uppercase tracking-wider text-emerald-600 leading-none mb-1">Tiempo real</p>
+                        <p class="text-lg font-bold text-gray-900 leading-none">{{ wo.actual_labor_hours != null ? Number(wo.actual_labor_hours).toFixed(1) + 'h' : '—' }}</p>
+                    </div>
+                    <div class="rounded-xl p-2.5 bg-red-50">
+                        <p class="text-xs font-bold uppercase tracking-wider text-red-600 leading-none mb-1">Paro</p>
+                        <p class="text-lg font-bold text-gray-900 leading-none">{{ wo.downtime_minutes != null ? (wo.downtime_minutes / 60).toFixed(1) + 'h' : '—' }}</p>
+                    </div>
+                    <div class="rounded-xl p-2.5 bg-blue-50">
+                        <p class="text-xs font-bold uppercase tracking-wider text-blue-600 leading-none mb-1">Costo total</p>
+                        <p class="text-lg font-bold text-gray-900 leading-none truncate">{{ wo.actual_cost_total != null ? formatCurrency(wo.actual_cost_total, wo.currency_code) : '—' }}</p>
+                    </div>
+                </div>
+            </div>
+
             <!-- ── Content sections ────────────────────────────────────────────── -->
             <div class="max-w-5xl mx-auto px-4 lg:px-8 py-6 space-y-8">
 
                 <!-- ── RESUMEN ─────────────────────────────────────────────────── -->
                 <section id="resumen" class="scroll-mt-72" v-show="isDesktop || mobileTab === 'resumen'">
                     <SectionLabel label="Resumen" />
-
-                    <!-- Equipment context card -->
-                    <div v-if="wo.equipment" class="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex items-center justify-between gap-4 mb-4">
-                        <div>
-                            <p class="text-xs font-semibold uppercase tracking-wider text-indigo-400 mb-0.5">Equipo asociado</p>
-                            <p class="text-sm font-bold text-indigo-900">{{ wo.equipment.name }}</p>
-                            <div class="flex items-center gap-2 mt-0.5 flex-wrap">
-                                <span class="text-xs font-mono text-indigo-400">{{ wo.equipment.code }}</span>
-                                <span v-if="wo.equipment.area?.name" class="text-xs text-indigo-500">{{ wo.equipment.area.name }}</span>
-                                <span v-if="wo.equipment.status" class="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
-                                    {{ wo.equipment.status }}
-                                </span>
-                            </div>
-                        </div>
-                        <RouterLink :to="{ name: 'ops.equipos.show', params: { id: wo.equipment.id } }"
-                            class="shrink-0 flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors">
-                            Ver equipo
-                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-                        </RouterLink>
-                    </div>
 
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         <!-- Details -->
@@ -226,17 +182,8 @@
                         </div>
                     </div>
 
-                    <!-- Description -->
-                    <div v-if="wo.description" class="bg-white rounded-2xl border border-gray-100 shadow-sm mt-4 p-4">
-                        <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Descripción</p>
-                        <p class="text-sm text-gray-700 whitespace-pre-line leading-relaxed">{{ wo.description }}</p>
-                    </div>
-
-                    <!-- Instructions -->
-                    <div v-if="wo.instructions" class="bg-white rounded-2xl border border-gray-100 shadow-sm mt-4 p-4">
-                        <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Instrucciones</p>
-                        <p class="text-sm text-gray-700 whitespace-pre-line leading-relaxed">{{ wo.instructions }}</p>
-                    </div>
+                    <!-- Descripción e Instrucciones ahora viven en Mission Context, arriba —
+                         evita mostrar el mismo texto dos veces en la misma pantalla. -->
 
                     <!-- Resultado -->
                     <div v-if="wo.work_performed || wo.failure_cause || wo.root_cause" class="bg-white rounded-2xl border border-gray-100 shadow-sm mt-4 p-4 space-y-4">
@@ -388,153 +335,45 @@
                     </div>
                 </section>
 
-                <!-- ── EVIDENCIAS ──────────────────────────────────────────────── -->
-                <section id="evidencias" class="scroll-mt-72" v-show="isDesktop || mobileTab === 'evidencias'">
-                    <SectionLabel label="Evidencias" />
-
-                    <div v-if="tabs.evidencias.loading" class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                        <div v-for="i in 4" :key="i" class="skeleton aspect-square rounded-2xl" />
-                    </div>
-                    <template v-else-if="media.length">
-                        <div v-for="group in mediaGroups" :key="group.key" class="mb-5 last:mb-0">
-                            <p class="text-xs font-semibold text-gray-500 mb-2">{{ group.label }} <span class="text-gray-400">({{ group.items.length }})</span></p>
-                            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                                <template v-for="m in group.items" :key="m.id">
-                                    <!-- Image thumbnail -->
-                                    <div v-if="isImage(m)" @click="lightboxPhoto = { url: m.url, caption: m.caption }"
-                                        class="aspect-square rounded-2xl overflow-hidden bg-slate-100 cursor-pointer hover:opacity-90 transition-opacity relative border border-gray-100">
-                                        <img :src="m.url" :alt="m.caption ?? m.file_name" class="w-full h-full object-cover" />
-                                        <p v-if="m.caption" class="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/50 px-2 pb-2 pt-4 text-xs text-white leading-snug line-clamp-2">
-                                            {{ m.caption }}
-                                        </p>
-                                    </div>
-                                    <!-- File card -->
-                                    <a v-else :href="m.url" target="_blank" rel="noopener"
-                                        class="aspect-square rounded-2xl bg-white border border-gray-100 shadow-sm hover:border-gray-200 hover:shadow-md transition-all p-3 flex flex-col items-center justify-center text-center gap-2">
-                                        <div class="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
-                                            <svg class="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/>
-                                            </svg>
-                                        </div>
-                                        <p class="text-xs font-medium text-gray-700 truncate w-full">{{ m.file_name }}</p>
-                                        <p v-if="m.file_size" class="text-xs text-gray-400">{{ formatFileSize(m.file_size) }}</p>
-                                    </a>
-                                </template>
-                            </div>
-                        </div>
-                    </template>
-                    <div v-else class="bg-white rounded-2xl border border-gray-100 shadow-sm py-10 text-center text-xs text-gray-500">
-                        Sin evidencias adjuntas
-                    </div>
-                </section>
-
-                <!-- ── FIRMAS ──────────────────────────────────────────────────── -->
-                <section id="firmas" class="scroll-mt-72" v-show="isDesktop || mobileTab === 'firmas'">
-                    <SectionLabel label="Firmas" />
-
-                    <div v-if="tabs.firmas.loading" class="space-y-3">
-                        <div v-for="i in 2" :key="i" class="skeleton h-20 rounded-2xl" />
-                    </div>
-                    <div v-else-if="signatures.length" class="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                        <div v-for="s in signatures" :key="s.id" class="bg-white rounded-2xl border border-emerald-100 shadow-sm p-4 flex items-start gap-3">
-                            <div class="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
-                                <svg class="w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <span class="text-xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700">
-                                    {{ signatureTypeLabel[s.signature_type] ?? s.signature_type }}
-                                </span>
-                                <p class="text-sm font-semibold text-gray-900 mt-1.5">{{ s.user?.name ?? 'Usuario' }}</p>
-                                <p class="text-xs text-gray-500">{{ formatDateTime(s.signed_at ?? s.created_at) }}</p>
-                                <p v-if="s.notes" class="text-xs text-gray-600 mt-1 whitespace-pre-line">{{ s.notes }}</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div v-else class="bg-white rounded-2xl border border-gray-100 shadow-sm py-10 text-center text-xs text-gray-500">
-                        Sin firmas registradas
-                    </div>
-                </section>
-
-                <!-- ── COMENTARIOS ─────────────────────────────────────────────── -->
-                <section id="comentarios" class="scroll-mt-72 space-y-3" v-show="isDesktop || mobileTab === 'comentarios'">
-                    <SectionLabel label="Comentarios" />
-
-                    <div v-if="wo.comments?.length" class="space-y-2">
-                        <div v-for="c in wo.comments" :key="c.id" class="bg-white rounded-2xl border p-4"
-                            :class="c.is_internal ? 'border-amber-200 bg-amber-50/40' : 'border-gray-100 shadow-sm'">
-                            <div class="flex items-center justify-between mb-2">
-                                <p class="text-sm font-semibold text-gray-900">{{ c.user?.name ?? 'Usuario' }}</p>
-                                <div class="flex items-center gap-1.5">
-                                    <span v-if="c.is_internal" class="text-xs border border-amber-300 text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-full font-semibold">Interno</span>
-                                    <span class="text-xs text-gray-500">{{ relativeTime(c.created_at) }}</span>
-                                </div>
-                            </div>
-                            <p class="text-sm text-gray-700 whitespace-pre-line">{{ c.body }}</p>
-                        </div>
-                    </div>
-                    <div v-else class="bg-white rounded-2xl border border-gray-100 shadow-sm py-8 text-center text-xs text-gray-500">
-                        Sin comentarios aún
-                    </div>
-
-                    <!-- Compose -->
-                    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-                        <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Añadir comentario</p>
-                        <textarea
-                            v-model="newComment"
-                            rows="3"
-                            placeholder="Escribe un comentario..."
-                            class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent placeholder-gray-300"
-                        />
-                        <div class="flex items-center justify-between mt-2.5">
-                            <label class="flex items-center gap-2 text-xs text-gray-500 cursor-pointer select-none">
-                                <input type="checkbox" v-model="commentInternal" class="rounded border-gray-300" />
-                                Nota interna
-                            </label>
-                            <button
-                                @click="submitComment"
-                                :disabled="!newComment.trim() || submittingComment"
-                                class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl disabled:opacity-50 transition-colors"
-                            >
-                                {{ submittingComment ? '…' : 'Enviar' }}
-                            </button>
-                        </div>
-                        <p v-if="commentError" class="mt-2 text-xs text-red-600">{{ commentError }}</p>
-                    </div>
+                <!-- ── EVIDENCIA ───────────────────────────────────────────────── -->
+                <!-- Un único espacio: fotos, checklist, notas y firmas, no repartidos
+                     en pestañas separadas — así lo pide WXA-2B. -->
+                <section id="evidencia" class="scroll-mt-72" v-show="isDesktop || mobileTab === 'evidencia'">
+                    <SectionLabel label="Evidencia y cierre" />
+                    <EvidenceZone ref="evidenceZoneRef" :work-order="wo" @refresh="refreshWorkOrder" />
                 </section>
 
             </div>
         </template>
 
-        <!-- Photo lightbox -->
-        <Teleport to="body">
-            <div v-if="lightboxPhoto" class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" @click.self="lightboxPhoto = null">
-                <div class="relative max-w-3xl w-full">
-                    <img :src="lightboxPhoto.url" :alt="lightboxPhoto.caption ?? ''" class="w-full rounded-2xl object-contain max-h-[80vh]" />
-                    <p v-if="lightboxPhoto.caption" class="text-white text-sm mt-3 text-center">{{ lightboxPhoto.caption }}</p>
-                    <button @click="lightboxPhoto = null" class="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-white text-gray-700 hover:text-gray-900 flex items-center justify-center shadow-lg">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                    </button>
-                </div>
-            </div>
-        </Teleport>
+        <CompletionExperience
+            :open="completionOpen"
+            :work-order="wo ?? {}"
+            :submitting="transitioning"
+            :error="transitionError"
+            @close="completionOpen = false"
+            @completed="submitCompletion"
+        />
 
     </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted, defineComponent, h } from 'vue'
-import { useRoute, useRouter, RouterLink } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useApi } from '../composables/useApi.js'
-import { useAuthStore } from '../stores/auth.js'
-import { describe, WORK_ORDER_STATUS, PRIORITY } from '../../shared/design.js'
-import Badge from '../components/Badge.vue'
 import AppIcon from '../components/AppIcon.vue'
 import FavoriteStar from '../components/FavoriteStar.vue'
+import MissionHero from '../components/mission/MissionHero.vue'
+import MissionProgress from '../components/mission/MissionProgress.vue'
+import MissionContext from '../components/mission/MissionContext.vue'
+import QuickDecisions from '../components/mission/QuickDecisions.vue'
+import EvidenceZone from '../components/mission/EvidenceZone.vue'
+import CompletionExperience from '../components/mission/CompletionExperience.vue'
 
 const route = useRoute()
 const router = useRouter()
 const api = useApi()
-const auth = useAuthStore()
 
 // ── Inline sub-components ──────────────────────────────────────────────────────
 
@@ -587,30 +426,21 @@ const error = ref(null)
 const downloadingPdf = ref(false)
 const transitioning = ref(false)
 const transitionError = ref(null)
-const newComment = ref('')
-const commentInternal = ref(false)
-const submittingComment = ref(false)
-const commentError = ref(null)
-const lightboxPhoto = ref(null)
+const completionOpen = ref(false)
+const evidenceZoneRef = ref(null)
 
 // ── Lazy tab data ──────────────────────────────────────────────────────────────
 
-const media = ref([])
-const signatures = ref([])
 const timeEntries = ref([])
 const components = ref([])
 
 const tabs = reactive({
     componentes: { loaded: false, loading: false },
     tiempo: { loaded: false, loading: false },
-    evidencias: { loaded: false, loading: false },
-    firmas: { loaded: false, loading: false },
 })
 
 // ── Label maps ─────────────────────────────────────────────────────────────────
-
-const status = (s) => describe(WORK_ORDER_STATUS, s)
-const priority = (p) => describe(PRIORITY, p)
+// status()/priority() moved into MissionHero.vue, which now owns that badge row.
 
 const typeLabel = {
     corrective: 'Correctivo', preventive: 'Preventivo', predictive: 'Predictivo',
@@ -629,39 +459,6 @@ const partStatusBadge = {
 const partStatusLabel = {
     requested: 'Solicitada', reserved: 'Reservada', issued: 'Emitida', used: 'Usada', returned: 'Devuelta',
 }
-const signatureTypeLabel = {
-    technician_completion: 'Técnico (finalización)',
-    supervisor_verification: 'Supervisor (verificación)',
-}
-const mediaTypeLabel = {
-    before_photo: 'Antes', after_photo: 'Después',
-}
-
-// ── Transition map ─────────────────────────────────────────────────────────────
-
-const transitionMap = {
-    draft: [{ status: 'planned', label: 'Planificar', primary: true }],
-    planned: [
-        { status: 'in_progress', label: 'Iniciar', primary: true },
-        { status: 'cancelled', label: 'Cancelar', primary: false },
-    ],
-    in_progress: [
-        { status: 'completed', label: 'Completar', primary: true },
-        { status: 'on_hold', label: 'Pausar', primary: false },
-    ],
-    on_hold: [
-        { status: 'in_progress', label: 'Reanudar', primary: true },
-        { status: 'cancelled', label: 'Cancelar', primary: false },
-    ],
-    completed: [
-        { status: 'verified', label: 'Verificar', primary: true },
-        { status: 'in_progress', label: 'Reabrir', primary: false },
-    ],
-    verified: [{ status: 'closed', label: 'Cerrar', primary: true }],
-}
-
-const primaryTransition = computed(() => transitionMap[wo.value?.status]?.find(t => t.primary) ?? null)
-const secondaryTransitions = computed(() => transitionMap[wo.value?.status]?.filter(t => !t.primary) ?? [])
 
 // ── Status timeline (client-side from timestamps) ──────────────────────────────
 
@@ -685,9 +482,11 @@ const tabList = computed(() => [
     { id: 'historial', label: 'Historial', count: milestones.value.length || null },
     { id: 'componentes', label: 'Componentes', count: tabs.componentes.loaded ? (components.value.length || null) : null },
     { id: 'tiempo', label: 'Tiempo & Repuestos', count: wo.value?.parts?.length || null },
-    { id: 'evidencias', label: 'Evidencias', count: tabs.evidencias.loaded ? (media.value.length || null) : null },
-    { id: 'firmas', label: 'Firmas', count: tabs.firmas.loaded ? (signatures.value.length || null) : null },
-    { id: 'comentarios', label: 'Comentarios', count: wo.value?.comments?.length || null },
+    {
+        id: 'evidencia',
+        label: 'Evidencia',
+        count: (wo.value?.attachments?.length || 0) + (wo.value?.signatures?.length || 0) + (wo.value?.comments?.length || 0) || null,
+    },
 ])
 
 const activeSection = ref('resumen')
@@ -717,13 +516,7 @@ async function ensureLoaded(tabId) {
     if (!t || t.loaded || t.loading) { return }
     t.loading = true
     try {
-        if (tabId === 'evidencias') {
-            const res = await api.get(`work-orders/${wo.value.id}/media`)
-            media.value = res?.data ?? []
-        } else if (tabId === 'firmas') {
-            const res = await api.get(`work-orders/${wo.value.id}/signatures`)
-            signatures.value = res?.data ?? []
-        } else if (tabId === 'tiempo') {
+        if (tabId === 'tiempo') {
             const res = await api.get(`work-orders/${wo.value.id}/time-entries`)
             timeEntries.value = res?.data ?? []
         } else if (tabId === 'componentes') {
@@ -744,24 +537,6 @@ const totalTimeHours = computed(() =>
     timeEntries.value.reduce((sum, e) => sum + (Number(e.hours) || 0), 0)
 )
 
-const mediaGroups = computed(() => {
-    const groups = { before: [], after: [], other: [] }
-    media.value.forEach(m => {
-        if (m.attachment_type === 'before_photo') { groups.before.push(m) }
-        else if (m.attachment_type === 'after_photo') { groups.after.push(m) }
-        else { groups.other.push(m) }
-    })
-    return [
-        { key: 'before', label: 'Antes', items: groups.before },
-        { key: 'after', label: 'Después', items: groups.after },
-        { key: 'other', label: 'Otros', items: groups.other },
-    ].filter(g => g.items.length)
-})
-
-function isImage(m) {
-    return (m.mime_type ?? '').startsWith('image/')
-}
-
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 function initials(name) {
@@ -778,22 +553,6 @@ function formatDateTime(iso) {
 
 function formatCurrency(amount, code) {
     return new Intl.NumberFormat('es', { style: 'currency', currency: code ?? 'MXN' }).format(amount)
-}
-
-function formatFileSize(bytes) {
-    if (bytes == null) { return '' }
-    if (bytes < 1024) { return `${bytes} B` }
-    if (bytes < 1048576) { return `${(bytes / 1024).toFixed(0)} KB` }
-    return `${(bytes / 1048576).toFixed(1)} MB`
-}
-
-function relativeTime(iso) {
-    if (!iso) { return '' }
-    const diff = Date.now() - new Date(iso).getTime()
-    const h = Math.floor(diff / 36e5)
-    if (h < 1) { return 'hace menos de 1h' }
-    if (h < 24) { return `hace ${h}h` }
-    return `hace ${Math.floor(h / 24)}d`
 }
 
 // ── Intersection Observer (desktop) — triggers lazy load on reveal ────────────
@@ -819,8 +578,8 @@ function setupObserver() {
 
 // ── API ────────────────────────────────────────────────────────────────────────
 
-async function load() {
-    loading.value = true
+async function load(silent = false) {
+    if (!silent) { loading.value = true }
     error.value = null
     try {
         const res = await api.get(`work-orders/${route.params.id}`)
@@ -830,6 +589,12 @@ async function load() {
     } finally {
         loading.value = false
     }
+}
+
+// Silent reload after uploading evidence/signing/etc. — the technician stays
+// on the same screen and just sees the new item appear, no full-page skeleton.
+async function refreshWorkOrder() {
+    await load(true)
 }
 
 async function downloadPdf() {
@@ -842,39 +607,27 @@ async function downloadPdf() {
     }
 }
 
-async function transition(newStatus) {
+async function transition(newStatus, extra = {}) {
     transitioning.value = true
     transitionError.value = null
     try {
-        const res = await api.patch(`work-orders/${wo.value.id}/status`, { status: newStatus })
+        const res = await api.patch(`work-orders/${wo.value.id}/status`, { status: newStatus, ...extra })
         wo.value = res?.data ?? res
     } catch (err) {
         transitionError.value = err?.message ?? 'Error al cambiar el estado'
+        throw err
     } finally {
         transitioning.value = false
     }
 }
 
-async function submitComment() {
-    if (!newComment.value.trim()) { return }
-    submittingComment.value = true
-    commentError.value = null
+async function submitCompletion(payload) {
     try {
-        const res = await api.post(`work-orders/${wo.value.id}/comments`, {
-            body: newComment.value.trim(),
-            is_internal: commentInternal.value,
-        })
-        const raw = res?.data ?? res
-        wo.value.comments = [
-            ...(wo.value.comments ?? []),
-            { ...raw, user: { name: auth.userName ?? 'Tú' } },
-        ]
-        newComment.value = ''
-        commentInternal.value = false
-    } catch (err) {
-        commentError.value = err?.message ?? 'Error al enviar el comentario'
-    } finally {
-        submittingComment.value = false
+        await transition('completed', payload)
+        completionOpen.value = false
+    } catch {
+        // transitionError is already set by transition(); keep the panel open
+        // so the technician sees the message and can retry without redoing the form.
     }
 }
 

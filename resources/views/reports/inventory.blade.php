@@ -3,48 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'DejaVu Sans', sans-serif; font-size: 9px; color: #1e293b; background: #fff; }
-
-    #header { position: fixed; top: -50px; left: 0; right: 0; height: 50px; }
-    #footer { position: fixed; bottom: -30px; left: 0; right: 0; height: 30px; }
-
-    .report-title { background: #1e3a5f; color: #fff; padding: 8px 12px; margin-bottom: 12px; border-radius: 3px; }
-    .report-title h1 { font-size: 14px; font-weight: bold; }
-    .report-title p { font-size: 9px; color: #93c5fd; margin-top: 2px; }
-
-    .badge { display: inline-block; padding: 1px 6px; border-radius: 8px; font-size: 7px; font-weight: bold; }
-    .badge-success { background: #dcfce7; color: #166534; }
-    .badge-danger  { background: #fee2e2; color: #991b1b; }
-    .badge-gray    { background: #f1f5f9; color: #475569; }
-
-    table.data-table { width: 100%; border-collapse: collapse; font-size: 8px; }
-    table.data-table th { background: #1e3a5f; color: #fff; text-align: left; padding: 5px 5px;
-                          font-weight: bold; border: 1px solid #1e3a5f; font-size: 7px; }
-    table.data-table td { padding: 4px 5px; border: 1px solid #e2e8f0; vertical-align: top; }
-    table.data-table tr:nth-child(even) td { background: #f8fafc; }
-    table.data-table tr:hover td { background: #eff6ff; }
-
-    .stock-low { color: #dc2626; font-weight: bold; }
-    .stock-ok  { color: #16a34a; }
-
-    .summary-box { background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 3px; padding: 8px 12px;
-                   margin-bottom: 12px; }
-    .summary-box table td { padding: 0 16px 0 0; }
-    .summary-stat { font-size: 16px; font-weight: bold; color: #1e3a5f; }
-    .summary-label { font-size: 8px; color: #64748b; }
+    @include('reports.partials.styles')
 </style>
 </head>
 <body>
 
-<div id="header">
-    @include('reports.partials.header')
-</div>
-<div id="footer">
-    @include('reports.partials.footer')
-</div>
+@include('reports.partials.header')
+@include('reports.partials.footer')
 
-<div style="padding-top: 60px; padding-bottom: 35px;">
+<div class="doc-body">
 
     <div class="report-title">
         <h1>Reporte de Inventario</h1>
@@ -98,7 +65,7 @@
                 <th style="width:65px;">Ubicación</th>
                 <th style="width:60px;">Costo prom.</th>
                 <th style="width:60px;">Valor total</th>
-                <th style="width:35px;">Estado</th>
+                <th style="width:62px;">Estado</th>
             </tr>
         </thead>
         <tbody>
@@ -116,8 +83,8 @@
                 <td>{{ $part->category_type?->label() ?? '—' }}</td>
                 <td>{{ $part->manufacturer?->name ?? '—' }}</td>
                 <td>{{ $part->unit?->value ?? '—' }}</td>
-                <td class="{{ $isLow ? 'stock-low' : 'stock-ok' }}">{{ $totalStock }}</td>
-                <td>{{ $part->minimum_stock ?? 0 }}</td>
+                <td class="{{ $isLow ? 'stock-low' : 'stock-ok' }}">{{ rtrim(rtrim(number_format($totalStock, 2), '0'), '.') ?: '0' }}</td>
+                <td>{{ rtrim(rtrim(number_format($part->minimum_stock ?? 0, 2), '0'), '.') ?: '0' }}</td>
                 <td>{{ $locations ?: '—' }}</td>
                 <td>{{ $avgCost ? number_format($avgCost, 2) : '—' }}</td>
                 <td>{{ $totalVal > 0 ? number_format($totalVal, 2) : '—' }}</td>

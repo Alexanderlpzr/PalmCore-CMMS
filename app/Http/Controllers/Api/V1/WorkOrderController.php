@@ -88,9 +88,20 @@ class WorkOrderController extends Controller
             'technicians.user',
             'comments.user',
             'parts',
+            'assignedSupervisor',
+            'createdBy',
+            'maintenanceRequest',
+            'maintenancePlan.tasks',
+            // Evidence Zone needs these up front — no more lazy per-tab
+            // fetches for photos/signatures now that they live in one space.
+            'attachments',
+            'signatures.user',
         ])->findOrFail($id);
 
-        return new WorkOrderResource($workOrder);
+        $resource = new WorkOrderResource($workOrder);
+        $resource->includeMission = true;
+
+        return $resource;
     }
 
     public function store(StoreWorkOrderRequest $request): JsonResponse
@@ -173,14 +184,27 @@ class WorkOrderController extends Controller
         $workOrder = WorkOrder::findOrFail($id);
         $toStatus = WorkOrderStatus::from($request->validated('status'));
 
+        // Completion Experience data — only the fields actually sent, so a
+        // plain "Pausar"/"Iniciar" transition never blanks out existing text.
+        $extra = array_filter(
+            $request->only(['work_performed', 'failure_cause', 'root_cause']),
+            fn ($value) => $value !== null,
+        );
+
         try {
-            $workOrder = $this->service->transition($workOrder, $toStatus, $request->user(), [], $request->validated('gps'));
+            $workOrder = $this->service->transition($workOrder, $toStatus, $request->user(), $extra, $request->validated('gps'));
         } catch (\RuntimeException $e) {
             throw new BusinessRuleException($e->getMessage());
         }
 
-        $workOrder->load('equipment');
+        $workOrder->load(
+            'equipment', 'assignedSupervisor', 'createdBy', 'maintenanceRequest', 'maintenancePlan.tasks',
+            'attachments', 'signatures.user',
+        );
 
-        return new WorkOrderResource($workOrder);
+        $resource = new WorkOrderResource($workOrder);
+        $resource->includeMission = true;
+
+        return $resource;
     }
 }

@@ -94,10 +94,11 @@ export const EQUIPMENT_STATUS = {
 }
 
 export const PRIORITY = {
-    p1_critical: { label: 'Crítica', tone: 'danger' },
-    p2_high:     { label: 'Alta',    tone: 'warning' },
-    p3_medium:   { label: 'Media',   tone: 'info' },
-    p4_low:      { label: 'Baja',    tone: 'neutral' },
+    p1_critical: { label: 'Crítica',     tone: 'danger' },
+    p2_high:     { label: 'Alta',        tone: 'warning' },
+    p3_medium:   { label: 'Media',       tone: 'info' },
+    p4_low:      { label: 'Baja',        tone: 'neutral' },
+    p5_planned:  { label: 'Planificada', tone: 'neutral' },
 }
 
 export const CRITICALITY = {

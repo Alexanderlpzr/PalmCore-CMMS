@@ -69,8 +69,12 @@ class EquipmentController extends Controller
     {
         abort_if(! $request->user()->tokenCan('equipment.read') && ! $request->user()->tokenCan('*'), 403);
 
+        $activeWorkOrderStatuses = ['draft', 'planned', 'in_progress', 'on_hold'];
+
         $query = Equipment::query()
-            ->with(['plant', 'area', 'category'])
+            ->with(['plant', 'area', 'category', 'kpi'])
+            ->withCount(['workOrders as active_work_orders_count' => fn ($q) => $q->whereIn('status', $activeWorkOrderStatuses)])
+            ->withExists(['maintenancePlans as overdue_preventives_flag' => fn ($q) => $q->where('is_active', true)->whereHas('schedule', fn ($sq) => $sq->where('next_due_at', '<', now()))])
             ->when($request->status, fn ($q, $v) => $q->whereIn('status', $this->statusList($v)))
             ->when($request->plant_id, fn ($q, $v) => $q->where('plant_id', $v))
             ->when($request->area_id, fn ($q, $v) => $q->where('area_id', $v))
@@ -84,7 +88,9 @@ class EquipmentController extends Controller
                 $sub->where('code', 'ILIKE', $like)
                     ->orWhere('name', 'ILIKE', $like)
                     ->orWhere('serial_number', 'ILIKE', $like);
-            }));
+            }))
+            ->when($request->boolean('has_active_work_orders'), fn ($q) => $q->whereHas('workOrders', fn ($wq) => $wq->whereIn('status', $activeWorkOrderStatuses)))
+            ->when($request->boolean('has_overdue_preventives'), fn ($q) => $q->whereHas('maintenancePlans', fn ($mp) => $mp->where('is_active', true)->whereHas('schedule', fn ($sq) => $sq->where('next_due_at', '<', now()))));
 
         $this->applySort($query, $request, ['code', 'name', 'criticality', 'created_at'], 'code');
 

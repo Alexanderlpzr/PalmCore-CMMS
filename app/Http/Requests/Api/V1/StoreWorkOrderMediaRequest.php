@@ -25,4 +25,17 @@ class StoreWorkOrderMediaRequest extends FormRequest
             'caption' => ['sometimes', 'nullable', 'string', 'max:500'],
         ], $this->gpsRules());
     }
+
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return [
+            'file.required' => 'Debes adjuntar un archivo.',
+            'file.max' => 'El archivo es demasiado pesado (máximo 20 MB).',
+            'file.mimes' => 'Ese tipo de archivo no está permitido. Usa foto, video o PDF.',
+            'attachment_type.required' => 'Debes indicar qué tipo de archivo es.',
+            'attachment_type.in' => 'Ese tipo de archivo no es válido.',
+            'caption.max' => 'La descripción es demasiado larga (máximo 500 caracteres).',
+        ];
+    }
 }

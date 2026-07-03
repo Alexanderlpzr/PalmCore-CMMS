@@ -41,4 +41,21 @@ class StoreMaintenanceRequestRequest extends FormRequest
             'requested_due_date' => ['sometimes', 'nullable', 'date', 'after:today'],
         ];
     }
+
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return [
+            'equipment_id.required' => 'Debes indicar sobre qué equipo es este reporte.',
+            'equipment_id.exists' => 'No encontramos ese equipo. Puede que haya sido eliminado.',
+            'request_type.required' => 'Debes elegir un tipo de solicitud.',
+            'request_type.in' => 'Ese tipo de solicitud no es válido.',
+            'priority.required' => 'Debes elegir una prioridad.',
+            'priority.in' => 'Esa prioridad no es válida.',
+            'title.required' => 'Debes escribir un título breve del problema.',
+            'title.max' => 'El título es demasiado largo (máximo 255 caracteres).',
+            'description.required' => 'Debes describir el problema con más detalle.',
+            'requested_due_date.after' => 'La fecha solicitada debe ser posterior a hoy.',
+        ];
+    }
 }

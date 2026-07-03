@@ -2,11 +2,19 @@
 
 namespace App\Http\Resources\Api\V1;
 
+use App\Domain\Maintenance\Services\WorkOrderMissionPresenter;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class WorkOrderResource extends JsonResource
 {
+    /**
+     * Opt-in flag set by the controller for single-resource responses only.
+     * Mission data runs an extra query (previousIntervention) per work
+     * order, so it must never be computed for index()/mine() collections.
+     */
+    public bool $includeMission = false;
+
     /** @return array<string, mixed> */
     public function toArray(Request $request): array
     {
@@ -37,6 +45,15 @@ class WorkOrderResource extends JsonResource
                 'id' => $this->equipment->id,
                 'code' => $this->equipment->code,
                 'name' => $this->equipment->name,
+                'criticality' => $this->equipment->criticality?->value,
+            ] : null),
+            'assigned_supervisor' => $this->whenLoaded('assignedSupervisor', fn () => $this->assignedSupervisor ? [
+                'id' => $this->assignedSupervisor->id,
+                'name' => $this->assignedSupervisor->name,
+            ] : null),
+            'created_by' => $this->whenLoaded('createdBy', fn () => $this->createdBy ? [
+                'id' => $this->createdBy->id,
+                'name' => $this->createdBy->name,
             ] : null),
             'plant' => $this->whenLoaded('plant', fn () => $this->plant ? [
                 'id' => $this->plant->id,
@@ -75,6 +92,8 @@ class WorkOrderResource extends JsonResource
                 ] : null,
                 'created_at' => $c->created_at->toISOString(),
             ])->values()),
+            'attachments' => $this->whenLoaded('attachments', fn () => WorkOrderAttachmentResource::collection($this->attachments)),
+            'signatures' => $this->whenLoaded('signatures', fn () => WorkOrderSignatureResource::collection($this->signatures)),
             'planned_start_at' => $this->planned_start_at?->toISOString(),
             'planned_end_at' => $this->planned_end_at?->toISOString(),
             'actual_start_at' => $this->actual_start_at?->toISOString(),
@@ -85,6 +104,36 @@ class WorkOrderResource extends JsonResource
             'closed_at' => $this->closed_at?->toISOString(),
             'created_at' => $this->created_at->toISOString(),
             'updated_at' => $this->updated_at->toISOString(),
+            'mission' => $this->missionData(),
+        ];
+    }
+
+    /**
+     * Mission Workspace presentation data — only computed when the
+     * controller opts in via $includeMission (single-resource show(), never
+     * index()/mine() collections, where the extra query per row would be
+     * wasteful and the data isn't used).
+     *
+     * @return array<string, mixed>|null
+     */
+    private function missionData(): ?array
+    {
+        if (! $this->includeMission) {
+            return null;
+        }
+
+        $presenter = app(WorkOrderMissionPresenter::class);
+
+        return [
+            'expected_outcome' => $presenter->expectedOutcome($this->resource),
+            'progress' => $presenter->progress($this->resource),
+            'previous_intervention' => $presenter->previousIntervention($this->resource),
+            'origin' => $presenter->origin($this->resource),
+            'checklist' => $presenter->checklist($this->resource),
+            'completion' => [
+                'readiness' => $presenter->completionReadiness($this->resource),
+                'summary' => $presenter->completionSummary($this->resource),
+            ],
         ];
     }
 }
