@@ -27,11 +27,13 @@ class IssueReportTable
                     ->label('Severidad')
                     ->badge()
                     ->color(fn (IssueSeverity $state): string => $state->color())
+                    ->formatStateUsing(fn (IssueSeverity $state): string => $state->label())
                     ->sortable(),
                 TextColumn::make('status')
                     ->label('Estado')
                     ->badge()
                     ->color(fn (IssueReportStatus $state): string => $state->color())
+                    ->formatStateUsing(fn (IssueReportStatus $state): string => $state->label())
                     ->sortable(),
                 TextColumn::make('reporter_name')
                     ->label('Reportado por')

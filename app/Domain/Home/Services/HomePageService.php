@@ -6,6 +6,7 @@ use App\Domain\Home\Enums\AnnouncementCategory;
 use App\Models\Alert;
 use App\Models\Announcement;
 use App\Models\CarouselSlide;
+use App\Models\EquipmentIssueReport;
 use App\Models\MaintenanceRequest;
 use App\Models\MaintenanceSchedule;
 use App\Models\WorkOrder;
@@ -133,6 +134,8 @@ class HomePageService
                 ->where('status', 'open')
                 ->count();
 
+            $pendingIssueReports = EquipmentIssueReport::query()->open()->count();
+
             return [
                 [
                     'key' => 'overdue_work_orders',
@@ -168,6 +171,15 @@ class HomePageService
                     'hint' => 'Requieren atención inmediata',
                     'icon' => 'heroicon-o-bell-alert',
                     'route' => "/admin/{$tenantSlug}/alerts",
+                    'tone' => 'danger',
+                ],
+                [
+                    'key' => 'pending_issue_reports',
+                    'count' => $pendingIssueReports,
+                    'label' => 'Reportes de novedad pendientes',
+                    'hint' => 'Reportes de falla sin atender',
+                    'icon' => 'heroicon-o-exclamation-triangle',
+                    'route' => "/admin/{$tenantSlug}/maintenance/issue-report/issue-reports",
                     'tone' => 'danger',
                 ],
             ];

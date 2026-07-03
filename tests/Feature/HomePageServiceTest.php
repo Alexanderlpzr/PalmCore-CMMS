@@ -2,10 +2,12 @@
 
 use App\Domain\Home\Enums\AnnouncementCategory;
 use App\Domain\Home\Services\HomePageService;
+use App\Domain\Maintenance\Enums\IssueReportStatus;
 use App\Infrastructure\Tenancy\CurrentTenant;
 use App\Models\Alert;
 use App\Models\Announcement;
 use App\Models\CarouselSlide;
+use App\Models\EquipmentIssueReport;
 use App\Models\Tenant;
 use App\Models\WorkOrder;
 use Illuminate\Support\Facades\Cache;
@@ -92,7 +94,7 @@ it('quickActions builds six tenant-scoped tiles with DS tones (no violet)', func
         ->each->toBeIn(['brand', 'emerald', 'info', 'blue', 'warning', 'amber', 'danger', 'red', 'neutral', 'gray']);
 });
 
-it('attentionRequired returns four counted, routed, toned cards', function () {
+it('attentionRequired returns five counted, routed, toned cards', function () {
     $tenant = homePageTenant();
 
     // Overdue WO (planned end in the past, still open)
@@ -105,12 +107,15 @@ it('attentionRequired returns four counted, routed, toned cards', function () {
         'title' => 'Crítica', 'message' => 'x', 'entity_type' => 'equipment',
         'entity_id' => $tenant->id, 'status' => 'open',
     ]);
+    // Open issue report
+    EquipmentIssueReport::factory()->for($tenant)->create(['status' => IssueReportStatus::Open]);
 
     $items = (new HomePageService($tenant->id))->attentionRequired('acme');
 
-    expect($items)->toHaveCount(4)
+    expect($items)->toHaveCount(5)
         ->and(collect($items)->keyBy('key')->get('overdue_work_orders')['count'])->toBe(1)
         ->and(collect($items)->keyBy('key')->get('critical_alerts')['count'])->toBe(1)
+        ->and(collect($items)->keyBy('key')->get('pending_issue_reports')['count'])->toBe(1)
         ->and($items[0])->toHaveKeys(['key', 'count', 'label', 'hint', 'icon', 'route', 'tone']);
 });
 
@@ -181,7 +186,7 @@ it('snapshot returns a HomePageData with every section and merged hero status', 
 
     expect($data->hero['greeting'])->toBe('Buenos días')
         ->and($data->hero['status'])->toHaveKeys(['message', 'tone'])
-        ->and($data->attentionItems)->toHaveCount(4)
+        ->and($data->attentionItems)->toHaveCount(5)
         ->and($data->quickActions)->toHaveCount(6)
         ->and($data->carouselSlides)->toBeArray()
         ->and($data->importantNotices)->toBeArray()

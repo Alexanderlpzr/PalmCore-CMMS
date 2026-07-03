@@ -117,7 +117,7 @@
             <h2 id="attention-heading" class="mb-5 text-xl font-bold tracking-tight text-gray-900 dark:text-white">
                 Atención requerida
             </h2>
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
                 @foreach ($home->attentionItems as $item)
                     @php $isZero = (int) $item['count'] === 0; @endphp
                     <a href="{{ $item['route'] }}"
