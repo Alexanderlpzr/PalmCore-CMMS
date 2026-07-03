@@ -53,10 +53,12 @@ class TenantForm
                         TextInput::make('timezone')
                             ->label('Zona horaria')
                             ->maxLength(100)
+                            ->default('UTC')
                             ->placeholder('America/Bogota'),
                         TextInput::make('locale')
                             ->label('Locale')
                             ->maxLength(10)
+                            ->default('es_CO')
                             ->placeholder('es_CO'),
                         Select::make('subscription_plan')
                             ->label('Plan de suscripción')
