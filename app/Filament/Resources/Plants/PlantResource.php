@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Plants;
 use App\Filament\Resources\Plants\Pages\CreatePlant;
 use App\Filament\Resources\Plants\Pages\EditPlant;
 use App\Filament\Resources\Plants\Pages\ListPlants;
+use App\Filament\Resources\Plants\RelationManagers\AreasRelationManager;
 use App\Filament\Resources\Plants\Schemas\PlantForm;
 use App\Filament\Resources\Plants\Tables\PlantsTable;
 use App\Models\Plant;
@@ -45,15 +46,17 @@ class PlantResource extends Resource
 
     public static function getRelations(): array
     {
-        return [];
+        return [
+            AreasRelationManager::class,
+        ];
     }
 
     public static function getPages(): array
     {
         return [
-            'index'  => ListPlants::route('/'),
+            'index' => ListPlants::route('/'),
             'create' => CreatePlant::route('/create'),
-            'edit'   => EditPlant::route('/{record}/edit'),
+            'edit' => EditPlant::route('/{record}/edit'),
         ];
     }
 
