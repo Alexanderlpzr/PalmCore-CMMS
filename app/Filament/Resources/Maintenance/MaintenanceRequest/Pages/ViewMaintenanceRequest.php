@@ -6,6 +6,7 @@ use App\Domain\Maintenance\Enums\MaintenanceRequestStatus;
 use App\Domain\Maintenance\Enums\WorkOrderType;
 use App\Domain\Maintenance\Services\MaintenanceRequestService;
 use App\Domain\Maintenance\Services\WorkOrderService;
+use App\Filament\Resources\Concerns\HasBackAction;
 use App\Filament\Resources\Maintenance\MaintenanceRequest\MaintenanceRequestResource;
 use App\Filament\Resources\Maintenance\WorkOrder\WorkOrderResource;
 use App\Models\MaintenanceRequest;
@@ -22,6 +23,8 @@ use Filament\Support\Icons\Heroicon;
 
 class ViewMaintenanceRequest extends ViewRecord
 {
+    use HasBackAction;
+
     protected static string $resource = MaintenanceRequestResource::class;
 
     protected function getHeaderActions(): array
@@ -194,6 +197,7 @@ class ViewMaintenanceRequest extends ViewRecord
             EditAction::make()
                 ->visible(fn (): bool => $this->record->isEditable()),
             DeleteAction::make(),
+            $this->getBackAction(),
         ];
     }
 

@@ -6,6 +6,7 @@ use App\Domain\Maintenance\Services\MaintenancePlanService;
 use App\Domain\Reports\DTOs\ReportRequest;
 use App\Domain\Reports\Enums\ReportType;
 use App\Domain\Reports\Services\ReportManager;
+use App\Filament\Resources\Concerns\HasBackAction;
 use App\Filament\Resources\Maintenance\MaintenancePlan\MaintenancePlanResource;
 use App\Models\MaintenancePlan;
 use Carbon\Carbon;
@@ -21,6 +22,8 @@ use Filament\Support\Icons\Heroicon;
 
 class ViewMaintenancePlan extends ViewRecord
 {
+    use HasBackAction;
+
     protected static string $resource = MaintenancePlanResource::class;
 
     protected function getHeaderActions(): array
@@ -90,6 +93,7 @@ class ViewMaintenancePlan extends ViewRecord
 
             EditAction::make(),
             DeleteAction::make(),
+            $this->getBackAction(),
         ];
     }
 

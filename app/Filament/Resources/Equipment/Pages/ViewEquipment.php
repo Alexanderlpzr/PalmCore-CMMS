@@ -6,6 +6,7 @@ use App\Domain\Assets\Services\QrCodeService;
 use App\Domain\Reports\DTOs\ReportRequest;
 use App\Domain\Reports\Enums\ReportType;
 use App\Domain\Reports\Services\ReportManager;
+use App\Filament\Resources\Concerns\HasBackAction;
 use App\Filament\Resources\Equipment\EquipmentResource;
 use App\Models\Equipment;
 use Filament\Actions\Action;
@@ -20,6 +21,8 @@ use Illuminate\Contracts\View\View;
 
 class ViewEquipment extends ViewRecord
 {
+    use HasBackAction;
+
     protected static string $resource = EquipmentResource::class;
 
     protected function getHeaderActions(): array
@@ -87,6 +90,7 @@ class ViewEquipment extends ViewRecord
             EditAction::make(),
             DeleteAction::make(),
             RestoreAction::make(),
+            $this->getBackAction(),
         ];
     }
 }

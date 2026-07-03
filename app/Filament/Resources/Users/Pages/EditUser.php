@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Users\Pages;
 
+use App\Filament\Resources\Concerns\HasBackAction;
 use App\Filament\Resources\Users\UserResource;
 use App\Services\SuperAdminGuard;
 use Filament\Actions\DeleteAction;
@@ -12,6 +13,8 @@ use Filament\Resources\Pages\EditRecord;
 
 class EditUser extends EditRecord
 {
+    use HasBackAction;
+
     protected static string $resource = UserResource::class;
 
     protected ?array $pendingRoles = null;
@@ -29,6 +32,7 @@ class EditUser extends EditRecord
             DeleteAction::make()->hidden($isLastActiveSuperAdmin),
             ForceDeleteAction::make()->hidden($isLastActiveSuperAdmin),
             RestoreAction::make(),
+            $this->getBackAction(),
         ];
     }
 

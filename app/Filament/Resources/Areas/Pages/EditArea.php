@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Areas\Pages;
 
 use App\Filament\Resources\Areas\AreaResource;
+use App\Filament\Resources\Concerns\HasBackAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ForceDeleteAction;
 use Filament\Actions\RestoreAction;
@@ -10,6 +11,8 @@ use Filament\Resources\Pages\EditRecord;
 
 class EditArea extends EditRecord
 {
+    use HasBackAction;
+
     protected static string $resource = AreaResource::class;
 
     protected function getHeaderActions(): array
@@ -18,6 +21,7 @@ class EditArea extends EditRecord
             DeleteAction::make(),
             ForceDeleteAction::make(),
             RestoreAction::make(),
+            $this->getBackAction(),
         ];
     }
 }

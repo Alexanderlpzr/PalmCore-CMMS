@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\EquipmentCategories\Pages;
 
+use App\Filament\Resources\Concerns\HasBackAction;
 use App\Filament\Resources\EquipmentCategories\EquipmentCategoryResource;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ForceDeleteAction;
@@ -10,6 +11,8 @@ use Filament\Resources\Pages\EditRecord;
 
 class EditEquipmentCategory extends EditRecord
 {
+    use HasBackAction;
+
     protected static string $resource = EquipmentCategoryResource::class;
 
     protected function getHeaderActions(): array
@@ -18,6 +21,7 @@ class EditEquipmentCategory extends EditRecord
             DeleteAction::make(),
             ForceDeleteAction::make(),
             RestoreAction::make(),
+            $this->getBackAction(),
         ];
     }
 }

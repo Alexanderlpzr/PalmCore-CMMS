@@ -8,6 +8,7 @@ use App\Domain\Maintenance\Services\WorkOrderService;
 use App\Domain\Reports\DTOs\ReportRequest;
 use App\Domain\Reports\Enums\ReportType;
 use App\Domain\Reports\Services\ReportManager;
+use App\Filament\Resources\Concerns\HasBackAction;
 use App\Filament\Resources\Maintenance\WorkOrder\WorkOrderResource;
 use App\Models\WorkOrder;
 use Filament\Actions\Action;
@@ -21,6 +22,8 @@ use Filament\Support\Icons\Heroicon;
 
 class ViewWorkOrder extends ViewRecord
 {
+    use HasBackAction;
+
     protected static string $resource = WorkOrderResource::class;
 
     protected function getHeaderActions(): array
@@ -184,6 +187,7 @@ class ViewWorkOrder extends ViewRecord
             EditAction::make()
                 ->visible(fn (): bool => $this->record->isEditable()),
             DeleteAction::make(),
+            $this->getBackAction(),
         ];
     }
 

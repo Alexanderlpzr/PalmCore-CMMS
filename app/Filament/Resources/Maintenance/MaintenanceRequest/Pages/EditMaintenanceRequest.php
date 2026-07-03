@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Maintenance\MaintenanceRequest\Pages;
 
+use App\Filament\Resources\Concerns\HasBackAction;
 use App\Filament\Resources\Maintenance\MaintenanceRequest\MaintenanceRequestResource;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ViewAction;
@@ -9,6 +10,8 @@ use Filament\Resources\Pages\EditRecord;
 
 class EditMaintenanceRequest extends EditRecord
 {
+    use HasBackAction;
+
     protected static string $resource = MaintenanceRequestResource::class;
 
     protected function getHeaderActions(): array
@@ -16,6 +19,7 @@ class EditMaintenanceRequest extends EditRecord
         return [
             ViewAction::make(),
             DeleteAction::make(),
+            $this->getBackAction(),
         ];
     }
 

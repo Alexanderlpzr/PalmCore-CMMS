@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Alerts\Alert\Pages;
 
 use App\Domain\Alerts\Services\AlertService;
 use App\Filament\Resources\Alerts\AlertResource;
+use App\Filament\Resources\Concerns\HasBackAction;
 use App\Models\Alert;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
@@ -12,6 +13,8 @@ use Filament\Support\Icons\Heroicon;
 
 class ViewAlert extends ViewRecord
 {
+    use HasBackAction;
+
     protected static string $resource = AlertResource::class;
 
     protected function getHeaderActions(): array
@@ -64,11 +67,7 @@ class ViewAlert extends ViewRecord
                 ->openUrlInNewTab()
                 ->visible(fn (): bool => AlertResource::getEntityUrl($this->record) !== null),
 
-            Action::make('back')
-                ->label('Volver')
-                ->icon(Heroicon::OutlinedArrowLeft)
-                ->color('gray')
-                ->url(AlertResource::getUrl('index')),
+            $this->getBackAction(),
         ];
     }
 }

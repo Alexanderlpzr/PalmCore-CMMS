@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Inventory\SparePart\Pages;
 
 use App\Domain\Inventory\Services\SparePartService;
+use App\Filament\Resources\Concerns\HasBackAction;
 use App\Filament\Resources\Inventory\SparePart\SparePartResource;
 use App\Models\SparePart;
 use Filament\Actions\DeleteAction;
@@ -12,6 +13,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class EditSparePart extends EditRecord
 {
+    use HasBackAction;
+
     protected static string $resource = SparePartResource::class;
 
     protected function getHeaderActions(): array
@@ -19,6 +22,7 @@ class EditSparePart extends EditRecord
         return [
             ViewAction::make(),
             DeleteAction::make(),
+            $this->getBackAction(),
         ];
     }
 

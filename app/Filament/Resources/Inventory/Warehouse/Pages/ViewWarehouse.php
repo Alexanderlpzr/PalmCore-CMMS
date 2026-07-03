@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Inventory\Warehouse\Pages;
 
+use App\Filament\Resources\Concerns\HasBackAction;
 use App\Filament\Resources\Inventory\Warehouse\WarehouseResource;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
@@ -10,6 +11,8 @@ use Filament\Resources\Pages\ViewRecord;
 
 class ViewWarehouse extends ViewRecord
 {
+    use HasBackAction;
+
     protected static string $resource = WarehouseResource::class;
 
     protected function getHeaderActions(): array
@@ -18,6 +21,7 @@ class ViewWarehouse extends ViewRecord
             EditAction::make(),
             DeleteAction::make(),
             RestoreAction::make(),
+            $this->getBackAction(),
         ];
     }
 }

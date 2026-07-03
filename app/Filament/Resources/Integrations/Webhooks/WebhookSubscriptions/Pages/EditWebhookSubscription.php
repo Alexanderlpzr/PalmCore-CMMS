@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Integrations\Webhooks\WebhookSubscriptions\Pages;
 
+use App\Filament\Resources\Concerns\HasBackAction;
 use App\Filament\Resources\Integrations\Webhooks\WebhookSubscriptions\WebhookSubscriptionResource;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
@@ -11,6 +12,8 @@ use Filament\Resources\Pages\EditRecord;
 
 class EditWebhookSubscription extends EditRecord
 {
+    use HasBackAction;
+
     protected static string $resource = WebhookSubscriptionResource::class;
 
     protected function getHeaderActions(): array
@@ -56,6 +59,7 @@ class EditWebhookSubscription extends EditRecord
 
             ViewAction::make(),
             DeleteAction::make(),
+            $this->getBackAction(),
         ];
     }
 }

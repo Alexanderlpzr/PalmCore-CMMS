@@ -6,6 +6,7 @@ use App\Domain\Maintenance\Enums\IssueReportStatus;
 use App\Domain\Maintenance\Enums\MaintenanceRequestPriority;
 use App\Domain\Maintenance\Enums\MaintenanceRequestType;
 use App\Domain\Maintenance\Services\MaintenanceRequestService;
+use App\Filament\Resources\Concerns\HasBackAction;
 use App\Filament\Resources\Maintenance\IssueReport\IssueReportResource;
 use App\Models\EquipmentIssueReport;
 use Filament\Actions\Action;
@@ -19,6 +20,8 @@ use Filament\Support\Icons\Heroicon;
 
 class ViewIssueReport extends ViewRecord
 {
+    use HasBackAction;
+
     protected static string $resource = IssueReportResource::class;
 
     protected function getHeaderActions(): array
@@ -82,6 +85,8 @@ class ViewIssueReport extends ViewRecord
 
                     Notification::make()->title('Solicitud de mantenimiento creada')->success()->send();
                 }),
+
+            $this->getBackAction(),
         ];
     }
 }
