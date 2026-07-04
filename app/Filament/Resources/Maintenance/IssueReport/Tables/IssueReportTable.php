@@ -67,8 +67,8 @@ class IssueReportTable
             ->recordActions([
                 ViewAction::make(),
                 DeleteAction::make()
-                    ->label('Archivar')
-                    ->modalHeading('Archivar reporte')
+                    ->label('Eliminar')
+                    ->modalHeading('Eliminar reporte')
                     ->modalDescription('El reporte dejará de aparecer en el listado. Puedes recuperarlo luego con el filtro "Papelera".')
                     ->visible(fn (EquipmentIssueReport $record): bool => $record->status !== IssueReportStatus::Open),
                 RestoreAction::make()
@@ -76,7 +76,7 @@ class IssueReportTable
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
-                    DeleteBulkAction::make()->label('Archivar seleccionados'),
+                    DeleteBulkAction::make()->label('Eliminar seleccionados'),
                     RestoreBulkAction::make()->label('Restaurar seleccionados'),
                 ]),
             ])

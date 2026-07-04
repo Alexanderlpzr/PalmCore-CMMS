@@ -88,8 +88,8 @@ class ViewIssueReport extends ViewRecord
                 }),
 
             DeleteAction::make()
-                ->label('Archivar')
-                ->modalHeading('Archivar reporte')
+                ->label('Eliminar')
+                ->modalHeading('Eliminar reporte')
                 ->modalDescription('El reporte dejará de aparecer en el listado. Puedes recuperarlo luego con el filtro "Papelera".')
                 ->visible(fn (): bool => $this->record->status !== IssueReportStatus::Open),
 
