@@ -9,6 +9,7 @@ use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Facades\Filament;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -58,10 +59,14 @@ class ComponentsRelationManager extends RelationManager
                     ->maxLength(255),
                 Select::make('criticality')
                     ->label('Criticidad')
-                    ->options(EquipmentCriticality::options()),
+                    ->options(EquipmentCriticality::options())
+                    ->default(EquipmentCriticality::Medium)
+                    ->required(),
                 Select::make('status')
                     ->label('Estado')
-                    ->options(ComponentStatus::options()),
+                    ->options(ComponentStatus::options())
+                    ->default(ComponentStatus::Active)
+                    ->required(),
                 TextInput::make('useful_life_hours')
                     ->label('Vida útil')
                     ->numeric()
@@ -109,7 +114,12 @@ class ComponentsRelationManager extends RelationManager
                     ->placeholder('—'),
             ])
             ->headerActions([
-                CreateAction::make(),
+                CreateAction::make()
+                    ->mutateFormDataUsing(function (array $data): array {
+                        $data['tenant_id'] = Filament::getTenant()->id;
+
+                        return $data;
+                    }),
             ])
             ->recordActions([
                 EditAction::make(),
