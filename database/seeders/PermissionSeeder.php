@@ -97,6 +97,7 @@ class PermissionSeeder extends Seeder
         // Issue Reports (viewed/managed by supervisors+)
         'issue-reports.view',
         'issue-reports.acknowledge',
+        'issue-reports.archive',
 
         // Maintenance Requests
         'maintenance-requests.view',

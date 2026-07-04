@@ -4,9 +4,16 @@ namespace App\Filament\Resources\Maintenance\IssueReport\Tables;
 
 use App\Domain\Assets\Enums\IssueSeverity;
 use App\Domain\Maintenance\Enums\IssueReportStatus;
+use App\Models\EquipmentIssueReport;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\RestoreAction;
+use Filament\Actions\RestoreBulkAction;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 
 class IssueReportTable
@@ -55,9 +62,23 @@ class IssueReportTable
                 SelectFilter::make('status')
                     ->label('Estado')
                     ->options(IssueReportStatus::options()),
+                TrashedFilter::make(),
             ])
             ->recordActions([
                 ViewAction::make(),
+                DeleteAction::make()
+                    ->label('Archivar')
+                    ->modalHeading('Archivar reporte')
+                    ->modalDescription('El reporte dejará de aparecer en el listado. Puedes recuperarlo luego con el filtro "Papelera".')
+                    ->visible(fn (EquipmentIssueReport $record): bool => $record->status !== IssueReportStatus::Open),
+                RestoreAction::make()
+                    ->label('Restaurar'),
+            ])
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    DeleteBulkAction::make()->label('Archivar seleccionados'),
+                    RestoreBulkAction::make()->label('Restaurar seleccionados'),
+                ]),
             ])
             ->defaultSort('created_at', 'desc');
     }

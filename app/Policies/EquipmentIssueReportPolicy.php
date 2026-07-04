@@ -29,12 +29,12 @@ class EquipmentIssueReportPolicy
 
     public function delete(User $user, EquipmentIssueReport $equipmentIssueReport): bool
     {
-        return $user->is_super_admin;
+        return $user->is_super_admin || $user->hasPermissionTo('issue-reports.archive');
     }
 
     public function restore(User $user, EquipmentIssueReport $equipmentIssueReport): bool
     {
-        return $user->is_super_admin;
+        return $user->is_super_admin || $user->hasPermissionTo('issue-reports.archive');
     }
 
     public function forceDelete(User $user, EquipmentIssueReport $equipmentIssueReport): bool

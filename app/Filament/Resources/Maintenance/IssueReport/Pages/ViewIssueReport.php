@@ -10,6 +10,7 @@ use App\Filament\Resources\Concerns\HasBackAction;
 use App\Filament\Resources\Maintenance\IssueReport\IssueReportResource;
 use App\Models\EquipmentIssueReport;
 use Filament\Actions\Action;
+use Filament\Actions\DeleteAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -85,6 +86,12 @@ class ViewIssueReport extends ViewRecord
 
                     Notification::make()->title('Solicitud de mantenimiento creada')->success()->send();
                 }),
+
+            DeleteAction::make()
+                ->label('Archivar')
+                ->modalHeading('Archivar reporte')
+                ->modalDescription('El reporte dejará de aparecer en el listado. Puedes recuperarlo luego con el filtro "Papelera".')
+                ->visible(fn (): bool => $this->record->status !== IssueReportStatus::Open),
 
             $this->getBackAction(),
         ];
