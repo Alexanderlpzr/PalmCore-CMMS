@@ -65,18 +65,18 @@ class AdminPanelProvider extends PanelProvider
                 'danger' => Color::Red,
             ])
             ->defaultAvatarProvider(InitialsAvatarProvider::class)
-            // Orden maestro del menú (UX-2). Operación primero, administración
-            // después y los grupos exclusivos de Super Admin (Plataforma, Sistema)
-            // al final — coherente con el orden del SPA Ops.
+            // Orden maestro del menú (UX-3). Ordenado por frecuencia de uso
+            // operativo real: el ciclo de mantenimiento diario primero, la
+            // administración esporádica al final.
             ->navigationGroups([
-                NavigationGroup::make('Inicio'),
                 NavigationGroup::make('Mantenimiento'),
-                NavigationGroup::make('Gestión de Activos'),
-                NavigationGroup::make('Estructura Operativa'),
-                NavigationGroup::make('Inventario'),
                 NavigationGroup::make('Centro de Alertas'),
+                NavigationGroup::make('Inventario'),
+                NavigationGroup::make('Gestión de Activos'),
                 NavigationGroup::make('Indicadores'),
+                NavigationGroup::make('Estructura Operativa'),
                 NavigationGroup::make('Usuarios & Acceso'),
+                NavigationGroup::make('Portal de Inicio'),
                 NavigationGroup::make('Integraciones'),
                 NavigationGroup::make('Automatizaciones'),
                 NavigationGroup::make('Configuración'),

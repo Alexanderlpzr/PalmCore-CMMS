@@ -25,7 +25,7 @@ class CarouselSlideResource extends Resource
 
     protected static ?string $navigationLabel = 'Carrusel';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Inicio';
+    protected static string|UnitEnum|null $navigationGroup = 'Portal de Inicio';
 
     protected static ?int $navigationSort = 1;
 

@@ -24,9 +24,9 @@ class AutomationRuleResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Automatizaciones';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Configuración';
+    protected static string|UnitEnum|null $navigationGroup = 'Automatizaciones';
 
-    protected static ?int $navigationSort = 90;
+    protected static ?int $navigationSort = 1;
 
     protected static bool $isScopedToTenant = true;
 

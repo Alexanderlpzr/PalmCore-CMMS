@@ -25,7 +25,7 @@ class AnnouncementResource extends Resource
 
     protected static ?string $navigationLabel = 'Contenido';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Inicio';
+    protected static string|UnitEnum|null $navigationGroup = 'Portal de Inicio';
 
     protected static ?int $navigationSort = 2;
 
