@@ -69,6 +69,7 @@ class AdminPanelProvider extends PanelProvider
             // operativo real: el ciclo de mantenimiento diario primero, la
             // administración esporádica al final.
             ->navigationGroups([
+                NavigationGroup::make('Portal de Inicio'),
                 NavigationGroup::make('Mantenimiento'),
                 NavigationGroup::make('Centro de Alertas'),
                 NavigationGroup::make('Inventario'),
@@ -76,7 +77,6 @@ class AdminPanelProvider extends PanelProvider
                 NavigationGroup::make('Indicadores'),
                 NavigationGroup::make('Estructura Operativa'),
                 NavigationGroup::make('Usuarios & Acceso'),
-                NavigationGroup::make('Portal de Inicio'),
                 NavigationGroup::make('Integraciones'),
                 NavigationGroup::make('Automatizaciones'),
                 NavigationGroup::make('Configuración'),
