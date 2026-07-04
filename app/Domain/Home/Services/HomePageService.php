@@ -187,6 +187,44 @@ class HomePageService
     }
 
     /**
+     * The current user's own assigned work orders — never cached (per-user,
+     * must reflect assignments the instant they happen), unlike every other
+     * section here which is cached per tenant. Empty for non-technicians.
+     *
+     * @return array{count: int, overdue: int, items: array<int, array<string, mixed>>}
+     */
+    public function myWorkOrders(string $userId, string $tenantSlug): array
+    {
+        $workOrders = WorkOrder::query()
+            ->whereHas('technicians', fn ($q) => $q->where('user_id', $userId))
+            ->whereIn('status', ['planned', 'in_progress', 'on_hold'])
+            ->with('equipment')
+            ->orderByRaw('planned_end_at IS NULL, planned_end_at ASC')
+            ->limit(10)
+            ->get();
+
+        $overdue = $workOrders->filter(
+            fn (WorkOrder $wo): bool => $wo->planned_end_at !== null && $wo->planned_end_at->isPast()
+        )->count();
+
+        return [
+            'count' => $workOrders->count(),
+            'overdue' => $overdue,
+            'items' => $workOrders->map(fn (WorkOrder $wo): array => [
+                'id' => $wo->id,
+                'number' => $wo->work_order_number,
+                'title' => $wo->title,
+                'equipment' => $wo->equipment?->name,
+                'priority' => $wo->priority->label(),
+                'priority_color' => $wo->priority->color(),
+                'status' => $wo->status->label(),
+                'is_overdue' => $wo->planned_end_at !== null && $wo->planned_end_at->isPast(),
+                'route' => "/admin/{$tenantSlug}/maintenance/work-order/work-orders/{$wo->id}",
+            ])->all(),
+        ];
+    }
+
+    /**
      * Derive the HERO status line from the live attention counts — a calm,
      * human sentence, not a KPI. Returns the message plus a DS tone for the dot.
      *
@@ -418,7 +456,7 @@ class HomePageService
      *
      * @param  array<string, mixed>  $hero  User/tenant greeting context built by the page.
      */
-    public function snapshot(string $tenantSlug, array $hero = []): HomePageData
+    public function snapshot(string $tenantSlug, array $hero = [], ?string $userId = null): HomePageData
     {
         $attention = $this->attentionRequired($tenantSlug);
         $hero['status'] = $this->heroStatus($attention);
@@ -431,6 +469,7 @@ class HomePageService
             importantNotices: $this->importantNotices(),
             newsAndCommunications: $this->newsAndCommunications(),
             recentActivity: $this->recentActivity(),
+            myWorkOrders: $userId ? $this->myWorkOrders($userId, $tenantSlug) : ['count' => 0, 'overdue' => 0, 'items' => []],
         );
     }
 }

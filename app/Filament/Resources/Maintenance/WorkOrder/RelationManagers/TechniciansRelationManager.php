@@ -26,7 +26,7 @@ class TechniciansRelationManager extends RelationManager
         return $schema->components([
             Select::make('user_id')
                 ->label('Técnico')
-                ->options(User::query()->orderBy('name')->pluck('name', 'id'))
+                ->options(User::query()->operationalStaff()->orderBy('name')->pluck('name', 'id'))
                 ->searchable()
                 ->required(),
             Select::make('role')

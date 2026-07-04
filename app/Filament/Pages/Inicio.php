@@ -65,6 +65,7 @@ class Inicio extends Page
             'home' => $service->snapshot(
                 $tenant->slug,
                 $this->buildHero($user, $tenant, $attention, $status),
+                $user?->id,
             ),
         ];
     }

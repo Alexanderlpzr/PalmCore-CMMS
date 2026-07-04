@@ -9,6 +9,7 @@ use Filament\Models\Contracts\HasTenants;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -86,6 +87,24 @@ class User extends Authenticatable implements FilamentUser, HasAvatar, HasTenant
     public function profile(): HasOne
     {
         return $this->hasOne(UserProfile::class)->withDefault();
+    }
+
+    // ─── Scopes ──────────────────────────────────────────────────────────────
+
+    /**
+     * Users eligible for operational assignment (technician/supervisor pickers).
+     * Excludes Super Administrador and administrative-only roles (administrador-general,
+     * compras, almacenista, gerencia) so they never appear as assignable staff.
+     */
+    public function scopeOperationalStaff(Builder $query): Builder
+    {
+        return $query
+            ->where('is_super_admin', false)
+            ->whereHas('roles', fn (Builder $q) => $q->whereIn('name', [
+                'tecnico',
+                'supervisor',
+                'ingeniero-mantenimiento',
+            ]));
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────

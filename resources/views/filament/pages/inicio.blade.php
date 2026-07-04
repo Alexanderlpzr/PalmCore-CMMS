@@ -112,6 +112,51 @@
             </div>
         </section>
 
+        {{-- ═══════════════════ 1.5 · MIS ÓRDENES DE TRABAJO ═══════════════════ --}}
+        @if ($home->myWorkOrders['count'] > 0)
+            @php
+                $myWoBadge = [
+                    'danger' => 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300',
+                    'warning' => 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300',
+                    'info' => 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300',
+                    'gray' => 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
+                    'success' => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300',
+                ];
+            @endphp
+            <section aria-labelledby="my-work-orders-heading"
+                      class="rounded-2xl border border-amber-200 bg-amber-50/60 p-6 shadow-sm dark:border-amber-500/20 dark:bg-amber-500/5">
+                <div class="mb-4 flex items-center gap-2">
+                    <x-filament::icon icon="heroicon-o-bell-alert" class="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                    <h2 id="my-work-orders-heading" class="text-lg font-bold tracking-tight text-gray-900 dark:text-white">
+                        Tienes {{ $home->myWorkOrders['count'] }} {{ $home->myWorkOrders['count'] === 1 ? 'orden de trabajo pendiente' : 'órdenes de trabajo pendientes' }}
+                        @if ($home->myWorkOrders['overdue'] > 0)
+                            <span class="ml-1 text-red-600 dark:text-red-400">({{ $home->myWorkOrders['overdue'] }} atrasada{{ $home->myWorkOrders['overdue'] === 1 ? '' : 's' }})</span>
+                        @endif
+                    </h2>
+                </div>
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    @foreach ($home->myWorkOrders['items'] as $wo)
+                        <a href="{{ $wo['route'] }}"
+                           class="flex flex-col gap-2 rounded-xl border border-gray-100 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-700 dark:bg-gray-800">
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ $wo['number'] }}</span>
+                                <span class="inline-flex rounded px-2 py-0.5 text-xs font-medium {{ $myWoBadge[$wo['priority_color']] ?? $myWoBadge['gray'] }}">
+                                    {{ $wo['priority'] }}
+                                </span>
+                            </div>
+                            <p class="text-sm text-gray-600 line-clamp-1 dark:text-gray-300">{{ $wo['title'] }}</p>
+                            @if ($wo['equipment'])
+                                <p class="text-xs text-gray-400">{{ $wo['equipment'] }}</p>
+                            @endif
+                            @if ($wo['is_overdue'])
+                                <span class="text-xs font-semibold text-red-600 dark:text-red-400">Atrasada</span>
+                            @endif
+                        </a>
+                    @endforeach
+                </div>
+            </section>
+        @endif
+
         {{-- ═══════════════════ 2 · ATENCIÓN REQUERIDA ═══════════════════ --}}
         <section aria-labelledby="attention-heading">
             <h2 id="attention-heading" class="mb-5 text-xl font-bold tracking-tight text-gray-900 dark:text-white">

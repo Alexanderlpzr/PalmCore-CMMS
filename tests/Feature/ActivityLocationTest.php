@@ -1,5 +1,6 @@
 <?php
 
+use App\Domain\Maintenance\Enums\TechnicianRole;
 use App\Domain\Maintenance\Enums\WorkOrderStatus;
 use App\Domain\Maintenance\Services\WorkOrderService;
 use App\Domain\Shared\Enums\ActivityType;
@@ -45,7 +46,9 @@ function createWorkOrder(Tenant $tenant, User $creator): WorkOrder
 {
     $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
 
-    return app(WorkOrderService::class)->create([
+    $service = app(WorkOrderService::class);
+
+    $workOrder = $service->create([
         'tenant_id' => $tenant->id,
         'equipment_id' => $equipment->id,
         'work_order_type' => 'corrective',
@@ -53,6 +56,10 @@ function createWorkOrder(Tenant $tenant, User $creator): WorkOrder
         'title' => 'Test WO',
         'description' => 'desc',
     ], $creator);
+
+    $service->assignTechnician($workOrder, $creator, TechnicianRole::Technician);
+
+    return $workOrder;
 }
 
 // ── Time entry GPS ────────────────────────────────────────────────────────────

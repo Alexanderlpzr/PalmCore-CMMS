@@ -20,6 +20,7 @@ class HomePageData
      * @param  array<int, array<string, mixed>>  $importantNotices
      * @param  array<int, array<string, mixed>>  $newsAndCommunications
      * @param  array<int, array<string, mixed>>  $recentActivity
+     * @param  array{count: int, overdue: int, items: array<int, array<string, mixed>>}  $myWorkOrders
      */
     public function __construct(
         public array $hero,
@@ -29,5 +30,6 @@ class HomePageData
         public array $importantNotices,
         public array $newsAndCommunications,
         public array $recentActivity,
+        public array $myWorkOrders,
     ) {}
 }

@@ -199,7 +199,17 @@ class ViewWorkOrder extends ViewRecord
         /** @var WorkOrder $wo */
         $wo = $this->record;
 
-        $service->transition($wo, $toStatus, auth()->user(), $extra);
+        try {
+            $service->transition($wo, $toStatus, auth()->user(), $extra);
+        } catch (\RuntimeException $e) {
+            Notification::make()
+                ->title($e->getMessage())
+                ->danger()
+                ->send();
+
+            return;
+        }
+
         $this->record->refresh();
 
         Notification::make()

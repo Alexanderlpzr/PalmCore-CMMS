@@ -2,6 +2,7 @@
 
 use App\Domain\Assets\Enums\EquipmentDowntimeCauseType;
 use App\Domain\Assets\Enums\EquipmentStatus;
+use App\Domain\Maintenance\Enums\TechnicianRole;
 use App\Domain\Maintenance\Enums\WorkOrderStatus;
 use App\Domain\Maintenance\Enums\WorkOrderType;
 use App\Domain\Maintenance\Services\WorkOrderService;
@@ -28,6 +29,7 @@ it('sets equipment to under_maintenance when WO goes InProgress with equipment_s
         'equipment_stopped' => true,
     ], $user);
 
+    $service->assignTechnician($wo, $user, TechnicianRole::Technician);
     $service->transition($wo, WorkOrderStatus::Planned, $user);
     $service->transition($wo, WorkOrderStatus::InProgress, $user);
 
@@ -50,6 +52,7 @@ it('does NOT change equipment status when equipment_stopped is false', function 
         'equipment_stopped' => false,
     ], $user);
 
+    $service->assignTechnician($wo, $user, TechnicianRole::Technician);
     $service->transition($wo, WorkOrderStatus::Planned, $user);
     $service->transition($wo, WorkOrderStatus::InProgress, $user);
 
@@ -72,6 +75,7 @@ it('restores equipment to active when WO is Closed and no other stopped WOs exis
         'equipment_stopped' => true,
     ], $user);
 
+    $service->assignTechnician($wo, $user, TechnicianRole::Technician);
     $service->transition($wo, WorkOrderStatus::Planned, $user);
     $service->transition($wo, WorkOrderStatus::InProgress, $user);
     $service->transition($wo, WorkOrderStatus::Completed, $user, ['work_performed' => 'reparado']);
@@ -97,6 +101,7 @@ it('restores equipment to active when WO is Cancelled', function () {
         'equipment_stopped' => true,
     ], $user);
 
+    $service->assignTechnician($wo, $user, TechnicianRole::Technician);
     $service->transition($wo, WorkOrderStatus::Planned, $user);
     $service->transition($wo, WorkOrderStatus::InProgress, $user);
     $service->transition($wo, WorkOrderStatus::Cancelled, $user);
@@ -130,8 +135,10 @@ it('keeps equipment under_maintenance when a second stopped WO is still open', f
         'equipment_stopped' => true,
     ], $user);
 
+    $service->assignTechnician($wo1, $user, TechnicianRole::Technician);
     $service->transition($wo1, WorkOrderStatus::Planned, $user);
     $service->transition($wo1, WorkOrderStatus::InProgress, $user);
+    $service->assignTechnician($wo2, $user, TechnicianRole::Technician);
     $service->transition($wo2, WorkOrderStatus::Planned, $user);
     $service->transition($wo2, WorkOrderStatus::InProgress, $user);
 
@@ -182,6 +189,7 @@ it('creates a downtime event when WO goes InProgress with equipment_stopped', fu
         'equipment_stopped' => true,
     ], $user);
 
+    $service->assignTechnician($wo, $user, TechnicianRole::Technician);
     $service->transition($wo, WorkOrderStatus::Planned, $user);
     $service->transition($wo, WorkOrderStatus::InProgress, $user);
 
@@ -210,6 +218,7 @@ it('sets was_planned=true for preventive WO downtime event', function () {
         'equipment_stopped' => true,
     ], $user);
 
+    $service->assignTechnician($wo, $user, TechnicianRole::Technician);
     $service->transition($wo, WorkOrderStatus::Planned, $user);
     $service->transition($wo, WorkOrderStatus::InProgress, $user);
 
@@ -235,6 +244,7 @@ it('closes downtime event with duration when WO is Closed', function () {
         'equipment_stopped' => true,
     ], $user);
 
+    $service->assignTechnician($wo, $user, TechnicianRole::Technician);
     $service->transition($wo, WorkOrderStatus::Planned, $user);
     $service->transition($wo, WorkOrderStatus::InProgress, $user);
     $service->transition($wo, WorkOrderStatus::Completed, $user, ['work_performed' => 'reparado']);
@@ -265,6 +275,7 @@ it('uses WO downtime_minutes when provided instead of calculated duration', func
         'downtime_minutes' => 180,
     ], $user);
 
+    $service->assignTechnician($wo, $user, TechnicianRole::Technician);
     $service->transition($wo, WorkOrderStatus::Planned, $user);
     $service->transition($wo, WorkOrderStatus::InProgress, $user);
     $service->transition($wo, WorkOrderStatus::Completed, $user, ['work_performed' => 'reparado']);
@@ -292,6 +303,7 @@ it('does NOT create duplicate downtime events when WO goes InProgress twice (OnH
         'equipment_stopped' => true,
     ], $user);
 
+    $service->assignTechnician($wo, $user, TechnicianRole::Technician);
     $service->transition($wo, WorkOrderStatus::Planned, $user);
     $service->transition($wo, WorkOrderStatus::InProgress, $user);
     $service->transition($wo, WorkOrderStatus::OnHold, $user);
@@ -320,6 +332,7 @@ it('updates equipment.last_failure_at when downtime event is created', function 
         'equipment_stopped' => true,
     ], $user);
 
+    $service->assignTechnician($wo, $user, TechnicianRole::Technician);
     $service->transition($wo, WorkOrderStatus::Planned, $user);
     $service->transition($wo, WorkOrderStatus::InProgress, $user);
 

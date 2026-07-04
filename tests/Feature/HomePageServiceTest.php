@@ -3,12 +3,15 @@
 use App\Domain\Home\Enums\AnnouncementCategory;
 use App\Domain\Home\Services\HomePageService;
 use App\Domain\Maintenance\Enums\IssueReportStatus;
+use App\Domain\Maintenance\Enums\TechnicianRole;
+use App\Domain\Maintenance\Services\WorkOrderService;
 use App\Infrastructure\Tenancy\CurrentTenant;
 use App\Models\Alert;
 use App\Models\Announcement;
 use App\Models\CarouselSlide;
 use App\Models\EquipmentIssueReport;
 use App\Models\Tenant;
+use App\Models\User;
 use App\Models\WorkOrder;
 use Illuminate\Support\Facades\Cache;
 
@@ -192,6 +195,45 @@ it('snapshot returns a HomePageData with every section and merged hero status', 
         ->and($data->importantNotices)->toBeArray()
         ->and($data->newsAndCommunications)->toBeArray()
         ->and($data->recentActivity)->toBeArray();
+});
+
+it('myWorkOrders returns only the given technician\'s own open work orders', function () {
+    $tenant = homePageTenant();
+    $service = app(WorkOrderService::class);
+
+    $technician = User::factory()->create();
+    $otherTechnician = User::factory()->create();
+
+    $ownOverdue = WorkOrder::factory()->for($tenant)->create([
+        'status' => 'planned', 'planned_end_at' => now()->subDay(),
+    ]);
+    $service->assignTechnician($ownOverdue, $technician, TechnicianRole::Technician);
+
+    $ownOnTime = WorkOrder::factory()->for($tenant)->create([
+        'status' => 'in_progress', 'planned_end_at' => now()->addDay(),
+    ]);
+    $service->assignTechnician($ownOnTime, $technician, TechnicianRole::Technician);
+
+    $notMine = WorkOrder::factory()->for($tenant)->create(['status' => 'planned']);
+    $service->assignTechnician($notMine, $otherTechnician, TechnicianRole::Technician);
+
+    $result = (new HomePageService($tenant->id))->myWorkOrders($technician->id, 'acme');
+
+    expect($result['count'])->toBe(2)
+        ->and($result['overdue'])->toBe(1)
+        ->and(collect($result['items'])->pluck('id')->all())
+        ->toEqualCanonicalizing([$ownOverdue->id, $ownOnTime->id]);
+});
+
+it('myWorkOrders is empty for a user with no assigned work orders', function () {
+    $tenant = homePageTenant();
+    $technician = User::factory()->create();
+
+    $result = (new HomePageService($tenant->id))->myWorkOrders($technician->id, 'acme');
+
+    expect($result['count'])->toBe(0)
+        ->and($result['overdue'])->toBe(0)
+        ->and($result['items'])->toBe([]);
 });
 
 afterEach(function () {

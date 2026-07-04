@@ -168,6 +168,12 @@ class WorkOrderService
             );
         }
 
+        if ($toStatus === WorkOrderStatus::Planned && $workOrder->technicians()->doesntExist()) {
+            throw new \RuntimeException(
+                'No es posible planificar la Orden de Trabajo porque no tiene técnicos asignados.'
+            );
+        }
+
         $fromStatus = $workOrder->status;
 
         $workOrder = DB::transaction(function () use ($workOrder, $fromStatus, $toStatus, $actor, $extra): WorkOrder {

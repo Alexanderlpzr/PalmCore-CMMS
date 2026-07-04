@@ -1,6 +1,7 @@
 <?php
 
 use App\Domain\Inventory\Enums\InventoryTransactionType;
+use App\Domain\Maintenance\Enums\TechnicianRole;
 use App\Domain\Maintenance\Enums\WorkOrderPartStatus;
 use App\Domain\Maintenance\Enums\WorkOrderStatus;
 use App\Domain\Maintenance\Enums\WorkOrderType;
@@ -53,6 +54,9 @@ function woInventorySetup(float $initialStock = 20.0, float $unitCost = 50.0): a
         'description' => 'Test',
         'equipment_stopped' => false,
     ], $user);
+
+    // Planning requires at least one assigned technician (RF-004).
+    app(WorkOrderService::class)->assignTechnician($workOrder, $user, TechnicianRole::Technician);
 
     return [$tenant, $warehouse, $sparePart, $user, $workOrder];
 }
@@ -440,6 +444,7 @@ it('inventory operations on one tenant do not affect another tenant stock', func
     ], $user);
 
     addInventoryPart($woA, $warehouseA, $sparePartA, 7.0, 50.0);
+    $service->assignTechnician($woA, $user, TechnicianRole::Technician);
     $service->transition($woA, WorkOrderStatus::Planned, $user);
 
     // Tenant B's stock must be completely unaffected

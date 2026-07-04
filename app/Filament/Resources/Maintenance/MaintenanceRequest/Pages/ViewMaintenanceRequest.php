@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Maintenance\MaintenanceRequest\Pages;
 
 use App\Domain\Maintenance\Enums\MaintenanceRequestStatus;
+use App\Domain\Maintenance\Enums\TechnicianRole;
 use App\Domain\Maintenance\Enums\WorkOrderType;
 use App\Domain\Maintenance\Services\MaintenanceRequestService;
 use App\Domain\Maintenance\Services\WorkOrderService;
@@ -52,17 +53,80 @@ class ViewMaintenanceRequest extends ViewRecord
                     $service, MaintenanceRequestStatus::UnderReview
                 )),
 
-            // Approve: UnderReview → Approved
-            Action::make('approve')
-                ->label('Aprobar')
+            // Approve & create OT in one step: UnderReview → Approved → Converted
+            Action::make('approve_and_create_wo')
+                ->label('Aprobar y Crear OT')
                 ->icon(Heroicon::OutlinedCheckBadge)
                 ->color('success')
-                ->requiresConfirmation()
-                ->modalHeading('¿Aprobar solicitud?')
-                ->visible(fn (): bool => $this->record->status === MaintenanceRequestStatus::UnderReview)
-                ->action(fn (MaintenanceRequestService $service): MaintenanceRequest => $this->transitionAndRefresh(
-                    $service, MaintenanceRequestStatus::Approved
-                )),
+                ->modalHeading('Aprobar solicitud y crear Orden de Trabajo')
+                ->modalDescription('La solicitud quedará aprobada y la OT se creará de inmediato en estado Borrador, con los técnicos asignados.')
+                ->visible(fn (): bool => $this->record->status === MaintenanceRequestStatus::UnderReview
+                    && auth()->user()->can('approve', $this->record)
+                    && auth()->user()->can('convert', $this->record))
+                ->form([
+                    Select::make('technician_ids')
+                        ->label('Técnico(s) asignado(s)')
+                        ->options(User::query()->operationalStaff()->orderBy('name')->pluck('name', 'id'))
+                        ->multiple()
+                        ->searchable()
+                        ->required()
+                        ->default(fn (): array => $this->record->preliminary_technician_id
+                            ? [$this->record->preliminary_technician_id]
+                            : [])
+                        ->helperText('No es posible crear la Orden de Trabajo sin al menos un técnico asignado.'),
+                    Select::make('work_order_type')
+                        ->label('Tipo de OT')
+                        ->options(WorkOrderType::class)
+                        ->required()
+                        ->default(fn (): string => WorkOrderType::fromMaintenanceRequestType(
+                            $this->record->request_type
+                        )->value),
+                    Select::make('assigned_supervisor')
+                        ->label('Supervisor responsable')
+                        ->options(User::query()->operationalStaff()->orderBy('name')->pluck('name', 'id'))
+                        ->searchable()
+                        ->nullable(),
+                    DateTimePicker::make('planned_start_at')
+                        ->label('Inicio planificado')
+                        ->nullable(),
+                    DateTimePicker::make('planned_end_at')
+                        ->label('Fin planificado')
+                        ->nullable(),
+                    Textarea::make('instructions')
+                        ->label('Instrucciones adicionales')
+                        ->rows(3)
+                        ->nullable(),
+                ])
+                ->action(function (array $data, MaintenanceRequestService $mrService, WorkOrderService $woService): void {
+                    /** @var MaintenanceRequest $mr */
+                    $mr = $this->record;
+
+                    $technicianIds = $data['technician_ids'];
+                    unset($data['technician_ids']);
+
+                    $mrService->transition($mr, MaintenanceRequestStatus::Approved, auth()->user());
+
+                    // Explicit multi-technician selection replaces the preliminary single-technician hint.
+                    $mr->update(['preliminary_technician_id' => null]);
+
+                    $workOrder = $woService->createFromMaintenanceRequest($mr, $data, auth()->user());
+
+                    foreach ($technicianIds as $userId) {
+                        $technician = User::find($userId);
+                        if ($technician) {
+                            $woService->assignTechnician($workOrder, $technician, TechnicianRole::Technician);
+                        }
+                    }
+
+                    $this->record->refresh();
+
+                    Notification::make()
+                        ->title('Solicitud aprobada y OT creada: '.$workOrder->work_order_number)
+                        ->success()
+                        ->send();
+
+                    $this->redirect(WorkOrderResource::getUrl('view', ['record' => $workOrder]));
+                }),
 
             // Reject: UnderReview → Rejected (requires reason)
             Action::make('reject')
@@ -112,26 +176,22 @@ class ViewMaintenanceRequest extends ViewRecord
                     $service, MaintenanceRequestStatus::Cancelled
                 )),
 
-            // Assign preliminary technician (visible from UnderReview until conversion)
+            // Assign preliminary technician (before deciding to approve — optional early planning)
             Action::make('assign_technician')
                 ->label('Asignar técnico')
                 ->icon(Heroicon::OutlinedUserPlus)
                 ->color('info')
                 ->modalHeading('Asignar técnico preliminar')
-                ->modalDescription('Selecciona el técnico que ejecutará el trabajo. Puedes cambiar esto en cualquier momento antes de crear la OT.')
-                ->visible(fn (): bool => in_array(
-                    $this->record->status,
-                    [MaintenanceRequestStatus::UnderReview, MaintenanceRequestStatus::Approved],
-                    strict: true,
-                ) && $this->record->work_order_id === null)
+                ->modalDescription('Selecciona el técnico sugerido para ejecutar el trabajo. Se precargará al aprobar la solicitud, pero puedes cambiarlo en ese momento.')
+                ->visible(fn (): bool => $this->record->status === MaintenanceRequestStatus::UnderReview
+                    && $this->record->work_order_id === null)
                 ->form([
                     Select::make('preliminary_technician_id')
                         ->label('Técnico asignado')
-                        ->options(User::query()->orderBy('name')->pluck('name', 'id'))
+                        ->options(User::query()->operationalStaff()->orderBy('name')->pluck('name', 'id'))
                         ->searchable()
                         ->nullable()
-                        ->default(fn (): ?string => $this->record->preliminary_technician_id)
-                        ->helperText('Este técnico se asignará automáticamente al crear la OT.'),
+                        ->default(fn (): ?string => $this->record->preliminary_technician_id),
                 ])
                 ->action(function (array $data): void {
                     $this->record->update(['preliminary_technician_id' => $data['preliminary_technician_id']]);
@@ -143,55 +203,6 @@ class ViewMaintenanceRequest extends ViewRecord
                             : 'Técnico removido')
                         ->success()
                         ->send();
-                }),
-
-            // Convert to Work Order
-            Action::make('convert_to_wo')
-                ->label('Convertir a OT')
-                ->icon(Heroicon::OutlinedWrenchScrewdriver)
-                ->color('success')
-                ->modalHeading('Crear Orden de Trabajo')
-                ->modalDescription('La OT se creará en estado Borrador vinculada a esta solicitud.')
-                ->visible(fn (): bool => $this->record->status === MaintenanceRequestStatus::Approved
-                    && $this->record->work_order_id === null)
-                ->form([
-                    Select::make('work_order_type')
-                        ->label('Tipo de OT')
-                        ->options(WorkOrderType::class)
-                        ->required()
-                        ->default(fn (): string => WorkOrderType::fromMaintenanceRequestType(
-                            $this->record->request_type
-                        )->value),
-                    Select::make('assigned_supervisor')
-                        ->label('Supervisor responsable')
-                        ->options(User::query()->orderBy('name')->pluck('name', 'id'))
-                        ->searchable()
-                        ->nullable(),
-                    DateTimePicker::make('planned_start_at')
-                        ->label('Inicio planificado')
-                        ->nullable(),
-                    DateTimePicker::make('planned_end_at')
-                        ->label('Fin planificado')
-                        ->nullable(),
-                    Textarea::make('instructions')
-                        ->label('Instrucciones adicionales')
-                        ->rows(3)
-                        ->nullable(),
-                ])
-                ->action(function (array $data, WorkOrderService $service): void {
-                    /** @var MaintenanceRequest $mr */
-                    $mr = $this->record;
-
-                    $workOrder = $service->createFromMaintenanceRequest($mr, $data, auth()->user());
-
-                    $this->record->refresh();
-
-                    Notification::make()
-                        ->title('OT creada: '.$workOrder->work_order_number)
-                        ->success()
-                        ->send();
-
-                    $this->redirect(WorkOrderResource::getUrl('view', ['record' => $workOrder]));
                 }),
 
             EditAction::make()

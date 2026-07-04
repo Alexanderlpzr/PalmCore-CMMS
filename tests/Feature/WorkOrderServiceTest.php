@@ -13,8 +13,8 @@ use App\Models\WorkOrder;
 // ── Numbering ─────────────────────────────────────────────────────────────────
 
 it('generates first work order number for a new tenant', function () {
-    $service   = app(WorkOrderService::class);
-    $tenant    = Tenant::factory()->create();
+    $service = app(WorkOrderService::class);
+    $tenant = Tenant::factory()->create();
     $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id, 'code' => 'EQ001']);
 
     $number = $service->generateWorkOrderNumber($tenant->id, $equipment->code);
@@ -23,10 +23,10 @@ it('generates first work order number for a new tenant', function () {
 });
 
 it('increments sequential per tenant per year', function () {
-    $service   = app(WorkOrderService::class);
-    $tenant    = Tenant::factory()->create();
+    $service = app(WorkOrderService::class);
+    $tenant = Tenant::factory()->create();
     $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id, 'code' => 'PRE-001']);
-    $user      = User::factory()->create();
+    $user = User::factory()->create();
 
     $wo1 = $service->create([
         'tenant_id' => $tenant->id, 'equipment_id' => $equipment->id,
@@ -48,9 +48,9 @@ it('does not share sequences between tenants', function () {
     $service = app(WorkOrderService::class);
     $tenantA = Tenant::factory()->create();
     $tenantB = Tenant::factory()->create();
-    $equipA  = Equipment::factory()->create(['tenant_id' => $tenantA->id, 'code' => 'EQ-A']);
-    $equipB  = Equipment::factory()->create(['tenant_id' => $tenantB->id, 'code' => 'EQ-B']);
-    $user    = User::factory()->create();
+    $equipA = Equipment::factory()->create(['tenant_id' => $tenantA->id, 'code' => 'EQ-A']);
+    $equipB = Equipment::factory()->create(['tenant_id' => $tenantB->id, 'code' => 'EQ-B']);
+    $user = User::factory()->create();
 
     $woA = $service->create([
         'tenant_id' => $tenantA->id, 'equipment_id' => $equipA->id,
@@ -71,18 +71,18 @@ it('does not share sequences between tenants', function () {
 // ── Create ────────────────────────────────────────────────────────────────────
 
 it('creates work order with draft status by default', function () {
-    $service   = app(WorkOrderService::class);
-    $tenant    = Tenant::factory()->create();
+    $service = app(WorkOrderService::class);
+    $tenant = Tenant::factory()->create();
     $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
-    $user      = User::factory()->create();
+    $user = User::factory()->create();
 
     $wo = $service->create([
-        'tenant_id'       => $tenant->id,
-        'equipment_id'    => $equipment->id,
+        'tenant_id' => $tenant->id,
+        'equipment_id' => $equipment->id,
         'work_order_type' => WorkOrderType::Corrective->value,
-        'priority'        => 'p3_medium',
-        'title'           => 'Falla en bomba',
-        'description'     => 'desc',
+        'priority' => 'p3_medium',
+        'title' => 'Falla en bomba',
+        'description' => 'desc',
     ], $user);
 
     expect($wo->status)->toBe(WorkOrderStatus::Draft)
@@ -91,18 +91,18 @@ it('creates work order with draft status by default', function () {
 });
 
 it('emergency work order starts in progress immediately', function () {
-    $service   = app(WorkOrderService::class);
-    $tenant    = Tenant::factory()->create();
+    $service = app(WorkOrderService::class);
+    $tenant = Tenant::factory()->create();
     $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
-    $user      = User::factory()->create();
+    $user = User::factory()->create();
 
     $wo = $service->create([
-        'tenant_id'       => $tenant->id,
-        'equipment_id'    => $equipment->id,
+        'tenant_id' => $tenant->id,
+        'equipment_id' => $equipment->id,
         'work_order_type' => WorkOrderType::Emergency->value,
-        'priority'        => 'p1_critical',
-        'title'           => 'Emergencia',
-        'description'     => 'desc',
+        'priority' => 'p1_critical',
+        'title' => 'Emergencia',
+        'description' => 'desc',
     ], $user);
 
     expect($wo->status)->toBe(WorkOrderStatus::InProgress)
@@ -114,19 +114,29 @@ it('emergency work order starts in progress immediately', function () {
 
 it('transitions draft to planned', function () {
     $service = app(WorkOrderService::class);
-    $user    = User::factory()->create();
-    $wo      = WorkOrder::factory()->create();
+    $user = User::factory()->create();
+    $wo = WorkOrder::factory()->create();
 
+    $service->assignTechnician($wo, $user, TechnicianRole::Technician);
     $service->transition($wo, WorkOrderStatus::Planned, $user);
     $wo->refresh();
 
     expect($wo->status)->toBe(WorkOrderStatus::Planned);
 });
 
+it('refuses to plan a work order without an assigned technician', function () {
+    $service = app(WorkOrderService::class);
+    $user = User::factory()->create();
+    $wo = WorkOrder::factory()->create();
+
+    expect(fn () => $service->transition($wo, WorkOrderStatus::Planned, $user))
+        ->toThrow(RuntimeException::class, 'no tiene técnicos asignados');
+});
+
 it('sets started_at when transitioning to in_progress', function () {
     $service = app(WorkOrderService::class);
-    $user    = User::factory()->create();
-    $wo      = WorkOrder::factory()->planned()->create();
+    $user = User::factory()->create();
+    $wo = WorkOrder::factory()->planned()->create();
 
     $service->transition($wo, WorkOrderStatus::InProgress, $user);
     $wo->refresh();
@@ -137,17 +147,17 @@ it('sets started_at when transitioning to in_progress', function () {
 
 it('throws when transition is invalid', function () {
     $service = app(WorkOrderService::class);
-    $user    = User::factory()->create();
-    $wo      = WorkOrder::factory()->create(); // draft
+    $user = User::factory()->create();
+    $wo = WorkOrder::factory()->create(); // draft
 
     expect(fn () => $service->transition($wo, WorkOrderStatus::Closed, $user))
-        ->toThrow(\RuntimeException::class);
+        ->toThrow(RuntimeException::class);
 });
 
 it('sets completed_by when transitioning to completed', function () {
     $service = app(WorkOrderService::class);
-    $user    = User::factory()->create();
-    $wo      = WorkOrder::factory()->inProgress()->create();
+    $user = User::factory()->create();
+    $wo = WorkOrder::factory()->inProgress()->create();
 
     $service->transition($wo, WorkOrderStatus::Completed, $user, ['work_performed' => 'Trabajo realizado.']);
     $wo->refresh();
@@ -160,8 +170,8 @@ it('sets completed_by when transitioning to completed', function () {
 // ── Technician assignment ─────────────────────────────────────────────────────
 
 it('assigns technician with frozen hourly rate', function () {
-    $service  = app(WorkOrderService::class);
-    $wo       = WorkOrder::factory()->create();
+    $service = app(WorkOrderService::class);
+    $wo = WorkOrder::factory()->create();
     $techUser = User::factory()->create();
 
     $tech = $service->assignTechnician($wo, $techUser, TechnicianRole::Lead->value, 8.0, 50000.0);
@@ -172,8 +182,8 @@ it('assigns technician with frozen hourly rate', function () {
 });
 
 it('updates existing technician on re-assignment', function () {
-    $service  = app(WorkOrderService::class);
-    $wo       = WorkOrder::factory()->create();
+    $service = app(WorkOrderService::class);
+    $wo = WorkOrder::factory()->create();
     $techUser = User::factory()->create();
 
     $service->assignTechnician($wo, $techUser, TechnicianRole::Helper->value, 4.0, 30000.0);
@@ -188,10 +198,10 @@ it('updates existing technician on re-assignment', function () {
 
 it('logs time and updates actual_labor_hours', function () {
     $service = app(WorkOrderService::class);
-    $wo      = WorkOrder::factory()->create();
-    $user    = User::factory()->create();
-    $start   = now()->subHours(3);
-    $end     = now();
+    $wo = WorkOrder::factory()->create();
+    $user = User::factory()->create();
+    $start = now()->subHours(3);
+    $end = now();
 
     $service->logTime($wo, $user, $start, $end, 'Revisión general');
     $wo->refresh();
@@ -201,8 +211,8 @@ it('logs time and updates actual_labor_hours', function () {
 
 it('logs open time session with null ended_at', function () {
     $service = app(WorkOrderService::class);
-    $wo      = WorkOrder::factory()->create();
-    $user    = User::factory()->create();
+    $wo = WorkOrder::factory()->create();
+    $user = User::factory()->create();
 
     $log = $service->logTime($wo, $user, now(), null);
 
@@ -213,21 +223,21 @@ it('logs open time session with null ended_at', function () {
 // ── Costs ─────────────────────────────────────────────────────────────────────
 
 it('recalculates costs from time logs and parts', function () {
-    $service  = app(WorkOrderService::class);
-    $wo       = WorkOrder::factory()->create();
+    $service = app(WorkOrderService::class);
+    $wo = WorkOrder::factory()->create();
     $techUser = User::factory()->create();
 
     $service->assignTechnician($wo, $techUser, TechnicianRole::Technician->value, 8.0, 50000.0);
     $service->logTime($wo, $techUser, now()->subHours(2), now());
 
     $wo->parts()->create([
-        'tenant_id'   => $wo->tenant_id,
-        'part_code'   => 'FIL-001',
+        'tenant_id' => $wo->tenant_id,
+        'part_code' => 'FIL-001',
         'description' => 'Filtro',
-        'quantity'    => 2,
-        'unit'        => 'pcs',
-        'unit_cost'   => 15000,
-        'total_cost'  => 30000,
+        'quantity' => 2,
+        'unit' => 'pcs',
+        'unit_cost' => 15000,
+        'total_cost' => 30000,
     ]);
 
     $service->recalculateCosts($wo);
@@ -242,8 +252,8 @@ it('recalculates costs from time logs and parts', function () {
 
 it('adds technician completion signature', function () {
     $service = app(WorkOrderService::class);
-    $wo      = WorkOrder::factory()->create();
-    $user    = User::factory()->create();
+    $wo = WorkOrder::factory()->create();
+    $user = User::factory()->create();
 
     $sig = $service->addSignature($wo, $user, WorkOrderSignatureType::TechnicianCompletion, 'Todo en orden');
 
@@ -254,8 +264,8 @@ it('adds technician completion signature', function () {
 
 it('updates existing signature instead of creating duplicate', function () {
     $service = app(WorkOrderService::class);
-    $wo      = WorkOrder::factory()->create();
-    $user    = User::factory()->create();
+    $wo = WorkOrder::factory()->create();
+    $user = User::factory()->create();
 
     $service->addSignature($wo, $user, WorkOrderSignatureType::TechnicianCompletion, 'Primera');
     $service->addSignature($wo, $user, WorkOrderSignatureType::TechnicianCompletion, 'Actualizada');

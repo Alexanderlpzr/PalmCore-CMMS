@@ -1,6 +1,8 @@
 <?php
 
 use App\Domain\Assets\Enums\EquipmentPriority;
+use App\Domain\Maintenance\Enums\TechnicianRole;
+use App\Domain\Maintenance\Services\WorkOrderService;
 use App\Models\Area;
 use App\Models\Equipment;
 use App\Models\EquipmentDowntimeEvent;
@@ -607,13 +609,15 @@ it('POST /api/v1/work-orders rejects equipment from another tenant', function ()
 // ── PATCH /api/v1/work-orders/{id}/status ────────────────────────────────────
 
 it('PATCH /api/v1/work-orders/{id}/status transitions from draft to planned', function () {
-    ['tenant' => $tenant, 'token' => $token] = apiTenantWithUser(['work-orders.write']);
+    ['tenant' => $tenant, 'user' => $user, 'token' => $token] = apiTenantWithUser(['work-orders.write']);
     $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
     $workOrder = WorkOrder::factory()->create([
         'tenant_id' => $tenant->id,
         'equipment_id' => $equipment->id,
         'status' => 'draft',
     ]);
+
+    app(WorkOrderService::class)->assignTechnician($workOrder, $user, TechnicianRole::Technician);
 
     $response = $this->withHeaders(apiHeaders($token))
         ->patchJson('/api/v1/work-orders/'.$workOrder->id.'/status', ['status' => 'planned']);
