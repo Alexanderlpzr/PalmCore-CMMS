@@ -141,6 +141,27 @@ class EquipmentTable
                             'action' => $action,
                         ]
                     )),
+                Action::make('regenerate_qr_direct')
+                    ->label('Regenerar QR')
+                    ->icon(Heroicon::OutlinedArrowPath)
+                    ->color('warning')
+                    ->requiresConfirmation()
+                    ->modalHeading('¿Regenerar código QR?')
+                    ->modalDescription('El QR actual quedará inactivo. Todos los stickers impresos dejarán de funcionar.')
+                    ->action(function (Equipment $record, QrCodeService $service): void {
+                        $qrCode = $record->qrCode;
+
+                        if ($qrCode) {
+                            $service->regenerate($qrCode);
+                        } else {
+                            $service->createForEquipment($record);
+                        }
+
+                        Notification::make()
+                            ->title('QR regenerado correctamente')
+                            ->success()
+                            ->send();
+                    }),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

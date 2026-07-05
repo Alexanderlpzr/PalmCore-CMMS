@@ -68,11 +68,11 @@
         </div>
 
     @else
-        {{-- QR not yet generated --}}
-        <div class="text-center py-4">
+        {{-- QR not yet generated — polls automatically until the queued job finishes --}}
+        <div class="text-center py-4" wire:poll.3s="$refresh">
             <div class="text-4xl mb-3">⏳</div>
             <p class="text-sm font-medium text-gray-700">QR en generación</p>
-            <p class="text-xs text-gray-400 mt-1">El QR se genera automáticamente tras crear el equipo.<br>Recarga en unos segundos.</p>
+            <p class="text-xs text-gray-400 mt-1">El QR se genera automáticamente tras crear el equipo.<br>Esta ventana se actualiza sola cuando esté listo.</p>
 
             <div class="mt-4">
                 {{ $action->getModalAction('regenerate') }}

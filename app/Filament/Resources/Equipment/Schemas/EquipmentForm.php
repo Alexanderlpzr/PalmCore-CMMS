@@ -7,10 +7,12 @@ use App\Domain\Assets\Enums\EquipmentPriority;
 use App\Domain\Assets\Enums\EquipmentStatus;
 use App\Domain\Assets\Services\ReferenceDataService;
 use App\Models\Equipment;
+use App\Models\EquipmentCategory;
 use App\Models\Manufacturer;
 use App\Models\Supplier;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -57,7 +59,29 @@ class EquipmentForm
                             ->label('Categoría')
                             ->options(fn () => ReferenceDataService::categories(Filament::getTenant()?->id ?? ''))
                             ->searchable()
-                            ->nullable(),
+                            ->nullable()
+                            ->createOptionForm([
+                                TextInput::make('code')
+                                    ->label('Código')
+                                    ->required()
+                                    ->maxLength(50),
+                                TextInput::make('name')
+                                    ->label('Nombre')
+                                    ->required()
+                                    ->maxLength(255),
+                            ])
+                            ->createOptionUsing(function (array $data): string {
+                                $tenantId = Filament::getTenant()->id;
+
+                                $category = EquipmentCategory::create([
+                                    ...$data,
+                                    'tenant_id' => $tenantId,
+                                ]);
+
+                                ReferenceDataService::forgetCategories($tenantId);
+
+                                return $category->id;
+                            }),
                         Select::make('status')
                             ->label('Estado')
                             ->options(EquipmentStatus::options())
@@ -100,7 +124,7 @@ class EquipmentForm
                                 : ReferenceDataService::areas($get('plant_id'))
                             )
                             ->searchable()
-                            ->nullable()
+                            ->required()
                             ->disabled(fn (Get $get): bool => blank($get('plant_id')))
                             ->placeholder(fn (Get $get): string => blank($get('plant_id'))
                                 ? 'Selecciona una planta primero'
@@ -137,7 +161,21 @@ class EquipmentForm
                                 ->pluck('name', 'id')
                             )
                             ->searchable()
-                            ->nullable(),
+                            ->nullable()
+                            ->createOptionForm([
+                                TextInput::make('code')
+                                    ->label('Código')
+                                    ->required()
+                                    ->maxLength(50),
+                                TextInput::make('name')
+                                    ->label('Nombre')
+                                    ->required()
+                                    ->maxLength(255),
+                            ])
+                            ->createOptionUsing(fn (array $data): string => Manufacturer::create([
+                                ...$data,
+                                'tenant_id' => Filament::getTenant()->id,
+                            ])->id),
                         Select::make('supplier_id')
                             ->label('Proveedor')
                             ->options(fn () => Supplier::query()
@@ -147,7 +185,21 @@ class EquipmentForm
                                 ->pluck('name', 'id')
                             )
                             ->searchable()
-                            ->nullable(),
+                            ->nullable()
+                            ->createOptionForm([
+                                TextInput::make('code')
+                                    ->label('Código')
+                                    ->required()
+                                    ->maxLength(50),
+                                TextInput::make('name')
+                                    ->label('Nombre')
+                                    ->required()
+                                    ->maxLength(255),
+                            ])
+                            ->createOptionUsing(fn (array $data): string => Supplier::create([
+                                ...$data,
+                                'tenant_id' => Filament::getTenant()->id,
+                            ])->id),
                     ]),
 
                 Section::make('Ciclo de Vida')
@@ -207,6 +259,20 @@ class EquipmentForm
                         Toggle::make('is_active')
                             ->label('Activo')
                             ->default(true),
+                    ]),
+
+                Section::make('Fotografía')
+                    ->visible(fn (string $operation): bool => $operation === 'create')
+                    ->schema([
+                        FileUpload::make('primary_photo_path')
+                            ->label('Foto principal (opcional)')
+                            ->image()
+                            ->disk(persistent_disk())
+                            ->directory('equipment-photos/tmp')
+                            ->visibility(persistent_disk() === 'public' ? 'public' : 'private')
+                            ->maxSize(10240)
+                            ->imageResizeMode('contain')
+                            ->helperText('Puedes agregar más fotos y documentos después, desde las pestañas del equipo.'),
                     ]),
             ]);
     }
