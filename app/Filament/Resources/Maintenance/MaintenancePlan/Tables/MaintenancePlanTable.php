@@ -38,10 +38,12 @@ class MaintenancePlanTable
                     ->label('Disparador')
                     ->badge()
                     ->color(fn (MaintenanceTriggerSource $state): string => $state->color())
+                    ->formatStateUsing(fn (MaintenanceTriggerSource $state): string => $state->label())
                     ->sortable(),
                 TextColumn::make('time_frequency')
                     ->label('Frecuencia')
                     ->badge()
+                    ->formatStateUsing(fn (?MaintenanceTimeFrequency $state): ?string => $state?->label())
                     ->placeholder('—')
                     ->sortable(),
                 TextColumn::make('meter_interval')

@@ -40,6 +40,7 @@ class MovementsRelationManager extends RelationManager
                     ->label('Tipo')
                     ->badge()
                     ->color(fn (InventoryTransactionType $state): string => $state->color())
+                    ->formatStateUsing(fn (InventoryTransactionType $state): string => $state->label())
                     ->sortable(),
                 TextColumn::make('spare_part_code_snapshot')
                     ->label('Código repuesto')

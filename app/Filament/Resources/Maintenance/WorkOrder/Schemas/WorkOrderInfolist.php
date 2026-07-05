@@ -27,15 +27,18 @@ class WorkOrderInfolist
                         TextEntry::make('status')
                             ->label('Estado')
                             ->badge()
-                            ->color(fn (WorkOrderStatus $state): string => $state->color()),
+                            ->color(fn (WorkOrderStatus $state): string => $state->color())
+                            ->formatStateUsing(fn (WorkOrderStatus $state): string => $state->label()),
                         TextEntry::make('work_order_type')
                             ->label('Tipo')
                             ->badge()
-                            ->color(fn (WorkOrderType $state): string => $state->color()),
+                            ->color(fn (WorkOrderType $state): string => $state->color())
+                            ->formatStateUsing(fn (WorkOrderType $state): string => $state->label()),
                         TextEntry::make('priority')
                             ->label('Prioridad')
                             ->badge()
-                            ->color(fn (WorkOrderPriority $state): string => $state->color()),
+                            ->color(fn (WorkOrderPriority $state): string => $state->color())
+                            ->formatStateUsing(fn (WorkOrderPriority $state): string => $state->label()),
                     ]),
 
                 Section::make('Equipo')

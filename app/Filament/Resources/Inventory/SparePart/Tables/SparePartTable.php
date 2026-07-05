@@ -40,16 +40,19 @@ class SparePartTable
                     ->label('Categoría')
                     ->badge()
                     ->color(fn (SparePartCategoryType $state): string => $state->color())
+                    ->formatStateUsing(fn (SparePartCategoryType $state): string => $state->label())
                     ->sortable(),
                 TextColumn::make('criticality')
                     ->label('Criticidad')
                     ->badge()
                     ->color(fn (SparePartCriticality $state): string => $state->color())
+                    ->formatStateUsing(fn (SparePartCriticality $state): string => $state->label())
                     ->sortable(),
                 TextColumn::make('abc_classification')
                     ->label('ABC')
                     ->badge()
                     ->color(fn (SparePartAbcClassification $state): string => $state->color())
+                    ->formatStateUsing(fn (SparePartAbcClassification $state): string => $state->label())
                     ->sortable(),
                 TextColumn::make('unit')
                     ->label('UM')

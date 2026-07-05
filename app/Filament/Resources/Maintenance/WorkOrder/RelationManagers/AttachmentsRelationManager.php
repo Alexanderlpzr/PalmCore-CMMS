@@ -54,7 +54,9 @@ class AttachmentsRelationManager extends RelationManager
                     ->limit(50),
                 TextColumn::make('attachment_type')
                     ->label('Tipo')
-                    ->badge(),
+                    ->badge()
+                    ->color(fn (WorkOrderAttachmentType $state): string => $state->color())
+                    ->formatStateUsing(fn (WorkOrderAttachmentType $state): string => $state->label()),
                 TextColumn::make('mime_type')
                     ->label('Formato')
                     ->limit(30)

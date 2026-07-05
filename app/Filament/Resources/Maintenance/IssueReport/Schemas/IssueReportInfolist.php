@@ -24,11 +24,13 @@ class IssueReportInfolist
                         TextEntry::make('severity')
                             ->label('Severidad')
                             ->badge()
-                            ->color(fn (IssueSeverity $state): string => $state->color()),
+                            ->color(fn (IssueSeverity $state): string => $state->color())
+                            ->formatStateUsing(fn (IssueSeverity $state): string => $state->label()),
                         TextEntry::make('status')
                             ->label('Estado')
                             ->badge()
-                            ->color(fn (IssueReportStatus $state): string => $state->color()),
+                            ->color(fn (IssueReportStatus $state): string => $state->color())
+                            ->formatStateUsing(fn (IssueReportStatus $state): string => $state->label()),
                         TextEntry::make('description')
                             ->label('Descripción')
                             ->columnSpanFull(),

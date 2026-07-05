@@ -112,6 +112,7 @@ class DocumentsRelationManager extends RelationManager
                     ->label('Tipo')
                     ->badge()
                     ->color(fn (DocumentType $state): string => $state->color())
+                    ->formatStateUsing(fn (DocumentType $state): string => $state->label())
                     ->sortable(),
                 TextColumn::make('title')
                     ->label('Título')

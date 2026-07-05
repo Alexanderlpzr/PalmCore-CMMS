@@ -40,6 +40,7 @@ class TransactionsRelationManager extends RelationManager
                     ->label('Tipo')
                     ->badge()
                     ->color(fn (InventoryTransactionType $state): string => $state->color())
+                    ->formatStateUsing(fn (InventoryTransactionType $state): string => $state->label())
                     ->sortable(),
                 TextColumn::make('warehouse.name')
                     ->label('Almacén')

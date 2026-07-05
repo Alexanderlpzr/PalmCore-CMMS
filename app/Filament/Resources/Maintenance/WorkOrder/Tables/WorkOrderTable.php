@@ -6,6 +6,7 @@ use App\Domain\Maintenance\Enums\WorkOrderPriority;
 use App\Domain\Maintenance\Enums\WorkOrderStatus;
 use App\Domain\Maintenance\Enums\WorkOrderType;
 use App\Models\WorkOrder;
+use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
@@ -38,16 +39,19 @@ class WorkOrderTable
                     ->label('Tipo')
                     ->badge()
                     ->color(fn (WorkOrderType $state): string => $state->color())
+                    ->formatStateUsing(fn (WorkOrderType $state): string => $state->label())
                     ->sortable(),
                 TextColumn::make('priority')
                     ->label('Prioridad')
                     ->badge()
                     ->color(fn (WorkOrderPriority $state): string => $state->color())
+                    ->formatStateUsing(fn (WorkOrderPriority $state): string => $state->label())
                     ->sortable(),
                 TextColumn::make('status')
                     ->label('Estado')
                     ->badge()
                     ->color(fn (WorkOrderStatus $state): string => $state->color())
+                    ->formatStateUsing(fn (WorkOrderStatus $state): string => $state->label())
                     ->sortable(),
                 IconColumn::make('equipment_stopped')
                     ->label('Equipo parado')
@@ -95,7 +99,7 @@ class WorkOrderTable
                     ->visible(fn (WorkOrder $record): bool => $record->isEditable()),
             ])
             ->toolbarActions([
-                \Filament\Actions\BulkActionGroup::make([
+                BulkActionGroup::make([
                     DeleteBulkAction::make(),
                 ]),
             ])

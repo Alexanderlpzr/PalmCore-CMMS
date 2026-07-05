@@ -45,7 +45,8 @@ class SparePartsRelationManager extends RelationManager
                 TextColumn::make('sparePart.category_type')
                     ->label('Categoría')
                     ->badge()
-                    ->color(fn (SparePartCategoryType $state): string => $state->color()),
+                    ->color(fn (SparePartCategoryType $state): string => $state->color())
+                    ->formatStateUsing(fn (SparePartCategoryType $state): string => $state->label()),
                 TextColumn::make('current_stock')
                     ->label('Stock actual')
                     ->numeric(decimalPlaces: 4)

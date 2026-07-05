@@ -38,7 +38,9 @@ class SignaturesRelationManager extends RelationManager
             ->columns([
                 TextColumn::make('signature_type')
                     ->label('Tipo')
-                    ->badge(),
+                    ->badge()
+                    ->color(fn (WorkOrderSignatureType $state): string => $state->color())
+                    ->formatStateUsing(fn (WorkOrderSignatureType $state): string => $state->label()),
                 TextColumn::make('user.name')
                     ->label('Firmante'),
                 TextColumn::make('signed_at')

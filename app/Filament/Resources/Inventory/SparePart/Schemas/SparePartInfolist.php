@@ -37,15 +37,18 @@ class SparePartInfolist
                         TextEntry::make('category_type')
                             ->label('Categoría')
                             ->badge()
-                            ->color(fn (SparePartCategoryType $state): string => $state->color()),
+                            ->color(fn (SparePartCategoryType $state): string => $state->color())
+                            ->formatStateUsing(fn (SparePartCategoryType $state): string => $state->label()),
                         TextEntry::make('criticality')
                             ->label('Criticidad')
                             ->badge()
-                            ->color(fn (SparePartCriticality $state): string => $state->color()),
+                            ->color(fn (SparePartCriticality $state): string => $state->color())
+                            ->formatStateUsing(fn (SparePartCriticality $state): string => $state->label()),
                         TextEntry::make('abc_classification')
                             ->label('Clasificación ABC')
                             ->badge()
-                            ->color(fn (SparePartAbcClassification $state): string => $state->color()),
+                            ->color(fn (SparePartAbcClassification $state): string => $state->color())
+                            ->formatStateUsing(fn (SparePartAbcClassification $state): string => $state->label()),
                         TextEntry::make('unit')
                             ->label('Unidad de medida'),
                         IconEntry::make('is_active')

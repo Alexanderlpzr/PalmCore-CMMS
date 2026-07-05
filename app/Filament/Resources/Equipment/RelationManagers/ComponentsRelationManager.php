@@ -103,11 +103,13 @@ class ComponentsRelationManager extends RelationManager
                 TextColumn::make('criticality')
                     ->label('Criticidad')
                     ->badge()
-                    ->color(fn (EquipmentCriticality $state): string => $state->color()),
+                    ->color(fn (EquipmentCriticality $state): string => $state->color())
+                    ->formatStateUsing(fn (EquipmentCriticality $state): string => $state->label()),
                 TextColumn::make('status')
                     ->label('Estado')
                     ->badge()
-                    ->color(fn (ComponentStatus $state): string => $state->color()),
+                    ->color(fn (ComponentStatus $state): string => $state->color())
+                    ->formatStateUsing(fn (ComponentStatus $state): string => $state->label()),
                 TextColumn::make('worked_hours')
                     ->label('Horas')
                     ->suffix('h')

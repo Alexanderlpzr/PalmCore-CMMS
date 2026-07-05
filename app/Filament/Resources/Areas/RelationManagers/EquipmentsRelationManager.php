@@ -53,16 +53,19 @@ class EquipmentsRelationManager extends RelationManager
                     ->label('Estado')
                     ->badge()
                     ->color(fn (EquipmentStatus $state): string => $state->color())
+                    ->formatStateUsing(fn (EquipmentStatus $state): string => $state->label())
                     ->sortable(),
                 TextColumn::make('criticality')
                     ->label('Criticidad')
                     ->badge()
                     ->color(fn (EquipmentCriticality $state): string => $state->color())
+                    ->formatStateUsing(fn (EquipmentCriticality $state): string => $state->label())
                     ->sortable(),
                 TextColumn::make('priority')
                     ->label('Prioridad')
                     ->badge()
                     ->color(fn (EquipmentPriority $state): string => $state->color())
+                    ->formatStateUsing(fn (EquipmentPriority $state): string => $state->label())
                     ->sortable(),
                 TextColumn::make('category.name')
                     ->label('Categoría')

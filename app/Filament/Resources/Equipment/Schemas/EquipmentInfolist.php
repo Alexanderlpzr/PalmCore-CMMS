@@ -41,15 +41,18 @@ class EquipmentInfolist
                         TextEntry::make('status')
                             ->label('Estado')
                             ->badge()
-                            ->color(fn (EquipmentStatus $state): string => $state->color()),
+                            ->color(fn (EquipmentStatus $state): string => $state->color())
+                            ->formatStateUsing(fn (EquipmentStatus $state): string => $state->label()),
                         TextEntry::make('criticality')
                             ->label('Criticidad')
                             ->badge()
-                            ->color(fn (EquipmentCriticality $state): string => $state->color()),
+                            ->color(fn (EquipmentCriticality $state): string => $state->color())
+                            ->formatStateUsing(fn (EquipmentCriticality $state): string => $state->label()),
                         TextEntry::make('priority')
                             ->label('Prioridad')
                             ->badge()
-                            ->color(fn (EquipmentPriority $state): string => $state->color()),
+                            ->color(fn (EquipmentPriority $state): string => $state->color())
+                            ->formatStateUsing(fn (EquipmentPriority $state): string => $state->label()),
                         TextEntry::make('category.name')
                             ->label('Categoría')
                             ->placeholder('Sin categoría'),

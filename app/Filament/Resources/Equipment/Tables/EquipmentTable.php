@@ -31,29 +31,36 @@ class EquipmentTable
     {
         return $table
             ->columns([
-                TextColumn::make('code')
-                    ->label('Código')
+                TextColumn::make('area.name')
+                    ->label('Área')
                     ->searchable()
-                    ->sortable(),
+                    ->toggleable(),
                 TextColumn::make('name')
                     ->label('Nombre')
                     ->searchable()
                     ->sortable()
                     ->limit(40),
+                TextColumn::make('code')
+                    ->label('Código')
+                    ->searchable()
+                    ->sortable(),
                 TextColumn::make('status')
                     ->label('Estado')
                     ->badge()
                     ->color(fn (EquipmentStatus $state): string => $state->color())
+                    ->formatStateUsing(fn (EquipmentStatus $state): string => $state->label())
                     ->sortable(),
                 TextColumn::make('criticality')
                     ->label('Criticidad')
                     ->badge()
                     ->color(fn (EquipmentCriticality $state): string => $state->color())
+                    ->formatStateUsing(fn (EquipmentCriticality $state): string => $state->label())
                     ->sortable(),
                 TextColumn::make('priority')
                     ->label('Prioridad')
                     ->badge()
                     ->color(fn (EquipmentPriority $state): string => $state->color())
+                    ->formatStateUsing(fn (EquipmentPriority $state): string => $state->label())
                     ->sortable(),
                 TextColumn::make('category.name')
                     ->label('Categoría')
@@ -63,10 +70,6 @@ class EquipmentTable
                     ->label('Planta')
                     ->searchable()
                     ->sortable()
-                    ->toggleable(),
-                TextColumn::make('area.name')
-                    ->label('Área')
-                    ->searchable()
                     ->toggleable(),
                 TextColumn::make('manufacturer.name')
                     ->label('Fabricante')

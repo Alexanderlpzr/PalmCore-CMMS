@@ -60,7 +60,9 @@ class TechniciansRelationManager extends RelationManager
                     ->sortable(),
                 TextColumn::make('role')
                     ->label('Rol')
-                    ->badge(),
+                    ->badge()
+                    ->color(fn (TechnicianRole $state): string => $state->color())
+                    ->formatStateUsing(fn (TechnicianRole $state): string => $state->label()),
                 TextColumn::make('planned_hours')
                     ->label('H. planif.')
                     ->suffix(' h')
