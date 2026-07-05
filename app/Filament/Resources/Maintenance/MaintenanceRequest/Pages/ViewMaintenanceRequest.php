@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Maintenance\MaintenanceRequest\Pages;
 
 use App\Domain\Maintenance\Enums\MaintenanceRequestStatus;
 use App\Domain\Maintenance\Enums\TechnicianRole;
+use App\Domain\Maintenance\Enums\WorkOrderStatus;
 use App\Domain\Maintenance\Enums\WorkOrderType;
 use App\Domain\Maintenance\Services\MaintenanceRequestService;
 use App\Domain\Maintenance\Services\WorkOrderService;
@@ -62,7 +63,7 @@ class ViewMaintenanceRequest extends ViewRecord
                 ->icon(Heroicon::OutlinedCheckBadge)
                 ->color('success')
                 ->modalHeading('Aprobar solicitud y crear Orden de Trabajo')
-                ->modalDescription('La solicitud quedará aprobada y la OT se creará de inmediato en estado Borrador, con los técnicos asignados.')
+                ->modalDescription('La solicitud quedará aprobada y la OT se creará ya planificada y lista para que el técnico inicie el trabajo.')
                 ->visible(fn (): bool => $this->record->status === MaintenanceRequestStatus::UnderReview
                     && auth()->user()->can('approve', $this->record)
                     && auth()->user()->can('convert', $this->record))
@@ -121,10 +122,14 @@ class ViewMaintenanceRequest extends ViewRecord
                         }
                     }
 
+                    // Technicians are already assigned above, so the OT can go straight to
+                    // Planned — no need for a separate manual "Planificar" click.
+                    $woService->transition($workOrder, WorkOrderStatus::Planned, auth()->user());
+
                     $this->record->refresh();
 
                     Notification::make()
-                        ->title('Solicitud aprobada y OT creada: '.$workOrder->work_order_number)
+                        ->title('Solicitud aprobada y OT planificada: '.$workOrder->work_order_number)
                         ->success()
                         ->send();
 
