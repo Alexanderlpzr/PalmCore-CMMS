@@ -83,6 +83,7 @@ class DocumentsRelationManager extends RelationManager
                         TextInput::make('version')
                             ->label('Versión')
                             ->maxLength(50)
+                            ->default('v1.0')
                             ->placeholder('v1.0'),
                         DatePicker::make('expires_at')
                             ->label('Fecha de vencimiento')

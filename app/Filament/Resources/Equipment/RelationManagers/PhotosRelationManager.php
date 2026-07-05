@@ -135,7 +135,6 @@ class PhotosRelationManager extends RelationManager
                     ->icon('heroicon-o-star')
                     ->color('warning')
                     ->hidden(fn (EquipmentPhoto $record): bool => $record->is_primary)
-                    ->requiresConfirmation()
                     ->action(fn (EquipmentPhoto $record) => $record->update(['is_primary' => true])),
                 EditAction::make(),
                 DeleteAction::make(),

@@ -11,7 +11,6 @@ use App\Models\Manufacturer;
 use App\Models\Supplier;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\DatePicker;
-use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -103,6 +102,10 @@ class EquipmentForm
                             ->searchable()
                             ->nullable()
                             ->disabled(fn (Get $get): bool => blank($get('plant_id')))
+                            ->placeholder(fn (Get $get): string => blank($get('plant_id'))
+                                ? 'Selecciona una planta primero'
+                                : 'Selecciona un área'
+                            )
                             ->live(),
                         Select::make('parent_equipment_id')
                             ->label('Equipo padre (componente de)')
@@ -184,11 +187,15 @@ class EquipmentForm
                             ->numeric()
                             ->prefix('$')
                             ->minValue(0),
-                        TextInput::make('currency_code')
+                        Select::make('currency_code')
                             ->label('Moneda')
-                            ->maxLength(3)
-                            ->default('USD')
-                            ->placeholder('USD'),
+                            ->options([
+                                'USD' => 'USD — Dólar estadounidense',
+                                'COP' => 'COP — Peso colombiano',
+                                'MXN' => 'MXN — Peso mexicano',
+                                'EUR' => 'EUR — Euro',
+                            ])
+                            ->default('USD'),
                     ]),
 
                 Section::make('Notas')
@@ -200,54 +207,6 @@ class EquipmentForm
                         Toggle::make('is_active')
                             ->label('Activo')
                             ->default(true),
-                    ]),
-
-                Section::make('Componentes / Partes')
-                    ->description('Registra los componentes, piezas o sub-partes que conforman este equipo.')
-                    ->collapsible()
-                    ->collapsed()
-                    ->schema([
-                        Repeater::make('components')
-                            ->relationship('components')
-                            ->label('')
-                            ->addActionLabel('+ Agregar componente')
-                            ->defaultItems(0)
-                            ->reorderable(false)
-                            ->columns(2)
-                            ->schema([
-                                TextInput::make('name')
-                                    ->label('Nombre')
-                                    ->required()
-                                    ->maxLength(255)
-                                    ->columnSpanFull(),
-                                TextInput::make('code')
-                                    ->label('Código')
-                                    ->maxLength(50)
-                                    ->placeholder('COMP-001'),
-                                Select::make('criticality')
-                                    ->label('Criticidad')
-                                    ->options(EquipmentCriticality::options())
-                                    ->default(EquipmentCriticality::Medium->value)
-                                    ->required(),
-                                TextInput::make('manufacturer')
-                                    ->label('Fabricante')
-                                    ->maxLength(255),
-                                TextInput::make('model')
-                                    ->label('Modelo')
-                                    ->maxLength(255),
-                                TextInput::make('serial_number')
-                                    ->label('N° de serie')
-                                    ->maxLength(255),
-                                TextInput::make('useful_life_hours')
-                                    ->label('Vida útil (horas)')
-                                    ->numeric()
-                                    ->minValue(1),
-                                Textarea::make('notes')
-                                    ->label('Observaciones')
-                                    ->maxLength(1000)
-                                    ->rows(2)
-                                    ->columnSpanFull(),
-                            ]),
                     ]),
             ]);
     }
