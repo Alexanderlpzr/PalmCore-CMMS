@@ -69,7 +69,7 @@ class WorkOrderResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->with(['equipment']);
+        return parent::getEloquentQuery()->with(['equipment'])->withCount('technicians');
     }
 
     public static function getPages(): array

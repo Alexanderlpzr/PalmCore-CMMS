@@ -17,6 +17,15 @@ class WorkOrderInfolist
     {
         return $schema
             ->components([
+                TextEntry::make('missing_technician_alert')
+                    ->label('')
+                    ->badge()
+                    ->columnSpanFull()
+                    ->visible(fn (WorkOrder $record): bool => $record->status === WorkOrderStatus::Draft
+                        && $record->technicians()->doesntExist())
+                    ->getStateUsing(fn (): string => '⚠ Falta asignar un técnico para poder planificar esta OT — agrégalo en la pestaña "Técnicos" de abajo.')
+                    ->color('danger'),
+
                 Section::make('Identificación')
                     ->columns(2)
                     ->schema([

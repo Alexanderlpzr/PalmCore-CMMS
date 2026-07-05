@@ -53,6 +53,14 @@ class WorkOrderTable
                     ->color(fn (WorkOrderStatus $state): string => $state->color())
                     ->formatStateUsing(fn (WorkOrderStatus $state): string => $state->label())
                     ->sortable(),
+                TextColumn::make('needs_technician')
+                    ->label('Alerta')
+                    ->getStateUsing(fn (WorkOrder $record): ?string => ($record->status === WorkOrderStatus::Draft
+                        && $record->technicians_count === 0)
+                        ? '⚠ Falta técnico'
+                        : null)
+                    ->color('danger')
+                    ->weight('bold'),
                 IconColumn::make('equipment_stopped')
                     ->label('Equipo parado')
                     ->boolean()
