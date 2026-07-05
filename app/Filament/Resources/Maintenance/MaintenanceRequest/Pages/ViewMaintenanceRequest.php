@@ -31,24 +31,27 @@ class ViewMaintenanceRequest extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
-            // Submit: Draft → Submitted
+            // Submit: Draft → Submitted (fallback for records created outside the
+            // normal flow — new requests skip this automatically on creation)
             Action::make('submit')
                 ->label('Enviar para revisión')
                 ->icon(Heroicon::OutlinedPaperAirplane)
                 ->color('info')
                 ->requiresConfirmation()
-                ->visible(fn (): bool => $this->record->status === MaintenanceRequestStatus::Draft)
+                ->visible(fn (): bool => $this->record->status === MaintenanceRequestStatus::Draft
+                    && auth()->user()->can('review', $this->record))
                 ->action(fn (MaintenanceRequestService $service): MaintenanceRequest => $this->transitionAndRefresh(
                     $service, MaintenanceRequestStatus::Submitted
                 )),
 
-            // Assign to review: Submitted → UnderReview
+            // Assign to review: Submitted → UnderReview (same fallback as above)
             Action::make('assign_reviewer')
                 ->label('Tomar para revisión')
                 ->icon(Heroicon::OutlinedEye)
                 ->color('warning')
                 ->requiresConfirmation()
-                ->visible(fn (): bool => $this->record->status === MaintenanceRequestStatus::Submitted)
+                ->visible(fn (): bool => $this->record->status === MaintenanceRequestStatus::Submitted
+                    && auth()->user()->can('review', $this->record))
                 ->action(fn (MaintenanceRequestService $service): MaintenanceRequest => $this->transitionAndRefresh(
                     $service, MaintenanceRequestStatus::UnderReview
                 )),
@@ -140,7 +143,8 @@ class ViewMaintenanceRequest extends ViewRecord
                         ->required()
                         ->rows(3),
                 ])
-                ->visible(fn (): bool => $this->record->status === MaintenanceRequestStatus::UnderReview)
+                ->visible(fn (): bool => $this->record->status === MaintenanceRequestStatus::UnderReview
+                    && auth()->user()->can('review', $this->record))
                 ->action(fn (array $data, MaintenanceRequestService $service): MaintenanceRequest => $this->transitionAndRefresh(
                     $service,
                     MaintenanceRequestStatus::Rejected,
@@ -184,7 +188,8 @@ class ViewMaintenanceRequest extends ViewRecord
                 ->modalHeading('Asignar técnico preliminar')
                 ->modalDescription('Selecciona el técnico sugerido para ejecutar el trabajo. Se precargará al aprobar la solicitud, pero puedes cambiarlo en ese momento.')
                 ->visible(fn (): bool => $this->record->status === MaintenanceRequestStatus::UnderReview
-                    && $this->record->work_order_id === null)
+                    && $this->record->work_order_id === null
+                    && auth()->user()->can('review', $this->record))
                 ->form([
                     Select::make('preliminary_technician_id')
                         ->label('Técnico asignado')
