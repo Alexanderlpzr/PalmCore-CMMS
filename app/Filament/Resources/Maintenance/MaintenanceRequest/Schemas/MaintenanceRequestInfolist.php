@@ -25,15 +25,18 @@ class MaintenanceRequestInfolist
                         TextEntry::make('status')
                             ->label('Estado')
                             ->badge()
-                            ->color(fn (MaintenanceRequestStatus $state): string => $state->color()),
+                            ->color(fn (MaintenanceRequestStatus $state): string => $state->color())
+                            ->formatStateUsing(fn (MaintenanceRequestStatus $state): string => $state->label()),
                         TextEntry::make('request_type')
                             ->label('Tipo')
                             ->badge()
-                            ->color(fn (MaintenanceRequestType $state): string => $state->color()),
+                            ->color(fn (MaintenanceRequestType $state): string => $state->color())
+                            ->formatStateUsing(fn (MaintenanceRequestType $state): string => $state->label()),
                         TextEntry::make('priority')
                             ->label('Prioridad')
                             ->badge()
-                            ->color(fn (MaintenanceRequestPriority $state): string => $state->color()),
+                            ->color(fn (MaintenanceRequestPriority $state): string => $state->color())
+                            ->formatStateUsing(fn (MaintenanceRequestPriority $state): string => $state->label()),
                     ]),
 
                 Section::make('Equipo')

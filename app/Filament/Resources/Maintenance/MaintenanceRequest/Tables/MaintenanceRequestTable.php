@@ -5,6 +5,8 @@ namespace App\Filament\Resources\Maintenance\MaintenanceRequest\Tables;
 use App\Domain\Maintenance\Enums\MaintenanceRequestPriority;
 use App\Domain\Maintenance\Enums\MaintenanceRequestStatus;
 use App\Domain\Maintenance\Enums\MaintenanceRequestType;
+use App\Models\MaintenanceRequest;
+use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
@@ -35,16 +37,19 @@ class MaintenanceRequestTable
                     ->label('Tipo')
                     ->badge()
                     ->color(fn (MaintenanceRequestType $state): string => $state->color())
+                    ->formatStateUsing(fn (MaintenanceRequestType $state): string => $state->label())
                     ->sortable(),
                 TextColumn::make('priority')
                     ->label('Prioridad')
                     ->badge()
                     ->color(fn (MaintenanceRequestPriority $state): string => $state->color())
+                    ->formatStateUsing(fn (MaintenanceRequestPriority $state): string => $state->label())
                     ->sortable(),
                 TextColumn::make('status')
                     ->label('Estado')
                     ->badge()
                     ->color(fn (MaintenanceRequestStatus $state): string => $state->color())
+                    ->formatStateUsing(fn (MaintenanceRequestStatus $state): string => $state->label())
                     ->sortable(),
                 TextColumn::make('createdBy.name')
                     ->label('Creado por')
@@ -74,10 +79,10 @@ class MaintenanceRequestTable
             ->recordActions([
                 ViewAction::make(),
                 EditAction::make()
-                    ->visible(fn (\App\Models\MaintenanceRequest $record): bool => $record->isEditable()),
+                    ->visible(fn (MaintenanceRequest $record): bool => $record->isEditable()),
             ])
             ->toolbarActions([
-                \Filament\Actions\BulkActionGroup::make([
+                BulkActionGroup::make([
                     DeleteBulkAction::make(),
                 ]),
             ])
