@@ -39,7 +39,6 @@ class ViewMaintenanceRequest extends ViewRecord
                 ->tooltip('Envía la solicitud para que un administrador la revise')
                 ->icon(Heroicon::OutlinedPaperAirplane)
                 ->color('info')
-                ->requiresConfirmation()
                 ->visible(fn (): bool => $this->record->status === MaintenanceRequestStatus::Draft
                     && auth()->user()->can('review', $this->record))
                 ->action(fn (MaintenanceRequestService $service): MaintenanceRequest => $this->transitionAndRefresh(
@@ -52,7 +51,6 @@ class ViewMaintenanceRequest extends ViewRecord
                 ->tooltip('Te asignas esta solicitud para evaluarla antes de aprobarla o rechazarla')
                 ->icon(Heroicon::OutlinedEye)
                 ->color('warning')
-                ->requiresConfirmation()
                 ->visible(fn (): bool => $this->record->status === MaintenanceRequestStatus::Submitted
                     && auth()->user()->can('review', $this->record))
                 ->action(fn (MaintenanceRequestService $service): MaintenanceRequest => $this->transitionAndRefresh(
@@ -160,7 +158,6 @@ class ViewMaintenanceRequest extends ViewRecord
                 ->tooltip('Vuelve a enviar la solicitud rechazada para una nueva revisión')
                 ->icon(Heroicon::OutlinedArrowPath)
                 ->color('info')
-                ->requiresConfirmation()
                 ->visible(fn (): bool => $this->record->status === MaintenanceRequestStatus::Rejected)
                 ->action(fn (MaintenanceRequestService $service): MaintenanceRequest => $this->transitionAndRefresh(
                     $service, MaintenanceRequestStatus::Submitted

@@ -31,14 +31,14 @@ class ViewWorkOrder extends ViewRecord
     {
         return [
             // Plan: Draft → Planned  (work-orders.plan)
+            // No confirmation modal — WorkOrderService already blocks this
+            // transition with a clear error if no technician is assigned yet,
+            // so a "are you sure?" step here would just repeat that check.
             Action::make('plan')
                 ->label('Planificar')
                 ->tooltip('Confirma técnicos y fechas para dejar la OT lista para iniciar')
                 ->icon(Heroicon::OutlinedCalendar)
                 ->color('info')
-                ->requiresConfirmation()
-                ->modalHeading('Planificar OT')
-                ->modalDescription('Confirma que los técnicos y fechas están asignados en los tabs de abajo.')
                 ->visible(fn (): bool => $this->record->status === WorkOrderStatus::Draft
                     && auth()->user()->can('work-orders.plan'))
                 ->action(fn (WorkOrderService $service) => $this->doTransition($service, WorkOrderStatus::Planned)),
@@ -191,6 +191,7 @@ class ViewWorkOrder extends ViewRecord
                 ->color('gray')
                 ->requiresConfirmation()
                 ->modalHeading('¿Cancelar orden de trabajo?')
+                ->modalDescription('La OT quedará cancelada. Esta acción no se puede deshacer.')
                 ->visible(fn (): bool => ! $this->record->status->isTerminal()
                     && $this->record->status->canTransitionTo(WorkOrderStatus::Cancelled)
                     && auth()->user()->can('work-orders.update'))
