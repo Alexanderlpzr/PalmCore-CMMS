@@ -38,6 +38,34 @@ if (! function_exists('private_files_disk')) {
     }
 }
 
+if (! function_exists('format_hours_minutes')) {
+    /**
+     * Formats a decimal hour count as a human "Xh Ymin" string instead of a
+     * raw decimal (e.g. 2.5 → "2h 30min", 0.75 → "45min", 3.0 → "3h").
+     */
+    function format_hours_minutes(null|int|float $hours): ?string
+    {
+        if ($hours === null) {
+            return null;
+        }
+
+        $totalMinutes = (int) round($hours * 60);
+
+        if ($totalMinutes <= 0) {
+            return null;
+        }
+
+        $wholeHours = intdiv($totalMinutes, 60);
+        $minutes = $totalMinutes % 60;
+
+        return match (true) {
+            $wholeHours > 0 && $minutes > 0 => "{$wholeHours}h {$minutes}min",
+            $wholeHours > 0 => "{$wholeHours}h",
+            default => "{$minutes}min",
+        };
+    }
+}
+
 if (! function_exists('file_signed_url')) {
     /**
      * Build a URL for a stored file. On object storage (S3/R2) a time-limited

@@ -60,8 +60,7 @@ class TechniciansRelationManager extends RelationManager
                     ->formatStateUsing(fn (TechnicianRole $state): string => $state->label()),
                 TextColumn::make('actualHours')
                     ->label('Horas reales')
-                    ->getStateUsing(fn (WorkOrderTechnician $record): float => $record->actualHours())
-                    ->suffix(' h')
+                    ->getStateUsing(fn (WorkOrderTechnician $record): ?string => format_hours_minutes($record->actualHours()))
                     ->placeholder('—'),
                 TextColumn::make('hourly_rate')
                     ->label('Tarifa/h')

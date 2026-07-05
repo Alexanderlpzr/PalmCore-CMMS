@@ -63,10 +63,9 @@ class TimeLogsRelationManager extends RelationManager
                     ->placeholder('En curso…'),
                 TextColumn::make('hours')
                     ->label('Horas')
-                    ->suffix(' h')
                     ->getStateUsing(fn ($record): string => $record->isOpen()
-                        ? $record->computedHours().' (abierto)'
-                        : (string) $record->hours)
+                        ? (format_hours_minutes($record->computedHours()) ?? '0min').' (abierto)'
+                        : (format_hours_minutes($record->hours) ?? '—'))
                     ->placeholder('—'),
                 TextColumn::make('description')
                     ->label('Descripción')

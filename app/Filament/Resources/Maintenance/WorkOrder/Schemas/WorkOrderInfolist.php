@@ -63,7 +63,7 @@ class WorkOrderInfolist
                             ->trueColor('danger'),
                         TextEntry::make('downtime_minutes')
                             ->label('Tiempo de paro')
-                            ->suffix(' min')
+                            ->formatStateUsing(fn (?int $state): ?string => format_hours_minutes($state !== null ? $state / 60 : null))
                             ->placeholder('—'),
                     ]),
 
@@ -88,8 +88,14 @@ class WorkOrderInfolist
                         TextEntry::make('planned_end_at')->label('Fin planif.')->dateTime('d/m/Y H:i')->placeholder('—'),
                         TextEntry::make('actual_start_at')->label('Inicio real')->dateTime('d/m/Y H:i')->placeholder('—'),
                         TextEntry::make('actual_end_at')->label('Fin real')->dateTime('d/m/Y H:i')->placeholder('—'),
-                        TextEntry::make('planned_labor_hours')->label('Horas planif.')->suffix(' h')->placeholder('—'),
-                        TextEntry::make('actual_labor_hours')->label('Horas reales')->suffix(' h')->placeholder('—'),
+                        TextEntry::make('planned_labor_hours')
+                            ->label('Horas planif.')
+                            ->formatStateUsing(fn (?float $state): ?string => format_hours_minutes($state))
+                            ->placeholder('—'),
+                        TextEntry::make('actual_labor_hours')
+                            ->label('Horas reales')
+                            ->formatStateUsing(fn (?float $state): ?string => format_hours_minutes($state))
+                            ->placeholder('—'),
                     ]),
 
                 Section::make('Costos')
