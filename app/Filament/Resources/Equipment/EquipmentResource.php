@@ -9,6 +9,7 @@ use App\Filament\Resources\Equipment\Pages\ViewEquipment;
 use App\Filament\Resources\Equipment\RelationManagers\ComponentsRelationManager;
 use App\Filament\Resources\Equipment\RelationManagers\DocumentsRelationManager;
 use App\Filament\Resources\Equipment\RelationManagers\PhotosRelationManager;
+use App\Filament\Resources\Equipment\RelationManagers\WorkOrdersRelationManager;
 use App\Filament\Resources\Equipment\Schemas\EquipmentForm;
 use App\Filament\Resources\Equipment\Schemas\EquipmentInfolist;
 use App\Filament\Resources\Equipment\Tables\EquipmentTable;
@@ -59,6 +60,7 @@ class EquipmentResource extends Resource
             'components' => ComponentsRelationManager::class,
             'documents' => DocumentsRelationManager::class,
             'photos' => PhotosRelationManager::class,
+            'work_orders' => WorkOrdersRelationManager::class,
         ];
     }
 
