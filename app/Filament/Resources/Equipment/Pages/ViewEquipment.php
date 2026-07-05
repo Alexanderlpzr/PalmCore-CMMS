@@ -8,6 +8,7 @@ use App\Domain\Reports\Enums\ReportType;
 use App\Domain\Reports\Services\ReportManager;
 use App\Filament\Resources\Concerns\HasBackAction;
 use App\Filament\Resources\Equipment\EquipmentResource;
+use App\Filament\Widgets\Analytics\EquipmentReliabilityTrendWidget;
 use App\Models\Equipment;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
@@ -91,6 +92,13 @@ class ViewEquipment extends ViewRecord
             DeleteAction::make(),
             RestoreAction::make(),
             $this->getBackAction(),
+        ];
+    }
+
+    protected function getFooterWidgets(): array
+    {
+        return [
+            EquipmentReliabilityTrendWidget::class,
         ];
     }
 }

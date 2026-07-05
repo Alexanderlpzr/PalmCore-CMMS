@@ -3,6 +3,10 @@
 namespace App\Filament\Pages;
 
 use App\Domain\Analytics\Support\DashboardPeriod;
+use App\Filament\Widgets\Analytics\DowntimeTrendWidget;
+use App\Filament\Widgets\Analytics\FailuresByMonthWidget;
+use App\Filament\Widgets\Analytics\MtbfTrendWidget;
+use App\Filament\Widgets\Analytics\MttrTrendWidget;
 use BackedEnum;
 use Filament\Forms\Components\Select;
 use Filament\Pages\Dashboard as BaseDashboard;
@@ -37,6 +41,25 @@ class Dashboard extends BaseDashboard
     protected static ?string $title = 'Dashboard';
 
     protected static ?int $navigationSort = 1;
+
+    /**
+     * Explicit list — this panel's discoverWidgets() registers every widget
+     * under app/Filament/Widgets/** panel-wide, and the base Dashboard's
+     * getWidgets() would otherwise render ALL of them here, including
+     * equipment-scoped widgets (e.g. EquipmentReliabilityTrendWidget) that
+     * require a record and would crash without one.
+     *
+     * @return array<class-string>
+     */
+    public function getWidgets(): array
+    {
+        return [
+            DowntimeTrendWidget::class,
+            FailuresByMonthWidget::class,
+            MtbfTrendWidget::class,
+            MttrTrendWidget::class,
+        ];
+    }
 
     public function filtersForm(Schema $schema): Schema
     {

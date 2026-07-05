@@ -225,6 +225,27 @@ it('mtbfTrend calculates a positive value when there are failures', function () 
     expect($currentMonth->value)->toBeFloat()->toBeGreaterThan(0);
 });
 
+it('mtbfTrend scoped to one equipment ignores other equipment failures', function () {
+    $tenant = analyticsTenant();
+    $equipmentA = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+    $equipmentB = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+
+    EquipmentDowntimeEvent::factory()->create([
+        'tenant_id' => $tenant->id,
+        'equipment_id' => $equipmentB->id,
+        'was_planned' => false,
+        'duration_minutes' => 120,
+        'started_at' => now()->startOfMonth()->addDay(),
+    ]);
+
+    $points = service()->mtbfTrend($tenant->id, equipmentId: $equipmentA->id);
+    $currentMonth = collect($points)->last();
+
+    // Equipment A had no failures of its own, so its MTBF stays a gap (null),
+    // even though the tenant as a whole had one (on equipment B).
+    expect($currentMonth->value)->toBeNull();
+});
+
 // ── mttrTrend ─────────────────────────────────────────────────────────────────
 
 it('mttrTrend returns null value for months with no failures', function () {
@@ -255,6 +276,34 @@ it('mttrTrend calculates hours correctly from duration_minutes', function () {
 
     expect($currentMonth->value)->toBe(1.0)
         ->and($currentMonth->count)->toBe(2);
+});
+
+it('mttrTrend scoped to one equipment only counts that equipment\'s failures', function () {
+    $tenant = analyticsTenant();
+    $equipmentA = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+    $equipmentB = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+
+    EquipmentDowntimeEvent::factory()->create([
+        'tenant_id' => $tenant->id,
+        'equipment_id' => $equipmentA->id,
+        'was_planned' => false,
+        'duration_minutes' => 90,
+        'started_at' => now()->startOfMonth()->addDay(),
+    ]);
+    EquipmentDowntimeEvent::factory()->create([
+        'tenant_id' => $tenant->id,
+        'equipment_id' => $equipmentB->id,
+        'was_planned' => false,
+        'duration_minutes' => 300,
+        'started_at' => now()->startOfMonth()->addDay(),
+    ]);
+
+    $points = service()->mttrTrend($tenant->id, equipmentId: $equipmentA->id);
+    $currentMonth = collect($points)->last();
+
+    // 90 min / 1 failure = 1.5 h — equipment B's 300 min must not leak in.
+    expect($currentMonth->value)->toBe(1.5)
+        ->and($currentMonth->count)->toBe(1);
 });
 
 // ── costByEquipment ───────────────────────────────────────────────────────────
