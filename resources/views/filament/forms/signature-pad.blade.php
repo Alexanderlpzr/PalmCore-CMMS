@@ -13,21 +13,27 @@
             hasStroke: false,
             init() {
                 const canvas = this.$refs.canvas;
-                const ratio = window.devicePixelRatio || 1;
-                canvas.width = canvas.offsetWidth * ratio;
-                canvas.height = canvas.offsetHeight * ratio;
                 this.ctx = canvas.getContext('2d');
-                this.ctx.scale(ratio, ratio);
-                this.ctx.lineWidth = 2;
+                this.ctx.lineWidth = 3;
                 this.ctx.lineCap = 'round';
+                this.ctx.lineJoin = 'round';
                 this.ctx.strokeStyle = '#1f2937';
                 if (this.state) { this.hasStroke = true; }
             },
+            // Maps a mouse/touch position (in on-screen CSS pixels) to the canvas'
+            // fixed internal drawing buffer (600x200) — the canvas is often still
+            // hidden (inside a closed Filament modal) at x-init time, so its
+            // rendered size can't be trusted for sizing the buffer itself.
             pos(e) {
                 const canvas = this.$refs.canvas;
                 const rect = canvas.getBoundingClientRect();
-                const point = e.touches ? e.touches[0] : e;
-                return { x: point.clientX - rect.left, y: point.clientY - rect.top };
+                const point = e.changedTouches ? e.changedTouches[0] : e;
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                return {
+                    x: (point.clientX - rect.left) * scaleX,
+                    y: (point.clientY - rect.top) * scaleY,
+                };
             },
             start(e) {
                 e.preventDefault();
@@ -62,7 +68,9 @@
         <div class="relative rounded-lg border border-gray-300 bg-white dark:border-gray-600">
             <canvas
                 x-ref="canvas"
-                class="h-40 w-full touch-none"
+                width="600"
+                height="200"
+                class="h-40 w-full touch-none bg-white"
                 x-on:mousedown="start($event)"
                 x-on:mousemove="move($event)"
                 x-on:mouseup="end()"
@@ -73,7 +81,6 @@
             ></canvas>
             <p
                 x-show="! hasStroke"
-                x-cloak
                 class="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-gray-400"
             >
                 Firma aquí con el dedo o el mouse
