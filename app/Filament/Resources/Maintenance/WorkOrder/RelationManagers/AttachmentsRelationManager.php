@@ -74,6 +74,7 @@ class AttachmentsRelationManager extends RelationManager
             ])
             ->headerActions([
                 CreateAction::make()
+                    ->tooltip('Adjuntar una foto, video o documento a esta OT')
                     ->mutateFormDataUsing(function (array $data): array {
                         $data['uploaded_by'] = auth()->id();
                         $data['file_name'] = basename($data['file_path']);
@@ -84,7 +85,8 @@ class AttachmentsRelationManager extends RelationManager
                     }),
             ])
             ->actions([
-                DeleteAction::make(),
+                DeleteAction::make()
+                    ->tooltip('Eliminar este adjunto'),
             ]);
     }
 }

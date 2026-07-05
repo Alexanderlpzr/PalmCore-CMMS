@@ -36,6 +36,7 @@ class ViewMaintenanceRequest extends ViewRecord
             // normal flow — new requests skip this automatically on creation)
             Action::make('submit')
                 ->label('Enviar para revisión')
+                ->tooltip('Envía la solicitud para que un administrador la revise')
                 ->icon(Heroicon::OutlinedPaperAirplane)
                 ->color('info')
                 ->requiresConfirmation()
@@ -48,6 +49,7 @@ class ViewMaintenanceRequest extends ViewRecord
             // Assign to review: Submitted → UnderReview (same fallback as above)
             Action::make('assign_reviewer')
                 ->label('Tomar para revisión')
+                ->tooltip('Te asignas esta solicitud para evaluarla antes de aprobarla o rechazarla')
                 ->icon(Heroicon::OutlinedEye)
                 ->color('warning')
                 ->requiresConfirmation()
@@ -60,6 +62,7 @@ class ViewMaintenanceRequest extends ViewRecord
             // Approve & create OT in one step: UnderReview → Approved → Converted
             Action::make('approve_and_create_wo')
                 ->label('Aprobar y Crear OT')
+                ->tooltip('Aprueba la solicitud y genera de una vez la Orden de Trabajo planificada')
                 ->icon(Heroicon::OutlinedCheckBadge)
                 ->color('success')
                 ->modalHeading('Aprobar solicitud y crear Orden de Trabajo')
@@ -133,6 +136,7 @@ class ViewMaintenanceRequest extends ViewRecord
             // Reject: UnderReview → Rejected (requires reason)
             Action::make('reject')
                 ->label('Rechazar')
+                ->tooltip('Rechaza la solicitud indicando el motivo')
                 ->icon(Heroicon::OutlinedXCircle)
                 ->color('danger')
                 ->modalHeading('Rechazar solicitud')
@@ -153,6 +157,7 @@ class ViewMaintenanceRequest extends ViewRecord
             // Resubmit: Rejected → Submitted
             Action::make('resubmit')
                 ->label('Reenviar')
+                ->tooltip('Vuelve a enviar la solicitud rechazada para una nueva revisión')
                 ->icon(Heroicon::OutlinedArrowPath)
                 ->color('info')
                 ->requiresConfirmation()
@@ -164,6 +169,7 @@ class ViewMaintenanceRequest extends ViewRecord
             // Cancel
             Action::make('cancel')
                 ->label('Cancelar')
+                ->tooltip('Cancela la solicitud — esta acción no se puede deshacer')
                 ->icon(Heroicon::OutlinedArchiveBoxXMark)
                 ->color('gray')
                 ->requiresConfirmation()
@@ -180,8 +186,10 @@ class ViewMaintenanceRequest extends ViewRecord
                 )),
 
             EditAction::make()
+                ->tooltip('Editar los datos de la solicitud')
                 ->visible(fn (): bool => $this->record->isEditable()),
-            DeleteAction::make(),
+            DeleteAction::make()
+                ->tooltip('Eliminar esta solicitud'),
             $this->getBackAction(),
         ];
     }

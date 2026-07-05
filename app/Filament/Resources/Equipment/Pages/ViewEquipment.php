@@ -31,6 +31,7 @@ class ViewEquipment extends ViewRecord
         return [
             Action::make('view_qr')
                 ->label('Ver QR')
+                ->tooltip('Muestra el código QR de este equipo para imprimir o escanear')
                 ->icon(Heroicon::OutlinedQrCode)
                 ->color('info')
                 ->modalHeading(fn (): string => 'QR — '.$this->record->code)
@@ -40,6 +41,7 @@ class ViewEquipment extends ViewRecord
                 ->registerModalActions([
                     Action::make('regenerate')
                         ->label('Regenerar QR')
+                        ->tooltip('Genera un nuevo QR e invalida el actual')
                         ->color('warning')
                         ->icon(Heroicon::OutlinedArrowPath)
                         ->requiresConfirmation()
@@ -74,6 +76,7 @@ class ViewEquipment extends ViewRecord
                 )),
             Action::make('download_pdf')
                 ->label('Descargar PDF')
+                ->tooltip('Descarga la ficha técnica de este equipo en PDF')
                 ->icon(Heroicon::OutlinedArrowDownTray)
                 ->color('gray')
                 ->action(function (ReportManager $manager): mixed {
@@ -88,9 +91,12 @@ class ViewEquipment extends ViewRecord
                     ));
                 }),
 
-            EditAction::make(),
-            DeleteAction::make(),
-            RestoreAction::make(),
+            EditAction::make()
+                ->tooltip('Editar los datos del equipo'),
+            DeleteAction::make()
+                ->tooltip('Eliminar este equipo'),
+            RestoreAction::make()
+                ->tooltip('Recuperar este equipo eliminado'),
             $this->getBackAction(),
         ];
     }

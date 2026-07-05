@@ -214,6 +214,7 @@ class PartsRelationManager extends RelationManager
             ])
             ->headerActions([
                 CreateAction::make()
+                    ->tooltip('Solicitar un repuesto para esta OT')
                     ->mutateFormDataUsing(function (array $data): array {
                         $data['tenant_id'] = $this->getOwnerRecord()->tenant_id;
                         $data['total_cost'] = isset($data['quantity'], $data['unit_cost'])
@@ -227,6 +228,7 @@ class PartsRelationManager extends RelationManager
                 // ── Ver detalle ───────────────────────────────────────────────
                 Action::make('view_part')
                     ->label('Ver')
+                    ->tooltip('Ver el detalle de este repuesto')
                     ->icon(Heroicon::OutlinedEye)
                     ->color('gray')
                     ->modalHeading('Detalle del repuesto')
@@ -278,6 +280,7 @@ class PartsRelationManager extends RelationManager
                 // ── Devolver ──────────────────────────────────────────────────
                 Action::make('return_part')
                     ->label('Devolver')
+                    ->tooltip('Devolver al almacén el repuesto no utilizado')
                     ->icon(Heroicon::OutlinedArrowUturnLeft)
                     ->color('warning')
                     ->modalHeading('Devolver repuesto al almacén')
@@ -318,6 +321,7 @@ class PartsRelationManager extends RelationManager
 
                 // ── Editar ────────────────────────────────────────────────────
                 EditAction::make()
+                    ->tooltip('Editar este repuesto solicitado')
                     ->visible(fn (WorkOrderPart $record): bool => $record->status === WorkOrderPartStatus::Requested)
                     ->mutateFormDataUsing(function (array $data): array {
                         $data['total_cost'] = isset($data['quantity'], $data['unit_cost'])
@@ -329,6 +333,7 @@ class PartsRelationManager extends RelationManager
 
                 // ── Eliminar ──────────────────────────────────────────────────
                 DeleteAction::make()
+                    ->tooltip('Eliminar esta solicitud de repuesto')
                     ->visible(fn (WorkOrderPart $record): bool => ! in_array(
                         $record->status,
                         [WorkOrderPartStatus::Issued, WorkOrderPartStatus::Returned],

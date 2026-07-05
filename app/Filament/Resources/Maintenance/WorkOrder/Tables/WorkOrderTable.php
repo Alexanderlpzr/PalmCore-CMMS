@@ -102,8 +102,10 @@ class WorkOrderTable
                     ->options(WorkOrderStatus::options()),
             ])
             ->recordActions([
-                ViewAction::make(),
+                ViewAction::make()
+                    ->tooltip('Ver el detalle de esta OT'),
                 EditAction::make()
+                    ->tooltip('Editar los datos de esta OT')
                     ->visible(fn (WorkOrder $record): bool => $record->isEditable()),
             ])
             ->toolbarActions([

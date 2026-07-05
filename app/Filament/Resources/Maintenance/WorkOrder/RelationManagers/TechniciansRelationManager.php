@@ -74,6 +74,7 @@ class TechniciansRelationManager extends RelationManager
             ])
             ->headerActions([
                 CreateAction::make()
+                    ->tooltip('Asignar un técnico a esta OT')
                     ->using(function (array $data, WorkOrderService $service): mixed {
                         return $service->assignTechnician(
                             $this->getOwnerRecord(),
@@ -84,8 +85,11 @@ class TechniciansRelationManager extends RelationManager
                     }),
             ])
             ->actions([
-                EditAction::make(),
-                DeleteAction::make()->label('Quitar'),
+                EditAction::make()
+                    ->tooltip('Editar el rol o la tarifa de este técnico'),
+                DeleteAction::make()
+                    ->label('Quitar')
+                    ->tooltip('Quitar a este técnico de la OT'),
             ]);
     }
 }

@@ -74,6 +74,7 @@ class TimeLogsRelationManager extends RelationManager
             ])
             ->headerActions([
                 CreateAction::make()
+                    ->tooltip('Registrar manualmente un tramo de tiempo trabajado')
                     ->using(function (array $data, WorkOrderService $service): mixed {
                         return $service->logTime(
                             $this->getOwnerRecord(),
@@ -85,7 +86,8 @@ class TimeLogsRelationManager extends RelationManager
                     }),
             ])
             ->actions([
-                DeleteAction::make(),
+                DeleteAction::make()
+                    ->tooltip('Eliminar este registro de tiempo'),
             ]);
     }
 }

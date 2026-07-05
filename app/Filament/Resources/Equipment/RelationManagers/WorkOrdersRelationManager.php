@@ -93,6 +93,7 @@ class WorkOrdersRelationManager extends RelationManager
             ->recordActions([
                 Action::make('view')
                     ->label('Ver')
+                    ->tooltip('Abrir el detalle completo de esta OT')
                     ->icon(Heroicon::OutlinedEye)
                     ->url(fn (WorkOrder $record): string => WorkOrderResource::getUrl('view', ['record' => $record])),
             ])

@@ -91,6 +91,7 @@ class AttachmentsRelationManager extends RelationManager
             ])
             ->headerActions([
                 CreateAction::make()
+                    ->tooltip('Adjuntar un archivo a esta solicitud')
                     ->mutateFormDataUsing(function (array $data): array {
                         $data['uploaded_by'] = auth()->id();
                         $data['tenant_id'] = $this->ownerRecord->tenant_id;
@@ -110,11 +111,13 @@ class AttachmentsRelationManager extends RelationManager
             ->recordActions([
                 Action::make('download')
                     ->label('Descargar')
+                    ->tooltip('Descargar este archivo')
                     ->icon('heroicon-o-arrow-down-tray')
                     ->color('info')
                     ->url(fn (MaintenanceRequestAttachment $record): ?string => file_signed_url(persistent_disk(), $record->file_path))
                     ->openUrlInNewTab(),
-                DeleteAction::make(),
+                DeleteAction::make()
+                    ->tooltip('Eliminar este adjunto'),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

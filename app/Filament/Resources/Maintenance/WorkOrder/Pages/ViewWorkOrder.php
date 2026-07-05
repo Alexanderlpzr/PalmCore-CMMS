@@ -33,6 +33,7 @@ class ViewWorkOrder extends ViewRecord
             // Plan: Draft → Planned  (work-orders.plan)
             Action::make('plan')
                 ->label('Planificar')
+                ->tooltip('Confirma técnicos y fechas para dejar la OT lista para iniciar')
                 ->icon(Heroicon::OutlinedCalendar)
                 ->color('info')
                 ->requiresConfirmation()
@@ -47,6 +48,7 @@ class ViewWorkOrder extends ViewRecord
             // by técnicos during the day; the confirmation was pure friction.
             Action::make('start')
                 ->label('Iniciar trabajo')
+                ->tooltip('Empieza la ejecución de la OT y comienza a contar el tiempo trabajado')
                 ->icon(Heroicon::OutlinedPlay)
                 ->color('warning')
                 ->visible(fn (): bool => $this->record->status === WorkOrderStatus::Planned
@@ -56,6 +58,7 @@ class ViewWorkOrder extends ViewRecord
             // Pause: InProgress → OnHold  (work-orders.execute)
             Action::make('pause')
                 ->label('Pausar')
+                ->tooltip('Detiene el conteo de tiempo mientras la OT queda en espera')
                 ->icon(Heroicon::OutlinedPause)
                 ->color('gray')
                 ->visible(fn (): bool => $this->record->status === WorkOrderStatus::InProgress
@@ -65,6 +68,7 @@ class ViewWorkOrder extends ViewRecord
             // Resume: OnHold → InProgress  (work-orders.execute)
             Action::make('resume')
                 ->label('Reanudar')
+                ->tooltip('Retoma la ejecución de la OT desde donde quedó')
                 ->icon(Heroicon::OutlinedPlay)
                 ->color('info')
                 ->visible(fn (): bool => $this->record->status === WorkOrderStatus::OnHold
@@ -74,6 +78,7 @@ class ViewWorkOrder extends ViewRecord
             // Complete: InProgress → Completed  (work-orders.execute)
             Action::make('complete')
                 ->label('Completar')
+                ->tooltip('Registra el trabajo realizado y firma para cerrar la ejecución')
                 ->icon(Heroicon::OutlinedCheckCircle)
                 ->color('success')
                 ->modalHeading('Completar OT')
@@ -116,6 +121,7 @@ class ViewWorkOrder extends ViewRecord
             // Verify: Completed → Verified  (work-orders.verify — ingeniero/supervisor)
             Action::make('verify')
                 ->label('Verificar')
+                ->tooltip('Como supervisor: confirma que el trabajo quedó bien hecho y firma')
                 ->icon(Heroicon::OutlinedCheckBadge)
                 ->color('success')
                 ->modalHeading('Verificar trabajo realizado')
@@ -148,6 +154,7 @@ class ViewWorkOrder extends ViewRecord
             // Reject back: Completed → InProgress  (work-orders.verify)
             Action::make('reject_completion')
                 ->label('Rechazar (volver a ejecución)')
+                ->tooltip('El trabajo no quedó conforme — la OT vuelve a "En ejecución"')
                 ->icon(Heroicon::OutlinedArrowUturnLeft)
                 ->color('danger')
                 ->modalHeading('Rechazar trabajo')
@@ -166,6 +173,7 @@ class ViewWorkOrder extends ViewRecord
             // Close: Verified → Closed  (work-orders.close)
             Action::make('close')
                 ->label('Cerrar OT')
+                ->tooltip('Cierra la OT de forma definitiva — ya no podrá modificarse')
                 ->icon(Heroicon::OutlinedArchiveBox)
                 ->color('success')
                 ->requiresConfirmation()
@@ -178,6 +186,7 @@ class ViewWorkOrder extends ViewRecord
             // Cancel  (work-orders.update)
             Action::make('cancel')
                 ->label('Cancelar OT')
+                ->tooltip('Cancela la orden de trabajo sin completarla')
                 ->icon(Heroicon::OutlinedArchiveBoxXMark)
                 ->color('gray')
                 ->requiresConfirmation()
@@ -189,6 +198,7 @@ class ViewWorkOrder extends ViewRecord
 
             Action::make('download_pdf')
                 ->label('Descargar PDF')
+                ->tooltip('Descarga el reporte de esta OT en PDF')
                 ->icon(Heroicon::OutlinedArrowDownTray)
                 ->color('gray')
                 ->action(function (ReportManager $manager): mixed {
@@ -204,8 +214,10 @@ class ViewWorkOrder extends ViewRecord
                 }),
 
             EditAction::make()
+                ->tooltip('Editar los datos de la OT')
                 ->visible(fn (): bool => $this->record->isEditable()),
-            DeleteAction::make(),
+            DeleteAction::make()
+                ->tooltip('Eliminar esta orden de trabajo'),
             $this->getBackAction(),
         ];
     }

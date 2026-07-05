@@ -30,6 +30,7 @@ class ViewIssueReport extends ViewRecord
         return [
             Action::make('acknowledge')
                 ->label('Reconocer')
+                ->tooltip('Marca que ya revisaste este reporte y lo estás atendiendo')
                 ->icon(Heroicon::OutlinedCheckCircle)
                 ->color('warning')
                 ->requiresConfirmation()
@@ -47,6 +48,7 @@ class ViewIssueReport extends ViewRecord
 
             Action::make('convert_to_mr')
                 ->label('Convertir a Solicitud')
+                ->tooltip('Genera una Solicitud de Mantenimiento a partir de este reporte de novedad')
                 ->icon(Heroicon::OutlinedArrowRightCircle)
                 ->color('success')
                 ->modalHeading('Crear Solicitud de Mantenimiento')
@@ -89,6 +91,7 @@ class ViewIssueReport extends ViewRecord
 
             DeleteAction::make()
                 ->label('Eliminar')
+                ->tooltip('Eliminar este reporte de novedad')
                 ->modalHeading('Eliminar reporte')
                 ->modalDescription('El reporte dejará de aparecer en el listado. Puedes recuperarlo luego con el filtro "Papelera".')
                 ->visible(fn (): bool => $this->record->status !== IssueReportStatus::Open),

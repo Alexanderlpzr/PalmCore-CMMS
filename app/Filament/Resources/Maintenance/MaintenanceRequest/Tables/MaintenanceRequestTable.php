@@ -77,8 +77,10 @@ class MaintenanceRequestTable
                     ->options(MaintenanceRequestStatus::options()),
             ])
             ->recordActions([
-                ViewAction::make(),
+                ViewAction::make()
+                    ->tooltip('Ver el detalle de esta solicitud'),
                 EditAction::make()
+                    ->tooltip('Editar los datos de esta solicitud')
                     ->visible(fn (MaintenanceRequest $record): bool => $record->isEditable()),
             ])
             ->toolbarActions([

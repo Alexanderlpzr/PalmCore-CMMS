@@ -115,6 +115,7 @@ class PhotosRelationManager extends RelationManager
             ])
             ->headerActions([
                 CreateAction::make()
+                    ->tooltip('Subir una fotografía nueva de este equipo')
                     ->mutateFormDataUsing(function (array $data, self $livewire): array {
                         $data['uploaded_by'] = auth()->id();
 
@@ -132,14 +133,19 @@ class PhotosRelationManager extends RelationManager
             ->recordActions([
                 Action::make('set_primary')
                     ->label('Establecer principal')
+                    ->tooltip('Usar esta foto como la imagen principal del equipo')
                     ->icon('heroicon-o-star')
                     ->color('warning')
                     ->hidden(fn (EquipmentPhoto $record): bool => $record->is_primary)
                     ->action(fn (EquipmentPhoto $record) => $record->update(['is_primary' => true])),
-                EditAction::make(),
-                DeleteAction::make(),
-                RestoreAction::make(),
-                ForceDeleteAction::make(),
+                EditAction::make()
+                    ->tooltip('Editar leyenda u orden de esta foto'),
+                DeleteAction::make()
+                    ->tooltip('Eliminar esta fotografía'),
+                RestoreAction::make()
+                    ->tooltip('Recuperar esta fotografía eliminada'),
+                ForceDeleteAction::make()
+                    ->tooltip('Eliminar definitivamente — no se puede recuperar'),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

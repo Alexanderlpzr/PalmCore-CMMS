@@ -100,10 +100,13 @@ class EquipmentTable
                 TrashedFilter::make(),
             ])
             ->recordActions([
-                ViewAction::make(),
-                EditAction::make(),
+                ViewAction::make()
+                    ->tooltip('Ver el detalle de este equipo'),
+                EditAction::make()
+                    ->tooltip('Editar los datos de este equipo'),
                 Action::make('view_qr')
                     ->label('Ver QR')
+                    ->tooltip('Muestra el código QR de este equipo para imprimir o escanear')
                     ->icon(Heroicon::OutlinedQrCode)
                     ->color('info')
                     ->modalHeading(fn (Equipment $record): string => 'QR — '.$record->code)
@@ -113,6 +116,7 @@ class EquipmentTable
                     ->registerModalActions([
                         Action::make('regenerate')
                             ->label('Regenerar QR')
+                            ->tooltip('Genera un nuevo QR e invalida el actual')
                             ->color('warning')
                             ->icon(Heroicon::OutlinedArrowPath)
                             ->requiresConfirmation()
@@ -143,6 +147,7 @@ class EquipmentTable
                     )),
                 Action::make('regenerate_qr_direct')
                     ->label('Regenerar QR')
+                    ->tooltip('Genera un nuevo QR e invalida el actual')
                     ->icon(Heroicon::OutlinedArrowPath)
                     ->color('warning')
                     ->requiresConfirmation()

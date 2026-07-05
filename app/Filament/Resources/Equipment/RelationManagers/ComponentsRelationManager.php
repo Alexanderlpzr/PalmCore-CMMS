@@ -131,6 +131,7 @@ class ComponentsRelationManager extends RelationManager
             ])
             ->headerActions([
                 CreateAction::make()
+                    ->tooltip('Registrar un componente o repuesto de este equipo')
                     ->mutateFormDataUsing(function (array $data): array {
                         $data['tenant_id'] = Filament::getTenant()->id;
 
@@ -138,8 +139,10 @@ class ComponentsRelationManager extends RelationManager
                     }),
             ])
             ->recordActions([
-                EditAction::make(),
-                DeleteAction::make(),
+                EditAction::make()
+                    ->tooltip('Editar los datos de este componente'),
+                DeleteAction::make()
+                    ->tooltip('Eliminar este componente'),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

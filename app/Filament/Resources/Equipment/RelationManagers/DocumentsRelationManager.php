@@ -153,6 +153,7 @@ class DocumentsRelationManager extends RelationManager
             ])
             ->headerActions([
                 CreateAction::make()
+                    ->tooltip('Subir un documento nuevo para este equipo')
                     ->mutateFormDataUsing(function (array $data, self $livewire): array {
                         $data['uploaded_by'] = auth()->id();
 
@@ -170,14 +171,19 @@ class DocumentsRelationManager extends RelationManager
             ->recordActions([
                 Action::make('download')
                     ->label('Descargar')
+                    ->tooltip('Descargar este documento')
                     ->icon('heroicon-o-arrow-down-tray')
                     ->color('info')
                     ->url(fn (EquipmentDocument $record): ?string => file_signed_url(persistent_disk(), $record->file_path))
                     ->openUrlInNewTab(),
-                EditAction::make(),
-                DeleteAction::make(),
-                RestoreAction::make(),
-                ForceDeleteAction::make(),
+                EditAction::make()
+                    ->tooltip('Editar los datos del documento'),
+                DeleteAction::make()
+                    ->tooltip('Eliminar este documento'),
+                RestoreAction::make()
+                    ->tooltip('Recuperar este documento eliminado'),
+                ForceDeleteAction::make()
+                    ->tooltip('Eliminar definitivamente — no se puede recuperar'),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

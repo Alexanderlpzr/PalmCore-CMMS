@@ -65,14 +65,17 @@ class IssueReportTable
                 TrashedFilter::make(),
             ])
             ->recordActions([
-                ViewAction::make(),
+                ViewAction::make()
+                    ->tooltip('Ver el detalle del reporte'),
                 DeleteAction::make()
                     ->label('Eliminar')
+                    ->tooltip('Eliminar este reporte de novedad')
                     ->modalHeading('Eliminar reporte')
                     ->modalDescription('El reporte dejará de aparecer en el listado. Puedes recuperarlo luego con el filtro "Papelera".')
                     ->visible(fn (EquipmentIssueReport $record): bool => $record->status !== IssueReportStatus::Open),
                 RestoreAction::make()
-                    ->label('Restaurar'),
+                    ->label('Restaurar')
+                    ->tooltip('Recuperar este reporte eliminado'),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

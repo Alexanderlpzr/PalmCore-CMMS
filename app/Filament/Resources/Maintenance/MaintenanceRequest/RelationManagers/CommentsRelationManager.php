@@ -68,6 +68,7 @@ class CommentsRelationManager extends RelationManager
             ])
             ->headerActions([
                 CreateAction::make()
+                    ->tooltip('Agregar un comentario a esta solicitud')
                     ->mutateFormDataUsing(function (array $data): array {
                         $data['user_id'] = auth()->id();
                         $data['tenant_id'] = $this->ownerRecord->tenant_id;

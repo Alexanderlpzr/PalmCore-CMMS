@@ -57,6 +57,7 @@ class CriticalAlertsWidget extends BaseWidget
             ->actions([
                 Action::make('view')
                     ->label('Ver')
+                    ->tooltip('Ver el detalle de esta alerta')
                     ->icon(Heroicon::OutlinedEye)
                     ->url(fn (Alert $record): string => AlertResource::getUrl('view', ['record' => $record])),
             ])

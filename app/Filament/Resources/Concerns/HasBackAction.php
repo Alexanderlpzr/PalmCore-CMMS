@@ -17,6 +17,7 @@ trait HasBackAction
     {
         return Action::make('back')
             ->label('Volver')
+            ->tooltip('Volver al listado')
             ->icon(Heroicon::OutlinedArrowLeft)
             ->color('gray')
             ->url(static::getResource()::getUrl('index'));
