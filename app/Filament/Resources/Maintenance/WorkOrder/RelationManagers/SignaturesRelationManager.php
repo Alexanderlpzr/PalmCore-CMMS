@@ -3,12 +3,9 @@
 namespace App\Filament\Resources\Maintenance\WorkOrder\RelationManagers;
 
 use App\Domain\Maintenance\Enums\WorkOrderSignatureType;
-use App\Domain\Maintenance\Services\WorkOrderService;
-use Filament\Actions\CreateAction;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Textarea;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
+use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
@@ -18,24 +15,31 @@ class SignaturesRelationManager extends RelationManager
 
     protected static ?string $title = 'Firmas de Conformidad';
 
+    // Read-only audit trail — signatures are only ever created automatically
+    // by WorkOrderService::addSignature() when a técnico completes the OT or
+    // a supervisor verifies it. A manual "create signature" button here would
+    // let anyone fabricate a signature of any type disconnected from the
+    // actual completion/verification event.
+    public function isReadOnly(): bool
+    {
+        return true;
+    }
+
     public function form(Schema $schema): Schema
     {
-        return $schema->components([
-            Select::make('signature_type')
-                ->label('Tipo de firma')
-                ->options(WorkOrderSignatureType::class)
-                ->required(),
-            Textarea::make('notes')
-                ->label('Observaciones')
-                ->rows(3)
-                ->nullable(),
-        ]);
+        return $schema->components([]);
     }
 
     public function table(Table $table): Table
     {
         return $table
             ->columns([
+                ImageColumn::make('image_path')
+                    ->label('Firma')
+                    ->disk(private_files_disk())
+                    ->height(50)
+                    ->width(100)
+                    ->defaultImageUrl(asset('images/no-photo.svg')),
                 TextColumn::make('signature_type')
                     ->label('Tipo')
                     ->badge()
@@ -51,22 +55,8 @@ class SignaturesRelationManager extends RelationManager
                     ->limit(80)
                     ->placeholder('—'),
             ])
-            ->headerActions([
-                CreateAction::make()
-                    ->label('Registrar firma')
-                    ->using(function (array $data, WorkOrderService $service): mixed {
-                        $type = $data['signature_type'] instanceof WorkOrderSignatureType
-                            ? $data['signature_type']
-                            : WorkOrderSignatureType::from($data['signature_type']);
-
-                        return $service->addSignature(
-                            $this->getOwnerRecord(),
-                            auth()->user(),
-                            $type,
-                            $data['notes'] ?? null,
-                        );
-                    }),
-            ])
-            ->actions([]);
+            ->headerActions([])
+            ->recordActions([])
+            ->toolbarActions([]);
     }
 }

@@ -28,6 +28,7 @@ use Carbon\CarbonInterface;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class WorkOrderService
 {
@@ -329,7 +330,7 @@ class WorkOrderService
         WorkOrderSignatureType $type,
         ?string $notes = null,
         ?array $gps = null,
-        ?UploadedFile $image = null,
+        UploadedFile|string|null $image = null,
     ): WorkOrderSignature {
         $attributes = [
             'tenant_id' => $workOrder->tenant_id,
@@ -338,11 +339,17 @@ class WorkOrderService
             'notes' => $notes,
         ];
 
-        if ($image !== null) {
+        if ($image instanceof UploadedFile) {
             $attributes['image_path'] = Storage::disk(private_files_disk())->putFile(
                 "work-orders/{$workOrder->id}/signatures",
                 $image
             );
+        } elseif (is_string($image) && $image !== '') {
+            $path = $this->storeSignatureDataUrl($workOrder, $image);
+
+            if ($path !== null) {
+                $attributes['image_path'] = $path;
+            }
         }
 
         $signature = $workOrder->signatures()->updateOrCreate(
@@ -355,6 +362,29 @@ class WorkOrderService
         }
 
         return $signature;
+    }
+
+    /**
+     * Decode a data URL (e.g. `data:image/png;base64,...`) produced by the
+     * on-screen signature pad and store it as the signature's image.
+     */
+    private function storeSignatureDataUrl(WorkOrder $workOrder, string $dataUrl): ?string
+    {
+        if (! preg_match('/^data:image\/(\w+);base64,(.+)$/', $dataUrl, $matches)) {
+            return null;
+        }
+
+        $binary = base64_decode($matches[2], strict: true);
+
+        if ($binary === false) {
+            return null;
+        }
+
+        $path = "work-orders/{$workOrder->id}/signatures/".Str::uuid()->toString().'.'.$matches[1];
+
+        Storage::disk(private_files_disk())->put($path, $binary);
+
+        return $path;
     }
 
     // ── Equipment Status Sync ─────────────────────────────────────────────────

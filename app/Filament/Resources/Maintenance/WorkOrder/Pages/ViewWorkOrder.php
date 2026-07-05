@@ -16,6 +16,7 @@ use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\ViewField;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Support\Icons\Heroicon;
@@ -87,18 +88,28 @@ class ViewWorkOrder extends ViewRecord
                     Textarea::make('root_cause')
                         ->label('Causa raíz (si aplica)')
                         ->rows(3),
+                    ViewField::make('signature')
+                        ->label('Firma digital del técnico')
+                        ->view('filament.forms.signature-pad')
+                        ->required()
+                        ->columnSpanFull(),
                 ])
                 ->visible(fn (): bool => $this->record->status === WorkOrderStatus::InProgress
                     && auth()->user()->can('work-orders.execute'))
                 ->action(function (array $data, WorkOrderService $service): void {
+                    $signature = $data['signature'] ?? null;
+                    unset($data['signature']);
+
                     $this->doTransition($service, WorkOrderStatus::Completed, $data);
 
-                    // Auto-create technician signature
+                    // Real drawn signature captured on-screen at the moment of completion.
                     $service->addSignature(
                         $this->record,
                         auth()->user(),
                         WorkOrderSignatureType::TechnicianCompletion,
-                        $data['work_performed'] ?? null
+                        $data['work_performed'] ?? null,
+                        null,
+                        $signature,
                     );
                 }),
 
@@ -107,18 +118,27 @@ class ViewWorkOrder extends ViewRecord
                 ->label('Verificar')
                 ->icon(Heroicon::OutlinedCheckBadge)
                 ->color('success')
-                ->requiresConfirmation()
                 ->modalHeading('Verificar trabajo realizado')
+                ->form([
+                    ViewField::make('signature')
+                        ->label('Firma digital del supervisor')
+                        ->view('filament.forms.signature-pad')
+                        ->required()
+                        ->columnSpanFull(),
+                ])
                 ->visible(fn (): bool => $this->record->status === WorkOrderStatus::Completed
                     && auth()->user()->can('work-orders.verify'))
-                ->action(function (WorkOrderService $service): void {
+                ->action(function (array $data, WorkOrderService $service): void {
                     $this->doTransition($service, WorkOrderStatus::Verified);
 
-                    // Auto-create supervisor signature
+                    // Real drawn signature captured on-screen at the moment of verification.
                     $service->addSignature(
                         $this->record,
                         auth()->user(),
-                        WorkOrderSignatureType::SupervisorVerification
+                        WorkOrderSignatureType::SupervisorVerification,
+                        null,
+                        null,
+                        $data['signature'] ?? null,
                     );
 
                     // Recalculate costs before closing
