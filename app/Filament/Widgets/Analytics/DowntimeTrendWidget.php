@@ -3,11 +3,15 @@
 namespace App\Filament\Widgets\Analytics;
 
 use App\Domain\Analytics\Services\AnalyticsService;
+use App\Domain\Analytics\Support\DashboardPeriod;
 use Filament\Facades\Filament;
 use Filament\Widgets\ChartWidget;
+use Filament\Widgets\Concerns\InteractsWithPageFilters;
 
 class DowntimeTrendWidget extends ChartWidget
 {
+    use InteractsWithPageFilters;
+
     protected ?string $heading = 'Tendencia de Paradas';
 
     protected ?string $pollingInterval = null;
@@ -18,12 +22,15 @@ class DowntimeTrendWidget extends ChartWidget
 
     public function getDescription(): ?string
     {
-        return 'Horas totales de parada por mes — últimos 12 meses.';
+        $period = DashboardPeriod::label($this->pageFilters);
+
+        return "Horas totales de parada por mes — {$period}.";
     }
 
     protected function getData(): array
     {
-        $points = app(AnalyticsService::class)->downtimeTrend(Filament::getTenant()->id);
+        [$from, $to] = DashboardPeriod::resolve($this->pageFilters);
+        $points = app(AnalyticsService::class)->downtimeTrend(Filament::getTenant()->id, $from, $to);
 
         return [
             'datasets' => [

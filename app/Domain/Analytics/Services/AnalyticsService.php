@@ -5,17 +5,34 @@ namespace App\Domain\Analytics\Services;
 use App\Domain\Analytics\DTOs\TrendPoint;
 use App\Models\EquipmentDowntimeEvent;
 use App\Models\EquipmentKpi;
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class AnalyticsService
 {
+    /** Hard cap on how many months a single query will ever fill/group, regardless of the requested range. */
+    private const MAX_MONTHS = 60;
+
     // ── Internal helpers ──────────────────────────────────────────────────────
 
-    private function fetchRawMonthlyEventStats(string $tenantId): Collection
+    /**
+     * @param  ?CarbonInterface  $from  month-aligned start; defaults to 11 months before $to
+     * @param  ?CarbonInterface  $to  month-aligned end; defaults to the current month
+     */
+    private function fetchRawMonthlyEventStats(string $tenantId, ?CarbonInterface $from, ?CarbonInterface $to): Collection
     {
-        $since = now()->startOfMonth()->subMonths(11);
+        $to = CarbonImmutable::parse($to ?? now())->startOfMonth();
+        $from = CarbonImmutable::parse($from ?? $to->subMonths(11))->startOfMonth();
+
+        $months = collect();
+        $cursor = $from;
+        while ($cursor->lte($to) && $months->count() < self::MAX_MONTHS) {
+            $months->push($cursor);
+            $cursor = $cursor->addMonth();
+        }
 
         $dbRows = EquipmentDowntimeEvent::withoutGlobalScopes()
             ->selectRaw("
@@ -25,52 +42,56 @@ class AnalyticsService
                 COALESCE(SUM(duration_minutes), 0) AS total_downtime_minutes
             ")
             ->where('tenant_id', $tenantId)
-            ->where('started_at', '>=', $since)
+            ->where('started_at', '>=', $from)
+            ->where('started_at', '<', $to->addMonth())
             ->whereNotNull('ended_at')
             ->groupByRaw("DATE_TRUNC('month', started_at)")
             ->get()
             ->keyBy('month_key');
 
-        // Fill all 12 months, including months with no events
-        return collect(range(0, 11))
-            ->map(fn ($i) => now()->startOfMonth()->subMonths(11 - $i))
-            ->map(function ($date) use ($dbRows) {
-                $key = $date->format('Y-m');
-                $row = $dbRows->get($key);
+        // Fill every month in the range, including months with no events
+        return $months->map(function (CarbonImmutable $date) use ($dbRows) {
+            $key = $date->format('Y-m');
+            $row = $dbRows->get($key);
 
-                return [
-                    'label' => $date->format('M Y'),
-                    'failure_count' => (int) ($row?->failure_count ?? 0),
-                    'failure_minutes' => (float) ($row?->failure_minutes ?? 0),
-                    'total_downtime_minutes' => (float) ($row?->total_downtime_minutes ?? 0),
-                    'days_in_month' => (int) $date->daysInMonth,
-                ];
-            });
+            return [
+                'label' => $date->format('M Y'),
+                'failure_count' => (int) ($row?->failure_count ?? 0),
+                'failure_minutes' => (float) ($row?->failure_minutes ?? 0),
+                'total_downtime_minutes' => (float) ($row?->total_downtime_minutes ?? 0),
+                'days_in_month' => (int) $date->daysInMonth,
+            ];
+        });
     }
 
-    private function monthlyEventStats(string $tenantId): Collection
+    private function monthlyEventStats(string $tenantId, ?CarbonInterface $from = null, ?CarbonInterface $to = null): Collection
     {
-        $key = "analytics:monthly_events:{$tenantId}";
+        $rangeKey = ($from ? CarbonImmutable::parse($from)->format('Y-m') : 'default')
+            .':'.($to ? CarbonImmutable::parse($to)->format('Y-m') : 'default');
+        $key = "analytics:monthly_events:{$tenantId}:{$rangeKey}";
 
         try {
             return Cache::remember(
                 $key,
                 now()->addHour(),
-                fn () => $this->fetchRawMonthlyEventStats($tenantId)
+                fn () => $this->fetchRawMonthlyEventStats($tenantId, $from, $to)
             );
         } catch (\Throwable) {
             Cache::forget($key);
 
-            return $this->fetchRawMonthlyEventStats($tenantId);
+            return $this->fetchRawMonthlyEventStats($tenantId, $from, $to);
         }
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
 
-    /** @return TrendPoint[] — unplanned failures per month, last 12 months */
-    public function failuresByMonth(string $tenantId): array
+    /**
+     * @return TrendPoint[] — unplanned failures per month.
+     *                      $from/$to default to the trailing 12 months when omitted.
+     */
+    public function failuresByMonth(string $tenantId, ?CarbonInterface $from = null, ?CarbonInterface $to = null): array
     {
-        return $this->monthlyEventStats($tenantId)
+        return $this->monthlyEventStats($tenantId, $from, $to)
             ->map(fn ($row) => new TrendPoint(
                 label: $row['label'],
                 value: (float) $row['failure_count'],
@@ -80,10 +101,13 @@ class AnalyticsService
             ->all();
     }
 
-    /** @return TrendPoint[] — total downtime hours per month, last 12 months */
-    public function downtimeTrend(string $tenantId): array
+    /**
+     * @return TrendPoint[] — total downtime hours per month.
+     *                      $from/$to default to the trailing 12 months when omitted.
+     */
+    public function downtimeTrend(string $tenantId, ?CarbonInterface $from = null, ?CarbonInterface $to = null): array
     {
-        return $this->monthlyEventStats($tenantId)
+        return $this->monthlyEventStats($tenantId, $from, $to)
             ->map(fn ($row) => new TrendPoint(
                 label: $row['label'],
                 value: round($row['total_downtime_minutes'] / 60, 2),
@@ -96,10 +120,11 @@ class AnalyticsService
      * @return TrendPoint[] — tenant-wide MTBF (hours) per month.
      *                      null when there are no failures in a month (gap in chart, not zero).
      *                      MTBF = (hours_in_month − downtime_hours) / failure_count
+     *                      $from/$to default to the trailing 12 months when omitted.
      */
-    public function mtbfTrend(string $tenantId): array
+    public function mtbfTrend(string $tenantId, ?CarbonInterface $from = null, ?CarbonInterface $to = null): array
     {
-        return $this->monthlyEventStats($tenantId)
+        return $this->monthlyEventStats($tenantId, $from, $to)
             ->map(function ($row) {
                 if ($row['failure_count'] === 0) {
                     return new TrendPoint(label: $row['label'], value: null);
@@ -123,10 +148,11 @@ class AnalyticsService
      * @return TrendPoint[] — tenant-wide MTTR (hours) per month.
      *                      null when there are no failures in a month (gap in chart, not zero).
      *                      MTTR = failure_downtime_hours / failure_count
+     *                      $from/$to default to the trailing 12 months when omitted.
      */
-    public function mttrTrend(string $tenantId): array
+    public function mttrTrend(string $tenantId, ?CarbonInterface $from = null, ?CarbonInterface $to = null): array
     {
-        return $this->monthlyEventStats($tenantId)
+        return $this->monthlyEventStats($tenantId, $from, $to)
             ->map(function ($row) {
                 if ($row['failure_count'] === 0) {
                     return new TrendPoint(label: $row['label'], value: null);

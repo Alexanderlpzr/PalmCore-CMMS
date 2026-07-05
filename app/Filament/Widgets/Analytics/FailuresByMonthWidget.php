@@ -3,11 +3,15 @@
 namespace App\Filament\Widgets\Analytics;
 
 use App\Domain\Analytics\Services\AnalyticsService;
+use App\Domain\Analytics\Support\DashboardPeriod;
 use Filament\Facades\Filament;
 use Filament\Widgets\ChartWidget;
+use Filament\Widgets\Concerns\InteractsWithPageFilters;
 
 class FailuresByMonthWidget extends ChartWidget
 {
+    use InteractsWithPageFilters;
+
     protected ?string $heading = 'Fallas por Mes';
 
     protected ?string $pollingInterval = null;
@@ -18,12 +22,15 @@ class FailuresByMonthWidget extends ChartWidget
 
     public function getDescription(): ?string
     {
-        return 'Cantidad de fallas no planificadas — últimos 12 meses.';
+        $period = DashboardPeriod::label($this->pageFilters);
+
+        return "Cantidad de fallas no planificadas — {$period}.";
     }
 
     protected function getData(): array
     {
-        $points = app(AnalyticsService::class)->failuresByMonth(Filament::getTenant()->id);
+        [$from, $to] = DashboardPeriod::resolve($this->pageFilters);
+        $points = app(AnalyticsService::class)->failuresByMonth(Filament::getTenant()->id, $from, $to);
 
         return [
             'datasets' => [

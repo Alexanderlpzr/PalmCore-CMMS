@@ -107,6 +107,57 @@ it('failuresByMonth excludes ongoing events (ended_at = null)', function () {
     expect($total)->toBe(0);
 });
 
+// ── failuresByMonth with an explicit period ────────────────────────────────────
+
+it('failuresByMonth with an explicit from/to returns exactly that many months', function () {
+    $tenant = analyticsTenant();
+
+    $points = service()->failuresByMonth(
+        $tenant->id,
+        now()->subMonths(2)->startOfMonth(),
+        now()->startOfMonth(),
+    );
+
+    expect($points)->toHaveCount(3);
+});
+
+it('failuresByMonth with a single-month range (from = to) returns exactly 1 point', function () {
+    $tenant = analyticsTenant();
+
+    $points = service()->failuresByMonth($tenant->id, now()->startOfMonth(), now()->startOfMonth());
+
+    expect($points)->toHaveCount(1);
+});
+
+it('failuresByMonth with an explicit range only counts events inside that window', function () {
+    $tenant = analyticsTenant();
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+
+    // Inside the requested range (2 months ago)
+    EquipmentDowntimeEvent::factory()->create([
+        'tenant_id' => $tenant->id,
+        'equipment_id' => $equipment->id,
+        'was_planned' => false,
+        'started_at' => now()->subMonths(2)->startOfMonth()->addDay(),
+    ]);
+
+    // Outside the requested range (this month)
+    EquipmentDowntimeEvent::factory()->create([
+        'tenant_id' => $tenant->id,
+        'equipment_id' => $equipment->id,
+        'was_planned' => false,
+        'started_at' => now()->startOfMonth()->addDay(),
+    ]);
+
+    $points = service()->failuresByMonth(
+        $tenant->id,
+        now()->subMonths(3)->startOfMonth(),
+        now()->subMonths(2)->startOfMonth(),
+    );
+
+    expect(collect($points)->sum('count'))->toBe(1);
+});
+
 // ── downtimeTrend ─────────────────────────────────────────────────────────────
 
 it('downtimeTrend converts duration_minutes to hours', function () {
