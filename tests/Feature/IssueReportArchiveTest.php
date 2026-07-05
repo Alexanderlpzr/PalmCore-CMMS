@@ -29,8 +29,8 @@ function issueReportUser(Tenant $tenant, string $role): User
     return $user;
 }
 
-it('lets a user with issue-reports.archive permission archive an acknowledged report', function () {
-    $user = issueReportUser($this->tenant, 'supervisor');
+it('lets administrador-general archive an acknowledged report', function () {
+    $user = issueReportUser($this->tenant, 'administrador-general');
     $report = EquipmentIssueReport::factory()->create([
         'tenant_id' => $this->tenant->id,
         'equipment_id' => $this->equipment->id,
@@ -45,8 +45,8 @@ it('lets a user with issue-reports.archive permission archive an acknowledged re
         ->and(EquipmentIssueReport::withTrashed()->find($report->id))->not->toBeNull();
 });
 
-it('denies archiving to a role without issue-reports.archive', function () {
-    $user = issueReportUser($this->tenant, 'operario');
+it('denies archiving to every role other than administrador-general', function (string $role) {
+    $user = issueReportUser($this->tenant, $role);
     $report = EquipmentIssueReport::factory()->create([
         'tenant_id' => $this->tenant->id,
         'equipment_id' => $this->equipment->id,
@@ -54,10 +54,10 @@ it('denies archiving to a role without issue-reports.archive', function () {
     ]);
 
     expect($user->can('delete', $report))->toBeFalse();
-});
+})->with(['tecnico', 'supervisor', 'plant-manager', 'ingeniero-mantenimiento', 'operario', 'gerencia']);
 
-it('lets a permitted user restore an archived report', function () {
-    $user = issueReportUser($this->tenant, 'plant-manager');
+it('lets administrador-general restore an archived report', function () {
+    $user = issueReportUser($this->tenant, 'administrador-general');
     $report = EquipmentIssueReport::factory()->create([
         'tenant_id' => $this->tenant->id,
         'equipment_id' => $this->equipment->id,
