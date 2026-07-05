@@ -11,10 +11,15 @@
 body {
     font-family: 'DejaVu Sans', sans-serif; font-size: 10px; color: #1e293b; background: #fff;
     margin-top: 100px; margin-bottom: 46px;
+    padding-left: 28px; padding-right: 28px;
 }
 
-#header { position: fixed; top: 0; left: 0; right: 0; height: 100px; }
-#footer { position: fixed; bottom: 0; left: 0; right: 0; height: 46px; }
+{{-- #header/#footer are position:fixed spanning the full page width (left:0;
+     right:0), so they need their own horizontal padding to line up with the
+     body's — padding on body alone would leave them flush against the
+     physical page edge. --}}
+#header { position: fixed; top: 0; left: 0; right: 0; height: 100px; padding: 0 28px; }
+#footer { position: fixed; bottom: 0; left: 0; right: 0; height: 46px; padding: 0 28px; }
 {{-- counter(pages) (the document's TOTAL page count) is not supported by this
      DomPDF build without enabling embedded PHP execution in templates, which
      is not worth the added attack surface for a "Página N de M" nicety — so
