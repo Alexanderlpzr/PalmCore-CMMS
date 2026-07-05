@@ -84,7 +84,8 @@ class UserForm
 
                                 return Role::where('team_id', $tenantId)
                                     ->orderBy('name')
-                                    ->pluck('name', 'name')
+                                    ->pluck('name')
+                                    ->mapWithKeys(fn (string $name): array => [$name => Role::humanizeName($name)])
                                     ->toArray();
                             })
                             ->afterStateHydrated(function (Select $component, $record): void {

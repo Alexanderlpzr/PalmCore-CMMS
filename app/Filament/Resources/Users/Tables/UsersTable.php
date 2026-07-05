@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Users\Tables;
 
+use App\Models\Role;
 use App\Models\User;
 use App\Services\ImpersonationService;
 use Filament\Actions\Action;
@@ -40,7 +41,8 @@ class UsersTable
                 TextColumn::make('roles.name')
                     ->label('Roles')
                     ->badge()
-                    ->separator(','),
+                    ->separator(',')
+                    ->formatStateUsing(fn (string $state): string => Role::humanizeName($state)),
                 IconColumn::make('is_active')
                     ->label('Activo')
                     ->boolean(),

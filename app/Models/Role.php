@@ -14,4 +14,10 @@ class Role extends SpatieRole
     {
         return (string) Str::uuid7();
     }
+
+    /** Turn a kebab/snake-case role slug into a human label: "administrador-general" → "Administrador General". */
+    public static function humanizeName(string $name): string
+    {
+        return Str::headline(str_replace(['-', '_'], ' ', $name));
+    }
 }

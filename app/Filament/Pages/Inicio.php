@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Domain\Home\Services\HomePageService;
+use App\Models\Role;
 use BackedEnum;
 use Filament\Facades\Filament;
 use Filament\Pages\Page;
@@ -115,7 +116,7 @@ class Inicio extends Page
             return 'Administrador';
         }
 
-        return Str::headline(str_replace(['-', '_'], ' ', $slug));
+        return Role::humanizeName($slug);
     }
 
     /**
