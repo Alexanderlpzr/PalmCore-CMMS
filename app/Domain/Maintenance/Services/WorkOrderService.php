@@ -101,9 +101,13 @@ class WorkOrderService
             ]);
 
             // Emergency WOs start InProgress directly — trigger equipment sync
-            if ($type->startsInProgress() && $workOrder->equipment_stopped) {
-                $this->syncEquipmentStatus($workOrder, WorkOrderStatus::InProgress);
-                $this->syncDowntimeEvent($workOrder, WorkOrderStatus::InProgress);
+            if ($type->startsInProgress()) {
+                if ($workOrder->equipment_stopped) {
+                    $this->syncEquipmentStatus($workOrder, WorkOrderStatus::InProgress);
+                    $this->syncDowntimeEvent($workOrder, WorkOrderStatus::InProgress);
+                }
+
+                $this->syncTimeLogOnTransition($workOrder, WorkOrderStatus::InProgress, $createdBy);
             }
 
             return $workOrder;
@@ -185,6 +189,7 @@ class WorkOrderService
             $this->syncEquipmentStatus($workOrder, $toStatus);
             $this->syncDowntimeEvent($workOrder, $toStatus);
             $this->syncInventoryOnTransition($workOrder, $fromStatus, $toStatus, $actor);
+            $this->syncTimeLogOnTransition($workOrder, $toStatus, $actor);
 
             return $workOrder->refresh();
         });
@@ -293,7 +298,8 @@ class WorkOrderService
 
     public function recalculateActualHours(WorkOrder $workOrder): void
     {
-        $totalHours = $workOrder->timeLogs()->whereNotNull('hours')->sum('hours');
+        $totalHours = $workOrder->timeLogs()->get()
+            ->sum(fn (WorkOrderTimeLog $log): float => $log->computedHours());
 
         $workOrder->update(['actual_labor_hours' => $totalHours > 0 ? $totalHours : null]);
     }
@@ -303,12 +309,7 @@ class WorkOrderService
         $laborCost = 0.0;
 
         foreach ($workOrder->technicians()->whereNotNull('hourly_rate')->get() as $tech) {
-            $hours = $workOrder->timeLogs()
-                ->where('user_id', $tech->user_id)
-                ->whereNotNull('hours')
-                ->sum('hours');
-
-            $laborCost += (float) $hours * (float) $tech->hourly_rate;
+            $laborCost += $tech->actualHours() * (float) $tech->hourly_rate;
         }
 
         $partsCost = (float) $workOrder->parts()->whereNotNull('total_cost')->sum('total_cost');
@@ -473,6 +474,50 @@ class WorkOrderService
                 'ended_at' => $endedAt,
                 'duration_minutes' => $durationMinutes,
             ]);
+        }
+    }
+
+    /**
+     * Opens/closes a time log entry for the acting técnico as the OT moves
+     * through Iniciar/Pausar/Reanudar/Completar, so "horas reales" fills in
+     * automatically instead of requiring a separate manual time entry.
+     */
+    private function syncTimeLogOnTransition(WorkOrder $workOrder, WorkOrderStatus $toStatus, User $actor): void
+    {
+        if ($toStatus === WorkOrderStatus::InProgress) {
+            $hasOpenLog = $workOrder->timeLogs()
+                ->where('user_id', $actor->id)
+                ->whereNull('ended_at')
+                ->exists();
+
+            if (! $hasOpenLog) {
+                $workOrder->timeLogs()->create([
+                    'tenant_id' => $workOrder->tenant_id,
+                    'user_id' => $actor->id,
+                    'started_at' => now(),
+                ]);
+            }
+
+            return;
+        }
+
+        if (in_array($toStatus, [WorkOrderStatus::OnHold, WorkOrderStatus::Completed, WorkOrderStatus::Cancelled], strict: true)) {
+            $openLog = $workOrder->timeLogs()
+                ->where('user_id', $actor->id)
+                ->whereNull('ended_at')
+                ->latest('started_at')
+                ->first();
+
+            if ($openLog !== null) {
+                $endedAt = now();
+
+                $openLog->update([
+                    'ended_at' => $endedAt,
+                    'hours' => round($openLog->started_at->diffInMinutes($endedAt) / 60, 2),
+                ]);
+            }
+
+            $this->recalculateActualHours($workOrder);
         }
     }
 

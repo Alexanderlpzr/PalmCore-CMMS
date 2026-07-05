@@ -133,6 +133,11 @@ class WorkOrder extends BaseModel
         return $this->hasMany(WorkOrderPart::class);
     }
 
+    public function downtimeEvents(): HasMany
+    {
+        return $this->hasMany(EquipmentDowntimeEvent::class);
+    }
+
     public function comments(): HasMany
     {
         return $this->hasMany(WorkOrderComment::class)->orderBy('created_at');

@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Maintenance\WorkOrder\RelationManagers;
 use App\Domain\Maintenance\Enums\TechnicianRole;
 use App\Domain\Maintenance\Services\WorkOrderService;
 use App\Models\User;
+use App\Models\WorkOrderTechnician;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
@@ -34,12 +35,6 @@ class TechniciansRelationManager extends RelationManager
                 ->options(TechnicianRole::options())
                 ->required()
                 ->default(TechnicianRole::Technician),
-            TextInput::make('planned_hours')
-                ->label('Horas planificadas')
-                ->numeric()
-                ->minValue(0)
-                ->suffix('h')
-                ->nullable(),
             TextInput::make('hourly_rate')
                 ->label('Tarifa por hora')
                 ->numeric()
@@ -63,8 +58,9 @@ class TechniciansRelationManager extends RelationManager
                     ->badge()
                     ->color(fn (TechnicianRole $state): string => $state->color())
                     ->formatStateUsing(fn (TechnicianRole $state): string => $state->label()),
-                TextColumn::make('planned_hours')
-                    ->label('H. planif.')
+                TextColumn::make('actualHours')
+                    ->label('Horas reales')
+                    ->getStateUsing(fn (WorkOrderTechnician $record): float => $record->actualHours())
                     ->suffix(' h')
                     ->placeholder('—'),
                 TextColumn::make('hourly_rate')
@@ -84,8 +80,7 @@ class TechniciansRelationManager extends RelationManager
                             $this->getOwnerRecord(),
                             User::findOrFail($data['user_id']),
                             $data['role'],
-                            $data['planned_hours'] ?? null,
-                            $data['hourly_rate'] ?? null,
+                            hourlyRate: $data['hourly_rate'] ?? null,
                         );
                     }),
             ])

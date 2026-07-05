@@ -44,18 +44,26 @@ class WorkOrderTechnician extends Model
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
+    /**
+     * Real hours worked, from time logs — counts entries with an explicit
+     * `hours` value as well as open/closed shifts computed from
+     * started_at/ended_at (WorkOrderTimeLog::computedHours()).
+     */
+    public function actualHours(): float
+    {
+        return (float) $this->workOrder->timeLogs()
+            ->where('user_id', $this->user_id)
+            ->get()
+            ->sum(fn (WorkOrderTimeLog $log): float => $log->computedHours());
+    }
+
     public function laborCost(): float
     {
         if ($this->hourly_rate === null) {
             return 0.0;
         }
 
-        $hours = $this->workOrder->timeLogs()
-            ->where('user_id', $this->user_id)
-            ->whereNotNull('hours')
-            ->sum('hours');
-
-        return (float) $hours * (float) $this->hourly_rate;
+        return $this->actualHours() * (float) $this->hourly_rate;
     }
 
     // ── Casts ─────────────────────────────────────────────────────────────────
