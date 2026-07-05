@@ -128,6 +128,31 @@ class EquipmentInfolist
                             ->placeholder('—'),
                         TextEntry::make('currency_code')
                             ->label('Moneda'),
+                        TextEntry::make('components_investment_total')
+                            ->label('Invertido en repuestos')
+                            ->getStateUsing(fn (Equipment $record): float => $record->componentsInvestmentTotal())
+                            ->money(fn (Equipment $record) => $record->currency_code ?? 'USD'),
+                        TextEntry::make('components_investment_ratio')
+                            ->label('% del costo de reemplazo')
+                            ->getStateUsing(fn (Equipment $record): ?string => $record->componentsInvestmentRatio() !== null
+                                ? number_format($record->componentsInvestmentRatio() * 100, 1).'%'
+                                : null
+                            )
+                            ->placeholder('Sin costo de reemplazo registrado'),
+                        TextEntry::make('replacement_recommendation')
+                            ->label('Recomendación')
+                            ->badge()
+                            ->hidden(fn (Equipment $record): bool => $record->componentsInvestmentRatio() === null)
+                            ->color(fn (Equipment $record): string => match (true) {
+                                $record->componentsInvestmentRatio() >= 0.7 => 'danger',
+                                $record->componentsInvestmentRatio() >= 0.5 => 'warning',
+                                default => 'success',
+                            })
+                            ->getStateUsing(fn (Equipment $record): string => match (true) {
+                                $record->componentsInvestmentRatio() >= 0.7 => 'Evaluar reemplazo del equipo',
+                                $record->componentsInvestmentRatio() >= 0.5 => 'Vigilar — se acerca al punto de reemplazo',
+                                default => 'Inversión bajo control',
+                            }),
                     ]),
 
                 Section::make('Reliability KPIs')

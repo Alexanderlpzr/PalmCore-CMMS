@@ -25,6 +25,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'status',
     'useful_life_hours',
     'worked_hours',
+    'unit_cost',
     'notes',
 ])]
 class EquipmentComponent extends BaseModel
@@ -63,6 +64,7 @@ class EquipmentComponent extends BaseModel
             'criticality' => EquipmentCriticality::class,
             'status' => ComponentStatus::class,
             'worked_hours' => 'float',
+            'unit_cost' => 'decimal:2',
         ];
     }
 }

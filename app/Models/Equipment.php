@@ -232,6 +232,28 @@ class Equipment extends BaseModel
         return $this->criticality === EquipmentCriticality::Critical->value;
     }
 
+    /** Total invertido en repuestos/componentes instalados a lo largo de la vida del equipo. */
+    public function componentsInvestmentTotal(): float
+    {
+        return (float) $this->components()->sum('unit_cost');
+    }
+
+    /**
+     * Proporción entre lo invertido en componentes y el costo de reposición del
+     * equipo. Null cuando no hay costo de reposición configurado (no hay base
+     * de comparación).
+     */
+    public function componentsInvestmentRatio(): ?float
+    {
+        $replacementCost = (float) $this->replacement_cost;
+
+        if ($replacementCost <= 0.0) {
+            return null;
+        }
+
+        return $this->componentsInvestmentTotal() / $replacementCost;
+    }
+
     // ── Casts ─────────────────────────────────────────────────────────────────
 
     protected function casts(): array

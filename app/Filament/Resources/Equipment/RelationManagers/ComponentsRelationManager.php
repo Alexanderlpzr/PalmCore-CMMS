@@ -15,6 +15,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
+use Filament\Tables\Columns\Summarizers\Sum;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
@@ -75,6 +76,12 @@ class ComponentsRelationManager extends RelationManager
                     ->label('Horas trabajadas')
                     ->numeric()
                     ->suffix('h'),
+                TextInput::make('unit_cost')
+                    ->label('Valor del repuesto')
+                    ->helperText('Costo de la pieza instalada, para llevar el total invertido en el equipo.')
+                    ->numeric()
+                    ->prefix('$')
+                    ->minValue(0),
                 Textarea::make('notes')
                     ->label('Notas')
                     ->maxLength(2000)
@@ -114,6 +121,13 @@ class ComponentsRelationManager extends RelationManager
                     ->label('Horas')
                     ->suffix('h')
                     ->placeholder('—'),
+                TextColumn::make('unit_cost')
+                    ->label('Valor')
+                    ->money(fn (): string => $this->getOwnerRecord()->currency_code ?? 'USD')
+                    ->placeholder('—')
+                    ->summarize(
+                        Sum::make()->money(fn (): string => $this->getOwnerRecord()->currency_code ?? 'USD')
+                    ),
             ])
             ->headerActions([
                 CreateAction::make()
