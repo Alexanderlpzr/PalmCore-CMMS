@@ -77,7 +77,7 @@ class ViewMaintenanceRequest extends ViewRecord
                         ->helperText('No es posible crear la Orden de Trabajo sin al menos un técnico asignado.'),
                     Select::make('work_order_type')
                         ->label('Tipo de OT')
-                        ->options(WorkOrderType::class)
+                        ->options(WorkOrderType::options())
                         ->required()
                         ->default(fn (): string => WorkOrderType::fromMaintenanceRequestType(
                             $this->record->request_type

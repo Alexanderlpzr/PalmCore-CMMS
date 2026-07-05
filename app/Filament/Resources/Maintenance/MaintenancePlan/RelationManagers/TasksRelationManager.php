@@ -54,7 +54,7 @@ class TasksRelationManager extends RelationManager
                         ->maxLength(255),
                     Select::make('item_type')
                         ->label('Tipo')
-                        ->options(MaintenanceChecklistItemType::class)
+                        ->options(MaintenanceChecklistItemType::options())
                         ->required()
                         ->live()
                         ->default(MaintenanceChecklistItemType::Boolean->value),

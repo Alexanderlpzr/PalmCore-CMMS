@@ -79,7 +79,7 @@ class TenantsTable
                     ->options(self::$planLabels),
                 SelectFilter::make('subscription_status')
                     ->label('Estado')
-                    ->options(SubscriptionStatus::class),
+                    ->options(SubscriptionStatus::options()),
                 TrashedFilter::make(),
             ])
             ->recordActions([

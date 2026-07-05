@@ -49,7 +49,7 @@ class MaintenancePlanForm
                     ->schema([
                         Select::make('trigger_source')
                             ->label('Tipo de disparador')
-                            ->options(MaintenanceTriggerSource::class)
+                            ->options(MaintenanceTriggerSource::options())
                             ->required()
                             ->live()
                             ->default(MaintenanceTriggerSource::Calendar->value),
@@ -64,7 +64,7 @@ class MaintenancePlanForm
                             ->visible(fn (Get $get): bool => $get('trigger_source') !== MaintenanceTriggerSource::Manual->value),
                         Select::make('time_frequency')
                             ->label('Frecuencia de tiempo')
-                            ->options(MaintenanceTimeFrequency::class)
+                            ->options(MaintenanceTimeFrequency::options())
                             ->visible(fn (Get $get): bool => in_array($get('trigger_source'), [
                                 MaintenanceTriggerSource::Calendar->value,
                                 MaintenanceTriggerSource::Hybrid->value,

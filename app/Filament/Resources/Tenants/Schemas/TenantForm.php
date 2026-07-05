@@ -77,7 +77,7 @@ class TenantForm
                             ->default('starter'),
                         Select::make('subscription_status')
                             ->label('Estado de suscripción')
-                            ->options(SubscriptionStatus::class)
+                            ->options(SubscriptionStatus::options())
                             ->required()
                             ->default(SubscriptionStatus::Active),
                         DatePicker::make('subscription_expires_at')

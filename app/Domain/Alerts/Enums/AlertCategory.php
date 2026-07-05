@@ -34,4 +34,13 @@ enum AlertCategory: string
             self::System => 'gray',
         };
     }
+
+    public static function options(): array
+    {
+        return array_column(
+            array_map(fn (self $case) => ['value' => $case->value, 'label' => $case->label()], self::cases()),
+            'label',
+            'value'
+        );
+    }
 }

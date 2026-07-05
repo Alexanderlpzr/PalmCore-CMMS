@@ -31,7 +31,7 @@ class TechniciansRelationManager extends RelationManager
                 ->required(),
             Select::make('role')
                 ->label('Rol')
-                ->options(TechnicianRole::class)
+                ->options(TechnicianRole::options())
                 ->required()
                 ->default(TechnicianRole::Technician),
             TextInput::make('planned_hours')

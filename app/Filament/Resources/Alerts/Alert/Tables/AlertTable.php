@@ -63,17 +63,17 @@ class AlertTable
             ->filters([
                 SelectFilter::make('severity')
                     ->label('Severidad')
-                    ->options(AlertSeverity::class)
+                    ->options(AlertSeverity::options())
                     ->attribute('severity'),
 
                 SelectFilter::make('category')
                     ->label('Categoría')
-                    ->options(AlertCategory::class)
+                    ->options(AlertCategory::options())
                     ->attribute('category'),
 
                 SelectFilter::make('status')
                     ->label('Estado')
-                    ->options(AlertStatus::class)
+                    ->options(AlertStatus::options())
                     ->attribute('status')
                     ->default(AlertStatus::Open->value),
             ])

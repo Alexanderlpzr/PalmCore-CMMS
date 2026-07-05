@@ -79,10 +79,10 @@ class MaintenancePlanTable
             ->filters([
                 SelectFilter::make('trigger_source')
                     ->label('Disparador')
-                    ->options(MaintenanceTriggerSource::class),
+                    ->options(MaintenanceTriggerSource::options()),
                 SelectFilter::make('time_frequency')
                     ->label('Frecuencia')
-                    ->options(MaintenanceTimeFrequency::class),
+                    ->options(MaintenanceTimeFrequency::options()),
                 TernaryFilter::make('is_active')
                     ->label('Estado')
                     ->trueLabel('Activos')

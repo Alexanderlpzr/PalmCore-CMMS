@@ -24,7 +24,7 @@ class AttachmentsRelationManager extends RelationManager
         return $schema->components([
             Select::make('attachment_type')
                 ->label('Tipo')
-                ->options(WorkOrderAttachmentType::class)
+                ->options(WorkOrderAttachmentType::options())
                 ->required()
                 ->default(WorkOrderAttachmentType::Evidence),
             FileUpload::make('file_path')
