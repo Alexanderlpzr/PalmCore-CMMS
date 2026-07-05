@@ -96,6 +96,14 @@ class MaintenanceRequestService
 
             $issueReport->markConvertedToMr();
 
+            // Skip the manual submit/take-for-review clicks — an admin converting
+            // an already-triaged report is, by definition, ready to hand it to
+            // the reviewer queue immediately (same as a técnico's direct create).
+            if ($request->status === MaintenanceRequestStatus::Draft) {
+                $request = $this->transition($request, MaintenanceRequestStatus::Submitted, $createdBy);
+                $request = $this->transition($request, MaintenanceRequestStatus::UnderReview, $createdBy);
+            }
+
             return $request;
         });
     }

@@ -12,21 +12,21 @@ use App\Models\User;
 // ── Issue Report → MaintenanceRequest conversion ──────────────────────────────
 
 it('creates maintenance request from issue report', function () {
-    $service  = app(MaintenanceRequestService::class);
-    $tenant   = Tenant::factory()->create();
+    $service = app(MaintenanceRequestService::class);
+    $tenant = Tenant::factory()->create();
     $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
-    $user     = User::factory()->create();
+    $user = User::factory()->create();
 
     $report = EquipmentIssueReport::factory()->create([
-        'tenant_id'    => $tenant->id,
+        'tenant_id' => $tenant->id,
         'equipment_id' => $equipment->id,
     ]);
 
     $mr = $service->createFromIssueReport($report, [
         'request_type' => 'corrective',
-        'priority'     => 'p3_medium',
-        'title'        => 'Reporte convertido',
-        'description'  => 'Descripción del reporte.',
+        'priority' => 'p3_medium',
+        'title' => 'Reporte convertido',
+        'description' => 'Descripción del reporte.',
     ], $user);
 
     expect($mr)->toBeInstanceOf(MaintenanceRequest::class)
@@ -35,22 +35,43 @@ it('creates maintenance request from issue report', function () {
         ->and($mr->tenant_id)->toBe($tenant->id);
 });
 
-it('marks issue report as converted_to_mr after conversion', function () {
-    $service   = app(MaintenanceRequestService::class);
-    $tenant    = Tenant::factory()->create();
+it('lands the new request directly in under_review, skipping draft/submitted', function () {
+    $service = app(MaintenanceRequestService::class);
+    $tenant = Tenant::factory()->create();
     $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
-    $user      = User::factory()->create();
+    $user = User::factory()->create();
 
     $report = EquipmentIssueReport::factory()->create([
-        'tenant_id'    => $tenant->id,
+        'tenant_id' => $tenant->id,
+        'equipment_id' => $equipment->id,
+    ]);
+
+    $mr = $service->createFromIssueReport($report, [
+        'request_type' => 'corrective',
+        'priority' => 'p3_medium',
+        'title' => 'Reporte convertido',
+        'description' => 'Descripción del reporte.',
+    ], $user);
+
+    expect($mr->status)->toBe(MaintenanceRequestStatus::UnderReview);
+});
+
+it('marks issue report as converted_to_mr after conversion', function () {
+    $service = app(MaintenanceRequestService::class);
+    $tenant = Tenant::factory()->create();
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+    $user = User::factory()->create();
+
+    $report = EquipmentIssueReport::factory()->create([
+        'tenant_id' => $tenant->id,
         'equipment_id' => $equipment->id,
     ]);
 
     $service->createFromIssueReport($report, [
         'request_type' => 'corrective',
-        'priority'     => 'p2_high',
-        'title'        => 'Test',
-        'description'  => 'desc',
+        'priority' => 'p2_high',
+        'title' => 'Test',
+        'description' => 'desc',
     ], $user);
 
     $report->refresh();
@@ -59,21 +80,21 @@ it('marks issue report as converted_to_mr after conversion', function () {
 });
 
 it('converted mr inherits equipment from issue report', function () {
-    $service   = app(MaintenanceRequestService::class);
-    $tenant    = Tenant::factory()->create();
+    $service = app(MaintenanceRequestService::class);
+    $tenant = Tenant::factory()->create();
     $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
-    $user      = User::factory()->create();
+    $user = User::factory()->create();
 
     $report = EquipmentIssueReport::factory()->create([
-        'tenant_id'    => $tenant->id,
+        'tenant_id' => $tenant->id,
         'equipment_id' => $equipment->id,
     ]);
 
     $mr = $service->createFromIssueReport($report, [
         'request_type' => 'corrective',
-        'priority'     => 'p3_medium',
-        'title'        => 'Test',
-        'description'  => 'desc',
+        'priority' => 'p3_medium',
+        'title' => 'Test',
+        'description' => 'desc',
     ], $user);
 
     expect($mr->equipment_id)->toBe($equipment->id);
@@ -82,14 +103,14 @@ it('converted mr inherits equipment from issue report', function () {
 // ── Acknowledge ───────────────────────────────────────────────────────────────
 
 it('acknowledge sets status to acknowledged and records timestamp', function () {
-    $tenant    = Tenant::factory()->create();
+    $tenant = Tenant::factory()->create();
     $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
-    $user      = User::factory()->create();
+    $user = User::factory()->create();
 
     $report = EquipmentIssueReport::factory()->create([
-        'tenant_id'    => $tenant->id,
+        'tenant_id' => $tenant->id,
         'equipment_id' => $equipment->id,
-        'status'       => 'open',
+        'status' => 'open',
     ]);
 
     $report->acknowledge($user);
