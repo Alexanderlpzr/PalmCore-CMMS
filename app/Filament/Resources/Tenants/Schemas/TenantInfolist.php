@@ -38,6 +38,13 @@ class TenantInfolist
                                 'professional' => 'success',
                                 'enterprise' => 'primary',
                                 default => 'gray',
+                            })
+                            ->formatStateUsing(fn (string $state): string => match ($state) {
+                                'trial' => 'Prueba',
+                                'starter' => 'Inicial',
+                                'professional' => 'Profesional',
+                                'enterprise' => 'Empresarial',
+                                default => $state,
                             }),
                     ]),
 

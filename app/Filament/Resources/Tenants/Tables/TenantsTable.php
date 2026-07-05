@@ -17,6 +17,14 @@ use Filament\Tables\Table;
 
 class TenantsTable
 {
+    /** @var array<string, string> */
+    private static array $planLabels = [
+        'trial' => 'Prueba',
+        'starter' => 'Inicial',
+        'professional' => 'Profesional',
+        'enterprise' => 'Empresarial',
+    ];
+
     public static function configure(Table $table): Table
     {
         return $table
@@ -43,7 +51,8 @@ class TenantsTable
                         'professional' => 'success',
                         'enterprise' => 'primary',
                         default => 'gray',
-                    }),
+                    })
+                    ->formatStateUsing(fn (string $state): string => self::$planLabels[$state] ?? $state),
                 TextColumn::make('subscription_status')
                     ->label('Estado')
                     ->badge()
@@ -67,12 +76,7 @@ class TenantsTable
             ->filters([
                 SelectFilter::make('subscription_plan')
                     ->label('Plan')
-                    ->options([
-                        'trial' => 'Prueba',
-                        'starter' => 'Inicial',
-                        'professional' => 'Profesional',
-                        'enterprise' => 'Empresarial',
-                    ]),
+                    ->options(self::$planLabels),
                 SelectFilter::make('subscription_status')
                     ->label('Estado')
                     ->options(SubscriptionStatus::class),
