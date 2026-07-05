@@ -40,22 +40,20 @@ function maintenanceRequestUser(Tenant $tenant, string $role): User
     return $user;
 }
 
-it('hides reject and assign_technician from a técnico', function () {
+it('hides reject from a técnico', function () {
     $user = maintenanceRequestUser($this->tenant, 'tecnico');
     $this->actingAs($user);
     Filament::setTenant($this->tenant);
 
     Livewire::test(ViewMaintenanceRequest::class, ['record' => $this->request->id])
-        ->assertActionHidden('reject')
-        ->assertActionHidden('assign_technician');
+        ->assertActionHidden('reject');
 });
 
-it('shows reject and assign_technician to a supervisor', function () {
+it('shows reject to a supervisor', function () {
     $user = maintenanceRequestUser($this->tenant, 'supervisor');
     $this->actingAs($user);
     Filament::setTenant($this->tenant);
 
     Livewire::test(ViewMaintenanceRequest::class, ['record' => $this->request->id])
-        ->assertActionVisible('reject')
-        ->assertActionVisible('assign_technician');
+        ->assertActionVisible('reject');
 });

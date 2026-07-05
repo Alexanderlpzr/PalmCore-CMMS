@@ -74,9 +74,6 @@ class ViewMaintenanceRequest extends ViewRecord
                         ->multiple()
                         ->searchable()
                         ->required()
-                        ->default(fn (): array => $this->record->preliminary_technician_id
-                            ? [$this->record->preliminary_technician_id]
-                            : [])
                         ->helperText('No es posible crear la Orden de Trabajo sin al menos un técnico asignado.'),
                     Select::make('work_order_type')
                         ->label('Tipo de OT')
@@ -109,9 +106,6 @@ class ViewMaintenanceRequest extends ViewRecord
                     unset($data['technician_ids']);
 
                     $mrService->transition($mr, MaintenanceRequestStatus::Approved, auth()->user());
-
-                    // Explicit multi-technician selection replaces the preliminary single-technician hint.
-                    $mr->update(['preliminary_technician_id' => null]);
 
                     $workOrder = $woService->createFromMaintenanceRequest($mr, $data, auth()->user());
 
@@ -184,36 +178,6 @@ class ViewMaintenanceRequest extends ViewRecord
                 ->action(fn (MaintenanceRequestService $service): MaintenanceRequest => $this->transitionAndRefresh(
                     $service, MaintenanceRequestStatus::Cancelled
                 )),
-
-            // Assign preliminary technician (before deciding to approve — optional early planning)
-            Action::make('assign_technician')
-                ->label('Asignar técnico')
-                ->icon(Heroicon::OutlinedUserPlus)
-                ->color('info')
-                ->modalHeading('Asignar técnico preliminar')
-                ->modalDescription('Selecciona el técnico sugerido para ejecutar el trabajo. Se precargará al aprobar la solicitud, pero puedes cambiarlo en ese momento.')
-                ->visible(fn (): bool => $this->record->status === MaintenanceRequestStatus::UnderReview
-                    && $this->record->work_order_id === null
-                    && auth()->user()->can('review', $this->record))
-                ->form([
-                    Select::make('preliminary_technician_id')
-                        ->label('Técnico asignado')
-                        ->options(User::query()->operationalStaff()->orderBy('name')->pluck('name', 'id'))
-                        ->searchable()
-                        ->nullable()
-                        ->default(fn (): ?string => $this->record->preliminary_technician_id),
-                ])
-                ->action(function (array $data): void {
-                    $this->record->update(['preliminary_technician_id' => $data['preliminary_technician_id']]);
-                    $this->record->refresh();
-
-                    Notification::make()
-                        ->title($data['preliminary_technician_id']
-                            ? 'Técnico asignado correctamente'
-                            : 'Técnico removido')
-                        ->success()
-                        ->send();
-                }),
 
             EditAction::make()
                 ->visible(fn (): bool => $this->record->isEditable()),
