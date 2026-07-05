@@ -42,11 +42,12 @@ class ViewWorkOrder extends ViewRecord
                 ->action(fn (WorkOrderService $service) => $this->doTransition($service, WorkOrderStatus::Planned)),
 
             // Start: Planned → InProgress  (work-orders.execute)
+            // No confirmation modal — reversible operational toggle used constantly
+            // by técnicos during the day; the confirmation was pure friction.
             Action::make('start')
                 ->label('Iniciar trabajo')
                 ->icon(Heroicon::OutlinedPlay)
                 ->color('warning')
-                ->requiresConfirmation()
                 ->visible(fn (): bool => $this->record->status === WorkOrderStatus::Planned
                     && auth()->user()->can('work-orders.execute'))
                 ->action(fn (WorkOrderService $service) => $this->doTransition($service, WorkOrderStatus::InProgress)),
@@ -56,7 +57,6 @@ class ViewWorkOrder extends ViewRecord
                 ->label('Pausar')
                 ->icon(Heroicon::OutlinedPause)
                 ->color('gray')
-                ->requiresConfirmation()
                 ->visible(fn (): bool => $this->record->status === WorkOrderStatus::InProgress
                     && auth()->user()->can('work-orders.execute'))
                 ->action(fn (WorkOrderService $service) => $this->doTransition($service, WorkOrderStatus::OnHold)),
@@ -66,7 +66,6 @@ class ViewWorkOrder extends ViewRecord
                 ->label('Reanudar')
                 ->icon(Heroicon::OutlinedPlay)
                 ->color('info')
-                ->requiresConfirmation()
                 ->visible(fn (): bool => $this->record->status === WorkOrderStatus::OnHold
                     && auth()->user()->can('work-orders.execute'))
                 ->action(fn (WorkOrderService $service) => $this->doTransition($service, WorkOrderStatus::InProgress)),
