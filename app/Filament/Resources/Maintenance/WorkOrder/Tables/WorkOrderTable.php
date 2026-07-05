@@ -12,8 +12,10 @@ use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class WorkOrderTable
 {
@@ -91,6 +93,14 @@ class WorkOrderTable
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                Filter::make('assigned_to_me')
+                    ->label('Asignadas a mí')
+                    ->toggle()
+                    ->default(fn (): bool => auth()->user()?->cannot('work-orders.plan') ?? false)
+                    ->query(fn (Builder $query): Builder => $query->whereHas(
+                        'technicians',
+                        fn (Builder $technicians) => $technicians->where('user_id', auth()->id())
+                    )),
                 SelectFilter::make('work_order_type')
                     ->label('Tipo')
                     ->options(WorkOrderType::options()),
