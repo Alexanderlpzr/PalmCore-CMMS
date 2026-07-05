@@ -1,5 +1,5 @@
 <div id="footer">
-    <table style="width:100%; border-top:1px solid #e2e8f0; padding-top:4px;">
+    <table style="width:100%; border-top:1px solid #a7f3d0; padding-top:4px;">
         <tr>
             <td style="font-size:7px; color:#94a3b8;">
                 {{ $tenant?->name ?? 'Fronda CMMS' }} &middot; Generado con Fronda CMMS

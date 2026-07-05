@@ -22,15 +22,35 @@ class ReportBrandingService
 
     public function logoBase64(?Tenant $tenant): ?string
     {
-        if (! $tenant?->logo_path) {
+        if ($tenant?->logo_path) {
+            try {
+                $content = Storage::disk(persistent_disk())->get($tenant->logo_path);
+                $mime = Storage::disk(persistent_disk())->mimeType($tenant->logo_path);
+
+                return "data:{$mime};base64,".base64_encode($content);
+            } catch (\Throwable) {
+                // Fall through to the Fronda CMMS default below.
+            }
+        }
+
+        return $this->frondaLogoBase64();
+    }
+
+    /**
+     * Every report carries Fronda CMMS's own brand identity by default —
+     * tenants without a custom logo still get a properly branded document
+     * instead of a bare text fallback.
+     */
+    private function frondaLogoBase64(): ?string
+    {
+        $path = public_path('images/logo.png');
+
+        if (! is_file($path)) {
             return null;
         }
 
         try {
-            $content = Storage::disk(persistent_disk())->get($tenant->logo_path);
-            $mime = Storage::disk(persistent_disk())->mimeType($tenant->logo_path);
-
-            return "data:{$mime};base64,".base64_encode($content);
+            return 'data:image/png;base64,'.base64_encode(file_get_contents($path));
         } catch (\Throwable) {
             return null;
         }
