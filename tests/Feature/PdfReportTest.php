@@ -5,6 +5,7 @@ use App\Domain\Reports\Enums\ReportType;
 use App\Domain\Reports\Services\EquipmentPdfService;
 use App\Domain\Reports\Services\InventoryPdfService;
 use App\Domain\Reports\Services\MaintenancePlanPdfService;
+use App\Domain\Reports\Services\PendingWorkOrdersPdfService;
 use App\Domain\Reports\Services\ReliabilityPdfService;
 use App\Domain\Reports\Services\ReportManager;
 use App\Domain\Reports\Services\WorkOrderPdfService;
@@ -289,6 +290,63 @@ it('ReliabilityPdfService excludes soft-deleted KPI records', function () {
 
     expect($capturedKpis)->toHaveCount(1)
         ->and($capturedKpis->first()->equipment_id)->toBe($equipA->id);
+});
+
+// ── PendingWorkOrdersPdfService ───────────────────────────────────────────────
+
+it('PendingWorkOrdersPdfService generates bytes for a tenant with pending OTs', function () {
+    pdfFake();
+
+    $tenant = Tenant::factory()->create();
+    WorkOrder::factory()->create(['tenant_id' => $tenant->id, 'status' => 'planned']);
+
+    $bytes = app(PendingWorkOrdersPdfService::class)->generate($tenant->id);
+
+    expect($bytes)->toBeString()->not->toBeEmpty();
+});
+
+it('PendingWorkOrdersPdfService generates bytes when there are no pending OTs', function () {
+    pdfFake();
+
+    $tenant = Tenant::factory()->create();
+
+    $bytes = app(PendingWorkOrdersPdfService::class)->generate($tenant->id);
+
+    expect($bytes)->toBeString()->not->toBeEmpty();
+});
+
+it('PendingWorkOrdersPdfService only includes non-terminal, non-completed statuses for the requested tenant', function () {
+    $tenant = Tenant::factory()->create();
+    $otherTenant = Tenant::factory()->create();
+
+    $draft = WorkOrder::factory()->create(['tenant_id' => $tenant->id, 'status' => 'draft']);
+    $planned = WorkOrder::factory()->create(['tenant_id' => $tenant->id, 'status' => 'planned']);
+    $inProgress = WorkOrder::factory()->create(['tenant_id' => $tenant->id, 'status' => 'in_progress']);
+    $onHold = WorkOrder::factory()->create(['tenant_id' => $tenant->id, 'status' => 'on_hold']);
+    WorkOrder::factory()->create(['tenant_id' => $tenant->id, 'status' => 'completed']);
+    WorkOrder::factory()->create(['tenant_id' => $tenant->id, 'status' => 'verified']);
+    WorkOrder::factory()->create(['tenant_id' => $tenant->id, 'status' => 'closed']);
+    WorkOrder::factory()->create(['tenant_id' => $tenant->id, 'status' => 'cancelled']);
+    WorkOrder::factory()->create(['tenant_id' => $otherTenant->id, 'status' => 'planned']);
+
+    $captured = null;
+
+    Pdf::shouldReceive('loadView')
+        ->withArgs(function (string $view, array $data) use (&$captured): bool {
+            $captured = $data['workOrders'] ?? null;
+
+            return true;
+        })
+        ->andReturnSelf();
+    Pdf::shouldReceive('setPaper')->andReturnSelf();
+    Pdf::shouldReceive('setOption')->andReturnSelf();
+    Pdf::shouldReceive('output')->andReturn('%PDF-1.4 test');
+
+    app(PendingWorkOrdersPdfService::class)->generate($tenant->id);
+
+    expect($captured)->not->toBeNull()
+        ->and($captured->pluck('id')->sort()->values()->all())
+        ->toBe(collect([$draft->id, $planned->id, $inProgress->id, $onHold->id])->sort()->values()->all());
 });
 
 // ── GenerateInventoryReportJob ────────────────────────────────────────────────

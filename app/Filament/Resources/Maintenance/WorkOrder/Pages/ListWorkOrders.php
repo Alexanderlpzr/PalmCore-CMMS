@@ -2,8 +2,11 @@
 
 namespace App\Filament\Resources\Maintenance\WorkOrder\Pages;
 
+use App\Domain\Reports\DTOs\ReportRequest;
 use App\Domain\Reports\Enums\ExcelReportType;
+use App\Domain\Reports\Enums\ReportType;
 use App\Domain\Reports\Excel\ExcelReportManager;
+use App\Domain\Reports\Services\ReportManager;
 use App\Filament\Resources\Maintenance\WorkOrder\WorkOrderResource;
 use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
@@ -35,6 +38,19 @@ class ListWorkOrders extends ListRecords
                         ->body('Recibirás una notificación cuando esté listo para descargar.')
                         ->info()
                         ->send();
+                }),
+
+            Action::make('download_pending_pdf')
+                ->label('PDF de Pendientes')
+                ->tooltip('Descarga un PDF con todas las OT que aún no están completadas')
+                ->icon(Heroicon::OutlinedArrowDownTray)
+                ->color('gray')
+                ->action(function (ReportManager $manager): mixed {
+                    return $manager->streamDownload(new ReportRequest(
+                        type: ReportType::PendingWorkOrders,
+                        tenantId: Filament::getTenant()->id,
+                        requestedBy: auth()->id(),
+                    ));
                 }),
 
             CreateAction::make(),

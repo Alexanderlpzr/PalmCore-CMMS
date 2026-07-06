@@ -17,6 +17,7 @@ class ReportManager
         private readonly MaintenancePlanPdfService $maintenancePlan,
         private readonly InventoryPdfService $inventory,
         private readonly ReliabilityPdfService $reliability,
+        private readonly PendingWorkOrdersPdfService $pendingWorkOrders,
     ) {}
 
     public function streamDownload(ReportRequest $request): StreamedResponse
@@ -57,6 +58,7 @@ class ReportManager
             ReportType::MaintenancePlan => $this->maintenancePlan,
             ReportType::Inventory => $this->inventory,
             ReportType::Reliability => $this->reliability,
+            ReportType::PendingWorkOrders => $this->pendingWorkOrders,
         };
     }
 }

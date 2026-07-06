@@ -9,4 +9,5 @@ enum ReportType: string
     case MaintenancePlan = 'maintenance_plan';
     case Inventory = 'inventory';
     case Reliability = 'reliability';
+    case PendingWorkOrders = 'pending_work_orders';
 }
