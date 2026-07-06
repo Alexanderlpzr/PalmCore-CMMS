@@ -16,6 +16,7 @@ use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\ViewField;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
@@ -196,6 +197,53 @@ class ViewWorkOrder extends ViewRecord
                     && $this->record->status->canTransitionTo(WorkOrderStatus::Cancelled)
                     && auth()->user()->can('work-orders.update'))
                 ->action(fn (WorkOrderService $service) => $this->doTransition($service, WorkOrderStatus::Cancelled)),
+
+            // Manual cost override (work-orders.update — admin/supervisor/ingeniero,
+            // not técnico). The automatic labor/parts calculation depends on data
+            // that isn't always complete (técnico hourly_rate, part costs), so this
+            // lets whoever's responsible for the OT type the real numbers in
+            // directly — available at any status, since costs are usually only
+            // known once the work is done.
+            Action::make('edit_costs')
+                ->label('Editar Costos')
+                ->tooltip('Ajusta manualmente los costos de esta OT')
+                ->icon(Heroicon::OutlinedCurrencyDollar)
+                ->color('gray')
+                ->visible(fn (): bool => auth()->user()->can('work-orders.update'))
+                ->fillForm(fn (WorkOrder $record): array => [
+                    'estimated_cost' => $record->estimated_cost,
+                    'actual_cost_labor' => $record->actual_cost_labor,
+                    'actual_cost_parts' => $record->actual_cost_parts,
+                    'actual_cost_external' => $record->actual_cost_external,
+                ])
+                ->modalHeading('Editar Costos')
+                ->form([
+                    TextInput::make('estimated_cost')
+                        ->label('Estimado')
+                        ->numeric()
+                        ->prefix('$'),
+                    TextInput::make('actual_cost_labor')
+                        ->label('Mano de obra')
+                        ->numeric()
+                        ->prefix('$'),
+                    TextInput::make('actual_cost_parts')
+                        ->label('Repuestos')
+                        ->numeric()
+                        ->prefix('$'),
+                    TextInput::make('actual_cost_external')
+                        ->label('Externo')
+                        ->numeric()
+                        ->prefix('$'),
+                ])
+                ->action(function (array $data, WorkOrderService $service): void {
+                    $service->updateCosts($this->record, $data);
+                    $this->record->refresh();
+
+                    Notification::make()
+                        ->title('Costos actualizados')
+                        ->success()
+                        ->send();
+                }),
 
             Action::make('download_pdf')
                 ->label('Descargar PDF')
