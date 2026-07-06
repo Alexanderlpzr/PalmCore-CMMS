@@ -199,6 +199,41 @@ class WorkOrder extends BaseModel
             + ($this->actual_cost_external ?? 0));
     }
 
+    /**
+     * Falls back to the planned_start_at/planned_end_at interval when no one
+     * typed an explicit planned_labor_hours value on the form.
+     */
+    public function plannedHours(): ?float
+    {
+        if ($this->planned_labor_hours !== null) {
+            return (float) $this->planned_labor_hours;
+        }
+
+        if ($this->planned_start_at && $this->planned_end_at) {
+            return round($this->planned_start_at->diffInMinutes($this->planned_end_at) / 60, 2);
+        }
+
+        return null;
+    }
+
+    /**
+     * Falls back to the actual_start_at/actual_end_at interval when the
+     * técnico's time logs didn't produce a stored actual_labor_hours total
+     * (e.g. the WO was closed through a path that never opened a time log).
+     */
+    public function actualHours(): ?float
+    {
+        if ($this->actual_labor_hours !== null) {
+            return (float) $this->actual_labor_hours;
+        }
+
+        if ($this->actual_start_at && $this->actual_end_at) {
+            return round($this->actual_start_at->diffInMinutes($this->actual_end_at) / 60, 2);
+        }
+
+        return null;
+    }
+
     // ── Casts ─────────────────────────────────────────────────────────────────
 
     protected function casts(): array

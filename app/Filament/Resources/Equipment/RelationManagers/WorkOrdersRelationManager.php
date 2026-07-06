@@ -72,7 +72,7 @@ class WorkOrdersRelationManager extends RelationManager
                     ->sortable(),
                 TextColumn::make('actual_labor_hours')
                     ->label('Horas reales')
-                    ->formatStateUsing(fn (?float $state): ?string => format_hours_minutes($state))
+                    ->getStateUsing(fn (WorkOrder $record): ?string => format_hours_minutes($record->actualHours()))
                     ->placeholder('—'),
                 TextColumn::make('actual_cost_total')
                     ->label('Costo total')

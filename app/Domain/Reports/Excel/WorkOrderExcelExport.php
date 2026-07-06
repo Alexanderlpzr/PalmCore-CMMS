@@ -40,7 +40,7 @@ class WorkOrderExcelExport
             'Fin Planif.' => $workOrder->planned_end_at?->format('Y-m-d H:i'),
             'Inicio Real' => $workOrder->actual_start_at?->format('Y-m-d H:i'),
             'Fin Real' => $workOrder->actual_end_at?->format('Y-m-d H:i'),
-            'Horas MO Reales' => $workOrder->actual_labor_hours,
+            'Horas MO Reales' => $workOrder->actualHours(),
             'Costo Total' => $workOrder->actual_cost_total !== null ? round((float) $workOrder->actual_cost_total, 2) : null,
             'Moneda' => $workOrder->currency_code,
             'Fecha Creación' => $workOrder->created_at?->format('Y-m-d H:i'),

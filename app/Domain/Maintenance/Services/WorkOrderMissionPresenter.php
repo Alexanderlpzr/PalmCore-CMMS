@@ -244,7 +244,7 @@ class WorkOrderMissionPresenter
 
         return [
             'equipment' => $workOrder->relationLoaded('equipment') ? $workOrder->equipment?->name : null,
-            'time_spent_hours' => $workOrder->actual_labor_hours !== null ? (float) $workOrder->actual_labor_hours : null,
+            'time_spent_hours' => $workOrder->actualHours(),
             'evidence_count' => $workOrder->relationLoaded('attachments') ? $workOrder->attachments->count() : 0,
             'checklist_label' => $checklistTotal === 0 ? 'Sin tareas de plan asociadas' : "{$checklistTotal} tareas de referencia",
             'expected_outcome' => $this->expectedOutcome($workOrder),

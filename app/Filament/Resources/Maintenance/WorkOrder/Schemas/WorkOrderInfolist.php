@@ -98,11 +98,11 @@ class WorkOrderInfolist
                         TextEntry::make('actual_end_at')->label('Fin real')->dateTime('d/m/Y H:i')->placeholder('—'),
                         TextEntry::make('planned_labor_hours')
                             ->label('Horas planif.')
-                            ->formatStateUsing(fn (?float $state): ?string => format_hours_minutes($state))
+                            ->getStateUsing(fn (WorkOrder $record): ?string => format_hours_minutes($record->plannedHours()))
                             ->placeholder('—'),
                         TextEntry::make('actual_labor_hours')
                             ->label('Horas reales')
-                            ->formatStateUsing(fn (?float $state): ?string => format_hours_minutes($state))
+                            ->getStateUsing(fn (WorkOrder $record): ?string => format_hours_minutes($record->actualHours()))
                             ->placeholder('—'),
                     ]),
 
