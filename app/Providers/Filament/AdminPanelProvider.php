@@ -65,6 +65,12 @@ class AdminPanelProvider extends PanelProvider
                 'danger' => Color::Red,
             ])
             ->defaultAvatarProvider(InitialsAvatarProvider::class)
+            // Without this, every "reporte listo para descargar" notification
+            // sent via ->sendToDatabase() (Excel/PDF export jobs, webhooks,
+            // etc.) is stored correctly but has no UI surface at all — no bell
+            // icon, no polling, nothing. Users saw the initial "Generando..."
+            // toast and then nothing ever again, even though the file existed.
+            ->databaseNotifications()
             // Orden maestro del menú (UX-3). Ordenado por frecuencia de uso
             // operativo real: el ciclo de mantenimiento diario primero, la
             // administración esporádica al final.
