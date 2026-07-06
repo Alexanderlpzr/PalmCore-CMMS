@@ -27,7 +27,9 @@ class ReportBrandingService
                 $content = Storage::disk(persistent_disk())->get($tenant->logo_path);
                 $mime = Storage::disk(persistent_disk())->mimeType($tenant->logo_path);
 
-                return "data:{$mime};base64,".base64_encode($content);
+                if ($content && $mime) {
+                    return "data:{$mime};base64,".base64_encode($content);
+                }
             } catch (\Throwable) {
                 // Fall through to the Fronda CMMS default below.
             }

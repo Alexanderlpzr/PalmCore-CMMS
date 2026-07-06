@@ -86,6 +86,11 @@ class WorkOrderPdfService implements PdfReport
             try {
                 $content = Storage::disk(private_files_disk())->get($signature->image_path);
                 $mime = Storage::disk(private_files_disk())->mimeType($signature->image_path);
+
+                if (! $content || ! $mime) {
+                    continue;
+                }
+
                 $images[$signature->id] = "data:{$mime};base64,".base64_encode($content);
             } catch (\Throwable) {
                 continue;
