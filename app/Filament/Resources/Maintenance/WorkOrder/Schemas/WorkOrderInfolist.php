@@ -26,6 +26,14 @@ class WorkOrderInfolist
                     ->getStateUsing(fn (): string => '⚠ Falta asignar un técnico para poder planificar esta OT — agrégalo en la pestaña "Técnicos" de abajo.')
                     ->color('danger'),
 
+                TextEntry::make('pending_verification_alert')
+                    ->label('')
+                    ->badge()
+                    ->columnSpanFull()
+                    ->visible(fn (WorkOrder $record): bool => $record->status->isPendingVerification())
+                    ->getStateUsing(fn (): string => '🕓 En revisión — el técnico ya firmó, pero falta que el supervisor verifique el trabajo para cerrar esta OT.')
+                    ->color('warning'),
+
                 Section::make('Identificación')
                     ->columns(2)
                     ->schema([

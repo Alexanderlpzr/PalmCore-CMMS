@@ -57,11 +57,18 @@ class WorkOrderTable
                     ->sortable(),
                 TextColumn::make('needs_technician')
                     ->label('Alerta')
-                    ->getStateUsing(fn (WorkOrder $record): ?string => ($record->status === WorkOrderStatus::Draft
-                        && $record->technicians_count === 0)
-                        ? '⚠ Falta técnico'
-                        : null)
-                    ->color('danger')
+                    ->getStateUsing(function (WorkOrder $record): ?string {
+                        if ($record->status === WorkOrderStatus::Draft && $record->technicians_count === 0) {
+                            return '⚠ Falta técnico';
+                        }
+
+                        if ($record->status->isPendingVerification()) {
+                            return '🕓 Pend. verificación';
+                        }
+
+                        return null;
+                    })
+                    ->color(fn (WorkOrder $record): string => $record->status->isPendingVerification() ? 'warning' : 'danger')
                     ->weight('bold'),
                 IconColumn::make('equipment_stopped')
                     ->label('Equipo parado')

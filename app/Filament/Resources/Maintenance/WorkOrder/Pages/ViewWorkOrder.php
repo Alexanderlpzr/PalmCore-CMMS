@@ -246,6 +246,9 @@ class ViewWorkOrder extends ViewRecord
 
         Notification::make()
             ->title('Estado actualizado: '.$toStatus->label())
+            ->body($toStatus->isPendingVerification()
+                ? 'Tu firma quedó registrada. La OT queda en revisión hasta que el supervisor la verifique.'
+                : null)
             ->success()
             ->send();
     }
