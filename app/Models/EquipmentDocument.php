@@ -59,7 +59,7 @@ class EquipmentDocument extends BaseModel
             return false;
         }
 
-        return $this->expires_at->isFuture() && $this->expires_at->diffInDays(now()) <= $days;
+        return $this->expires_at->isFuture() && now()->diffInDays($this->expires_at, false) <= $days;
     }
 
     public function humanFileSize(): string
@@ -69,8 +69,8 @@ class EquipmentDocument extends BaseModel
         }
 
         $units = ['B', 'KB', 'MB', 'GB'];
-        $size  = (float) $this->file_size;
-        $unit  = 0;
+        $size = (float) $this->file_size;
+        $unit = 0;
 
         while ($size >= 1024 && $unit < count($units) - 1) {
             $size /= 1024;
@@ -86,9 +86,9 @@ class EquipmentDocument extends BaseModel
     {
         return [
             'document_type' => DocumentType::class,
-            'expires_at'    => 'date',
-            'is_active'     => 'boolean',
-            'file_size'     => 'integer',
+            'expires_at' => 'date',
+            'is_active' => 'boolean',
+            'file_size' => 'integer',
         ];
     }
 }

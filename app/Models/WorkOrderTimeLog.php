@@ -25,6 +25,7 @@ class WorkOrderTimeLog extends Model
 
     /** @use HasFactory<WorkOrderTimeLogFactory> */
     use HasFactory;
+
     use HasUuids;
 
     // No soft deletes — audit log
@@ -58,7 +59,7 @@ class WorkOrderTimeLog extends Model
             return 0.0;
         }
 
-        return round($this->ended_at->diffInMinutes($this->started_at) / 60, 2);
+        return round(abs($this->ended_at->diffInMinutes($this->started_at)) / 60, 2);
     }
 
     // ── Casts ─────────────────────────────────────────────────────────────────
@@ -67,7 +68,7 @@ class WorkOrderTimeLog extends Model
     {
         return [
             'started_at' => 'datetime',
-            'ended_at'   => 'datetime',
+            'ended_at' => 'datetime',
         ];
     }
 }

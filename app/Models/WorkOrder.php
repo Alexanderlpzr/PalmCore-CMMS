@@ -210,7 +210,7 @@ class WorkOrder extends BaseModel
         }
 
         if ($this->planned_start_at && $this->planned_end_at) {
-            return round($this->planned_start_at->diffInMinutes($this->planned_end_at) / 60, 2);
+            return round(abs($this->planned_start_at->diffInMinutes($this->planned_end_at)) / 60, 2);
         }
 
         return null;
@@ -228,7 +228,7 @@ class WorkOrder extends BaseModel
         }
 
         if ($this->actual_start_at && $this->actual_end_at) {
-            return round($this->actual_start_at->diffInMinutes($this->actual_end_at) / 60, 2);
+            return round(abs($this->actual_start_at->diffInMinutes($this->actual_end_at)) / 60, 2);
         }
 
         return null;

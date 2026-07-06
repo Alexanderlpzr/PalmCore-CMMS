@@ -72,3 +72,31 @@ it('actualHours is null when the OT never started', function () {
 
     expect($wo->actualHours())->toBeNull();
 });
+
+// Regression: Carbon 3 changed diffInMinutes() to return a *signed* difference
+// by default (Carbon 2 always returned an absolute value). Data-entry mistakes
+// where "fin planificado" ends up earlier than "inicio planificado" on the same
+// day used to produce a negative duration, which format_hours_minutes() then
+// silently dropped as "no value" instead of showing the (absolute) duration.
+
+it('plannedHours returns a positive duration even if planned_end_at was entered before planned_start_at', function () {
+    $wo = WorkOrder::factory()->create([
+        'tenant_id' => $this->tenant->id,
+        'planned_labor_hours' => null,
+        'planned_start_at' => '2026-07-04 21:27:00',
+        'planned_end_at' => '2026-07-04 12:27:00',
+    ]);
+
+    expect($wo->plannedHours())->toBe(9.0);
+});
+
+it('actualHours returns a positive duration even if actual_end_at was entered before actual_start_at', function () {
+    $wo = WorkOrder::factory()->create([
+        'tenant_id' => $this->tenant->id,
+        'actual_labor_hours' => null,
+        'actual_start_at' => '2026-07-06 10:00:00',
+        'actual_end_at' => '2026-07-06 09:00:00',
+    ]);
+
+    expect($wo->actualHours())->toBe(1.0);
+});
