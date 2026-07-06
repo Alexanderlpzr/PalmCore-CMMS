@@ -72,6 +72,9 @@ class EquipmentKpiService
         $unplanned = EquipmentDowntimeEvent::withoutGlobalScopes()
             ->selectRaw(
                 'COUNT(*) AS failure_count,
+                 COUNT(*) FILTER (WHERE COALESCE(duration_minutes,
+                     EXTRACT(EPOCH FROM (ended_at - started_at)) / 60
+                 ) > 0) AS downtime_failure_count,
                  COALESCE(SUM(COALESCE(duration_minutes,
                      EXTRACT(EPOCH FROM (ended_at - started_at)) / 60
                  )), 0) AS total_minutes,
@@ -84,6 +87,7 @@ class EquipmentKpiService
             ->first();
 
         $failureCount = (int) ($unplanned->failure_count ?? 0);
+        $downtimeFailureCount = (int) ($unplanned->downtime_failure_count ?? 0);
         $unplannedDowntimeHours = round((float) ($unplanned->total_minutes ?? 0) / 60, 4);
         $lastFailureAt = $unplanned->last_failure_at !== null
             ? CarbonImmutable::parse($unplanned->last_failure_at)
@@ -107,8 +111,12 @@ class EquipmentKpiService
         $unplannedOperatingHours = max(0.0, $totalPeriodHours - $unplannedDowntimeHours);
         $totalOperatingHours = max(0.0, $totalPeriodHours - $totalDowntimeHours);
 
-        $mttrHours = $failureCount > 0
-            ? round($unplannedDowntimeHours / $failureCount, 2)
+        // MTTR = mean repair time per failure that actually caused a stoppage.
+        // Zero-downtime failures (fixed in marcha) count toward failure_count and
+        // MTBF but must not dilute the mean repair time — so they are excluded
+        // from the MTTR denominator.
+        $mttrHours = $downtimeFailureCount > 0
+            ? round($unplannedDowntimeHours / $downtimeFailureCount, 2)
             : null;
 
         // MTBF prefers real operating hours from the hour-meter (accurate for
@@ -143,7 +151,9 @@ class EquipmentKpiService
 
     /**
      * Operating hours accrued on the equipment's hour-meter during the window,
-     * from the span between the first and last hour reading. Returns null when
+     * summing only the positive increments between consecutive readings. This
+     * tolerates meter resets/replacements (a reading that jumps backwards is
+     * ignored rather than producing a huge or negative span). Returns null when
      * the equipment is not measured in hours or has fewer than two readings in
      * the window (no reliable span to measure).
      */
@@ -153,20 +163,31 @@ class EquipmentKpiService
             return null;
         }
 
-        $bounds = EquipmentMeterReading::withoutGlobalScopes()
+        $readings = EquipmentMeterReading::withoutGlobalScopes()
             ->where('equipment_id', $equipment->id)
             ->where('reading_unit', MeterReadingUnit::Hours->value)
             ->whereBetween('recorded_at', [$periodStart, $periodEnd])
-            ->selectRaw('MIN(reading_value) AS min_value, MAX(reading_value) AS max_value, COUNT(*) AS reading_count')
-            ->first();
+            ->orderBy('recorded_at')
+            ->pluck('reading_value');
 
-        if ((int) ($bounds->reading_count ?? 0) < 2) {
+        if ($readings->count() < 2) {
             return null;
         }
 
-        $span = (float) $bounds->max_value - (float) $bounds->min_value;
+        $operating = 0.0;
+        $previous = null;
 
-        return $span > 0.0 ? $span : null;
+        foreach ($readings as $value) {
+            $value = (float) $value;
+
+            if ($previous !== null && $value > $previous) {
+                $operating += $value - $previous;
+            }
+
+            $previous = $value;
+        }
+
+        return $operating > 0.0 ? $operating : null;
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────

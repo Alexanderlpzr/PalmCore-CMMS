@@ -281,6 +281,29 @@ it('mttrTrend calculates hours correctly from duration_minutes', function () {
         ->and($currentMonth->count)->toBe(2);
 });
 
+it('mttrTrend excludes zero-downtime failures from the monthly denominator', function () {
+    $tenant = analyticsTenant();
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+    $when = now()->startOfMonth()->addDay();
+
+    // One 120-min stoppage + one failure fixed in marcha (0 min)
+    EquipmentDowntimeEvent::factory()->create([
+        'tenant_id' => $tenant->id, 'equipment_id' => $equipment->id,
+        'was_planned' => false, 'duration_minutes' => 120, 'started_at' => $when,
+    ]);
+    EquipmentDowntimeEvent::factory()->create([
+        'tenant_id' => $tenant->id, 'equipment_id' => $equipment->id,
+        'was_planned' => false, 'duration_minutes' => 0,
+        'started_at' => $when, 'ended_at' => $when,
+    ]);
+
+    $currentMonth = collect(service()->mttrTrend($tenant->id))->last();
+
+    // MTTR = 2 h / 1 stoppage = 2.0 (not diluted to 1.0), count still reports 2 failures
+    expect($currentMonth->value)->toBe(2.0)
+        ->and($currentMonth->count)->toBe(2);
+});
+
 it('mttrTrend scoped to one equipment only counts that equipment\'s failures', function () {
     $tenant = analyticsTenant();
     $equipmentA = Equipment::factory()->create(['tenant_id' => $tenant->id]);
@@ -543,6 +566,40 @@ it('preventiveCompliance returns null compliance when no active scheduled plans 
     $tenant = analyticsTenant();
 
     expect(service()->preventiveCompliance($tenant->id)['compliance'])->toBeNull();
+});
+
+it('preventiveCompliance flags a meter-based plan as overdue when the reading passed the interval', function () {
+    $tenant = analyticsTenant();
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id, 'current_meter_reading' => 600]);
+
+    $plan = MaintenancePlan::factory()->create(['tenant_id' => $tenant->id, 'equipment_id' => $equipment->id, 'is_active' => true]);
+    MaintenanceSchedule::factory()->create([
+        'tenant_id' => $tenant->id, 'maintenance_plan_id' => $plan->id,
+        'next_due_at' => null, 'next_due_meter' => 500, // reading 600 ≥ 500 → overdue
+    ]);
+
+    $result = service()->preventiveCompliance($tenant->id);
+
+    expect($result['total'])->toBe(1)
+        ->and($result['overdue'])->toBe(1)
+        ->and($result['on_schedule'])->toBe(0);
+});
+
+it('preventiveCompliance counts a meter-based plan not yet reached as on schedule', function () {
+    $tenant = analyticsTenant();
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id, 'current_meter_reading' => 300]);
+
+    $plan = MaintenancePlan::factory()->create(['tenant_id' => $tenant->id, 'equipment_id' => $equipment->id, 'is_active' => true]);
+    MaintenanceSchedule::factory()->create([
+        'tenant_id' => $tenant->id, 'maintenance_plan_id' => $plan->id,
+        'next_due_at' => null, 'next_due_meter' => 500, // reading 300 < 500 → on schedule
+    ]);
+
+    $result = service()->preventiveCompliance($tenant->id);
+
+    expect($result['total'])->toBe(1)
+        ->and($result['on_schedule'])->toBe(1)
+        ->and($result['compliance'])->toBe(100.0);
 });
 
 // ── plannedVsCorrective ───────────────────────────────────────────────────────

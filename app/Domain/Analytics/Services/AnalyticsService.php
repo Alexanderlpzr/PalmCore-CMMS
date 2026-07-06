@@ -40,6 +40,7 @@ class AnalyticsService
             ->selectRaw("
                 TO_CHAR(DATE_TRUNC('month', started_at), 'YYYY-MM') AS month_key,
                 COUNT(*) FILTER (WHERE was_planned = false) AS failure_count,
+                COUNT(*) FILTER (WHERE was_planned = false AND duration_minutes > 0) AS downtime_failure_count,
                 COALESCE(SUM(duration_minutes) FILTER (WHERE was_planned = false), 0) AS failure_minutes,
                 COALESCE(SUM(duration_minutes), 0) AS total_downtime_minutes
             ")
@@ -60,6 +61,7 @@ class AnalyticsService
             return [
                 'label' => $date->format('M Y'),
                 'failure_count' => (int) ($row?->failure_count ?? 0),
+                'downtime_failure_count' => (int) ($row?->downtime_failure_count ?? 0),
                 'failure_minutes' => (float) ($row?->failure_minutes ?? 0),
                 'total_downtime_minutes' => (float) ($row?->total_downtime_minutes ?? 0),
                 'days_in_month' => (int) $date->daysInMonth,
@@ -150,8 +152,9 @@ class AnalyticsService
 
     /**
      * @return TrendPoint[] — tenant-wide (or single-equipment) MTTR (hours) per month.
-     *                      null when there are no failures in a month (gap in chart, not zero).
-     *                      MTTR = failure_downtime_hours / failure_count
+     *                      null when there are no failures with downtime in a month
+     *                      (gap in chart, not zero).
+     *                      MTTR = failure_downtime_hours / failures_that_stopped_the_equipment
      *                      $from/$to default to the trailing 12 months when omitted.
      *                      $equipmentId scopes the trend to a single equipment when given.
      */
@@ -159,11 +162,13 @@ class AnalyticsService
     {
         return $this->monthlyEventStats($tenantId, $from, $to, $equipmentId)
             ->map(function ($row) {
-                if ($row['failure_count'] === 0) {
+                // Divide only by failures that caused downtime — a failure fixed
+                // in marcha (zero downtime) must not drag the mean repair time down.
+                if ($row['downtime_failure_count'] === 0) {
                     return new TrendPoint(label: $row['label'], value: null);
                 }
 
-                $mttr = $row['failure_minutes'] / 60 / $row['failure_count'];
+                $mttr = $row['failure_minutes'] / 60 / $row['downtime_failure_count'];
 
                 return new TrendPoint(
                     label: $row['label'],
@@ -317,13 +322,26 @@ class AnalyticsService
      */
     public function preventiveCompliance(string $tenantId): array
     {
+        // A plan is on schedule when it is overdue by neither time nor meter.
+        // Time-based plans use next_due_at; meter-based plans compare next_due_meter
+        // against the equipment's current reading. Hybrid plans must pass both.
         $row = DB::table('maintenance_schedules as ms')
             ->join('maintenance_plans as mp', 'ms.maintenance_plan_id', '=', 'mp.id')
+            ->join('equipment as e', 'mp.equipment_id', '=', 'e.id')
             ->where('ms.tenant_id', $tenantId)
             ->where('mp.is_active', true)
             ->whereNull('mp.deleted_at')
-            ->whereNotNull('ms.next_due_at')
-            ->selectRaw('COUNT(*) AS total, COUNT(*) FILTER (WHERE ms.next_due_at >= now()) AS on_schedule')
+            ->whereNull('e.deleted_at')
+            ->where(function ($query): void {
+                $query->whereNotNull('ms.next_due_at')->orWhereNotNull('ms.next_due_meter');
+            })
+            ->selectRaw('
+                COUNT(*) AS total,
+                COUNT(*) FILTER (WHERE
+                    (ms.next_due_at IS NULL OR ms.next_due_at >= now())
+                    AND (ms.next_due_meter IS NULL OR e.current_meter_reading IS NULL OR e.current_meter_reading < ms.next_due_meter)
+                ) AS on_schedule
+            ')
             ->first();
 
         $total = (int) ($row->total ?? 0);

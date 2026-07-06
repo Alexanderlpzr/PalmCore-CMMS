@@ -84,6 +84,21 @@ it('calculates MTTR as unplanned_downtime_hours / failure_count', function () {
         ->and($data->mttrHours)->toBe(1.5);
 });
 
+it('excludes zero-downtime failures from the MTTR denominator', function () {
+    $equipment = kpiEquipment();
+
+    // One real stoppage (120 min = 2 h) + one failure fixed in marcha (0 min)
+    downtime($equipment, false, 120, Carbon::now()->subDays(10));
+    downtime($equipment, false, 0, Carbon::now()->subDays(5));
+
+    $data = app(EquipmentKpiService::class)->calculateForEquipment($equipment);
+
+    // Both count as failures (MTBF/Pareto), but MTTR is 2 h / 1 stoppage = 2.0,
+    // NOT diluted to 1.0 by the zero-downtime failure.
+    expect($data->failureCount)->toBe(2)
+        ->and($data->mttrHours)->toBe(2.0);
+});
+
 it('calculates MTBF as unplanned_operating_hours / failure_count', function () {
     $equipment = kpiEquipment();
 
@@ -122,6 +137,27 @@ it('uses hour-meter operating hours for MTBF when the equipment has an hour-mete
     expect($data->mtbfBasis)->toBe('meter')
         ->and($data->operatingHours)->toBe(120.0)
         ->and($data->mtbfHours)->toBe(60.0);
+});
+
+it('ignores a meter reset when computing operating hours (sums positive increments)', function () {
+    $equipment = kpiEquipment();
+    $equipment->update(['meter_unit' => 'hours']);
+
+    // Old meter 9000 → 9050, then replaced and reads 100 → 160.
+    // Positive increments: 50 + 60 = 110; the backwards jump 9050 → 100 is ignored.
+    foreach ([[9000, 25], [9050, 20], [100, 10], [160, 4]] as [$value, $daysAgo]) {
+        EquipmentMeterReading::factory()->create([
+            'tenant_id' => $equipment->tenant_id, 'equipment_id' => $equipment->id,
+            'reading_unit' => 'hours', 'reading_value' => $value, 'recorded_at' => now()->subDays($daysAgo),
+        ]);
+    }
+
+    downtime($equipment, false, 60, Carbon::now()->subDays(8));
+
+    $data = app(EquipmentKpiService::class)->calculateForEquipment($equipment);
+
+    expect($data->operatingHours)->toBe(110.0)
+        ->and($data->mtbfBasis)->toBe('meter');
 });
 
 it('falls back to calendar MTBF when there are fewer than two hour readings', function () {
