@@ -4,42 +4,42 @@ namespace App\Domain\Maintenance\Enums;
 
 enum WorkOrderType: string
 {
-    case Corrective  = 'corrective';
-    case Preventive  = 'preventive';
-    case Predictive  = 'predictive';
+    case Corrective = 'corrective';
+    case Preventive = 'preventive';
+    case Predictive = 'predictive';
     case Improvement = 'improvement';
-    case Emergency   = 'emergency';
+    case Emergency = 'emergency';
 
     public function label(): string
     {
         return match ($this) {
-            self::Corrective  => 'Correctivo',
-            self::Preventive  => 'Preventivo',
-            self::Predictive  => 'Predictivo',
+            self::Corrective => 'Correctivo',
+            self::Preventive => 'Preventivo',
+            self::Predictive => 'Predictivo',
             self::Improvement => 'Mejora',
-            self::Emergency   => 'Emergencia',
+            self::Emergency => 'Emergencia',
         };
     }
 
     public function color(): string
     {
         return match ($this) {
-            self::Corrective  => 'warning',
-            self::Preventive  => 'info',
-            self::Predictive  => 'success',
+            self::Corrective => 'warning',
+            self::Preventive => 'info',
+            self::Predictive => 'success',
             self::Improvement => 'gray',
-            self::Emergency   => 'danger',
+            self::Emergency => 'danger',
         };
     }
 
     public function icon(): string
     {
         return match ($this) {
-            self::Corrective  => 'heroicon-o-wrench',
-            self::Preventive  => 'heroicon-o-calendar',
-            self::Predictive  => 'heroicon-o-chart-bar',
+            self::Corrective => 'heroicon-o-wrench',
+            self::Preventive => 'heroicon-o-calendar',
+            self::Predictive => 'heroicon-o-chart-bar',
             self::Improvement => 'heroicon-o-arrow-trending-up',
-            self::Emergency   => 'heroicon-o-exclamation-triangle',
+            self::Emergency => 'heroicon-o-exclamation-triangle',
         };
     }
 
@@ -47,6 +47,20 @@ enum WorkOrderType: string
     public function startsInProgress(): bool
     {
         return $this === self::Emergency;
+    }
+
+    /**
+     * Whether this WO type represents an equipment failure that must feed the
+     * reliability KPIs (failure count, MTBF, MTTR, Pareto) regardless of whether
+     * the equipment was physically stopped. A leak fixed without stopping the
+     * machine is still a failure.
+     */
+    public function registersFailure(): bool
+    {
+        return match ($this) {
+            self::Corrective, self::Emergency => true,
+            default => false,
+        };
     }
 
     public static function fromMaintenanceRequestType(MaintenanceRequestType $type): self

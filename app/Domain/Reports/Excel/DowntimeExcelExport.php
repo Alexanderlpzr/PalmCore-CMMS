@@ -33,7 +33,7 @@ class DowntimeExcelExport
             'Duración (min)' => $event->duration_minutes,
             'Causa' => $event->cause_type?->label(),
             'Planificada' => $event->was_planned ? 'Sí' : 'No',
-            'Modo de Falla' => $event->failure_mode,
+            'Modo de Falla' => $event->failure_mode?->label(),
             'Notas' => $event->notes,
         ];
     }

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Maintenance\WorkOrder\Pages;
 
+use App\Domain\Maintenance\Enums\FailureMode;
 use App\Domain\Maintenance\Enums\WorkOrderSignatureType;
 use App\Domain\Maintenance\Enums\WorkOrderStatus;
 use App\Domain\Maintenance\Services\WorkOrderService;
@@ -95,6 +96,13 @@ class ViewWorkOrder extends ViewRecord
                     Textarea::make('failure_cause')
                         ->label('Causa de la falla (si aplica)')
                         ->rows(3),
+                    Select::make('failure_mode')
+                        ->label('Modo de falla')
+                        ->helperText('Clasifica la falla para el análisis de Pareto por modo (rodamiento, sello, eléctrico…).')
+                        ->options(FailureMode::options())
+                        ->searchable()
+                        ->native(false)
+                        ->visible(fn (): bool => $this->record->work_order_type->registersFailure()),
                     Textarea::make('root_cause')
                         ->label('Causa raíz (si aplica)')
                         ->rows(3),

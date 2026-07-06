@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Domain\Maintenance\Enums\FailureMode;
 use App\Domain\Maintenance\Enums\WorkOrderPriority;
 use App\Domain\Maintenance\Enums\WorkOrderStatus;
 use App\Domain\Maintenance\Enums\WorkOrderType;
@@ -31,6 +32,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'failure_cause',
     'work_performed',
     'root_cause',
+    'failure_mode',
     'rejection_reason',
     'equipment_stopped',
     'downtime_minutes',
@@ -200,6 +202,35 @@ class WorkOrder extends BaseModel
     }
 
     /**
+     * Signed cost variance: actual total minus the estimate. Positive means the
+     * job ran over budget (sobrecosto), negative means it came in under.
+     * Null when either side is missing — there is no baseline to compare against.
+     */
+    public function costVariance(): ?float
+    {
+        if ($this->estimated_cost === null || $this->actual_cost_total === null) {
+            return null;
+        }
+
+        return round((float) $this->actual_cost_total - (float) $this->estimated_cost, 2);
+    }
+
+    /**
+     * Cost variance as a percentage of the estimate. Null when there is no
+     * estimate (or it is zero) to divide by.
+     */
+    public function costVariancePercentage(): ?float
+    {
+        $variance = $this->costVariance();
+
+        if ($variance === null || (float) $this->estimated_cost == 0.0) {
+            return null;
+        }
+
+        return round($variance / (float) $this->estimated_cost * 100, 1);
+    }
+
+    /**
      * Falls back to the planned_start_at/planned_end_at interval when no one
      * typed an explicit planned_labor_hours value on the form.
      */
@@ -242,6 +273,7 @@ class WorkOrder extends BaseModel
             'work_order_type' => WorkOrderType::class,
             'status' => WorkOrderStatus::class,
             'priority' => WorkOrderPriority::class,
+            'failure_mode' => FailureMode::class,
             'equipment_stopped' => 'boolean',
             'planned_labor_hours' => 'float',
             'actual_labor_hours' => 'float',

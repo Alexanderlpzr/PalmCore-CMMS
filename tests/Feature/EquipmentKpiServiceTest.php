@@ -7,6 +7,7 @@ use App\Jobs\RecalculateEquipmentKpisJob;
 use App\Models\Equipment;
 use App\Models\EquipmentDowntimeEvent;
 use App\Models\EquipmentKpi;
+use App\Models\EquipmentMeterReading;
 use App\Models\Tenant;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
@@ -98,6 +99,87 @@ it('calculates MTBF as unplanned_operating_hours / failure_count', function () {
     expect($data->mtbfHours)->toBe($expectedMtbf);
 });
 
+it('uses hour-meter operating hours for MTBF when the equipment has an hour-meter', function () {
+    $equipment = kpiEquipment();
+    $equipment->update(['meter_unit' => 'hours']);
+
+    // 1000 h → 1120 h across the window ⇒ 120 real operating hours
+    EquipmentMeterReading::factory()->create([
+        'tenant_id' => $equipment->tenant_id, 'equipment_id' => $equipment->id,
+        'reading_unit' => 'hours', 'reading_value' => 1000, 'recorded_at' => now()->subDays(20),
+    ]);
+    EquipmentMeterReading::factory()->create([
+        'tenant_id' => $equipment->tenant_id, 'equipment_id' => $equipment->id,
+        'reading_unit' => 'hours', 'reading_value' => 1120, 'recorded_at' => now()->subDays(2),
+    ]);
+
+    // 2 failures ⇒ MTBF = 120 / 2 = 60 h (calendar would be ~4300 h)
+    downtime($equipment, false, 60, Carbon::now()->subDays(10));
+    downtime($equipment, false, 60, Carbon::now()->subDays(8));
+
+    $data = app(EquipmentKpiService::class)->calculateForEquipment($equipment);
+
+    expect($data->mtbfBasis)->toBe('meter')
+        ->and($data->operatingHours)->toBe(120.0)
+        ->and($data->mtbfHours)->toBe(60.0);
+});
+
+it('falls back to calendar MTBF when there are fewer than two hour readings', function () {
+    $equipment = kpiEquipment();
+    $equipment->update(['meter_unit' => 'hours']);
+
+    EquipmentMeterReading::factory()->create([
+        'tenant_id' => $equipment->tenant_id, 'equipment_id' => $equipment->id,
+        'reading_unit' => 'hours', 'reading_value' => 1000, 'recorded_at' => now()->subDays(10),
+    ]);
+
+    downtime($equipment, false, 60, Carbon::now()->subDays(9));
+
+    $data = app(EquipmentKpiService::class)->calculateForEquipment($equipment);
+
+    expect($data->mtbfBasis)->toBe('calendar')
+        ->and($data->operatingHours)->toBeNull();
+});
+
+it('does not use meter basis when the equipment is not measured in hours', function () {
+    $equipment = kpiEquipment();
+    $equipment->update(['meter_unit' => 'km']);
+
+    EquipmentMeterReading::factory()->count(2)->sequence(
+        ['reading_value' => 1000, 'recorded_at' => now()->subDays(20)],
+        ['reading_value' => 5000, 'recorded_at' => now()->subDays(2)],
+    )->create([
+        'tenant_id' => $equipment->tenant_id, 'equipment_id' => $equipment->id, 'reading_unit' => 'km',
+    ]);
+
+    downtime($equipment, false, 60, Carbon::now()->subDays(10));
+
+    $data = app(EquipmentKpiService::class)->calculateForEquipment($equipment);
+
+    expect($data->mtbfBasis)->toBe('calendar')
+        ->and($data->operatingHours)->toBeNull();
+});
+
+it('persists operating_hours and mtbf_basis on recalculate', function () {
+    $equipment = kpiEquipment();
+    $equipment->update(['meter_unit' => 'hours']);
+
+    EquipmentMeterReading::factory()->create([
+        'tenant_id' => $equipment->tenant_id, 'equipment_id' => $equipment->id,
+        'reading_unit' => 'hours', 'reading_value' => 2000, 'recorded_at' => now()->subDays(20),
+    ]);
+    EquipmentMeterReading::factory()->create([
+        'tenant_id' => $equipment->tenant_id, 'equipment_id' => $equipment->id,
+        'reading_unit' => 'hours', 'reading_value' => 2200, 'recorded_at' => now()->subDays(2),
+    ]);
+    downtime($equipment, false, 30, Carbon::now()->subDays(10));
+
+    $kpi = app(EquipmentKpiService::class)->recalculate($equipment);
+
+    expect((float) $kpi->operating_hours)->toBe(200.0)
+        ->and($kpi->mtbf_basis)->toBe('meter');
+});
+
 it('excludes open (ongoing) downtime events from all KPIs', function () {
     $equipment = kpiEquipment();
 
@@ -161,6 +243,21 @@ it('separates availability (all downtime) from unplanned_availability (correctiv
     expect($data->availabilityPercentage)->toBe($expectedAvailability)
         ->and($data->unplannedAvailabilityPercentage)->toBe($expectedUnplannedAvailability)
         ->and($data->unplannedAvailabilityPercentage)->toBeGreaterThan($data->availabilityPercentage);
+});
+
+it('counts a zero-duration failure (fixed without stopping) as a failure but not downtime', function () {
+    $equipment = kpiEquipment();
+
+    // Corrective failure repaired in marcha: unplanned, but no downtime accrued.
+    downtime($equipment, false, 0, Carbon::now()->subDays(5));
+
+    $data = app(EquipmentKpiService::class)->calculateForEquipment($equipment);
+
+    expect($data->failureCount)->toBe(1)          // it IS a failure
+        ->and($data->downtimeHours)->toBe(0.0)     // but no downtime
+        ->and($data->availabilityPercentage)->toBe(100.0) // availability untouched
+        ->and($data->mtbfHours)->not->toBeNull()   // MTBF now defined (1 failure)
+        ->and($data->lastFailureAt)->not->toBeNull();
 });
 
 it('planned downtime does NOT count toward failure_count or MTBF/MTTR', function () {

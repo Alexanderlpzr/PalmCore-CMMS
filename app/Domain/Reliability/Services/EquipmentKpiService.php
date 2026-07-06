@@ -2,10 +2,12 @@
 
 namespace App\Domain\Reliability\Services;
 
+use App\Domain\Maintenance\Enums\MeterReadingUnit;
 use App\Domain\Reliability\DTOs\EquipmentKpiData;
 use App\Models\Equipment;
 use App\Models\EquipmentDowntimeEvent;
 use App\Models\EquipmentKpi;
+use App\Models\EquipmentMeterReading;
 use App\Models\Tenant;
 use Carbon\CarbonImmutable;
 
@@ -109,8 +111,15 @@ class EquipmentKpiService
             ? round($unplannedDowntimeHours / $failureCount, 2)
             : null;
 
+        // MTBF prefers real operating hours from the hour-meter (accurate for
+        // equipment that does not run 24/7); falls back to calendar operating
+        // hours when no usable meter reading spans the window.
+        $meterOperatingHours = $this->meterOperatingHours($equipment, $periodStart, $periodEnd);
+        $usesMeter = $meterOperatingHours !== null && $meterOperatingHours > 0.0;
+        $mtbfOperatingHours = $usesMeter ? $meterOperatingHours : $unplannedOperatingHours;
+
         $mtbfHours = $failureCount > 0
-            ? round($unplannedOperatingHours / $failureCount, 2)
+            ? round($mtbfOperatingHours / $failureCount, 2)
             : null;
 
         $availabilityPercentage = round($totalOperatingHours / $totalPeriodHours * 100, 2);
@@ -127,7 +136,37 @@ class EquipmentKpiService
             failureCount: $failureCount,
             downtimeHours: $unplannedDowntimeHours,
             lastFailureAt: $lastFailureAt,
+            operatingHours: $usesMeter ? round($meterOperatingHours, 2) : null,
+            mtbfBasis: $usesMeter ? 'meter' : 'calendar',
         );
+    }
+
+    /**
+     * Operating hours accrued on the equipment's hour-meter during the window,
+     * from the span between the first and last hour reading. Returns null when
+     * the equipment is not measured in hours or has fewer than two readings in
+     * the window (no reliable span to measure).
+     */
+    private function meterOperatingHours(Equipment $equipment, CarbonImmutable $periodStart, CarbonImmutable $periodEnd): ?float
+    {
+        if ($equipment->meter_unit !== MeterReadingUnit::Hours->value) {
+            return null;
+        }
+
+        $bounds = EquipmentMeterReading::withoutGlobalScopes()
+            ->where('equipment_id', $equipment->id)
+            ->where('reading_unit', MeterReadingUnit::Hours->value)
+            ->whereBetween('recorded_at', [$periodStart, $periodEnd])
+            ->selectRaw('MIN(reading_value) AS min_value, MAX(reading_value) AS max_value, COUNT(*) AS reading_count')
+            ->first();
+
+        if ((int) ($bounds->reading_count ?? 0) < 2) {
+            return null;
+        }
+
+        $span = (float) $bounds->max_value - (float) $bounds->min_value;
+
+        return $span > 0.0 ? $span : null;
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
@@ -157,6 +196,8 @@ class EquipmentKpiService
                     'unplanned_availability_percentage' => $data->unplannedAvailabilityPercentage,
                     'failure_count' => $data->failureCount,
                     'downtime_hours' => $data->downtimeHours,
+                    'operating_hours' => $data->operatingHours,
+                    'mtbf_basis' => $data->mtbfBasis,
                     'last_failure_at' => $data->lastFailureAt,
                     'last_calculated_at' => now(),
                     'is_stale' => false,

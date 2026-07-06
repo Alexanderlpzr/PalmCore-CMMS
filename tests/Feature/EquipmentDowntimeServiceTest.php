@@ -2,6 +2,7 @@
 
 use App\Domain\Assets\Enums\EquipmentDowntimeCauseType;
 use App\Domain\Assets\Enums\EquipmentStatus;
+use App\Domain\Maintenance\Enums\FailureMode;
 use App\Domain\Maintenance\Enums\TechnicianRole;
 use App\Domain\Maintenance\Enums\WorkOrderStatus;
 use App\Domain\Maintenance\Enums\WorkOrderType;
@@ -150,6 +151,32 @@ it('keeps equipment under_maintenance when a second stopped WO is still open', f
     expect($equipment->fresh()->status)->toBe(EquipmentStatus::UnderMaintenance);
 });
 
+it('restores equipment to active on Completed, before administrative close', function () {
+    $service = app(WorkOrderService::class);
+    $tenant = Tenant::factory()->create();
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id, 'status' => EquipmentStatus::Active]);
+    $user = User::factory()->create();
+
+    $wo = $service->create([
+        'tenant_id' => $tenant->id,
+        'equipment_id' => $equipment->id,
+        'work_order_type' => WorkOrderType::Corrective->value,
+        'priority' => 'p3_medium',
+        'title' => 'Falla',
+        'description' => 'desc',
+        'equipment_stopped' => true,
+    ], $user);
+
+    $service->assignTechnician($wo, $user, TechnicianRole::Technician);
+    $service->transition($wo, WorkOrderStatus::Planned, $user);
+    $service->transition($wo, WorkOrderStatus::InProgress, $user);
+    $service->transition($wo, WorkOrderStatus::Completed, $user, ['work_performed' => 'reparado']);
+
+    // Equipment is running again the instant the work is completed — no need to
+    // wait for Verified/Closed.
+    expect($equipment->fresh()->status)->toBe(EquipmentStatus::Active);
+});
+
 // ── Emergency WO ──────────────────────────────────────────────────────────────
 
 it('emergency WO with equipment_stopped triggers equipment sync immediately on create', function () {
@@ -287,6 +314,96 @@ it('uses WO downtime_minutes when provided instead of calculated duration', func
     expect($event->duration_minutes)->toBe(180);
 });
 
+it('closes the downtime event on Completed using the real end of execution', function () {
+    $service = app(WorkOrderService::class);
+    $tenant = Tenant::factory()->create();
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+    $user = User::factory()->create();
+
+    $wo = $service->create([
+        'tenant_id' => $tenant->id,
+        'equipment_id' => $equipment->id,
+        'work_order_type' => WorkOrderType::Corrective->value,
+        'priority' => 'p3_medium',
+        'title' => 'Falla',
+        'description' => 'desc',
+        'equipment_stopped' => true,
+    ], $user);
+
+    $service->assignTechnician($wo, $user, TechnicianRole::Technician);
+    $service->transition($wo, WorkOrderStatus::Planned, $user);
+    $service->transition($wo, WorkOrderStatus::InProgress, $user);
+    $service->transition($wo, WorkOrderStatus::Completed, $user, ['work_performed' => 'reparado']);
+
+    $event = EquipmentDowntimeEvent::where('work_order_id', $wo->id)->first();
+
+    // Closed at Completed (not left open until Closed), pinned to actual_end_at.
+    expect($event->ended_at)->not->toBeNull()
+        ->and($event->isOngoing())->toBeFalse()
+        ->and($event->ended_at->timestamp)->toEqual($wo->fresh()->actual_end_at->timestamp);
+});
+
+it('does not overwrite the real end when the WO is later Closed', function () {
+    $service = app(WorkOrderService::class);
+    $tenant = Tenant::factory()->create();
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+    $user = User::factory()->create();
+
+    $wo = $service->create([
+        'tenant_id' => $tenant->id,
+        'equipment_id' => $equipment->id,
+        'work_order_type' => WorkOrderType::Corrective->value,
+        'priority' => 'p3_medium',
+        'title' => 'Falla',
+        'description' => 'desc',
+        'equipment_stopped' => true,
+    ], $user);
+
+    $service->assignTechnician($wo, $user, TechnicianRole::Technician);
+    $service->transition($wo, WorkOrderStatus::Planned, $user);
+    $service->transition($wo, WorkOrderStatus::InProgress, $user);
+    $service->transition($wo, WorkOrderStatus::Completed, $user, ['work_performed' => 'reparado']);
+
+    $endedAtCompletion = EquipmentDowntimeEvent::where('work_order_id', $wo->id)->first()->ended_at;
+
+    $service->transition($wo, WorkOrderStatus::Verified, $user);
+    $service->transition($wo, WorkOrderStatus::Closed, $user);
+
+    $event = EquipmentDowntimeEvent::where('work_order_id', $wo->id)->first();
+
+    expect($event->ended_at->timestamp)->toEqual($endedAtCompletion->timestamp);
+});
+
+it('re-opens the downtime event when a completed WO is rejected back to InProgress', function () {
+    $service = app(WorkOrderService::class);
+    $tenant = Tenant::factory()->create();
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id, 'status' => EquipmentStatus::Active]);
+    $user = User::factory()->create();
+
+    $wo = $service->create([
+        'tenant_id' => $tenant->id,
+        'equipment_id' => $equipment->id,
+        'work_order_type' => WorkOrderType::Corrective->value,
+        'priority' => 'p3_medium',
+        'title' => 'Falla',
+        'description' => 'desc',
+        'equipment_stopped' => true,
+    ], $user);
+
+    $service->assignTechnician($wo, $user, TechnicianRole::Technician);
+    $service->transition($wo, WorkOrderStatus::Planned, $user);
+    $service->transition($wo, WorkOrderStatus::InProgress, $user);
+    $service->transition($wo, WorkOrderStatus::Completed, $user, ['work_performed' => 'reparado']);
+    // Supervisor rejects the work — WO goes back to execution.
+    $service->transition($wo, WorkOrderStatus::InProgress, $user);
+
+    $event = EquipmentDowntimeEvent::where('work_order_id', $wo->id)->first();
+
+    expect($event->ended_at)->toBeNull()
+        ->and($event->duration_minutes)->toBeNull()
+        ->and($equipment->fresh()->status)->toBe(EquipmentStatus::UnderMaintenance);
+});
+
 it('does NOT create duplicate downtime events when WO goes InProgress twice (OnHold → InProgress)', function () {
     $service = app(WorkOrderService::class);
     $tenant = Tenant::factory()->create();
@@ -312,6 +429,153 @@ it('does NOT create duplicate downtime events when WO goes InProgress twice (OnH
     $count = EquipmentDowntimeEvent::where('work_order_id', $wo->id)->count();
 
     expect($count)->toBe(1);
+});
+
+// ── Failure without stoppage (A1: decoupled from equipment_stopped) ───────────
+
+it('records a corrective failure even when the equipment was NOT stopped', function () {
+    $service = app(WorkOrderService::class);
+    $tenant = Tenant::factory()->create();
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id, 'status' => EquipmentStatus::Active]);
+    $user = User::factory()->create();
+
+    $wo = $service->create([
+        'tenant_id' => $tenant->id,
+        'equipment_id' => $equipment->id,
+        'work_order_type' => WorkOrderType::Corrective->value,
+        'priority' => 'p3_medium',
+        'title' => 'Fuga menor reparada en marcha',
+        'description' => 'desc',
+        'equipment_stopped' => false,
+    ], $user);
+
+    $service->assignTechnician($wo, $user, TechnicianRole::Technician);
+    $service->transition($wo, WorkOrderStatus::Planned, $user);
+    $service->transition($wo, WorkOrderStatus::InProgress, $user);
+
+    $event = EquipmentDowntimeEvent::where('work_order_id', $wo->id)->first();
+
+    // Counts as an unplanned failure for the KPIs...
+    expect($event)->not->toBeNull()
+        ->and($event->was_planned)->toBeFalse()
+        ->and($event->cause_type)->toBe(EquipmentDowntimeCauseType::Corrective)
+        // ...but as a point-in-time event: closed, zero downtime, no ongoing paro,
+        // and the equipment never left service.
+        ->and($event->duration_minutes)->toBe(0)
+        ->and($event->isOngoing())->toBeFalse()
+        ->and($equipment->fresh()->status)->toBe(EquipmentStatus::Active)
+        ->and($equipment->fresh()->ongoingDowntimeEvent)->toBeNull()
+        ->and($equipment->fresh()->last_failure_at)->not->toBeNull();
+});
+
+it('records an emergency failure on create even when the equipment kept running', function () {
+    $service = app(WorkOrderService::class);
+    $tenant = Tenant::factory()->create();
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id, 'status' => EquipmentStatus::Active]);
+    $user = User::factory()->create();
+
+    $wo = $service->create([
+        'tenant_id' => $tenant->id,
+        'equipment_id' => $equipment->id,
+        'work_order_type' => WorkOrderType::Emergency->value,
+        'priority' => 'p1_critical',
+        'title' => 'Falla eléctrica atendida sin detener',
+        'description' => 'desc',
+        'equipment_stopped' => false,
+    ], $user);
+
+    $event = EquipmentDowntimeEvent::where('work_order_id', $wo->id)->first();
+
+    expect($event)->not->toBeNull()
+        ->and($event->was_planned)->toBeFalse()
+        ->and($event->duration_minutes)->toBe(0)
+        ->and($equipment->fresh()->status)->toBe(EquipmentStatus::Active);
+});
+
+it('does NOT record an event for a non-failure WO that did not stop the equipment', function () {
+    $service = app(WorkOrderService::class);
+    $tenant = Tenant::factory()->create();
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+    $user = User::factory()->create();
+
+    $wo = $service->create([
+        'tenant_id' => $tenant->id,
+        'equipment_id' => $equipment->id,
+        'work_order_type' => WorkOrderType::Preventive->value,
+        'priority' => 'p3_medium',
+        'title' => 'Inspección sin paro',
+        'description' => 'desc',
+        'equipment_stopped' => false,
+    ], $user);
+
+    $service->assignTechnician($wo, $user, TechnicianRole::Technician);
+    $service->transition($wo, WorkOrderStatus::Planned, $user);
+    $service->transition($wo, WorkOrderStatus::InProgress, $user);
+
+    expect(EquipmentDowntimeEvent::where('work_order_id', $wo->id)->exists())->toBeFalse();
+});
+
+// ── Failure mode propagation (M3) ─────────────────────────────────────────────
+
+it('propagates the failure mode captured at completion to a stopped paro event', function () {
+    $service = app(WorkOrderService::class);
+    $tenant = Tenant::factory()->create();
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+    $user = User::factory()->create();
+
+    $wo = $service->create([
+        'tenant_id' => $tenant->id,
+        'equipment_id' => $equipment->id,
+        'work_order_type' => WorkOrderType::Corrective->value,
+        'priority' => 'p3_medium',
+        'title' => 'Falla',
+        'description' => 'desc',
+        'equipment_stopped' => true,
+    ], $user);
+
+    $service->assignTechnician($wo, $user, TechnicianRole::Technician);
+    $service->transition($wo, WorkOrderStatus::Planned, $user);
+    $service->transition($wo, WorkOrderStatus::InProgress, $user);
+    $service->transition($wo, WorkOrderStatus::Completed, $user, [
+        'work_performed' => 'Cambio de rodamiento',
+        'failure_mode' => FailureMode::Bearing->value,
+    ]);
+
+    $event = EquipmentDowntimeEvent::where('work_order_id', $wo->id)->first();
+
+    expect($wo->fresh()->failure_mode)->toBe(FailureMode::Bearing)
+        ->and($event->failure_mode)->toBe(FailureMode::Bearing);
+});
+
+it('propagates the failure mode to a point-in-time failure (no stoppage)', function () {
+    $service = app(WorkOrderService::class);
+    $tenant = Tenant::factory()->create();
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+    $user = User::factory()->create();
+
+    $wo = $service->create([
+        'tenant_id' => $tenant->id,
+        'equipment_id' => $equipment->id,
+        'work_order_type' => WorkOrderType::Corrective->value,
+        'priority' => 'p3_medium',
+        'title' => 'Falla eléctrica en marcha',
+        'description' => 'desc',
+        'equipment_stopped' => false,
+    ], $user);
+
+    $service->assignTechnician($wo, $user, TechnicianRole::Technician);
+    $service->transition($wo, WorkOrderStatus::Planned, $user);
+    $service->transition($wo, WorkOrderStatus::InProgress, $user);
+    $service->transition($wo, WorkOrderStatus::Completed, $user, [
+        'work_performed' => 'Ajuste de borne',
+        'failure_mode' => FailureMode::Electrical->value,
+    ]);
+
+    $event = EquipmentDowntimeEvent::where('work_order_id', $wo->id)->first();
+
+    // Even though the event was closed instantly (zero downtime), the mode lands.
+    expect($event->failure_mode)->toBe(FailureMode::Electrical)
+        ->and($event->duration_minutes)->toBe(0);
 });
 
 // ── equipment.last_failure_at ─────────────────────────────────────────────────

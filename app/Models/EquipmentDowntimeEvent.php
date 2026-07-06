@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Domain\Assets\Enums\EquipmentDowntimeCauseType;
+use App\Domain\Maintenance\Enums\FailureMode;
 use App\Domain\Shared\Concerns\BelongsToTenant;
 use Database\Factories\EquipmentDowntimeEventFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -60,6 +61,7 @@ class EquipmentDowntimeEvent extends Model
     {
         return [
             'cause_type' => EquipmentDowntimeCauseType::class,
+            'failure_mode' => FailureMode::class,
             'was_planned' => 'boolean',
             'started_at' => 'datetime',
             'ended_at' => 'datetime',

@@ -55,6 +55,14 @@ class WorkOrderForm
                             ->label('Supervisor asignado')
                             ->options(fn (): array => User::orderBy('name')->pluck('name', 'id')->toArray())
                             ->searchable(),
+                        Select::make('technician_ids')
+                            ->label('Técnicos asignados')
+                            ->helperText('Asigna al menos un técnico aquí para poder planificar la OT sin pasos extra.')
+                            ->multiple()
+                            ->options(fn (): array => User::query()->operationalStaff()->orderBy('name')->pluck('name', 'id')->toArray())
+                            ->searchable()
+                            ->visibleOn('create')
+                            ->columnSpanFull(),
                         TextInput::make('title')
                             ->label('Título')
                             ->required()

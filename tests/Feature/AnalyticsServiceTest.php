@@ -2,9 +2,12 @@
 
 use App\Domain\Analytics\DTOs\TrendPoint;
 use App\Domain\Analytics\Services\AnalyticsService;
+use App\Domain\Maintenance\Enums\FailureMode;
 use App\Models\Equipment;
 use App\Models\EquipmentDowntimeEvent;
 use App\Models\EquipmentKpi;
+use App\Models\MaintenancePlan;
+use App\Models\MaintenanceSchedule;
 use App\Models\Tenant;
 use App\Models\WorkOrder;
 use Illuminate\Support\Facades\Cache;
@@ -435,6 +438,142 @@ it('paretoFailures sorts by failure count descending', function () {
 
     expect($points[0]->count)->toBe(3)
         ->and($points[1]->count)->toBe(1);
+});
+
+// ── paretoFailuresByMode ──────────────────────────────────────────────────────
+
+it('paretoFailuresByMode groups unplanned failures by mode and labels them', function () {
+    $tenant = analyticsTenant();
+    $equipA = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+    $equipB = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+
+    // 3 bearing failures across two machines + 1 electrical
+    EquipmentDowntimeEvent::factory()->count(2)->create([
+        'tenant_id' => $tenant->id,
+        'equipment_id' => $equipA->id,
+        'was_planned' => false,
+        'failure_mode' => FailureMode::Bearing->value,
+        'started_at' => now()->subDays(5),
+    ]);
+    EquipmentDowntimeEvent::factory()->create([
+        'tenant_id' => $tenant->id,
+        'equipment_id' => $equipB->id,
+        'was_planned' => false,
+        'failure_mode' => FailureMode::Bearing->value,
+        'started_at' => now()->subDays(5),
+    ]);
+    EquipmentDowntimeEvent::factory()->create([
+        'tenant_id' => $tenant->id,
+        'equipment_id' => $equipB->id,
+        'was_planned' => false,
+        'failure_mode' => FailureMode::Electrical->value,
+        'started_at' => now()->subDays(5),
+    ]);
+
+    $points = service()->paretoFailuresByMode($tenant->id);
+
+    // Dominant mode first, with human-readable label — across machines.
+    expect($points[0]->label)->toBe(FailureMode::Bearing->label())
+        ->and($points[0]->count)->toBe(3)
+        ->and($points[1]->label)->toBe(FailureMode::Electrical->label())
+        ->and($points[1]->count)->toBe(1);
+});
+
+it('paretoFailuresByMode ignores events without a classified mode', function () {
+    $tenant = analyticsTenant();
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+
+    EquipmentDowntimeEvent::factory()->create([
+        'tenant_id' => $tenant->id,
+        'equipment_id' => $equipment->id,
+        'was_planned' => false,
+        'failure_mode' => null,
+        'started_at' => now()->subDays(5),
+    ]);
+
+    expect(service()->paretoFailuresByMode($tenant->id))->toBeEmpty();
+});
+
+// ── preventiveCompliance ──────────────────────────────────────────────────────
+
+it('preventiveCompliance counts on-schedule vs overdue active plans', function () {
+    $tenant = analyticsTenant();
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+
+    // On schedule
+    $planA = MaintenancePlan::factory()->create(['tenant_id' => $tenant->id, 'equipment_id' => $equipment->id, 'is_active' => true]);
+    MaintenanceSchedule::factory()->create(['tenant_id' => $tenant->id, 'maintenance_plan_id' => $planA->id, 'next_due_at' => now()->addMonth()]);
+
+    // Overdue
+    $planB = MaintenancePlan::factory()->create(['tenant_id' => $tenant->id, 'equipment_id' => $equipment->id, 'is_active' => true]);
+    MaintenanceSchedule::factory()->create(['tenant_id' => $tenant->id, 'maintenance_plan_id' => $planB->id, 'next_due_at' => now()->subDays(5)]);
+
+    $result = service()->preventiveCompliance($tenant->id);
+
+    expect($result['total'])->toBe(2)
+        ->and($result['on_schedule'])->toBe(1)
+        ->and($result['overdue'])->toBe(1)
+        ->and($result['compliance'])->toBe(50.0);
+});
+
+it('preventiveCompliance excludes inactive plans and enforces tenant isolation', function () {
+    $tenant = analyticsTenant();
+    $other = analyticsTenant();
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+
+    $active = MaintenancePlan::factory()->create(['tenant_id' => $tenant->id, 'equipment_id' => $equipment->id, 'is_active' => true]);
+    MaintenanceSchedule::factory()->create(['tenant_id' => $tenant->id, 'maintenance_plan_id' => $active->id, 'next_due_at' => now()->addMonth()]);
+
+    $inactive = MaintenancePlan::factory()->inactive()->create(['tenant_id' => $tenant->id, 'equipment_id' => $equipment->id]);
+    MaintenanceSchedule::factory()->create(['tenant_id' => $tenant->id, 'maintenance_plan_id' => $inactive->id, 'next_due_at' => now()->subDays(5)]);
+
+    // Other tenant's plan must not leak in
+    $otherEquip = Equipment::factory()->create(['tenant_id' => $other->id]);
+    $otherPlan = MaintenancePlan::factory()->create(['tenant_id' => $other->id, 'equipment_id' => $otherEquip->id, 'is_active' => true]);
+    MaintenanceSchedule::factory()->create(['tenant_id' => $other->id, 'maintenance_plan_id' => $otherPlan->id, 'next_due_at' => now()->subDays(5)]);
+
+    $result = service()->preventiveCompliance($tenant->id);
+
+    expect($result['total'])->toBe(1)
+        ->and($result['on_schedule'])->toBe(1)
+        ->and($result['compliance'])->toBe(100.0);
+});
+
+it('preventiveCompliance returns null compliance when no active scheduled plans exist', function () {
+    $tenant = analyticsTenant();
+
+    expect(service()->preventiveCompliance($tenant->id)['compliance'])->toBeNull();
+});
+
+// ── plannedVsCorrective ───────────────────────────────────────────────────────
+
+it('plannedVsCorrective counts completed WOs by nature over the last 12 months', function () {
+    $tenant = analyticsTenant();
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+
+    $base = ['tenant_id' => $tenant->id, 'equipment_id' => $equipment->id, 'completed_at' => now()->subDays(10)];
+
+    WorkOrder::factory()->count(3)->create([...$base, 'work_order_type' => 'preventive', 'status' => 'closed']);
+    WorkOrder::factory()->create([...$base, 'work_order_type' => 'predictive', 'status' => 'verified']);
+    WorkOrder::factory()->create([...$base, 'work_order_type' => 'corrective', 'status' => 'completed']);
+
+    // Excluded: cancelled, out-of-window, and improvement type
+    WorkOrder::factory()->create([...$base, 'work_order_type' => 'corrective', 'status' => 'cancelled']);
+    WorkOrder::factory()->create([...$base, 'work_order_type' => 'preventive', 'status' => 'closed', 'completed_at' => now()->subMonths(18)]);
+    WorkOrder::factory()->create([...$base, 'work_order_type' => 'improvement', 'status' => 'closed']);
+
+    $result = service()->plannedVsCorrective($tenant->id);
+
+    expect($result['preventive'])->toBe(4) // 3 preventive + 1 predictive
+        ->and($result['corrective'])->toBe(1)
+        ->and($result['total'])->toBe(5)
+        ->and($result['preventive_pct'])->toBe(80.0);
+});
+
+it('plannedVsCorrective returns null percentage when no completed WOs exist', function () {
+    $tenant = analyticsTenant();
+
+    expect(service()->plannedVsCorrective($tenant->id)['preventive_pct'])->toBeNull();
 });
 
 // ── reliabilityRanking ────────────────────────────────────────────────────────

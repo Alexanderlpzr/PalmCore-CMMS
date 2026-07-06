@@ -2,12 +2,14 @@
 
 namespace App\Filament\Resources\Maintenance\WorkOrder\Schemas;
 
+use App\Domain\Maintenance\Enums\FailureMode;
 use App\Domain\Maintenance\Enums\WorkOrderPriority;
 use App\Domain\Maintenance\Enums\WorkOrderStatus;
 use App\Domain\Maintenance\Enums\WorkOrderType;
 use App\Models\WorkOrder;
 use Filament\Infolists\Components\IconEntry;
 use Filament\Infolists\Components\TextEntry;
+use Filament\Infolists\Components\ViewEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
@@ -17,6 +19,11 @@ class WorkOrderInfolist
     {
         return $schema
             ->components([
+                ViewEntry::make('status_timeline')
+                    ->label('')
+                    ->view('filament.infolists.work-order-status-timeline')
+                    ->columnSpanFull(),
+
                 TextEntry::make('missing_technician_alert')
                     ->label('')
                     ->badge()
@@ -81,6 +88,12 @@ class WorkOrderInfolist
                         TextEntry::make('description')->label('Descripción')->columnSpanFull(),
                         TextEntry::make('instructions')->label('Instrucciones')->placeholder('—')->columnSpanFull(),
                         TextEntry::make('failure_cause')->label('Causa de la falla')->placeholder('—')->columnSpanFull(),
+                        TextEntry::make('failure_mode')
+                            ->label('Modo de falla')
+                            ->badge()
+                            ->placeholder('—')
+                            ->formatStateUsing(fn ($state): string => $state instanceof FailureMode ? $state->label() : (string) $state)
+                            ->visible(fn (WorkOrder $record): bool => $record->failure_mode !== null),
                         TextEntry::make('work_performed')->label('Trabajo realizado')->placeholder('—')->columnSpanFull(),
                         TextEntry::make('root_cause')->label('Causa raíz')->placeholder('—')->columnSpanFull(),
                         TextEntry::make('rejection_reason')
@@ -111,6 +124,36 @@ class WorkOrderInfolist
                     ->schema([
                         TextEntry::make('estimated_cost')->label('Estimado')->money('COP')->placeholder('—'),
                         TextEntry::make('actual_cost_total')->label('Total real')->money('COP')->placeholder('—'),
+                        TextEntry::make('cost_variance')
+                            ->label('Desviación (real − estimado)')
+                            ->badge()
+                            ->placeholder('—')
+                            ->getStateUsing(function (WorkOrder $record): ?string {
+                                $variance = $record->costVariance();
+
+                                if ($variance === null) {
+                                    return null;
+                                }
+
+                                $pct = $record->costVariancePercentage();
+                                $sign = $variance > 0 ? '+' : ($variance < 0 ? '−' : '');
+                                $amount = number_format(abs($variance), 0, ',', '.');
+                                $suffix = $pct !== null ? ' ('.($pct > 0 ? '+' : '').$pct.'%)' : '';
+
+                                return $sign.'$'.$amount.$suffix;
+                            })
+                            ->color(fn (WorkOrder $record): string => match (true) {
+                                $record->costVariance() === null => 'gray',
+                                $record->costVariance() > 0 => 'danger',   // over budget
+                                $record->costVariance() < 0 => 'success',  // under budget
+                                default => 'gray',
+                            })
+                            ->tooltip(fn (WorkOrder $record): ?string => match (true) {
+                                $record->costVariance() === null => null,
+                                $record->costVariance() > 0 => 'La OT superó el costo estimado (sobrecosto).',
+                                $record->costVariance() < 0 => 'La OT costó menos de lo estimado (ahorro).',
+                                default => 'La OT terminó exactamente en el costo estimado.',
+                            }),
                         TextEntry::make('actual_cost_labor')->label('Mano de obra')->money('COP')->placeholder('—'),
                         TextEntry::make('actual_cost_parts')->label('Repuestos')->money('COP')->placeholder('—'),
                         TextEntry::make('actual_cost_external')->label('Externo')->money('COP')->placeholder('—'),

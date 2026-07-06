@@ -35,5 +35,11 @@ readonly class EquipmentKpiData
 
         /** started_at of the most recent unplanned event in window */
         public ?CarbonImmutable $lastFailureAt,
+
+        /** operating hours from the hour-meter over the window; null when no meter basis */
+        public ?float $operatingHours = null,
+
+        /** 'meter' when mtbfHours is based on operating hours, else 'calendar' */
+        public string $mtbfBasis = 'calendar',
     ) {}
 }

@@ -182,6 +182,10 @@ class EquipmentInfolist
                                     : 'Sin fallas registradas'
                                 : null
                             )
+                            ->hintIcon(fn (Equipment $record): ?string => $record->kpi?->mtbf_basis === 'meter' ? 'heroicon-m-clock' : null)
+                            ->hint(fn (Equipment $record): ?string => $record->kpi !== null && (float) $record->kpi->mtbf_hours !== 0.0
+                                ? ($record->kpi->mtbf_basis === 'meter' ? 'base horómetro' : 'base calendario')
+                                : null)
                             ->placeholder('Sin fallas registradas'),
 
                         TextEntry::make('kpi.mttr_hours')

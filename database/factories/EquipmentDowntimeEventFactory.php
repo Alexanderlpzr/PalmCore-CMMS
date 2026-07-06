@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Domain\Assets\Enums\EquipmentDowntimeCauseType;
+use App\Domain\Maintenance\Enums\FailureMode;
 use App\Models\Equipment;
 use App\Models\EquipmentDowntimeEvent;
 use App\Models\Tenant;
@@ -28,7 +29,7 @@ class EquipmentDowntimeEventFactory extends Factory
             'duration_minutes' => (int) $startedAt->diffInMinutes($endedAt),
             'cause_type' => $this->faker->randomElement(EquipmentDowntimeCauseType::cases())->value,
             'was_planned' => false,
-            'failure_mode' => $this->faker->optional()->sentence(3),
+            'failure_mode' => $this->faker->optional()->randomElement(array_column(FailureMode::cases(), 'value')),
             'notes' => $this->faker->optional()->sentence(),
         ];
     }

@@ -19,6 +19,16 @@ use Illuminate\Support\Str;
  */
 class Inicio extends Page
 {
+    /**
+     * Roles that consume the analytics Dashboard daily and should land there
+     * after login instead of on the corporate portal. They can still open Inicio
+     * from the navigation — only the initial post-login landing is redirected.
+     */
+    private const DASHBOARD_LANDING_ROLES = ['ingeniero-mantenimiento', 'supervisor'];
+
+    /** Session flag so the landing redirect fires once per session, not on every visit to Inicio. */
+    private const LANDING_REDIRECT_KEY = 'landing_redirect_done';
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedHome;
 
     protected static ?string $navigationLabel = 'Inicio';
@@ -39,6 +49,27 @@ class Inicio extends Page
     public static function getRoutePath(Panel $panel): string
     {
         return static::$routePath;
+    }
+
+    /**
+     * Role-based landing: the first time a Dashboard-oriented role (maintenance
+     * engineer / supervisor) reaches the portal root after logging in, bounce
+     * them to the analytics Dashboard — that is where their day starts. A
+     * one-shot session flag means later, deliberate visits to Inicio are honored.
+     */
+    public function mount(): void
+    {
+        $user = auth()->user();
+
+        if ($user === null || session()->get(self::LANDING_REDIRECT_KEY, false)) {
+            return;
+        }
+
+        session()->put(self::LANDING_REDIRECT_KEY, true);
+
+        if ($user->hasAnyRole(self::DASHBOARD_LANDING_ROLES)) {
+            $this->redirect(Dashboard::getUrl());
+        }
     }
 
     /**

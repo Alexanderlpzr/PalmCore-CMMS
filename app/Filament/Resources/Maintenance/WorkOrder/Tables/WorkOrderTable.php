@@ -93,6 +93,30 @@ class WorkOrderTable
                     ->placeholder('—')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('cost_variance')
+                    ->label('Desviación')
+                    ->badge()
+                    ->placeholder('—')
+                    ->state(function (WorkOrder $record): ?string {
+                        $variance = $record->costVariance();
+
+                        if ($variance === null) {
+                            return null;
+                        }
+
+                        $pct = $record->costVariancePercentage();
+
+                        return $pct !== null
+                            ? ($pct > 0 ? '+' : '').$pct.'%'
+                            : ($variance > 0 ? '+' : '−').'$'.number_format(abs($variance), 0, ',', '.');
+                    })
+                    ->color(fn (WorkOrder $record): string => match (true) {
+                        $record->costVariance() === null => 'gray',
+                        $record->costVariance() > 0 => 'danger',
+                        $record->costVariance() < 0 => 'success',
+                        default => 'gray',
+                    })
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('created_at')
                     ->label('Creada')
                     ->date('d/m/Y')

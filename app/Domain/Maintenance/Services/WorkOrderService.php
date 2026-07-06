@@ -4,6 +4,7 @@ namespace App\Domain\Maintenance\Services;
 
 use App\Domain\Assets\Enums\EquipmentDowntimeCauseType;
 use App\Domain\Assets\Enums\EquipmentStatus;
+use App\Domain\Maintenance\Enums\FailureMode;
 use App\Domain\Maintenance\Enums\MaintenanceRequestStatus;
 use App\Domain\Maintenance\Enums\TechnicianRole;
 use App\Domain\Maintenance\Enums\WorkOrderPriority;
@@ -100,13 +101,13 @@ class WorkOrderService
                 'actual_start_at' => $type->startsInProgress() ? now() : null,
             ]);
 
-            // Emergency WOs start InProgress directly — trigger equipment sync
+            // Emergency WOs start InProgress directly — trigger the same syncs a
+            // transition would. Each self-guards: equipment status only moves when
+            // the equipment was stopped, while the failure event is recorded for
+            // any failure-type WO even if the machine kept running.
             if ($type->startsInProgress()) {
-                if ($workOrder->equipment_stopped) {
-                    $this->syncEquipmentStatus($workOrder, WorkOrderStatus::InProgress);
-                    $this->syncDowntimeEvent($workOrder, WorkOrderStatus::InProgress);
-                }
-
+                $this->syncEquipmentStatus($workOrder, WorkOrderStatus::InProgress);
+                $this->syncDowntimeEvent($workOrder, WorkOrderStatus::InProgress);
                 $this->syncTimeLogOnTransition($workOrder, WorkOrderStatus::InProgress, $createdBy);
             }
 
@@ -416,6 +417,11 @@ class WorkOrderService
     /**
      * Auto-transition equipment.status based on WO lifecycle.
      * Only acts when equipment_stopped=true on the WO.
+     *
+     * The equipment returns to service when the work is *completed* (or the WO
+     * is cancelled), not when it is administratively closed — the machine is
+     * physically running again the moment the técnico finishes, so the
+     * availability clock must stop there and not wait for supervisor sign-off.
      */
     private function syncEquipmentStatus(WorkOrder $workOrder, WorkOrderStatus $toStatus): void
     {
@@ -431,12 +437,17 @@ class WorkOrderService
             return;
         }
 
-        if ($toStatus === WorkOrderStatus::Closed || $toStatus === WorkOrderStatus::Cancelled) {
+        if ($toStatus === WorkOrderStatus::Completed || $toStatus === WorkOrderStatus::Cancelled) {
+            // Completed/Verified/Closed WOs no longer hold the equipment down —
+            // their work is finished. Only WOs whose work is still pending
+            // (draft/planned/in-progress/on-hold) keep it under maintenance.
             $hasOtherActiveWOs = WorkOrder::withoutGlobalScopes()
                 ->where('equipment_id', $equipment->id)
                 ->where('id', '!=', $workOrder->id)
                 ->where('equipment_stopped', true)
                 ->whereNotIn('status', [
+                    WorkOrderStatus::Completed->value,
+                    WorkOrderStatus::Verified->value,
                     WorkOrderStatus::Closed->value,
                     WorkOrderStatus::Cancelled->value,
                 ])
@@ -451,12 +462,23 @@ class WorkOrderService
     // ── Downtime Event Sync ───────────────────────────────────────────────────
 
     /**
-     * Create or close a downtime event tied to this WO.
-     * Only acts when equipment_stopped=true on the WO.
+     * Create or close the downtime/failure event tied to this WO.
+     *
+     * Fires when the equipment was stopped (any WO type — a planned preventive
+     * stop is downtime too) OR when the WO type is itself a failure (corrective/
+     * emergency), so reliability KPIs count the failure even when the machine
+     * kept running. A failure with no stoppage is recorded as a point-in-time
+     * event (closed immediately, zero duration): it feeds failure_count / MTBF /
+     * Pareto but never touches availability or the equipment status.
+     *
+     * Real stoppages are closed when the work is *completed* (using actual_end_at,
+     * the real end of execution) rather than at administrative closure, so MTTR
+     * and availability are not inflated by a delayed supervisor sign-off. A
+     * supervisor rejection (Completed → InProgress) re-opens the paro.
      */
     private function syncDowntimeEvent(WorkOrder $workOrder, WorkOrderStatus $toStatus): void
     {
-        if (! $workOrder->equipment_stopped) {
+        if (! $workOrder->equipment_stopped && ! $workOrder->work_order_type->registersFailure()) {
             return;
         }
 
@@ -464,8 +486,9 @@ class WorkOrderService
 
         if ($toStatus === WorkOrderStatus::InProgress) {
             $startedAt = $workOrder->actual_start_at ?? now();
+            $stopped = (bool) $workOrder->equipment_stopped;
 
-            EquipmentDowntimeEvent::firstOrCreate(
+            $event = EquipmentDowntimeEvent::firstOrCreate(
                 ['work_order_id' => $workOrder->id],
                 [
                     'tenant_id' => $workOrder->tenant_id,
@@ -474,29 +497,54 @@ class WorkOrderService
                     'started_at' => $startedAt,
                     'cause_type' => $causeType->value,
                     'was_planned' => $causeType->wasPlanned(),
+                    // No stoppage → point-in-time failure: close it now with zero
+                    // downtime so it counts as a failure without hurting availability.
+                    'ended_at' => $stopped ? null : $startedAt,
+                    'duration_minutes' => $stopped ? null : 0,
                 ]
             );
+
+            // Rejected verification re-opened a real paro: clear the close so it
+            // keeps accruing. Only meaningful for stoppages (point-in-time
+            // failures stay closed).
+            if ($stopped && ! $event->wasRecentlyCreated && $event->ended_at !== null) {
+                $event->update(['ended_at' => null, 'duration_minutes' => null]);
+            }
 
             $workOrder->equipment->update(['last_failure_at' => $startedAt]);
 
             return;
         }
 
-        if ($toStatus === WorkOrderStatus::Closed || $toStatus === WorkOrderStatus::Cancelled) {
+        if (in_array($toStatus, [WorkOrderStatus::Completed, WorkOrderStatus::Cancelled, WorkOrderStatus::Closed], strict: true)) {
             $event = EquipmentDowntimeEvent::where('work_order_id', $workOrder->id)->first();
 
             if ($event === null) {
                 return;
             }
 
-            $endedAt = now();
-            $durationMinutes = $workOrder->downtime_minutes
-                ?? (int) abs($event->started_at->diffInMinutes($endedAt));
+            $updates = [];
 
-            $event->update([
-                'ended_at' => $endedAt,
-                'duration_minutes' => $durationMinutes,
-            ]);
+            // Propagate the failure mode diagnosed at completion — works for both
+            // real paros (still open) and point-in-time failures (already closed).
+            if ($workOrder->failure_mode !== null && $event->failure_mode === null) {
+                $updates['failure_mode'] = $workOrder->failure_mode instanceof FailureMode
+                    ? $workOrder->failure_mode->value
+                    : $workOrder->failure_mode;
+            }
+
+            // Close a still-open paro at the real end of execution. A WO already
+            // closed at Completed must not have its real end overwritten later.
+            if ($event->ended_at === null) {
+                $endedAt = $workOrder->actual_end_at ?? now();
+                $updates['ended_at'] = $endedAt;
+                $updates['duration_minutes'] = $workOrder->downtime_minutes
+                    ?? (int) abs($event->started_at->diffInMinutes($endedAt));
+            }
+
+            if ($updates !== []) {
+                $event->update($updates);
+            }
         }
     }
 

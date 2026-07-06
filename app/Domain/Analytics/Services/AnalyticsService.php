@@ -3,6 +3,7 @@
 namespace App\Domain\Analytics\Services;
 
 use App\Domain\Analytics\DTOs\TrendPoint;
+use App\Domain\Maintenance\Enums\FailureMode;
 use App\Models\EquipmentDowntimeEvent;
 use App\Models\EquipmentKpi;
 use Carbon\CarbonImmutable;
@@ -233,6 +234,40 @@ class AnalyticsService
     }
 
     /**
+     * @return TrendPoint[] — unplanned failures grouped by failure mode, last 12 months.
+     *                      Answers "which physical cause dominates" (bearing, seal,
+     *                      electrical…) across the whole plant, for RCA — the
+     *                      complement to paretoFailures() which is per-equipment.
+     */
+    public function paretoFailuresByMode(string $tenantId): array
+    {
+        return Cache::remember(
+            "analytics:pareto_failure_modes:{$tenantId}",
+            now()->addMinutes(20),
+            function () use ($tenantId): array {
+                $since = now()->subMonths(12);
+
+                return DB::table('equipment_downtime_events')
+                    ->where('tenant_id', $tenantId)
+                    ->where('was_planned', false)
+                    ->whereNotNull('failure_mode')
+                    ->where('started_at', '>=', $since)
+                    ->selectRaw('failure_mode, COUNT(*) AS failure_count')
+                    ->groupBy('failure_mode')
+                    ->orderByDesc('failure_count')
+                    ->limit(15)
+                    ->get()
+                    ->map(fn ($row) => new TrendPoint(
+                        label: FailureMode::tryFrom((string) $row->failure_mode)?->label() ?? (string) $row->failure_mode,
+                        value: (float) $row->failure_count,
+                        count: (int) $row->failure_count,
+                    ))
+                    ->all();
+            }
+        );
+    }
+
+    /**
      * @return array{best: TrendPoint[], worst: TrendPoint[]}
      *                                                        best: top 5 equipment by availability_percentage (descending)
      *                                                        worst: bottom 5 equipment by availability_percentage (ascending)
@@ -270,5 +305,70 @@ class AnalyticsService
                 return compact('best', 'worst');
             }
         );
+    }
+
+    /**
+     * Point-in-time preventive-maintenance schedule adherence: of all active
+     * plans that have a scheduled due date, how many are still on schedule
+     * (next_due_at not past) vs overdue. The leading indicator an engineer
+     * watches to know whether PM is keeping the plant out of failures.
+     *
+     * @return array{total: int, on_schedule: int, overdue: int, compliance: ?float}
+     */
+    public function preventiveCompliance(string $tenantId): array
+    {
+        $row = DB::table('maintenance_schedules as ms')
+            ->join('maintenance_plans as mp', 'ms.maintenance_plan_id', '=', 'mp.id')
+            ->where('ms.tenant_id', $tenantId)
+            ->where('mp.is_active', true)
+            ->whereNull('mp.deleted_at')
+            ->whereNotNull('ms.next_due_at')
+            ->selectRaw('COUNT(*) AS total, COUNT(*) FILTER (WHERE ms.next_due_at >= now()) AS on_schedule')
+            ->first();
+
+        $total = (int) ($row->total ?? 0);
+        $onSchedule = (int) ($row->on_schedule ?? 0);
+
+        return [
+            'total' => $total,
+            'on_schedule' => $onSchedule,
+            'overdue' => $total - $onSchedule,
+            'compliance' => $total > 0 ? round($onSchedule / $total * 100, 1) : null,
+        ];
+    }
+
+    /**
+     * Planned-vs-corrective mix of completed work over the trailing 12 months:
+     * preventive/predictive (planned) against corrective/emergency (unplanned).
+     * A healthy, proactive operation trends toward a high preventive share.
+     * Improvement-type WOs are excluded (neither planned PM nor a failure).
+     *
+     * @return array{preventive: int, corrective: int, total: int, preventive_pct: ?float}
+     */
+    public function plannedVsCorrective(string $tenantId): array
+    {
+        $since = now()->subMonths(12);
+
+        $row = DB::table('work_orders')
+            ->where('tenant_id', $tenantId)
+            ->whereNull('deleted_at')
+            ->whereIn('status', ['completed', 'verified', 'closed'])
+            ->where('completed_at', '>=', $since)
+            ->selectRaw("
+                COUNT(*) FILTER (WHERE work_order_type IN ('preventive', 'predictive')) AS preventive,
+                COUNT(*) FILTER (WHERE work_order_type IN ('corrective', 'emergency')) AS corrective
+            ")
+            ->first();
+
+        $preventive = (int) ($row->preventive ?? 0);
+        $corrective = (int) ($row->corrective ?? 0);
+        $total = $preventive + $corrective;
+
+        return [
+            'preventive' => $preventive,
+            'corrective' => $corrective,
+            'total' => $total,
+            'preventive_pct' => $total > 0 ? round($preventive / $total * 100, 1) : null,
+        ];
     }
 }

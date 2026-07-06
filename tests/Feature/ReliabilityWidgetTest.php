@@ -1,7 +1,13 @@
 <?php
 
+use App\Filament\Pages\Dashboard;
+use App\Filament\Widgets\Analytics\CostByEquipmentWidget;
+use App\Filament\Widgets\Analytics\ParetoFailureModesWidget;
+use App\Filament\Widgets\Analytics\ParetoFailuresWidget;
+use App\Filament\Widgets\Analytics\ReliabilityRankingWidget;
 use App\Filament\Widgets\Reliability\GlobalReliabilitySummaryWidget;
 use App\Filament\Widgets\Reliability\HighestDowntimeWidget;
+use App\Filament\Widgets\Reliability\MaintenanceComplianceWidget;
 use App\Filament\Widgets\Reliability\MostFailuresWidget;
 use App\Filament\Widgets\Reliability\WorstAvailabilityWidget;
 use App\Infrastructure\Tenancy\CurrentTenant;
@@ -301,4 +307,22 @@ it('reliability widgets are sorted in the correct dashboard order', function () 
         ->and(WorstAvailabilityWidget::getSort())->toBe(3)
         ->and(MostFailuresWidget::getSort())->toBe(4)
         ->and(HighestDowntimeWidget::getSort())->toBe(5);
+});
+
+it('the analytics dashboard actually renders the reliability and pareto widgets', function () {
+    // Regression guard: these widgets were built but never listed in
+    // Dashboard::getWidgets(), so they rendered nowhere. They must stay wired.
+    $widgets = (new Dashboard)->getWidgets();
+
+    expect($widgets)->toContain(
+        GlobalReliabilitySummaryWidget::class,
+        MaintenanceComplianceWidget::class,
+        WorstAvailabilityWidget::class,
+        MostFailuresWidget::class,
+        HighestDowntimeWidget::class,
+        CostByEquipmentWidget::class,
+        ParetoFailuresWidget::class,
+        ParetoFailureModesWidget::class,
+        ReliabilityRankingWidget::class,
+    );
 });

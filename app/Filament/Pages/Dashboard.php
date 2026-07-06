@@ -3,10 +3,19 @@
 namespace App\Filament\Pages;
 
 use App\Domain\Analytics\Support\DashboardPeriod;
+use App\Filament\Widgets\Analytics\CostByEquipmentWidget;
 use App\Filament\Widgets\Analytics\DowntimeTrendWidget;
 use App\Filament\Widgets\Analytics\FailuresByMonthWidget;
 use App\Filament\Widgets\Analytics\MtbfTrendWidget;
 use App\Filament\Widgets\Analytics\MttrTrendWidget;
+use App\Filament\Widgets\Analytics\ParetoFailureModesWidget;
+use App\Filament\Widgets\Analytics\ParetoFailuresWidget;
+use App\Filament\Widgets\Analytics\ReliabilityRankingWidget;
+use App\Filament\Widgets\Reliability\GlobalReliabilitySummaryWidget;
+use App\Filament\Widgets\Reliability\HighestDowntimeWidget;
+use App\Filament\Widgets\Reliability\MaintenanceComplianceWidget;
+use App\Filament\Widgets\Reliability\MostFailuresWidget;
+use App\Filament\Widgets\Reliability\WorstAvailabilityWidget;
 use BackedEnum;
 use Filament\Forms\Components\Select;
 use Filament\Pages\Dashboard as BaseDashboard;
@@ -54,10 +63,22 @@ class Dashboard extends BaseDashboard
     public function getWidgets(): array
     {
         return [
-            DowntimeTrendWidget::class,
+            // Overview stats (self-order by each widget's $sort)
+            GlobalReliabilitySummaryWidget::class,
+            MaintenanceComplianceWidget::class,
+            WorstAvailabilityWidget::class,
+            MostFailuresWidget::class,
+            HighestDowntimeWidget::class,
+            // Trends (driven by the period filter above)
             FailuresByMonthWidget::class,
             MtbfTrendWidget::class,
             MttrTrendWidget::class,
+            DowntimeTrendWidget::class,
+            // Pareto & rankings (last 12 months)
+            CostByEquipmentWidget::class,
+            ParetoFailuresWidget::class,
+            ParetoFailureModesWidget::class,
+            ReliabilityRankingWidget::class,
         ];
     }
 
