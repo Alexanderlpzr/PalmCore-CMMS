@@ -3,6 +3,7 @@
 use App\Domain\Maintenance\Services\WorkOrderService;
 use App\Filament\Resources\Maintenance\WorkOrder\Pages\ViewWorkOrder;
 use App\Models\Equipment;
+use App\Models\EquipmentComponent;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\WorkOrder;
@@ -64,6 +65,38 @@ it('lets an administrator manually override the OT costs', function () {
         ->and($wo->actual_cost_parts)->toBe(25000.0)
         ->and($wo->actual_cost_external)->toBe(10000.0)
         ->and($wo->actual_cost_total)->toBe(75000.0);
+});
+
+it('selecting a replaced component adds its registered unit_cost onto Repuestos', function () {
+    $admin = costEditUser($this->tenant, 'administrador-general');
+    $wo = app(WorkOrderService::class)->create([
+        'tenant_id' => $this->tenant->id,
+        'equipment_id' => $this->equipment->id,
+        'work_order_type' => 'corrective',
+        'priority' => 'p3_medium',
+        'title' => 'Test',
+        'description' => 'desc',
+    ], $admin);
+
+    $component = EquipmentComponent::factory()->create([
+        'tenant_id' => $this->tenant->id,
+        'equipment_id' => $this->equipment->id,
+        'unit_cost' => 15000,
+    ]);
+
+    $this->actingAs($admin);
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+    Filament::setTenant($this->tenant);
+
+    Livewire::test(ViewWorkOrder::class, ['record' => $wo->id])
+        ->mountAction('edit_costs')
+        ->setActionData(['actual_cost_parts' => 5000])
+        ->setActionData(['component_replaced' => $component->id])
+        ->assertActionDataSet(['actual_cost_parts' => 20000])
+        ->callMountedAction()
+        ->assertHasNoActionErrors();
+
+    expect($wo->fresh()->actual_cost_parts)->toBe(20000.0);
 });
 
 it('hides the cost edit action from a técnico', function () {

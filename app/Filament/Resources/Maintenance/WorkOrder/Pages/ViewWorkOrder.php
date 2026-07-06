@@ -10,16 +10,20 @@ use App\Domain\Reports\Enums\ReportType;
 use App\Domain\Reports\Services\ReportManager;
 use App\Filament\Resources\Concerns\HasBackAction;
 use App\Filament\Resources\Maintenance\WorkOrder\WorkOrderResource;
+use App\Models\EquipmentComponent;
 use App\Models\WorkOrder;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\ViewField;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Support\Icons\Heroicon;
 
 class ViewWorkOrder extends ViewRecord
@@ -229,7 +233,35 @@ class ViewWorkOrder extends ViewRecord
                     TextInput::make('actual_cost_parts')
                         ->label('Repuestos')
                         ->numeric()
-                        ->prefix('$'),
+                        ->prefix('$')
+                        ->live(),
+                    Select::make('component_replaced')
+                        ->label('Componente reemplazado')
+                        ->helperText('Selecciona un componente del equipo para sumar su costo registrado a "Repuestos".')
+                        ->options(fn (): array => EquipmentComponent::where('equipment_id', $this->record->equipment_id)
+                            ->whereNotNull('unit_cost')
+                            ->orderBy('name')
+                            ->get()
+                            ->mapWithKeys(fn (EquipmentComponent $component): array => [
+                                $component->id => "{$component->name} — $".number_format((float) $component->unit_cost, 2),
+                            ])
+                            ->toArray())
+                        ->searchable()
+                        ->dehydrated(false)
+                        ->live()
+                        ->afterStateUpdated(function (Get $get, Set $set, ?string $state): void {
+                            if ($state === null) {
+                                return;
+                            }
+
+                            $unitCost = EquipmentComponent::find($state)?->unit_cost;
+
+                            if ($unitCost !== null) {
+                                $set('actual_cost_parts', round((float) ($get('actual_cost_parts') ?? 0) + (float) $unitCost, 2));
+                            }
+
+                            $set('component_replaced', null);
+                        }),
                     TextInput::make('actual_cost_external')
                         ->label('Externo')
                         ->numeric()
