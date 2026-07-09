@@ -3,6 +3,15 @@
 # Railway assigns a dynamic $PORT; bind nginx to it (fallback to 80 locally)
 sed -i "s/__PORT__/${PORT:-80}/" /etc/nginx/http.d/default.conf
 
+# Required runtime env vars for production boot.
+: "${APP_KEY:?APP_KEY is required}"
+: "${DB_CONNECTION:?DB_CONNECTION is required}"
+: "${DB_HOST:?DB_HOST is required}"
+: "${DB_PORT:?DB_PORT is required}"
+: "${DB_DATABASE:?DB_DATABASE is required}"
+: "${DB_USERNAME:?DB_USERNAME is required}"
+: "${DB_PASSWORD:?DB_PASSWORD is required}"
+
 # Ensure writable storage dirs exist at runtime (realpath() needs them for config:cache)
 mkdir -p storage/framework/{sessions,views,cache} storage/logs bootstrap/cache
 

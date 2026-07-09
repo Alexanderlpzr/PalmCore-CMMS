@@ -77,13 +77,13 @@ nano .env.production
 Construir la imagen
 
 ```bash
-docker compose -f deploy/docker-compose.yml build
+docker compose --env-file .env.production -f deploy/docker-compose.yml build
 ```
 
 Levantar los servicios
 
 ```bash
-docker compose -f deploy/docker-compose.yml up -d
+docker compose --env-file .env.production -f deploy/docker-compose.yml up -d
 ```
 
 ---
@@ -93,7 +93,7 @@ docker compose -f deploy/docker-compose.yml up -d
 ```bash
 git pull
 
-docker compose -f deploy/docker-compose.yml up -d --build
+docker compose --env-file .env.production -f deploy/docker-compose.yml up -d --build
 ```
 
 ---
@@ -119,25 +119,25 @@ docker compose down
 Todos los servicios
 
 ```bash
-docker compose logs -f
+docker compose --env-file .env.production -f deploy/docker-compose.yml logs -f
 ```
 
 Aplicación
 
 ```bash
-docker compose logs -f app
+docker compose --env-file .env.production -f deploy/docker-compose.yml logs -f app
 ```
 
 PostgreSQL
 
 ```bash
-docker compose logs -f postgres
+docker compose --env-file .env.production -f deploy/docker-compose.yml logs -f postgres
 ```
 
 Redis
 
 ```bash
-docker compose logs -f redis
+docker compose --env-file .env.production -f deploy/docker-compose.yml logs -f redis
 ```
 
 ---
@@ -145,7 +145,7 @@ docker compose logs -f redis
 # Migraciones
 
 ```bash
-docker compose exec app php artisan migrate --force
+docker compose --env-file .env.production -f deploy/docker-compose.yml exec app php artisan migrate --force
 ```
 
 ---
@@ -153,7 +153,7 @@ docker compose exec app php artisan migrate --force
 # Seeders
 
 ```bash
-docker compose exec app php artisan db:seed --force
+docker compose --env-file .env.production -f deploy/docker-compose.yml exec app php artisan db:seed --force
 ```
 
 ---
@@ -161,7 +161,7 @@ docker compose exec app php artisan db:seed --force
 # Limpiar caché
 
 ```bash
-docker compose exec app php artisan optimize:clear
+docker compose --env-file .env.production -f deploy/docker-compose.yml exec app php artisan optimize:clear
 ```
 
 ---
@@ -169,7 +169,7 @@ docker compose exec app php artisan optimize:clear
 # Generar APP_KEY
 
 ```bash
-docker compose exec app php artisan key:generate
+docker compose --env-file .env.production -f deploy/docker-compose.yml exec app php artisan key:generate
 ```
 
 ---
@@ -179,14 +179,14 @@ docker compose exec app php artisan key:generate
 Base de datos
 
 ```bash
-docker compose exec postgres pg_dump \
+docker compose --env-file .env.production -f deploy/docker-compose.yml exec postgres pg_dump \
 -U palmcore palmcore > backup.sql
 ```
 
 Restaurar
 
 ```bash
-docker compose exec -T postgres psql \
+docker compose --env-file .env.production -f deploy/docker-compose.yml exec -T postgres psql \
 -U palmcore palmcore < backup.sql
 ```
 
@@ -195,9 +195,9 @@ docker compose exec -T postgres psql \
 # Actualizar imágenes
 
 ```bash
-docker compose pull
+docker compose --env-file .env.production -f deploy/docker-compose.yml pull
 
-docker compose up -d
+docker compose --env-file .env.production -f deploy/docker-compose.yml up -d
 ```
 
 ---

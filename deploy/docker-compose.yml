@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   app:
     container_name: palmcore-app
@@ -16,7 +14,7 @@ services:
       - "80:80"
 
     env_file:
-      - ../.env
+      - ../.env.production
 
     depends_on:
       postgres:
@@ -38,15 +36,15 @@ services:
     restart: unless-stopped
 
     environment:
-      POSTGRES_DB: palmcore
-      POSTGRES_USER: palmcore
-      POSTGRES_PASSWORD: compila123
+      POSTGRES_DB: ${DB_DATABASE:?DB_DATABASE is required}
+      POSTGRES_USER: ${DB_USERNAME:?DB_USERNAME is required}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
 
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U palmcore -d palmcore"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_DATABASE}"]
       interval: 10s
       timeout: 5s
       retries: 10
