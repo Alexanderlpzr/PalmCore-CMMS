@@ -1,0 +1,70 @@
+version: "3.9"
+
+services:
+  app:
+    container_name: palmcore-app
+    build:
+      context: ..
+      dockerfile: Dockerfile
+
+    image: palmcore:latest
+
+    restart: unless-stopped
+
+    ports:
+      - "80:80"
+
+    env_file:
+      - ../.env.production
+
+    depends_on:
+      - postgres
+      - redis
+
+    volumes:
+      - palmcore_storage:/var/www/html/storage
+
+    networks:
+      - palmcore
+
+  postgres:
+    image: postgres:17-alpine
+
+    container_name: palmcore-postgres
+
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: palmcore
+      POSTGRES_USER: palmcore
+      POSTGRES_PASSWORD: compila123
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    networks:
+      - palmcore
+
+  redis:
+    image: redis:7-alpine
+
+    container_name: palmcore-redis
+
+    restart: unless-stopped
+
+    command: redis-server --appendonly yes
+
+    volumes:
+      - redis_data:/data
+
+    networks:
+      - palmcore
+
+networks:
+  palmcore:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  palmcore_storage:
