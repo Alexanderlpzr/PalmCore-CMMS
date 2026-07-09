@@ -19,8 +19,10 @@ services:
       - ../.env
 
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
     volumes:
       - palmcore_storage:/var/www/html/storage
@@ -36,18 +38,18 @@ services:
     restart: unless-stopped
 
     environment:
-      POSTGRES_DB: ${DB_DATABASE}
-      POSTGRES_USER: ${DB_USERNAME}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: palmcore
+      POSTGRES_USER: palmcore
+      POSTGRES_PASSWORD: compila123
 
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_DATABASE}"]
+      test: ["CMD-SHELL", "pg_isready -U palmcore -d palmcore"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
 
     networks:
       - palmcore
@@ -68,7 +70,7 @@ services:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
 
     networks:
       - palmcore
