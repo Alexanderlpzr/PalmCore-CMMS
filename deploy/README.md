@@ -37,6 +37,24 @@ Internet
 
 ---
 
+# Configurar dominio fronda.app
+
+Antes del despliegue, apunta el dominio a tu servidor:
+
+- Registro DNS - Tipo A: `fronda.app` -> `IP_PUBLICA_SERVIDOR`
+- Registro DNS - Tipo A: `www.fronda.app` -> `IP_PUBLICA_SERVIDOR` (opcional)
+- TTL recomendado: 300 segundos
+
+En `deploy/.env.production.example` ya está preparado para este dominio:
+
+- `APP_URL=https://fronda.app`
+- `CORS_ALLOWED_ORIGINS=https://fronda.app,https://www.fronda.app`
+- `SESSION_DOMAIN=fronda.app`
+
+Para el entorno real, copia esos valores a `.env.production`.
+
+---
+
 # Estructura
 
 ```
@@ -72,6 +90,16 @@ Editar las variables necesarias
 
 ```bash
 nano .env.production
+```
+
+Variables mínimas recomendadas para dominio y seguridad:
+
+```env
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://fronda.app
+CORS_ALLOWED_ORIGINS=https://fronda.app,https://www.fronda.app
+SESSION_DOMAIN=fronda.app
 ```
 
 Construir la imagen
@@ -216,13 +244,33 @@ docker compose --env-file .env.production -f deploy/docker-compose.yml up -d
 
 # Pendientes
 
-- [ ] HTTPS con Let's Encrypt
+- [ ] HTTPS con Let's Encrypt (obligatorio para dominio en producción)
 - [ ] GitHub Actions
 - [ ] Renovación automática de certificados
 - [ ] Backups automáticos
 - [ ] Monitoreo
 - [ ] Cloudflare
-- [ ] Dominio definitivo
+- [x] Dominio definitivo: fronda.app
+
+---
+
+# Validaciones post-deploy
+
+Verificar salud de la aplicación:
+
+```bash
+curl -I https://fronda.app/up
+```
+
+Resultado esperado: respuesta `200`.
+
+Verificar cabeceras de seguridad:
+
+```bash
+curl -I https://fronda.app
+```
+
+Debe incluir `strict-transport-security` cuando la conexión sea HTTPS.
 
 ---
 
