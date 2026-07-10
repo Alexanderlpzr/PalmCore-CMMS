@@ -10,8 +10,8 @@ services:
 
     restart: unless-stopped
 
-    ports:
-      - "80:80"
+    expose:
+      - "80"
 
     env_file:
       - ../.env.production
@@ -73,6 +73,28 @@ services:
     networks:
       - palmcore
 
+  caddy:
+    image: caddy:2
+
+    container_name: palmcore-caddy
+
+    restart: unless-stopped
+
+    ports:
+      - "80:80"
+      - "443:443"
+
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+
+    depends_on:
+      - app
+
+    networks:
+      - palmcore
+
 networks:
   palmcore:
     driver: bridge
@@ -81,3 +103,5 @@ volumes:
   postgres_data:
   redis_data:
   palmcore_storage:
+  caddy_data:
+  caddy_config:
