@@ -8,6 +8,7 @@ use App\Domain\Assets\Enums\StoppageCategory;
 use App\Domain\Maintenance\Enums\FailureMode;
 use App\Domain\Maintenance\Enums\MaintenanceRequestStatus;
 use App\Domain\Maintenance\Enums\TechnicianRole;
+use App\Domain\Maintenance\Enums\TimeLogActivityType;
 use App\Domain\Maintenance\Enums\WorkOrderPriority;
 use App\Domain\Maintenance\Enums\WorkOrderSignatureType;
 use App\Domain\Maintenance\Enums\WorkOrderStatus;
@@ -17,12 +18,15 @@ use App\Domain\Notifications\WorkOrderStatusChangedNotification;
 use App\Domain\Shared\Enums\ActivityType;
 use App\Events\WorkOrderCreated;
 use App\Events\WorkOrderStatusChanged;
+use App\Exceptions\BusinessRuleException;
+use App\Models\Contractor;
 use App\Models\Equipment;
 use App\Models\EquipmentDowntimeEvent;
 use App\Models\MaintenancePlan;
 use App\Models\MaintenanceRequest;
 use App\Models\User;
 use App\Models\WorkOrder;
+use App\Models\WorkOrderContractor;
 use App\Models\WorkOrderSignature;
 use App\Models\WorkOrderTechnician;
 use App\Models\WorkOrderTimeLog;
@@ -39,6 +43,7 @@ class WorkOrderService
         private readonly WorkOrderInventoryService $workOrderInventoryService,
         private readonly ActivityLocationService $locationService,
         private readonly WorkOrderTaskService $taskService,
+        private readonly WorkPermitService $permitService,
     ) {}
 
     // ── Numbering ─────────────────────────────────────────────────────────────
@@ -85,9 +90,17 @@ class WorkOrderService
         $workOrder = DB::transaction(function () use ($data, $createdBy): WorkOrder {
             $raw = $data['work_order_type'];
             $type = $raw instanceof WorkOrderType ? $raw : WorkOrderType::from($raw);
-            $status = $type->startsInProgress()
+
+            // Una emergencia arranca sola… salvo que exija permiso de alto riesgo.
+            // La urgencia no autoriza a nadie a entrar a un digestor sin permiso:
+            // la OT se crea igual, pero espera en borrador a que lo firmen.
+            $needsPermit = ($data['required_permit_types'] ?? []) !== [];
+
+            $status = $type->startsInProgress() && ! $needsPermit
                 ? WorkOrderStatus::InProgress
                 : WorkOrderStatus::Draft;
+
+            $startsNow = $status === WorkOrderStatus::InProgress;
 
             $equipment = Equipment::withoutGlobalScopes()->findOrFail($data['equipment_id']);
 
@@ -100,8 +113,8 @@ class WorkOrderService
                 'plant_id' => $data['plant_id'] ?? $equipment->plant_id,
                 'area_id' => $data['area_id'] ?? $equipment->area_id,
                 'created_by' => $createdBy->id,
-                'started_at' => $type->startsInProgress() ? now() : null,
-                'actual_start_at' => $type->startsInProgress() ? now() : null,
+                'started_at' => $startsNow ? now() : null,
+                'actual_start_at' => $startsNow ? now() : null,
             ]);
 
             // Born from a plan: the plan's tasks and checklist are copied in and
@@ -118,7 +131,7 @@ class WorkOrderService
             // transition would. Each self-guards: equipment status only moves when
             // the equipment was stopped, while the failure event is recorded for
             // any failure-type WO even if the machine kept running.
-            if ($type->startsInProgress()) {
+            if ($startsNow) {
                 $this->syncEquipmentStatus($workOrder, WorkOrderStatus::InProgress);
                 $this->syncDowntimeEvent($workOrder, WorkOrderStatus::InProgress);
                 $this->syncTimeLogOnTransition($workOrder, WorkOrderStatus::InProgress, $createdBy);
@@ -193,6 +206,12 @@ class WorkOrderService
             );
         }
 
+        // Nadie entra a un espacio confinado sin permiso. Esta es la única puerta
+        // hacia la ejecución, así que el bloqueo va aquí y no en la UI.
+        if ($toStatus === WorkOrderStatus::InProgress) {
+            $this->permitService->assertPermitsInPlace($workOrder->load('permits'));
+        }
+
         // A preventive closed with unanswered measurements is a preventive that
         // was never really done. Block it here, at the only door out.
         if ($toStatus === WorkOrderStatus::Completed) {
@@ -210,6 +229,12 @@ class WorkOrderService
             $this->syncDowntimeEvent($workOrder, $toStatus);
             $this->syncInventoryOnTransition($workOrder, $fromStatus, $toStatus, $actor);
             $this->syncTimeLogOnTransition($workOrder, $toStatus, $actor);
+
+            // Se acabó el trabajo: se retiran los candados. Un permiso que queda
+            // abierto es un equipo que sigue bloqueado y nadie sabe por qué.
+            if (in_array($toStatus, [WorkOrderStatus::Completed, WorkOrderStatus::Cancelled, WorkOrderStatus::Closed], strict: true)) {
+                $this->permitService->closeOpenPermits($workOrder, $actor);
+            }
 
             return $workOrder->refresh();
         });
@@ -280,8 +305,74 @@ class WorkOrderService
         return $technician;
     }
 
+    // ── Contratistas ──────────────────────────────────────────────────────────
+
+    /**
+     * Poner a un tercero a ejecutar esta OT.
+     *
+     * The cost is frozen on the assignment, not read from the contractor's rate
+     * card: what Disam charged for a June job cannot change because somebody edits
+     * a rate in September. Same snapshot rule as the técnico's hourly_rate.
+     *
+     * @throws BusinessRuleException
+     */
+    public function assignContractor(
+        WorkOrder $workOrder,
+        Contractor $contractor,
+        ?float $agreedCost = null,
+        ?string $scope = null,
+        ?string $invoiceNumber = null,
+    ): WorkOrderContractor {
+        if ($contractor->tenant_id !== $workOrder->tenant_id) {
+            throw new BusinessRuleException('El contratista indicado no existe en esta organización.');
+        }
+
+        $assignment = WorkOrderContractor::updateOrCreate(
+            [
+                'work_order_id' => $workOrder->id,
+                'contractor_id' => $contractor->id,
+            ],
+            [
+                'tenant_id' => $workOrder->tenant_id,
+                'scope' => $scope,
+                'agreed_cost' => $agreedCost,
+                'currency_code' => $contractor->currency_code ?? 'COP',
+                'invoice_number' => $invoiceNumber,
+            ],
+        );
+
+        $this->recalculateCosts($workOrder);
+
+        return $assignment->refresh();
+    }
+
+    public function removeContractor(WorkOrder $workOrder, Contractor $contractor): void
+    {
+        $assignment = $workOrder->contractors()->where('contractor_id', $contractor->id)->first();
+
+        if ($assignment === null) {
+            return;
+        }
+
+        $wasPriced = $assignment->agreed_cost !== null;
+
+        $assignment->delete();
+
+        // El costo externo que venía de esta asignación se va con ella. Sin esto,
+        // quitar al contratista dejaría su factura pegada a la OT para siempre.
+        if ($wasPriced && $workOrder->contractors()->whereNotNull('agreed_cost')->doesntExist()) {
+            $workOrder->update(['actual_cost_external' => null]);
+        }
+
+        $this->recalculateCosts($workOrder->refresh());
+    }
+
     // ── Time Logs ─────────────────────────────────────────────────────────────
 
+    /**
+     * @param  TimeLogActivityType|string|null  $activityType  qué estaba haciendo el
+     *                                                         técnico: sin esto, el MTTR mezcla la llave con la espera del repuesto.
+     */
     public function logTime(
         WorkOrder $workOrder,
         User $user,
@@ -289,6 +380,7 @@ class WorkOrderService
         ?CarbonInterface $endedAt = null,
         ?string $description = null,
         ?array $gps = null,
+        TimeLogActivityType|string|null $activityType = null,
     ): WorkOrderTimeLog {
         $hours = null;
 
@@ -302,6 +394,9 @@ class WorkOrderService
             'started_at' => $startedAt,
             'ended_at' => $endedAt,
             'hours' => $hours,
+            'activity_type' => $activityType instanceof TimeLogActivityType
+                ? $activityType->value
+                : $activityType,
             'description' => $description,
         ]);
 
@@ -333,14 +428,32 @@ class WorkOrderService
         }
 
         $partsCost = (float) $workOrder->parts()->whereNotNull('total_cost')->sum('total_cost');
-        $externalCost = (float) ($workOrder->actual_cost_external ?? 0);
+        $externalCost = $this->externalCost($workOrder);
         $total = $laborCost + $partsCost + $externalCost;
 
         $workOrder->update([
             'actual_cost_labor' => $laborCost > 0 ? $laborCost : null,
             'actual_cost_parts' => $partsCost > 0 ? $partsCost : null,
+            'actual_cost_external' => $externalCost > 0 ? $externalCost : $workOrder->actual_cost_external,
             'actual_cost_total' => $total > 0 ? $total : null,
         ]);
+    }
+
+    /**
+     * Lo que costaron los terceros.
+     *
+     * Derived from the contractor assignments when there is at least one priced
+     * assignment. Without any, the manually typed `actual_cost_external` stands —
+     * a plant that has not started using contractors in Fronda must not see the
+     * figure it typed by hand silently zeroed.
+     */
+    private function externalCost(WorkOrder $workOrder): float
+    {
+        $contracted = (float) $workOrder->contractors()->whereNotNull('agreed_cost')->sum('agreed_cost');
+
+        return $contracted > 0
+            ? $contracted
+            : (float) ($workOrder->actual_cost_external ?? 0);
     }
 
     /**
@@ -507,6 +620,15 @@ class WorkOrderService
             $startedAt = $workOrder->actual_start_at ?? now();
             $stopped = (bool) $workOrder->equipment_stopped;
 
+            // Two OTs can intervene the same machine at once; the machine is still
+            // down only once. A second paro here would bill those hours twice — and
+            // the database now refuses it outright. The paro already open covers it.
+            if ($stopped && $this->openStoppageOf($workOrder) !== null) {
+                $workOrder->equipment->update(['last_failure_at' => $startedAt]);
+
+                return;
+            }
+
             $event = EquipmentDowntimeEvent::firstOrCreate(
                 ['work_order_id' => $workOrder->id],
                 [
@@ -544,33 +666,67 @@ class WorkOrderService
         if (in_array($toStatus, [WorkOrderStatus::Completed, WorkOrderStatus::Cancelled, WorkOrderStatus::Closed], strict: true)) {
             $event = EquipmentDowntimeEvent::where('work_order_id', $workOrder->id)->first();
 
-            if ($event === null) {
+            // Propagate the failure mode diagnosed at completion — works for both
+            // real paros (still open) and point-in-time failures (already closed).
+            if ($event !== null && $workOrder->failure_mode !== null && $event->failure_mode === null) {
+                $event->update([
+                    'failure_mode' => $workOrder->failure_mode instanceof FailureMode
+                        ? $workOrder->failure_mode->value
+                        : $workOrder->failure_mode,
+                ]);
+            }
+
+            // The paro belongs to the machine, not to this OT: it may have been
+            // opened by an earlier OT, and it must stay open while another OT is
+            // still working on the stopped equipment. It closes when the last one
+            // walks away.
+            $paro = $event?->isOngoing()
+                ? $event
+                : ($workOrder->equipment_stopped ? $this->openStoppageOf($workOrder) : null);
+
+            if ($paro === null || $this->hasOtherStoppedWorkInProgress($workOrder)) {
                 return;
             }
 
-            $updates = [];
+            // Close at the real end of execution. A WO already closed at Completed
+            // must not have its real end overwritten later.
+            $endedAt = $workOrder->actual_end_at ?? now();
 
-            // Propagate the failure mode diagnosed at completion — works for both
-            // real paros (still open) and point-in-time failures (already closed).
-            if ($workOrder->failure_mode !== null && $event->failure_mode === null) {
-                $updates['failure_mode'] = $workOrder->failure_mode instanceof FailureMode
-                    ? $workOrder->failure_mode->value
-                    : $workOrder->failure_mode;
-            }
-
-            // Close a still-open paro at the real end of execution. A WO already
-            // closed at Completed must not have its real end overwritten later.
-            if ($event->ended_at === null) {
-                $endedAt = $workOrder->actual_end_at ?? now();
-                $updates['ended_at'] = $endedAt;
-                $updates['duration_minutes'] = $workOrder->downtime_minutes
-                    ?? (int) abs($event->started_at->diffInMinutes($endedAt));
-            }
-
-            if ($updates !== []) {
-                $event->update($updates);
-            }
+            $paro->update([
+                'ended_at' => $endedAt,
+                'duration_minutes' => $workOrder->downtime_minutes
+                    ?? (int) abs($paro->started_at->diffInMinutes($endedAt)),
+            ]);
         }
+    }
+
+    /**
+     * The paro currently keeping this OT's equipment down, whichever OT opened it.
+     */
+    private function openStoppageOf(WorkOrder $workOrder): ?EquipmentDowntimeEvent
+    {
+        if ($workOrder->equipment_id === null) {
+            return null;
+        }
+
+        return EquipmentDowntimeEvent::where('equipment_id', $workOrder->equipment_id)
+            ->whereNull('ended_at')
+            ->orderBy('started_at')
+            ->first();
+    }
+
+    /** Is another OT still working on this machine with it stopped? */
+    private function hasOtherStoppedWorkInProgress(WorkOrder $workOrder): bool
+    {
+        if ($workOrder->equipment_id === null) {
+            return false;
+        }
+
+        return WorkOrder::where('equipment_id', $workOrder->equipment_id)
+            ->whereKeyNot($workOrder->id)
+            ->where('equipment_stopped', true)
+            ->where('status', WorkOrderStatus::InProgress)
+            ->exists();
     }
 
     /**
@@ -591,6 +747,10 @@ class WorkOrderService
                     'tenant_id' => $workOrder->tenant_id,
                     'user_id' => $actor->id,
                     'started_at' => now(),
+                    // Pulsar «Iniciar» es ponerse a trabajar. Si en realidad está
+                    // esperando un repuesto, lo dice con un log de espera, y para
+                    // eso el técnico tiene el botón.
+                    'activity_type' => TimeLogActivityType::Repair->value,
                 ]);
             }
 

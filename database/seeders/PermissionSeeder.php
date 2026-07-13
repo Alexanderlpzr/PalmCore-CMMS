@@ -71,6 +71,12 @@ class PermissionSeeder extends Seeder
         'suppliers.update',
         'suppliers.delete',
 
+        // Contractors — quien ejecuta el trabajo sin estar en la nómina
+        'contractors.view',
+        'contractors.create',
+        'contractors.update',
+        'contractors.delete',
+
         // Equipment
         'equipment.view',
         'equipment.create',

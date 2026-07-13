@@ -29,6 +29,25 @@
             <p class="text-sm text-amber-400">Duración: <strong>{{ duration }}</strong></p>
         </div>
 
+        <!-- Actividad: sin esto el MTTR mezcla la llave con la espera del repuesto -->
+        <div class="space-y-1.5">
+            <label class="block text-sm font-medium text-zinc-400">¿Qué estabas haciendo?</label>
+            <div class="grid grid-cols-2 gap-2">
+                <button
+                    v-for="option in activities"
+                    :key="option.value"
+                    type="button"
+                    @click="form.activity_type = option.value"
+                    class="py-4 px-3 rounded-2xl text-sm font-semibold border transition active:scale-95"
+                    :class="form.activity_type === option.value
+                        ? 'bg-amber-500 text-zinc-900 border-amber-500'
+                        : 'bg-zinc-800 text-zinc-300 border-zinc-700'"
+                >
+                    {{ option.label }}
+                </button>
+            </div>
+        </div>
+
         <!-- Description -->
         <div class="space-y-1.5">
             <label class="block text-sm font-medium text-zinc-400">
@@ -48,9 +67,9 @@
 
         <button
             type="submit"
-            :disabled="submitting"
+            :disabled="submitting || !form.activity_type"
             class="w-full py-4 rounded-2xl font-semibold text-base transition"
-            :class="submitting
+            :class="submitting || !form.activity_type
                 ? 'bg-zinc-700 text-zinc-400 cursor-not-allowed'
                 : 'bg-amber-500 text-zinc-900 active:scale-95'"
         >
@@ -75,7 +94,17 @@ const pendingActions = usePendingActions()
 const geo = useGeolocation()
 const toast = useToast()
 
-const form = ref({ started_at: '', ended_at: '', description: '' })
+// Debe coincidir con App\Domain\Maintenance\Enums\TimeLogActivityType.
+const activities = [
+    { value: 'repair', label: 'Reparación' },
+    { value: 'diagnosis', label: 'Diagnóstico' },
+    { value: 'waiting_parts', label: 'Espera repuesto' },
+    { value: 'waiting_third_party', label: 'Espera terceros' },
+]
+
+const emptyForm = () => ({ started_at: '', ended_at: '', description: '', activity_type: '' })
+
+const form = ref(emptyForm())
 const submitting = ref(false)
 
 const duration = computed(() => {
@@ -100,6 +129,7 @@ async function submit() {
                 ? new Date(form.value.ended_at).toISOString()
                 : undefined,
             description: form.value.description || undefined,
+            activity_type: form.value.activity_type,
         }
 
         const result = await pendingActions.queueOrSubmitTimeEntry(props.workOrderId, payload, gps)
@@ -108,7 +138,7 @@ async function submit() {
         toast[result.queued ? 'info' : 'success'](
             (result.queued ? 'Guardado localmente' : 'Tiempo registrado') + locationTag,
         )
-        form.value = { started_at: '', ended_at: '', description: '' }
+        form.value = emptyForm()
         emit('saved')
     } catch {
         // error displayed via pendingActions.error

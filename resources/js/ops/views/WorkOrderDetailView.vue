@@ -371,7 +371,14 @@
                                 <span class="text-xs font-bold text-emerald-600">{{ initials(e.user?.name) }}</span>
                             </div>
                             <div class="flex-1 min-w-0">
-                                <p class="text-sm font-semibold text-gray-900">{{ e.user?.name ?? 'Usuario' }}</p>
+                                <div class="flex items-center gap-2">
+                                    <p class="text-sm font-semibold text-gray-900">{{ e.user?.name ?? 'Usuario' }}</p>
+                                    <span
+                                        v-if="e.activity_label"
+                                        class="px-2 py-0.5 rounded-full text-[10px] font-semibold"
+                                        :class="e.is_wrench_time ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'"
+                                    >{{ e.activity_label }}</span>
+                                </div>
                                 <p class="text-xs text-gray-500">{{ formatDateTime(e.started_at) }}<span v-if="e.ended_at"> → {{ formatDateTime(e.ended_at) }}</span></p>
                                 <p v-if="e.description" class="text-xs text-gray-500 mt-0.5 line-clamp-1">{{ e.description }}</p>
                             </div>

@@ -36,6 +36,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'failure_mode',
     'rejection_reason',
     'equipment_stopped',
+    'required_permit_types',
     'downtime_minutes',
     'planned_start_at',
     'planned_end_at',
@@ -124,6 +125,18 @@ class WorkOrder extends BaseModel
     public function technicians(): HasMany
     {
         return $this->hasMany(WorkOrderTechnician::class);
+    }
+
+    /** Los terceros que ejecutan esta OT: no están en la nómina, pero cuestan. */
+    public function contractors(): HasMany
+    {
+        return $this->hasMany(WorkOrderContractor::class);
+    }
+
+    /** Los permisos de alto riesgo. Sin ellos, esta OT no arranca. */
+    public function permits(): HasMany
+    {
+        return $this->hasMany(WorkPermit::class);
     }
 
     public function timeLogs(): HasMany
@@ -292,6 +305,7 @@ class WorkOrder extends BaseModel
             'priority' => WorkOrderPriority::class,
             'failure_mode' => FailureMode::class,
             'equipment_stopped' => 'boolean',
+            'required_permit_types' => 'array',
             'planned_labor_hours' => 'float',
             'actual_labor_hours' => 'float',
             'estimated_cost' => 'float',

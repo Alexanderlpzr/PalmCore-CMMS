@@ -118,12 +118,30 @@ class MaintenancePlanService
 
         $schedule->update([
             'next_due_at' => $firstDueAt ?? $this->calculateInitialDueDate($plan),
-            'next_due_meter' => $firstDueMeter,
+            'next_due_meter' => $firstDueMeter ?? $this->calculateInitialDueMeter($plan),
         ]);
 
         $plan->update(['is_active' => true]);
 
         return $schedule->refresh();
+    }
+
+    /**
+     * A meter-driven plan activated without a first target has no due point, and a
+     * plan with no due point never generates anything — it would sit «active» and
+     * silent forever. Default it to one full interval from where the equipment
+     * stands today.
+     */
+    private function calculateInitialDueMeter(MaintenancePlan $plan): ?float
+    {
+        if (! $plan->trigger_source->requiresMeterInterval() || $plan->meter_interval === null) {
+            return null;
+        }
+
+        $equipment = $plan->equipment
+            ?? Equipment::withoutGlobalScopes()->find($plan->equipment_id);
+
+        return (float) ($equipment?->accumulated_meter_reading ?? 0) + $plan->meter_interval;
     }
 
     /**

@@ -86,6 +86,19 @@ enum StoppageCategory: string
         };
     }
 
+    /**
+     * The Tipo I values maintenance owns, as raw strings for a query.
+     *
+     * @return list<string>
+     */
+    public static function maintenanceValues(): array
+    {
+        return array_values(array_map(
+            fn (self $case): string => $case->value,
+            array_filter(self::cases(), fn (self $case): bool => $case->isMaintenanceResponsibility()),
+        ));
+    }
+
     /** @return array<string, string> */
     public static function options(): array
     {

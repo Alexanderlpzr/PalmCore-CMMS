@@ -77,7 +77,11 @@ class MeterReadingController extends Controller
     {
         $this->authorizeWrite($request);
 
-        $result = $this->service->recordBulk($request->validated('readings'), $request->user());
+        $result = $this->service->recordBulk(
+            $request->validated('readings'),
+            $request->user(),
+            $request->user()->currentAccessToken()->tenant_id,
+        );
 
         return response()->json([
             'data' => MeterReadingResource::collection(collect($result['recorded']))->resolve(),

@@ -85,14 +85,18 @@ class EquipmentMeterReadingService
      * @param  array<int, array{equipment_id: string, reading_value: float, recorded_at?: CarbonInterface|string|null, notes?: ?string}>  $readings
      * @return array{recorded: list<EquipmentMeterReading>, failed: list<array{equipment_id: string, error: string}>}
      */
-    public function recordBulk(array $readings, User $recordedBy): array
+    public function recordBulk(array $readings, User $recordedBy, string $tenantId): array
     {
         $recorded = [];
         $failed = [];
 
         foreach ($readings as $row) {
             try {
-                $equipment = Equipment::withoutGlobalScopes()->findOrFail($row['equipment_id']);
+                // Scoped to the tenant on purpose: the ids come straight from the
+                // request body, and `exists:equipment,id` does not filter by tenant.
+                $equipment = Equipment::withoutGlobalScopes()
+                    ->where('tenant_id', $tenantId)
+                    ->findOrFail($row['equipment_id']);
 
                 $recorded[] = $this->record(
                     equipment: $equipment,

@@ -2,11 +2,7 @@
 
 namespace App\Providers;
 
-use App\Contracts\WebhookableEvent;
 use App\Domain\Shared\Enums\SubscriptionStatus;
-use App\Events\AlertCreated;
-use App\Listeners\SendAlertNotificationListener;
-use App\Listeners\WebhookTriggerListener;
 use App\Models\Alert;
 use App\Models\Announcement;
 use App\Models\Area;
@@ -49,7 +45,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\RateLimiter;
@@ -59,6 +54,7 @@ use Illuminate\Validation\Rules\Password;
 use Laravel\Sanctum\Sanctum;
 use Livewire\Livewire;
 use Sentry\Breadcrumb;
+use Sentry\Event;
 use Sentry\EventHint;
 
 class AppServiceProvider extends ServiceProvider
@@ -170,11 +166,10 @@ class AppServiceProvider extends ServiceProvider
         EquipmentIssueReport::observe(EquipmentIssueReportObserver::class);
         Alert::observe(AlertObserver::class);
 
-        Event::listen(AlertCreated::class, SendAlertNotificationListener::class);
-        Event::listen(WebhookableEvent::class, WebhookTriggerListener::class);
-        // AdvanceMaintenancePlanScheduleListener is picked up by Laravel's listener
-        // auto-discovery from its handle() type-hint — registering it here too would
-        // advance every completed plan's schedule twice.
+        // Listeners in app/Listeners are registered by Laravel's auto-discovery from
+        // their handle() type-hint. Binding them here as well registered them TWICE:
+        // every alert notified the técnico twice and every webhook was delivered
+        // twice to the customer's endpoint. Leave this to discovery.
     }
 
     private function configureSanctum(): void
@@ -233,7 +228,7 @@ class AppServiceProvider extends ServiceProvider
         $sensitiveKeys = ['password', 'token', 'secret', 'api_key', 'webhook_secret', 'authorization', 'current_password', 'new_password'];
 
         app('sentry')->getClient()?->getOptions()->setBeforeSendCallback(
-            static function (\Sentry\Event $event, ?EventHint $hint) use ($sensitiveKeys): ?\Sentry\Event {
+            static function (Event $event, ?EventHint $hint) use ($sensitiveKeys): ?\Sentry\Event {
                 $breadcrumbs = $event->getBreadcrumbs();
 
                 $sanitized = array_map(static function (Breadcrumb $breadcrumb) use ($sensitiveKeys): Breadcrumb {

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Maintenance\WorkOrder\RelationManagers;
 
+use App\Domain\Maintenance\Enums\TimeLogActivityType;
 use App\Domain\Maintenance\Services\WorkOrderService;
 use App\Models\User;
 use Carbon\Carbon;
@@ -38,6 +39,11 @@ class TimeLogsRelationManager extends RelationManager
                 ->label('Fin')
                 ->nullable()
                 ->helperText('Dejar vacío si la sesión sigue abierta.'),
+            Select::make('activity_type')
+                ->label('Actividad')
+                ->options(TimeLogActivityType::options())
+                ->nullable()
+                ->helperText('La espera de repuesto no es tiempo de reparación: el MTTR la excluye.'),
             Textarea::make('description')
                 ->label('Descripción')
                 ->rows(2)
@@ -67,6 +73,12 @@ class TimeLogsRelationManager extends RelationManager
                         ? (format_hours_minutes($record->computedHours()) ?? '0min').' (abierto)'
                         : (format_hours_minutes($record->hours) ?? '—'))
                     ->placeholder('—'),
+                TextColumn::make('activity_type')
+                    ->label('Actividad')
+                    ->badge()
+                    ->formatStateUsing(fn (TimeLogActivityType $state): string => $state->label())
+                    ->color(fn (TimeLogActivityType $state): string => $state->isWrenchTime() ? 'success' : 'warning')
+                    ->placeholder('Sin clasificar'),
                 TextColumn::make('description')
                     ->label('Descripción')
                     ->limit(60)
@@ -82,6 +94,7 @@ class TimeLogsRelationManager extends RelationManager
                             Carbon::parse($data['started_at']),
                             isset($data['ended_at']) ? Carbon::parse($data['ended_at']) : null,
                             $data['description'] ?? null,
+                            activityType: $data['activity_type'] ?? null,
                         );
                     }),
             ])

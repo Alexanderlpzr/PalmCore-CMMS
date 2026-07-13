@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Domain\Assets\Enums\EquipmentDowntimeCauseType;
+use App\Domain\Assets\Enums\ReportedStoppageType;
 use App\Domain\Assets\Enums\StoppageCategory;
 use App\Domain\Maintenance\Enums\FailureMode;
 use App\Domain\Shared\Concerns\BelongsToTenant;
@@ -26,6 +27,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'cause_type',
     'stoppage_category',
     'stoppage_cause',
+    'reported_type',
     'was_planned',
     'affects_production',
     'source',
@@ -85,6 +87,22 @@ class EquipmentDowntimeEvent extends Model
         return $query->where('affects_production', true);
     }
 
+    /**
+     * Stoppages maintenance is accountable for.
+     *
+     * A paro classified as mechanical/electrical/instrumentation obviously is. So
+     * is any paro born from a work order, even while its Tipo I still says «otro»:
+     * the OT itself is the proof that maintenance owned the intervention. Judging
+     * only by Tipo I would leave every corrective out of the plant's MTBF — which
+     * is precisely the failures the number exists to measure.
+     */
+    public function scopeMaintenanceOwned(Builder $query): Builder
+    {
+        return $query->where(fn (Builder $q) => $q
+            ->whereIn('stoppage_category', StoppageCategory::maintenanceValues())
+            ->orWhere('source', 'work_order'));
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     public function isOngoing(): bool
@@ -122,6 +140,7 @@ class EquipmentDowntimeEvent extends Model
         return [
             'cause_type' => EquipmentDowntimeCauseType::class,
             'stoppage_category' => StoppageCategory::class,
+            'reported_type' => ReportedStoppageType::class,
             'failure_mode' => FailureMode::class,
             'was_planned' => 'boolean',
             'affects_production' => 'boolean',

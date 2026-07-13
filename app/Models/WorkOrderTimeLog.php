@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Domain\Maintenance\Enums\TimeLogActivityType;
 use App\Domain\Shared\Concerns\BelongsToTenant;
 use Database\Factories\WorkOrderTimeLogFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -17,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'started_at',
     'ended_at',
     'hours',
+    'activity_type',
     'description',
 ])]
 class WorkOrderTimeLog extends Model
@@ -49,6 +51,12 @@ class WorkOrderTimeLog extends Model
         return $this->ended_at === null;
     }
 
+    /** Was the técnico working, or waiting? Unknown when nobody ever said. */
+    public function isWrenchTime(): ?bool
+    {
+        return $this->activity_type?->isWrenchTime();
+    }
+
     public function computedHours(): float
     {
         if ($this->hours !== null) {
@@ -69,6 +77,7 @@ class WorkOrderTimeLog extends Model
         return [
             'started_at' => 'datetime',
             'ended_at' => 'datetime',
+            'activity_type' => TimeLogActivityType::class,
         ];
     }
 }

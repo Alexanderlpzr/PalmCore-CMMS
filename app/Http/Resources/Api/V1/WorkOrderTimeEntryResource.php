@@ -18,6 +18,9 @@ class WorkOrderTimeEntryResource extends JsonResource
             'started_at' => $this->started_at?->toISOString(),
             'ended_at' => $this->ended_at?->toISOString(),
             'hours' => $this->hours !== null ? (float) $this->hours : null,
+            'activity_type' => $this->activity_type?->value,
+            'activity_label' => $this->activity_type?->label(),
+            'is_wrench_time' => $this->isWrenchTime(),
             'description' => $this->description,
             'created_at' => $this->created_at->toISOString(),
         ];

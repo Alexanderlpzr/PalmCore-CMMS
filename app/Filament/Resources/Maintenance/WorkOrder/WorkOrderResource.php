@@ -8,7 +8,9 @@ use App\Filament\Resources\Maintenance\WorkOrder\Pages\ListWorkOrders;
 use App\Filament\Resources\Maintenance\WorkOrder\Pages\ViewWorkOrder;
 use App\Filament\Resources\Maintenance\WorkOrder\RelationManagers\AttachmentsRelationManager;
 use App\Filament\Resources\Maintenance\WorkOrder\RelationManagers\CommentsRelationManager;
+use App\Filament\Resources\Maintenance\WorkOrder\RelationManagers\ContractorsRelationManager;
 use App\Filament\Resources\Maintenance\WorkOrder\RelationManagers\PartsRelationManager;
+use App\Filament\Resources\Maintenance\WorkOrder\RelationManagers\PermitsRelationManager;
 use App\Filament\Resources\Maintenance\WorkOrder\RelationManagers\SignaturesRelationManager;
 use App\Filament\Resources\Maintenance\WorkOrder\RelationManagers\TechniciansRelationManager;
 use App\Filament\Resources\Maintenance\WorkOrder\RelationManagers\TimeLogsRelationManager;
@@ -59,6 +61,8 @@ class WorkOrderResource extends Resource
     {
         return [
             'technicians' => TechniciansRelationManager::class,
+            'contractors' => ContractorsRelationManager::class,
+            'permits' => PermitsRelationManager::class,
             'timeLogs' => TimeLogsRelationManager::class,
             'parts' => PartsRelationManager::class,
             'comments' => CommentsRelationManager::class,

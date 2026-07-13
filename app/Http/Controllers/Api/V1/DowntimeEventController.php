@@ -126,6 +126,27 @@ class DowntimeEventController extends Controller
         ]);
     }
 
+    /**
+     * A6 — el Pareto de horas perdidas por equipo. Dónde está el 80 %.
+     */
+    public function lostHoursByEquipment(Request $request, string $plant): JsonResponse
+    {
+        abort_if(! $request->user()->tokenCan('downtime.read') && ! $request->user()->tokenCan('*'), 403);
+
+        $plant = Plant::findOrFail($plant);
+
+        $from = $request->filled('from') ? Carbon::parse($request->query('from')) : now()->startOfMonth();
+        $to = $request->filled('to') ? Carbon::parse($request->query('to')) : now();
+
+        return response()->json([
+            'data' => [
+                'from' => $from->toISOString(),
+                'to' => $to->toISOString(),
+                ...$this->service->lostHoursByEquipment($plant->id, $from, $to),
+            ],
+        ]);
+    }
+
     private function authorizeWrite(Request $request): void
     {
         abort_if(

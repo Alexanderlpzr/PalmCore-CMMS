@@ -9,6 +9,7 @@ use App\Models\Equipment;
 use App\Models\EquipmentDowntimeEvent;
 use App\Models\Tenant;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Carbon;
 
 /**
  * @extends Factory<EquipmentDowntimeEvent>
@@ -20,15 +21,18 @@ class EquipmentDowntimeEventFactory extends Factory
         $tenant = Tenant::factory()->create();
         $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
         $startedAt = now()->subHours($this->faker->numberBetween(2, 72));
-        $endedAt = $startedAt->copy()->addMinutes($this->faker->numberBetween(30, 480));
+        $minutes = $this->faker->numberBetween(30, 480);
 
         return [
             'tenant_id' => $tenant->id,
             'plant_id' => $equipment->plant_id,
             'equipment_id' => $equipment->id,
             'started_at' => $startedAt,
-            'ended_at' => $endedAt,
-            'duration_minutes' => (int) $startedAt->diffInMinutes($endedAt),
+            // Derived from whatever `started_at` ends up being: a test that moves the
+            // paro back two months must not leave its end anchored to today, which
+            // would silently invent a two-month stoppage.
+            'ended_at' => fn (array $attributes) => Carbon::parse($attributes['started_at'])->addMinutes($minutes),
+            'duration_minutes' => $minutes,
             'cause_type' => $this->faker->randomElement(EquipmentDowntimeCauseType::cases())->value,
             'stoppage_category' => $this->faker->randomElement(StoppageCategory::cases())->value,
             'stoppage_cause' => $this->faker->optional()->sentence(3),

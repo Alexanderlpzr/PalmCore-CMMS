@@ -10,6 +10,8 @@ use App\Models\MaintenancePlan;
 use App\Models\MaintenanceSchedule;
 use App\Models\Tenant;
 use App\Models\WorkOrder;
+use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Factories\Sequence;
 use Illuminate\Support\Facades\Cache;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -24,6 +26,31 @@ function service(): AnalyticsService
     Cache::flush(); // prevent cache interference between tests
 
     return app(AnalyticsService::class);
+}
+
+/**
+ * `$count` fallas *sucesivas* del mismo equipo: 1 h de paro cada una, separadas
+ * por dos horas. Una máquina no puede estar parada dos veces a la vez — la base
+ * de datos lo prohíbe — y apilar los paros en el mismo instante era lo que hacía
+ * que estas horas se contaran dos veces.
+ *
+ * @param  array<string, mixed>  $attributes
+ */
+function failures(Tenant $tenant, Equipment $equipment, int $count, CarbonInterface $from, array $attributes = []): void
+{
+    EquipmentDowntimeEvent::factory()
+        ->count($count)
+        ->sequence(fn (Sequence $sequence): array => [
+            'started_at' => $from->copy()->addHours($sequence->index * 2),
+            'ended_at' => $from->copy()->addHours($sequence->index * 2)->addHour(),
+            'duration_minutes' => 60,
+        ])
+        ->create([
+            'tenant_id' => $tenant->id,
+            'equipment_id' => $equipment->id,
+            'was_planned' => false,
+            ...$attributes,
+        ]);
 }
 
 // ── failuresByMonth ───────────────────────────────────────────────────────────
@@ -44,18 +71,13 @@ it('failuresByMonth only counts unplanned events (was_planned = false)', functio
     // now()->startOfMonth()->addDay(), not subDays(5): the trend bucket asserted
     // below is the CURRENT month, and subDays(5) rolls into the previous month
     // whenever the test runs in the first few days of a month.
-    EquipmentDowntimeEvent::factory()->create([
-        'tenant_id' => $tenant->id,
-        'equipment_id' => $equipment->id,
-        'was_planned' => false,
-        'started_at' => now()->startOfMonth()->addDay(),
-    ]);
+    failures($tenant, $equipment, 1, now()->startOfMonth()->addDay());
 
     EquipmentDowntimeEvent::factory()->create([
         'tenant_id' => $tenant->id,
         'equipment_id' => $equipment->id,
         'was_planned' => true,
-        'started_at' => now()->startOfMonth()->addDay(),
+        'started_at' => now()->startOfMonth()->addDay()->addHours(4),
     ]);
 
     $points = service()->failuresByMonth($tenant->id);
@@ -266,13 +288,7 @@ it('mttrTrend calculates hours correctly from duration_minutes', function () {
     $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
 
     // 2 failures, each 60 min → MTTR = 60/60 = 1.0 h
-    EquipmentDowntimeEvent::factory()->count(2)->create([
-        'tenant_id' => $tenant->id,
-        'equipment_id' => $equipment->id,
-        'was_planned' => false,
-        'duration_minutes' => 60,
-        'started_at' => now()->startOfMonth()->addDay(),
-    ]);
+    failures($tenant, $equipment, 2, now()->startOfMonth()->addDay());
 
     $points = service()->mttrTrend($tenant->id);
     $currentMonth = collect($points)->last();
@@ -426,12 +442,7 @@ it('paretoFailures enforces tenant isolation', function () {
     $tenantB = analyticsTenant();
     $equipB = Equipment::factory()->create(['tenant_id' => $tenantB->id]);
 
-    EquipmentDowntimeEvent::factory()->count(3)->create([
-        'tenant_id' => $tenantB->id,
-        'equipment_id' => $equipB->id,
-        'was_planned' => false,
-        'started_at' => now()->subDays(5),
-    ]);
+    failures($tenantB, $equipB, 3, now()->subDays(5));
 
     $points = service()->paretoFailures($tenantA->id);
 
@@ -443,19 +454,8 @@ it('paretoFailures sorts by failure count descending', function () {
     $equipA = Equipment::factory()->create(['tenant_id' => $tenant->id]);
     $equipB = Equipment::factory()->create(['tenant_id' => $tenant->id]);
 
-    EquipmentDowntimeEvent::factory()->count(3)->create([
-        'tenant_id' => $tenant->id,
-        'equipment_id' => $equipA->id,
-        'was_planned' => false,
-        'started_at' => now()->subDays(5),
-    ]);
-
-    EquipmentDowntimeEvent::factory()->count(1)->create([
-        'tenant_id' => $tenant->id,
-        'equipment_id' => $equipB->id,
-        'was_planned' => false,
-        'started_at' => now()->subDays(5),
-    ]);
+    failures($tenant, $equipA, 3, now()->subDays(5));
+    failures($tenant, $equipB, 1, now()->subDays(5));
 
     $points = service()->paretoFailures($tenant->id);
 
@@ -471,27 +471,9 @@ it('paretoFailuresByMode groups unplanned failures by mode and labels them', fun
     $equipB = Equipment::factory()->create(['tenant_id' => $tenant->id]);
 
     // 3 bearing failures across two machines + 1 electrical
-    EquipmentDowntimeEvent::factory()->count(2)->create([
-        'tenant_id' => $tenant->id,
-        'equipment_id' => $equipA->id,
-        'was_planned' => false,
-        'failure_mode' => FailureMode::Bearing->value,
-        'started_at' => now()->subDays(5),
-    ]);
-    EquipmentDowntimeEvent::factory()->create([
-        'tenant_id' => $tenant->id,
-        'equipment_id' => $equipB->id,
-        'was_planned' => false,
-        'failure_mode' => FailureMode::Bearing->value,
-        'started_at' => now()->subDays(5),
-    ]);
-    EquipmentDowntimeEvent::factory()->create([
-        'tenant_id' => $tenant->id,
-        'equipment_id' => $equipB->id,
-        'was_planned' => false,
-        'failure_mode' => FailureMode::Electrical->value,
-        'started_at' => now()->subDays(5),
-    ]);
+    failures($tenant, $equipA, 2, now()->subDays(5), ['failure_mode' => FailureMode::Bearing->value]);
+    failures($tenant, $equipB, 1, now()->subDays(5), ['failure_mode' => FailureMode::Bearing->value]);
+    failures($tenant, $equipB, 1, now()->subDays(4), ['failure_mode' => FailureMode::Electrical->value]);
 
     $points = service()->paretoFailuresByMode($tenant->id);
 

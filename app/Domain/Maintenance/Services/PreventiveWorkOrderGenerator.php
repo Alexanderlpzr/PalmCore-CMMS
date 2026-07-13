@@ -154,6 +154,14 @@ class PreventiveWorkOrderGenerator
             return;
         }
 
+        // A supervisor rejection sends the OT back to InProgress, and completing it
+        // again fires this event a second time. Without this guard the schedule
+        // would advance twice for one execution — and the plan would silently skip
+        // a cycle every time a técnico had to redo his work.
+        if ($plan->schedule?->last_work_order_id === $workOrder->id) {
+            return;
+        }
+
         $this->planService->recordExecution(
             plan: $plan,
             workOrder: $workOrder,
@@ -166,13 +174,23 @@ class PreventiveWorkOrderGenerator
 
     // ── Internals ─────────────────────────────────────────────────────────────
 
+    /**
+     * Only *unfinished* work blocks the next generation.
+     *
+     * A Completed or Verified OT is work that was already done — it is merely
+     * waiting for an administrative signature. Treating it as "open" would mean a
+     * supervisor who signs off late silently cancels the next preventive, which is
+     * exactly how a maintenance program rots without anyone noticing.
+     */
     private function hasOpenWorkOrder(MaintenancePlan $plan): bool
     {
         return WorkOrder::withoutGlobalScopes()
             ->where('maintenance_plan_id', $plan->id)
-            ->whereNotIn('status', [
-                WorkOrderStatus::Closed->value,
-                WorkOrderStatus::Cancelled->value,
+            ->whereIn('status', [
+                WorkOrderStatus::Draft->value,
+                WorkOrderStatus::Planned->value,
+                WorkOrderStatus::InProgress->value,
+                WorkOrderStatus::OnHold->value,
             ])
             ->exists();
     }

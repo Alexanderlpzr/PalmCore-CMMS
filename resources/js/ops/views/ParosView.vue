@@ -9,12 +9,23 @@
                     La mayoría de los paros no genera una orden de trabajo. Aquí se registran todos.
                 </p>
             </div>
-            <button
-                @click="openRegister"
-                class="shrink-0 px-4 py-2 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 transition-colors"
-            >
-                Registrar paro
-            </button>
+            <div class="flex items-center gap-2 shrink-0">
+                <!-- El reporte de horas perdidas sale del sistema, no de esta pantalla -->
+                <button
+                    v-if="plantId"
+                    @click="downloadLostHours"
+                    :disabled="downloadingReport"
+                    class="px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-700 text-sm font-semibold hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                >
+                    {{ downloadingReport ? 'Generando…' : 'Horas perdidas (PDF)' }}
+                </button>
+                <button
+                    @click="openRegister"
+                    class="px-4 py-2 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 transition-colors"
+                >
+                    Registrar paro
+                </button>
+            </div>
         </div>
 
         <!-- Plant selector -->
@@ -367,6 +378,21 @@ async function loadEvents() {
         toast.error(e.message)
     } finally {
         loading.value = false
+    }
+}
+
+const downloadingReport = ref(false)
+
+async function downloadLostHours() {
+    if (!plantId.value || downloadingReport.value) return
+    downloadingReport.value = true
+    try {
+        const month = new Date().toISOString().slice(0, 7)
+        await api.download(`reports/lost-hours/${plantId.value}`, `HORAS-PERDIDAS-${month}.pdf`)
+    } catch (e) {
+        toast.error('No se pudo generar el reporte de horas perdidas')
+    } finally {
+        downloadingReport.value = false
     }
 }
 

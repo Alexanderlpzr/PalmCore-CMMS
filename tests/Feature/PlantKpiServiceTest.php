@@ -27,9 +27,20 @@ function programHours(Plant $plant, int $days, float $hours): void
     }
 }
 
+/**
+ * Registra un paro *a continuación* del anterior de la planta.
+ *
+ * Los paros de una planta no se pisan: si dos coincidieran, sus horas se contarían
+ * una sola vez (son la misma hora perdida). Encadenarlos es lo que hace que la
+ * suma de este fixture sea también su unión, y que el número esperado por el test
+ * signifique algo. El solape tiene sus propios tests.
+ */
 function stop(Plant $plant, StoppageCategory $category, float $hours, ?Equipment $equipment = null, bool $affectsProduction = true): void
 {
-    $startedAt = now()->startOfMonth()->addDays(2);
+    static $cursors = [];
+
+    $startedAt = $cursors[$plant->id] ?? now()->startOfMonth()->addDays(2);
+    $cursors[$plant->id] = $startedAt->copy()->addMinutes((int) round($hours * 60));
 
     app(DowntimeService::class)->register([
         'tenant_id' => $plant->tenant_id,
@@ -38,7 +49,7 @@ function stop(Plant $plant, StoppageCategory $category, float $hours, ?Equipment
         'stoppage_category' => $category,
         'affects_production' => $affectsProduction,
         'started_at' => $startedAt,
-        'ended_at' => $startedAt->copy()->addMinutes((int) round($hours * 60)),
+        'ended_at' => $cursors[$plant->id],
     ], test()->actor);
 }
 

@@ -51,6 +51,9 @@
                     <p class="text-sm text-zinc-300 leading-relaxed">{{ wo.description }}</p>
                 </div>
 
+                <!-- Antes del trabajo: los permisos. Se leen primero por algo. -->
+                <WorkOrderPermits :work-order-id="workOrderId" />
+
                 <!-- The work itself: tasks + checklist -->
                 <WorkOrderChecklist :work-order-id="workOrderId" />
 
@@ -181,6 +184,7 @@ import AppLayout from '../components/AppLayout.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import PriorityBadge from '../components/PriorityBadge.vue'
 import BottomSheet from '../components/BottomSheet.vue'
+import WorkOrderPermits from '../components/WorkOrderPermits.vue'
 import WorkOrderChecklist from '../components/WorkOrderChecklist.vue'
 import WorkOrderTimeForm from '../components/WorkOrderTimeForm.vue'
 import WorkOrderCommentsForm from '../components/WorkOrderCommentsForm.vue'

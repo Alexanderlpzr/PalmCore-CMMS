@@ -165,7 +165,7 @@ it('records the whole daily round and reports only the rows that failed', functi
         ['equipment_id' => $first->id, 'reading_value' => 1_200],
         ['equipment_id' => $second->id, 'reading_value' => 3_400],
         ['equipment_id' => $first->id, 'reading_value' => -1],
-    ], $user);
+    ], $user, $tenant->id);
 
     // Una lectura mala no puede tumbar las otras 29.
     expect($result['recorded'])->toHaveCount(2)

@@ -63,6 +63,8 @@ class ApiTokens extends Page
                             'reliability.read' => 'Confiabilidad / KPIs — lectura',
                             'downtime.read' => 'Paros — lectura',
                             'downtime.write' => 'Paros — registro',
+                            'permits.read' => 'Permisos de trabajo — lectura',
+                            'permits.write' => 'Permisos de trabajo — firma del ejecutante',
                             'plants.read' => 'Plantas — lectura',
                             'plants.write' => 'Plantas / calendario de producción — escritura',
                             'areas.read' => 'Áreas — lectura',

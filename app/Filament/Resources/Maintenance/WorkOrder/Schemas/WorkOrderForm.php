@@ -5,9 +5,11 @@ namespace App\Filament\Resources\Maintenance\WorkOrder\Schemas;
 use App\Domain\Assets\Services\ReferenceDataService;
 use App\Domain\Maintenance\Enums\WorkOrderPriority;
 use App\Domain\Maintenance\Enums\WorkOrderType;
+use App\Domain\Maintenance\Enums\WorkPermitType;
 use App\Models\Equipment;
 use App\Models\User;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -109,6 +111,18 @@ class WorkOrderForm
                             ->label('Tiempo de paro (minutos)')
                             ->numeric()
                             ->visible(fn (Get $get): bool => (bool) $get('equipment_stopped')),
+                    ]),
+
+                Section::make('Seguridad (HSE)')
+                    ->description('Lo declara quien planifica: es quien sabe que hay que soldar sobre la nave o entrar al digestor.')
+                    ->schema([
+                        CheckboxList::make('required_permit_types')
+                            ->label('Permisos de trabajo exigidos')
+                            ->options(WorkPermitType::options())
+                            ->columns(2)
+                            // No es un recordatorio: la OT no pasa a ejecución sin el
+                            // permiso firmado y vigente de cada tipo marcado aquí.
+                            ->helperText('La OT no podrá iniciarse hasta que cada permiso marcado esté emitido, firmado por el ejecutante y vigente.'),
                     ]),
 
                 // Hidden auto-populated fields

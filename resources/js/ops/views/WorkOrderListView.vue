@@ -7,14 +7,31 @@
                 <h1 class="text-xl font-bold text-gray-900">Órdenes de trabajo</h1>
                 <p v-if="!loading" class="text-sm text-gray-500 mt-0.5">{{ workOrders.length }} órdenes</p>
             </div>
-            <button
-                @click="createInFilament"
-                class="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                </svg>
-                Nueva OT
-            </button>
+            <div class="flex items-center gap-2">
+                <!-- El papel que el planificador reparte en la mañana -->
+                <input
+                    v-model="scheduleDate"
+                    type="date"
+                    class="px-3 py-2 rounded-xl border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+                <button
+                    @click="downloadSchedule"
+                    :disabled="downloadingSchedule"
+                    class="flex items-center gap-1.5 bg-white border border-gray-200 hover:bg-gray-50 disabled:opacity-50 text-gray-700 text-sm font-semibold px-4 py-2 rounded-xl transition-colors">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/>
+                    </svg>
+                    {{ downloadingSchedule ? 'Generando…' : 'Programa del día' }}
+                </button>
+                <button
+                    @click="createInFilament"
+                    class="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                    Nueva OT
+                </button>
+            </div>
         </div>
 
         <!-- Equipment context banner -->
@@ -270,6 +287,26 @@ async function loadMore() {
 
 function createInFilament() {
     window.location.href = `/admin/${auth.tenantSlug}/work-orders/create`
+}
+
+// ── Programa del día ──────────────────────────────────────────────────────────
+
+const scheduleDate = ref(new Date().toISOString().slice(0, 10))
+const downloadingSchedule = ref(false)
+
+async function downloadSchedule() {
+    if (downloadingSchedule.value) { return }
+    downloadingSchedule.value = true
+    try {
+        await api.download(
+            `reports/daily-schedule?date=${scheduleDate.value}`,
+            `PROGRAMA-${scheduleDate.value}.pdf`,
+        )
+    } catch {
+        toast.error('No se pudo generar el programa del día')
+    } finally {
+        downloadingSchedule.value = false
+    }
 }
 
 // Server-side search with debounce so each keystroke does not fire a request.

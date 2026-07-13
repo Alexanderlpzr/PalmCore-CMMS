@@ -181,9 +181,10 @@ it('splits lost production hours by Tipo I', function (): void {
 
     $hours = $this->service->lostHoursByCategory($this->plant->id, $from, now());
 
+    // Peor primero: es el orden en que se lee un Pareto.
     expect($hours)->toBe([
-        'mechanical' => 2.0,
         'raw_material' => 4.0,
+        'mechanical' => 2.0,
     ]);
 });
 

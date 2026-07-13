@@ -40,6 +40,7 @@ class WorkOrderTimeEntryController extends Controller
             $request->filled('ended_at') ? Carbon::parse($request->validated('ended_at')) : null,
             $request->validated('description'),
             $request->validated('gps'),
+            $request->validated('activity_type'),
         );
 
         return (new WorkOrderTimeEntryResource($timeLog))

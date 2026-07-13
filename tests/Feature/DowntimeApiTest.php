@@ -145,14 +145,21 @@ it('refuses to close a stoppage twice', function (): void {
 // ── Lo que se pregunta cada lunes ────────────────────────────────────────────
 
 it('returns the lost production hours split by Tipo I, worst first', function (): void {
-    $register = fn (StoppageCategory $category, int $hours) => $this
-        ->withHeaders(downtimeHeaders($this->token))
-        ->postJson('/api/v1/downtime-events', [
-            'plant_id' => $this->plant->id,
-            'stoppage_category' => $category->value,
-            'started_at' => now()->startOfMonth()->addDays(2)->toISOString(),
-            'ended_at' => now()->startOfMonth()->addDays(2)->addHours($hours)->toISOString(),
-        ])->assertCreated();
+    // Paros consecutivos: la planta no puede estar parada dos veces a la vez.
+    $cursor = now()->startOfMonth()->addDays(2);
+
+    $register = function (StoppageCategory $category, int $hours) use (&$cursor) {
+        $startedAt = $cursor->copy();
+        $cursor = $startedAt->copy()->addHours($hours);
+
+        $this->withHeaders(downtimeHeaders($this->token))
+            ->postJson('/api/v1/downtime-events', [
+                'plant_id' => $this->plant->id,
+                'stoppage_category' => $category->value,
+                'started_at' => $startedAt->toISOString(),
+                'ended_at' => $cursor->toISOString(),
+            ])->assertCreated();
+    };
 
     $register(StoppageCategory::Mechanical, 2);
     $register(StoppageCategory::RawMaterial, 6);

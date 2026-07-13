@@ -39,6 +39,7 @@ use App\Http\Controllers\Api\V1\WorkOrderMediaController;
 use App\Http\Controllers\Api\V1\WorkOrderSignatureController;
 use App\Http\Controllers\Api\V1\WorkOrderTaskController;
 use App\Http\Controllers\Api\V1\WorkOrderTimeEntryController;
+use App\Http\Controllers\Api\V1\WorkPermitController;
 use App\Http\Controllers\HealthController;
 use App\Models\Tenant;
 use Illuminate\Http\JsonResponse;
@@ -143,6 +144,12 @@ Route::prefix('v1')->group(function () {
             ->name('api.v1.work-orders.media.index');
         Route::get('work-orders/{workOrder}/signatures', [WorkOrderSignatureController::class, 'index'])
             ->name('api.v1.work-orders.signatures.index');
+        // Permisos de alto riesgo. La firma del ejecutante ocurre en campo, en la PWA.
+        Route::get('work-orders/{workOrder}/permits', [WorkPermitController::class, 'index'])
+            ->name('api.v1.work-orders.permits.index');
+        Route::patch('work-permits/{permit}/accept', [WorkPermitController::class, 'accept'])
+            ->name('api.v1.work-permits.accept');
+
         Route::get('work-orders/{workOrder}/time-entries', [WorkOrderTimeEntryController::class, 'index'])
             ->name('api.v1.work-orders.time-entries.index');
 
@@ -217,6 +224,8 @@ Route::prefix('v1')->group(function () {
         // Paros — most of them never produce a work order, so they get their own door.
         Route::get('plants/{plant}/lost-hours', [DowntimeEventController::class, 'lostHours'])
             ->name('api.v1.plants.lost-hours');
+        Route::get('plants/{plant}/lost-hours/by-equipment', [DowntimeEventController::class, 'lostHoursByEquipment'])
+            ->name('api.v1.plants.lost-hours.by-equipment');
         Route::apiResource('downtime-events', DowntimeEventController::class)->only(['index', 'show']);
         Route::post('downtime-events', [DowntimeEventController::class, 'store'])
             ->middleware('idempotency')
@@ -261,6 +270,8 @@ Route::prefix('v1')->group(function () {
         Route::get('reports/work-orders/{id}', [ReportController::class, 'workOrder'])->name('api.v1.reports.work-order');
         Route::get('reports/equipment/{id}', [ReportController::class, 'equipment'])->name('api.v1.reports.equipment');
         Route::get('reports/maintenance-plans/{id}', [ReportController::class, 'maintenancePlan'])->name('api.v1.reports.maintenance-plan');
+        Route::get('reports/daily-schedule', [ReportController::class, 'dailySchedule'])->name('api.v1.reports.daily-schedule');
+        Route::get('reports/lost-hours/{plant}', [ReportController::class, 'lostHours'])->name('api.v1.reports.lost-hours');
     });
 
     // ── Platform dashboard (Super Admin only) ─────────────────────────────────

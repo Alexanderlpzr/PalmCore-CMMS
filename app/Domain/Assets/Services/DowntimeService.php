@@ -3,6 +3,7 @@
 namespace App\Domain\Assets\Services;
 
 use App\Domain\Assets\Enums\EquipmentDowntimeCauseType;
+use App\Domain\Assets\Enums\ReportedStoppageType;
 use App\Domain\Assets\Enums\StoppageCategory;
 use App\Exceptions\BusinessRuleException;
 use App\Models\Equipment;
@@ -10,6 +11,7 @@ use App\Models\EquipmentDowntimeEvent;
 use App\Models\Plant;
 use App\Models\User;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -25,6 +27,8 @@ use Illuminate\Support\Facades\DB;
  */
 class DowntimeService
 {
+    public function __construct(private readonly LostHoursCalculator $lostHours) {}
+
     /**
      * Open a paro that is happening right now (or started at a known moment) and
      * has not ended yet. The line is down while this record has no `ended_at`.
@@ -48,7 +52,7 @@ class DowntimeService
         return DB::transaction(function () use ($data, $registeredBy): EquipmentDowntimeEvent {
             $attributes = $this->normalize($data, $registeredBy);
 
-            $this->assertNoOverlappingOpenEvent($attributes);
+            $this->assertNoOverlap($attributes);
 
             return EquipmentDowntimeEvent::create([
                 ...$attributes,
@@ -84,6 +88,20 @@ class DowntimeService
             );
         }
 
+        // Closing at a time that reaches over a paro registered later would make the
+        // two share hours. Rare, but it is exactly how the log gets corrupted: the
+        // supervisor closes yesterday's forgotten paro with today's timestamp.
+        $this->assertNoOverlap(
+            [
+                'tenant_id' => $event->tenant_id,
+                'plant_id' => $event->plant_id,
+                'equipment_id' => $event->equipment_id,
+                'started_at' => $event->started_at,
+            ],
+            endedAt: $endedAt,
+            ignoreId: $event->id,
+        );
+
         $event->update([
             'ended_at' => $endedAt,
             'duration_minutes' => (int) round($event->started_at->diffInMinutes($endedAt)),
@@ -116,7 +134,7 @@ class DowntimeService
         }
 
         return DB::transaction(function () use ($attributes, $endedAt): EquipmentDowntimeEvent {
-            $this->assertNoOverlappingOpenEvent($attributes);
+            $this->assertNoOverlap($attributes, $endedAt);
 
             return EquipmentDowntimeEvent::create([
                 ...$attributes,
@@ -149,6 +167,12 @@ class DowntimeService
      * plant argues about every Monday: how much of the month we lost, and to whom
      * it belongs.
      *
+     * Each Tipo I is the union of its own paros, clipped to the window, so a
+     * category cannot charge the plant twice for the same hour and a paro that
+     * crosses midnight of the 1st is split between the two months. Categories are
+     * not additive against the plant total: two overlapping paros of *different*
+     * Tipo I each own the hour they shared.
+     *
      * @return array<string, float> category value => hours lost
      */
     public function lostHoursByCategory(
@@ -156,20 +180,116 @@ class DowntimeService
         CarbonInterface $from,
         CarbonInterface $to,
     ): array {
-        return EquipmentDowntimeEvent::withoutGlobalScopes()
+        $base = fn (): Builder => EquipmentDowntimeEvent::withoutGlobalScopes()
             ->where('plant_id', $plantId)
             ->productionAffecting()
-            ->whereNotNull('stoppage_category')
-            ->whereBetween('started_at', [$from, $to])
-            ->selectRaw(
-                'stoppage_category,
-                 COALESCE(SUM(COALESCE(duration_minutes,
-                     EXTRACT(EPOCH FROM (ended_at - started_at)) / 60)), 0) AS minutes'
-            )
-            ->groupBy('stoppage_category')
-            ->pluck('minutes', 'stoppage_category')
-            ->map(fn ($minutes): float => round((float) $minutes / 60, 2))
-            ->all();
+            ->whereNotNull('stoppage_category');
+
+        $categories = $base()
+            ->where('started_at', '<', $to)
+            ->where('ended_at', '>', $from)
+            ->distinct()
+            ->pluck('stoppage_category');
+
+        $hours = [];
+
+        foreach ($categories as $category) {
+            $value = $category instanceof StoppageCategory ? $category->value : (string) $category;
+
+            $hours[$value] = $this->lostHours->unionHours(
+                $base()->where('stoppage_category', $value),
+                $from,
+                $to,
+            );
+        }
+
+        arsort($hours);
+
+        return $hours;
+    }
+
+    /**
+     * A6 — horas perdidas por equipo, peor primero. La hoja «Análisis PNP por
+     * equipo» del cliente, que hoy vive en Excel.
+     *
+     * Un Pareto de verdad: cada equipo aporta la unión de sus propios paros
+     * (recortados a la ventana) y el acumulado dice dónde está el 80 %. Los paros
+     * de planta —falta de fruta, corte de energía— no son de ningún equipo y se
+     * reportan aparte en vez de repartirse entre máquinas que no fallaron.
+     *
+     * @return array{
+     *     equipment: array<int, array{equipment_id: ?string, code: ?string, name: string, hours: float, events: int, cumulative_percentage: float}>,
+     *     plant_wide_hours: float,
+     *     total_hours: float,
+     * }
+     */
+    public function lostHoursByEquipment(
+        string $plantId,
+        CarbonInterface $from,
+        CarbonInterface $to,
+    ): array {
+        $base = fn (): Builder => EquipmentDowntimeEvent::withoutGlobalScopes()
+            ->where('plant_id', $plantId)
+            ->productionAffecting();
+
+        $touching = fn (Builder $query): Builder => $query
+            ->where('started_at', '<', $to)
+            ->where('ended_at', '>', $from);
+
+        $counts = $touching($base())
+            ->whereNotNull('equipment_id')
+            ->selectRaw('equipment_id, COUNT(*) AS events')
+            ->groupBy('equipment_id')
+            ->pluck('events', 'equipment_id');
+
+        $equipment = Equipment::withoutGlobalScopes()
+            ->whereIn('id', $counts->keys())
+            ->get(['id', 'code', 'name'])
+            ->keyBy('id');
+
+        $rows = [];
+
+        foreach ($counts as $equipmentId => $events) {
+            $rows[] = [
+                'equipment_id' => $equipmentId,
+                'code' => $equipment[$equipmentId]->code ?? null,
+                'name' => $equipment[$equipmentId]->name ?? 'Equipo desconocido',
+                'hours' => $this->lostHours->unionHours(
+                    $base()->where('equipment_id', $equipmentId),
+                    $from,
+                    $to,
+                ),
+                'events' => (int) $events,
+                'cumulative_percentage' => 0.0,
+            ];
+        }
+
+        usort($rows, fn (array $a, array $b): int => $b['hours'] <=> $a['hours']);
+
+        $equipmentHours = array_sum(array_column($rows, 'hours'));
+        $running = 0.0;
+
+        foreach ($rows as $index => $row) {
+            $running += $row['hours'];
+            // Sin denominador no hay porcentaje: un Pareto de cero horas no es 100 %.
+            $rows[$index]['cumulative_percentage'] = $equipmentHours > 0
+                ? round($running / $equipmentHours * 100, 2)
+                : 0.0;
+        }
+
+        $plantWide = $this->lostHours->unionHours(
+            $base()->whereNull('equipment_id'),
+            $from,
+            $to,
+        );
+
+        return [
+            'equipment' => $rows,
+            'plant_wide_hours' => $plantWide,
+            // La planta tiene un solo reloj: el total no es la suma de los equipos
+            // (dos máquinas paradas a la vez cuestan una hora, no dos).
+            'total_hours' => $this->lostHours->unionHours($base(), $from, $to),
+        ];
     }
 
     // ── Internals ─────────────────────────────────────────────────────────────
@@ -189,9 +309,20 @@ class DowntimeService
             ? $data['stoppage_category']
             : StoppageCategory::from($data['stoppage_category']);
 
+        $tenantId = $data['tenant_id'];
+
+        // Resolved *within the tenant*, never globally: the id arrives from the
+        // request, and `exists:equipment,id` does not know about tenants. Without
+        // this filter a caller could hang a paro on another company's equipment.
         $equipment = isset($data['equipment_id'])
-            ? Equipment::withoutGlobalScopes()->find($data['equipment_id'])
+            ? Equipment::withoutGlobalScopes()
+                ->where('tenant_id', $tenantId)
+                ->find($data['equipment_id'])
             : null;
+
+        if (isset($data['equipment_id']) && $equipment === null) {
+            throw new BusinessRuleException('El equipo indicado no existe en esta organización.');
+        }
 
         $plantId = $data['plant_id'] ?? $equipment?->plant_id;
 
@@ -201,8 +332,16 @@ class DowntimeService
             );
         }
 
+        if ($plantId !== null && ! Plant::withoutGlobalScopes()
+            ->where('tenant_id', $tenantId)
+            ->whereKey($plantId)
+            ->exists()
+        ) {
+            throw new BusinessRuleException('La planta indicada no existe en esta organización.');
+        }
+
         return [
-            'tenant_id' => $data['tenant_id'],
+            'tenant_id' => $tenantId,
             'plant_id' => $plantId,
             'equipment_id' => $equipment?->id,
             'started_at' => isset($data['started_at']) ? Carbon::parse($data['started_at']) : now(),
@@ -211,6 +350,14 @@ class DowntimeService
                 : $this->causeTypeFor($category),
             'stoppage_category' => $category->value,
             'stoppage_cause' => $data['stoppage_cause'] ?? null,
+            // El Tipo I del cliente. Si nadie lo declara, se deduce de la causa
+            // física; si viene de su planilla, se guarda tal como ellos lo
+            // escribieron, aunque contradiga la causa. Esa contradicción es el dato.
+            'reported_type' => isset($data['reported_type'])
+                ? ($data['reported_type'] instanceof ReportedStoppageType
+                    ? $data['reported_type']->value
+                    : ReportedStoppageType::from($data['reported_type'])->value)
+                : ReportedStoppageType::inferredFrom($category)->value,
             'was_planned' => $category->isPlanned(),
             'affects_production' => $data['affects_production'] ?? true,
             'source' => 'manual',
@@ -239,32 +386,73 @@ class DowntimeService
     }
 
     /**
-     * The same asset cannot be down twice at once. Without this, a forgotten open
-     * paro silently doubles every availability figure that reads it.
+     * The same asset cannot be down twice at once — and that includes the past.
+     *
+     * Checking only *open* paros (which is all this used to do) let two closed
+     * paros of the same equipment sit on top of each other, and every hour they
+     * shared got billed to the plant twice. An open paro is treated as running to
+     * infinity: nothing may be recorded after it until somebody closes it.
+     *
+     * The database enforces the same rule with an exclusion constraint. This check
+     * exists to say it in Spanish before Postgres says it in SQL.
      *
      * @param  array<string, mixed>  $attributes
      *
      * @throws BusinessRuleException
      */
-    private function assertNoOverlappingOpenEvent(array $attributes): void
+    private function assertNoOverlap(
+        array $attributes,
+        ?CarbonInterface $endedAt = null,
+        ?string $ignoreId = null,
+    ): void {
+        $query = $this->siblingsOf($attributes)
+            ->when($ignoreId !== null, fn (Builder $q) => $q->whereKeyNot($ignoreId))
+            // An existing paro clashes unless it ended before this one began…
+            ->where(fn (Builder $q) => $q
+                ->whereNull('ended_at')
+                ->orWhere('ended_at', '>', $attributes['started_at']));
+
+        // …or began after this one ended. An open paro (no end) swallows everything after it.
+        if ($endedAt !== null) {
+            $query->where('started_at', '<', $endedAt);
+        }
+
+        $conflict = $query->orderBy('started_at')->first();
+
+        if ($conflict === null) {
+            return;
+        }
+
+        $subject = $attributes['equipment_id'] !== null ? 'Este equipo' : 'La planta';
+
+        throw new BusinessRuleException(
+            $conflict->isOngoing()
+                ? "{$subject} ya tiene un paro abierto desde el "
+                    .$conflict->started_at->format('d/m/Y H:i').'. Ciérrelo antes de registrar otro.'
+                : "{$subject} ya tiene un paro registrado que se cruza con este ("
+                    .$conflict->started_at->format('d/m/Y H:i').' — '
+                    .$conflict->ended_at->format('d/m/Y H:i').'). Las horas perdidas se contarían dos veces.',
+            detail: "downtime_event:{$conflict->id}",
+        );
+    }
+
+    /**
+     * The paros that compete for the same clock: those of the same equipment, or —
+     * for a paro de planta — the other plant-wide paros. An equipment paro and a
+     * plant-wide paro may legitimately coexist (a power cut while a pump is being
+     * repaired); the union in {@see LostHoursCalculator} keeps them from double
+     * counting.
+     *
+     * @param  array<string, mixed>  $attributes
+     * @return Builder<EquipmentDowntimeEvent>
+     */
+    private function siblingsOf(array $attributes): Builder
     {
         $query = EquipmentDowntimeEvent::withoutGlobalScopes()
-            ->where('tenant_id', $attributes['tenant_id'])
-            ->ongoing();
+            ->where('tenant_id', $attributes['tenant_id']);
 
-        if ($attributes['equipment_id'] !== null) {
-            $query->where('equipment_id', $attributes['equipment_id']);
-        } else {
-            // Plant-wide paro: only another plant-wide paro conflicts with it.
-            $query->whereNull('equipment_id')->where('plant_id', $attributes['plant_id']);
-        }
-
-        if ($query->exists()) {
-            throw new BusinessRuleException(
-                $attributes['equipment_id'] !== null
-                    ? 'Este equipo ya tiene un paro abierto. Ciérrelo antes de registrar otro.'
-                    : 'La planta ya tiene un paro abierto. Ciérrelo antes de registrar otro.'
-            );
-        }
+        return $attributes['equipment_id'] !== null
+            ? $query->where('equipment_id', $attributes['equipment_id'])
+            : $query->whereNull('equipment_id')->where('plant_id', $attributes['plant_id']);
     }
 }
