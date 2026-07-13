@@ -137,6 +137,16 @@ async function processAction(action) {
             return { classification: classify(r.status), response: r }
         }
 
+        // The checklist answers and task transitions the técnico recorded with no
+        // signal. The endpoint travels with the action, so replaying it is a plain
+        // POST — no path has to be rebuilt here from parts.
+        case 'CHECKLIST_RESULT':
+        case 'TASK_ACTION': {
+            const { endpoint, ...payload } = action.payload
+            const r = await syncPost(endpoint, payload, action.idempotency_key)
+            return { classification: classify(r.status), response: r }
+        }
+
         case 'ALERT_RESOLVE': {
             const r = await syncPatch(`alerts/${action.alert_id}/resolve`)
             return { classification: classify(r.status), response: r }

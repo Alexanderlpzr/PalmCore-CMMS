@@ -7,6 +7,7 @@ use App\Domain\Maintenance\Enums\WorkOrderStatus;
 use App\Domain\Reliability\Services\EquipmentKpiService;
 use App\Jobs\RecalculateEquipmentKpisJob;
 use App\Models\WorkOrder;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Sentry\State\Scope;
 
@@ -17,8 +18,17 @@ class WorkOrderObserver
         private readonly AlertService $alertService,
     ) {}
 
+    public function created(WorkOrder $workOrder): void
+    {
+        Cache::forget("home:{$workOrder->tenant_id}:attention");
+    }
+
     public function updated(WorkOrder $workOrder): void
     {
+        if ($workOrder->wasChanged(['status', 'planned_end_at'])) {
+            Cache::forget("home:{$workOrder->tenant_id}:attention");
+        }
+
         if ($workOrder->equipment_id === null) {
             return;
         }
@@ -58,6 +68,8 @@ class WorkOrderObserver
 
     public function deleting(WorkOrder $workOrder): void
     {
+        Cache::forget("home:{$workOrder->tenant_id}:attention");
+
         $this->alertService->autoResolveForEntity(
             tenantId: $workOrder->tenant_id,
             entityType: 'work_order',

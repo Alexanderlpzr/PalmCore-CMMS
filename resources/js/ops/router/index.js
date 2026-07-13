@@ -61,10 +61,22 @@ const routes = [
                 meta: { title: 'Mantenimiento programado' },
             },
             {
+                path: 'paros',
+                name: 'ops.paros',
+                component: () => import('../views/ParosView.vue'),
+                meta: { title: 'Paros' },
+            },
+            {
                 path: 'equipos',
                 name: 'ops.equipos',
                 component: () => import('../views/EquipmentListView.vue'),
                 meta: { title: 'Equipos' },
+            },
+            {
+                path: 'horometros',
+                name: 'ops.horometros',
+                component: () => import('../views/HorometrosView.vue'),
+                meta: { title: 'Horómetros' },
             },
             {
                 path: 'equipos/:id',
@@ -89,6 +101,12 @@ const routes = [
                 name: 'ops.kpis',
                 component: () => import('../views/KpisView.vue'),
                 meta: { title: 'Indicadores' },
+            },
+            {
+                path: 'eficiencia',
+                name: 'ops.eficiencia',
+                component: () => import('../views/EficienciaPlantaView.vue'),
+                meta: { title: 'Eficiencia de planta' },
             },
             {
                 path: 'gerencial',

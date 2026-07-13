@@ -22,7 +22,9 @@ use App\Http\Controllers\Api\V1\HomeController;
 use App\Http\Controllers\Api\V1\InventoryTransactionController;
 use App\Http\Controllers\Api\V1\MaintenancePlanController;
 use App\Http\Controllers\Api\V1\MaintenanceRequestController;
+use App\Http\Controllers\Api\V1\MeterReadingController;
 use App\Http\Controllers\Api\V1\PlantController;
+use App\Http\Controllers\Api\V1\PlantKpiController;
 use App\Http\Controllers\Api\V1\PlantSummaryController;
 use App\Http\Controllers\Api\V1\PlatformDashboardController;
 use App\Http\Controllers\Api\V1\PushSubscriptionController;
@@ -35,6 +37,7 @@ use App\Http\Controllers\Api\V1\WorkOrderCommentController;
 use App\Http\Controllers\Api\V1\WorkOrderController;
 use App\Http\Controllers\Api\V1\WorkOrderMediaController;
 use App\Http\Controllers\Api\V1\WorkOrderSignatureController;
+use App\Http\Controllers\Api\V1\WorkOrderTaskController;
 use App\Http\Controllers\Api\V1\WorkOrderTimeEntryController;
 use App\Http\Controllers\HealthController;
 use App\Models\Tenant;
@@ -157,6 +160,21 @@ Route::prefix('v1')->group(function () {
             ->middleware('idempotency')
             ->name('api.v1.work-orders.signature.store');
 
+        // Work Order tasks + checklist — what the técnico actually executes.
+        Route::get('work-orders/{workOrder}/tasks', [WorkOrderTaskController::class, 'index'])
+            ->name('api.v1.work-orders.tasks.index');
+        Route::post('work-orders/{workOrder}/tasks', [WorkOrderTaskController::class, 'store'])
+            ->middleware('idempotency')
+            ->name('api.v1.work-orders.tasks.store');
+        Route::post('work-orders/{workOrder}/tasks/{task}/start', [WorkOrderTaskController::class, 'start'])
+            ->name('api.v1.work-orders.tasks.start');
+        Route::post('work-orders/{workOrder}/tasks/{task}/complete', [WorkOrderTaskController::class, 'complete'])
+            ->name('api.v1.work-orders.tasks.complete');
+        Route::post('work-orders/{workOrder}/tasks/{task}/skip', [WorkOrderTaskController::class, 'skip'])
+            ->name('api.v1.work-orders.tasks.skip');
+        Route::post('work-orders/{workOrder}/tasks/{task}/checklist/{result}', [WorkOrderTaskController::class, 'recordResult'])
+            ->name('api.v1.work-orders.tasks.checklist.record');
+
         Route::apiResource('maintenance-plans', MaintenancePlanController::class)->only(['index', 'show']);
 
         Route::patch('maintenance-requests/bulk', [MaintenanceRequestController::class, 'bulk'])
@@ -174,7 +192,37 @@ Route::prefix('v1')->group(function () {
 
         Route::apiResource('inventory/spare-parts', SparePartController::class)->only(['index', 'show']);
         Route::apiResource('inventory/warehouses', WarehouseController::class)->only(['index', 'show']);
+        // Horómetros — la ronda diaria y la proyección de «días faltantes».
+        Route::post('meter-readings/bulk', [MeterReadingController::class, 'bulk'])
+            ->middleware('idempotency')
+            ->name('api.v1.meter-readings.bulk');
+        Route::get('equipment/{equipment}/meter-readings', [MeterReadingController::class, 'index'])
+            ->name('api.v1.equipment.meter-readings.index');
+        Route::post('equipment/{equipment}/meter-readings', [MeterReadingController::class, 'store'])
+            ->middleware('idempotency')
+            ->name('api.v1.equipment.meter-readings.store');
+        Route::get('equipment/{equipment}/meter-projection', [MeterReadingController::class, 'projection'])
+            ->name('api.v1.equipment.meter-projection');
+
+        // KPIs de planta + calendario de producción — el denominador de la eficiencia.
+        Route::get('plants/{plant}/kpis', [PlantKpiController::class, 'show'])
+            ->name('api.v1.plants.kpis');
+        Route::get('plants/{plant}/kpis/history', [PlantKpiController::class, 'history'])
+            ->name('api.v1.plants.kpis.history');
+        Route::get('plants/{plant}/production-calendar', [PlantKpiController::class, 'calendar'])
+            ->name('api.v1.plants.production-calendar.index');
+        Route::put('plants/{plant}/production-calendar', [PlantKpiController::class, 'upsertCalendar'])
+            ->name('api.v1.plants.production-calendar.upsert');
+
+        // Paros — most of them never produce a work order, so they get their own door.
+        Route::get('plants/{plant}/lost-hours', [DowntimeEventController::class, 'lostHours'])
+            ->name('api.v1.plants.lost-hours');
         Route::apiResource('downtime-events', DowntimeEventController::class)->only(['index', 'show']);
+        Route::post('downtime-events', [DowntimeEventController::class, 'store'])
+            ->middleware('idempotency')
+            ->name('api.v1.downtime-events.store');
+        Route::patch('downtime-events/{id}/end', [DowntimeEventController::class, 'end'])
+            ->name('api.v1.downtime-events.end');
         Route::apiResource('plants', PlantController::class)->only(['index', 'show']);
         Route::get('plants/{id}/summary', PlantSummaryController::class)->name('api.v1.plants.summary');
         Route::apiResource('areas', AreaController::class)->only(['index', 'show']);

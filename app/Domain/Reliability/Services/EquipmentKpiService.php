@@ -159,7 +159,7 @@ class EquipmentKpiService
      */
     private function meterOperatingHours(Equipment $equipment, CarbonImmutable $periodStart, CarbonImmutable $periodEnd): ?float
     {
-        if ($equipment->meter_unit !== MeterReadingUnit::Hours->value) {
+        if ($equipment->meter_unit !== MeterReadingUnit::Hours) {
             return null;
         }
 

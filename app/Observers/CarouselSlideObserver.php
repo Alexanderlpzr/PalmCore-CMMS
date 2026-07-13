@@ -9,16 +9,16 @@ class CarouselSlideObserver
 {
     public function saved(CarouselSlide $slide): void
     {
-        Cache::forget("home:carousel:{$slide->tenant_id}");
+        Cache::forget("home:{$slide->tenant_id}:carousel");
     }
 
     public function deleted(CarouselSlide $slide): void
     {
-        Cache::forget("home:carousel:{$slide->tenant_id}");
+        Cache::forget("home:{$slide->tenant_id}:carousel");
     }
 
     public function restored(CarouselSlide $slide): void
     {
-        Cache::forget("home:carousel:{$slide->tenant_id}");
+        Cache::forget("home:{$slide->tenant_id}:carousel");
     }
 }

@@ -61,8 +61,10 @@ class ApiTokens extends Page
                             'maintenance-requests.read' => 'Solicitudes de mantenimiento — lectura',
                             'inventory.read' => 'Inventario — lectura',
                             'reliability.read' => 'Confiabilidad / KPIs — lectura',
-                            'downtime.read' => 'Eventos de parada — lectura',
+                            'downtime.read' => 'Paros — lectura',
+                            'downtime.write' => 'Paros — registro',
                             'plants.read' => 'Plantas — lectura',
+                            'plants.write' => 'Plantas / calendario de producción — escritura',
                             'areas.read' => 'Áreas — lectura',
                         ])
                         ->default(['*'])

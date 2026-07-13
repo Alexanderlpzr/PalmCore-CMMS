@@ -15,6 +15,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'tenant_id',
     'equipment_id',
     'reading_value',
+    'previous_value',
+    'delta',
+    'accumulated_value',
+    'is_reset',
     'reading_unit',
     'recorded_at',
     'recorded_by',
@@ -49,6 +53,10 @@ class EquipmentMeterReading extends Model
     {
         return [
             'reading_value' => 'float',
+            'previous_value' => 'float',
+            'delta' => 'float',
+            'accumulated_value' => 'float',
+            'is_reset' => 'boolean',
             'reading_unit' => MeterReadingUnit::class,
             'recorded_at' => 'datetime',
         ];

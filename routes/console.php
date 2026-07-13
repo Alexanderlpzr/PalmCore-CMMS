@@ -3,7 +3,9 @@
 use App\Console\Commands\SendOverdueMaintenanceNotificationsCommand;
 use App\Domain\Reports\Services\ReportManager;
 use App\Jobs\EvaluateAutomationRulesJob;
+use App\Jobs\GeneratePreventiveWorkOrdersJob;
 use App\Jobs\RecalculateAllEquipmentKpisJob;
+use App\Jobs\SnapshotPlantKpisJob;
 use App\Models\Tenant;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -36,6 +38,24 @@ Schedule::call(function (): void {
 })
     ->name('automations:evaluate')
     ->hourly()
+    ->onOneServer();
+
+// Generate the preventive work orders due in the next 7 days, one job per tenant.
+// The generator skips plans that already have an open OT, so this is safe to
+// re-run; it is what turns the maintenance plans into actual work.
+Schedule::call(function (): void {
+    Tenant::withoutGlobalScopes()
+        ->where('is_active', true)
+        ->select('id')
+        ->each(fn (Tenant $tenant) => GeneratePreventiveWorkOrdersJob::dispatch($tenant->id));
+})
+    ->name('maintenance:generate-preventives')
+    ->dailyAt('05:00')
+    ->onOneServer();
+
+// Close the month: freeze each plant's efficiency, MTBF and MTTR on the 1st.
+Schedule::job(new SnapshotPlantKpisJob)
+    ->monthlyOn(1, '04:00')
     ->onOneServer();
 
 // Horizon metrics snapshots — required for dashboard graphs to populate

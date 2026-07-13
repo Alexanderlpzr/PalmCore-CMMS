@@ -7,6 +7,7 @@ use App\Domain\Shared\Enums\SubscriptionStatus;
 use App\Events\AlertCreated;
 use App\Listeners\SendAlertNotificationListener;
 use App\Listeners\WebhookTriggerListener;
+use App\Models\Alert;
 use App\Models\Announcement;
 use App\Models\Area;
 use App\Models\CarouselSlide;
@@ -14,24 +15,29 @@ use App\Models\Equipment;
 use App\Models\EquipmentCategory;
 use App\Models\EquipmentDocument;
 use App\Models\EquipmentDowntimeEvent;
+use App\Models\EquipmentIssueReport;
 use App\Models\EquipmentPhoto;
 use App\Models\InstitutionalContent;
 use App\Models\MaintenancePlan;
+use App\Models\MaintenanceRequest;
 use App\Models\PersonalAccessToken;
 use App\Models\Plant;
 use App\Models\SparePart;
 use App\Models\User;
 use App\Models\WorkOrder;
+use App\Observers\AlertObserver;
 use App\Observers\AnnouncementObserver;
 use App\Observers\AreaObserver;
 use App\Observers\CarouselSlideObserver;
 use App\Observers\EquipmentCategoryObserver;
 use App\Observers\EquipmentDocumentObserver;
 use App\Observers\EquipmentDowntimeEventObserver;
+use App\Observers\EquipmentIssueReportObserver;
 use App\Observers\EquipmentObserver;
 use App\Observers\EquipmentPhotoObserver;
 use App\Observers\InstitutionalContentObserver;
 use App\Observers\MaintenancePlanObserver;
+use App\Observers\MaintenanceRequestObserver;
 use App\Observers\PlantObserver;
 use App\Observers\SparePartObserver;
 use App\Observers\UserObserver;
@@ -160,9 +166,15 @@ class AppServiceProvider extends ServiceProvider
         CarouselSlide::observe(CarouselSlideObserver::class);
         Announcement::observe(AnnouncementObserver::class);
         InstitutionalContent::observe(InstitutionalContentObserver::class);
+        MaintenanceRequest::observe(MaintenanceRequestObserver::class);
+        EquipmentIssueReport::observe(EquipmentIssueReportObserver::class);
+        Alert::observe(AlertObserver::class);
 
         Event::listen(AlertCreated::class, SendAlertNotificationListener::class);
         Event::listen(WebhookableEvent::class, WebhookTriggerListener::class);
+        // AdvanceMaintenancePlanScheduleListener is picked up by Laravel's listener
+        // auto-discovery from its handle() type-hint — registering it here too would
+        // advance every completed plan's schedule twice.
     }
 
     private function configureSanctum(): void

@@ -122,6 +122,30 @@ it('attentionRequired returns five counted, routed, toned cards', function () {
         ->and($items[0])->toHaveKeys(['key', 'count', 'label', 'hint', 'icon', 'route', 'tone']);
 });
 
+it('attentionRequired reflects a new work order without waiting for the cache TTL', function () {
+    $tenant = homePageTenant();
+    $service = new HomePageService($tenant->id);
+
+    expect(collect($service->attentionRequired('acme'))->keyBy('key')->get('overdue_work_orders')['count'])->toBe(0);
+
+    WorkOrder::factory()->for($tenant)->create([
+        'status' => 'in_progress', 'planned_end_at' => now()->subDays(2),
+    ]);
+
+    expect(collect($service->attentionRequired('acme'))->keyBy('key')->get('overdue_work_orders')['count'])->toBe(1);
+});
+
+it('attentionRequired reflects a new issue report without waiting for the cache TTL', function () {
+    $tenant = homePageTenant();
+    $service = new HomePageService($tenant->id);
+
+    expect(collect($service->attentionRequired('acme'))->keyBy('key')->get('pending_issue_reports')['count'])->toBe(0);
+
+    EquipmentIssueReport::factory()->for($tenant)->create(['status' => IssueReportStatus::Open]);
+
+    expect(collect($service->attentionRequired('acme'))->keyBy('key')->get('pending_issue_reports')['count'])->toBe(1);
+});
+
 it('heroStatus escalates from stable to attention to critical', function () {
     $tenant = homePageTenant();
     $service = new HomePageService($tenant->id);

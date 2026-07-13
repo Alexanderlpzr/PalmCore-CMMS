@@ -40,11 +40,13 @@
                 <NavItem :item="{ name: 'Solicitudes', to: 'ops.solicitudes', icon: icons.clipboard }" />
                 <NavItem :item="{ name: 'Órdenes de trabajo', to: 'ops.ordenes', icon: icons.wrench }" />
                 <NavItem :item="{ name: 'Mantenimiento Programado', to: 'ops.preventivos', icon: icons.calendar }" />
+                <NavItem :item="{ name: 'Paros', to: 'ops.paros', icon: icons.wrench }" />
             </NavGroup>
 
             <!-- Activos -->
             <NavGroup label="Activos">
                 <NavItem :item="{ name: 'Equipos', to: 'ops.equipos', icon: icons.cube }" />
+                <NavItem :item="{ name: 'Horómetros', to: 'ops.horometros', icon: icons.chartBar }" />
             </NavGroup>
 
             <!-- Inventario -->
@@ -55,6 +57,7 @@
 
             <!-- Análisis -->
             <NavGroup label="Análisis">
+                <NavItem :item="{ name: 'Eficiencia de planta', to: 'ops.eficiencia', icon: icons.chartBar }" />
                 <NavItem :item="{ name: 'Indicadores', to: 'ops.kpis', icon: icons.chartBar }" />
                 <NavItem :item="{ name: 'Resumen Ejecutivo', to: 'ops.gerencial', icon: icons.chartBar }" />
                 <NavItem :item="{ name: 'Reportes', to: 'ops.reportes', icon: icons.fileText }" />

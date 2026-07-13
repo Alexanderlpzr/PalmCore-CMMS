@@ -226,6 +226,84 @@
                     </div>
                 </section>
 
+                <!-- ── CHECKLIST (lo que el técnico realmente midió) ───────────── -->
+                <section id="checklist" class="scroll-mt-72" v-show="isDesktop || mobileTab === 'checklist'">
+                    <SectionLabel label="Trabajo ejecutado" />
+
+                    <div v-if="tabs.checklist.loading" class="space-y-3">
+                        <div v-for="i in 2" :key="i" class="skeleton h-28 rounded-2xl" />
+                    </div>
+
+                    <div v-else-if="checklistTasks.length" class="space-y-3">
+                        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-4">
+                            <div class="flex items-center justify-between mb-2">
+                                <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Avance</p>
+                                <p class="text-xs font-bold text-gray-900">
+                                    {{ checklistProgress.resolved }} / {{ checklistProgress.total }}
+                                </p>
+                            </div>
+                            <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                <div
+                                    class="h-full rounded-full bg-emerald-500"
+                                    :style="{ width: checklistPercent + '%' }"
+                                />
+                            </div>
+                            <p v-if="checklistMissing > 0" class="text-xs text-amber-700 mt-2">
+                                Faltan {{ checklistMissing }} medición(es) obligatoria(s): la OT no puede completarse.
+                            </p>
+                        </div>
+
+                        <div
+                            v-for="task in checklistTasks"
+                            :key="task.id"
+                            class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
+                        >
+                            <div class="px-5 py-4 border-b border-gray-100 flex items-start justify-between gap-3">
+                                <div class="min-w-0">
+                                    <p class="text-sm font-semibold text-gray-900">{{ task.title }}</p>
+                                    <p v-if="task.skipped_reason" class="text-xs text-gray-500 italic mt-0.5">
+                                        Omitida: {{ task.skipped_reason }}
+                                    </p>
+                                </div>
+                                <span
+                                    class="shrink-0 text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded"
+                                    :class="taskBadge[task.status]"
+                                >{{ task.status_label }}</span>
+                            </div>
+
+                            <div v-if="task.checklist.length" class="divide-y divide-gray-50">
+                                <div
+                                    v-for="item in task.checklist"
+                                    :key="item.id"
+                                    class="px-5 py-3 flex items-center justify-between gap-4"
+                                >
+                                    <div class="min-w-0">
+                                        <p class="text-sm text-gray-800">{{ item.label }}</p>
+                                        <p v-if="item.expected_range_label" class="text-xs text-gray-500">
+                                            Esperado: {{ item.expected_range_label }}
+                                        </p>
+                                    </div>
+                                    <div class="shrink-0 text-right">
+                                        <p
+                                            class="text-sm font-semibold"
+                                            :class="item.is_out_of_range ? 'text-red-600' : 'text-gray-900'"
+                                        >
+                                            {{ item.display_value ?? 'Sin registrar' }}
+                                        </p>
+                                        <p v-if="item.is_out_of_range" class="text-[11px] font-semibold text-red-600">
+                                            Fuera de rango
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div v-else class="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-10 text-center text-xs text-gray-500">
+                        Esta orden no tiene tareas de checklist.
+                    </div>
+                </section>
+
                 <!-- ── HISTORIAL (status timeline) ─────────────────────────────── -->
                 <section id="historial" class="scroll-mt-72" v-show="isDesktop || mobileTab === 'historial'">
                     <SectionLabel label="Historial de estados" />
@@ -435,9 +513,25 @@ const timeEntries = ref([])
 const components = ref([])
 
 const tabs = reactive({
+    checklist: { loaded: false, loading: false },
     componentes: { loaded: false, loading: false },
     tiempo: { loaded: false, loading: false },
 })
+
+const checklistTasks = ref([])
+const checklistProgress = ref({ resolved: 0, total: 0 })
+const checklistMissing = ref(0)
+
+const checklistPercent = computed(() => checklistProgress.value.total
+    ? Math.round((checklistProgress.value.resolved / checklistProgress.value.total) * 100)
+    : 0)
+
+const taskBadge = {
+    pending: 'bg-gray-100 text-gray-600',
+    in_progress: 'bg-blue-50 text-blue-700',
+    done: 'bg-emerald-50 text-emerald-700',
+    skipped: 'bg-amber-50 text-amber-700',
+}
 
 // ── Label maps ─────────────────────────────────────────────────────────────────
 // status()/priority() moved into MissionHero.vue, which now owns that badge row.
@@ -479,6 +573,7 @@ const milestones = computed(() => {
 
 const tabList = computed(() => [
     { id: 'resumen', label: 'Resumen' },
+    { id: 'checklist', label: 'Checklist', count: tabs.checklist.loaded ? (checklistTasks.value.length || null) : null },
     { id: 'historial', label: 'Historial', count: milestones.value.length || null },
     { id: 'componentes', label: 'Componentes', count: tabs.componentes.loaded ? (components.value.length || null) : null },
     { id: 'tiempo', label: 'Tiempo & Repuestos', count: wo.value?.parts?.length || null },
@@ -516,7 +611,12 @@ async function ensureLoaded(tabId) {
     if (!t || t.loaded || t.loading) { return }
     t.loading = true
     try {
-        if (tabId === 'tiempo') {
+        if (tabId === 'checklist') {
+            const res = await api.get(`work-orders/${wo.value.id}/tasks`)
+            checklistTasks.value = res?.data ?? []
+            checklistProgress.value = res?.meta?.progress ?? { resolved: 0, total: 0 }
+            checklistMissing.value = res?.meta?.missing_required ?? 0
+        } else if (tabId === 'tiempo') {
             const res = await api.get(`work-orders/${wo.value.id}/time-entries`)
             timeEntries.value = res?.data ?? []
         } else if (tabId === 'componentes') {

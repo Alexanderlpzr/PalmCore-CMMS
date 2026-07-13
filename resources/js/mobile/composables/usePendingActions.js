@@ -263,6 +263,70 @@ export function usePendingActions() {
         }
     }
 
+    /**
+     * A checklist is filled where the machine is, and that is exactly where the
+     * signal dies. Every answer goes through the same queue as the rest: recorded
+     * locally, replayed when the phone comes back.
+     */
+    async function queueOrSubmitChecklistResult(workOrderId, taskId, resultId, value, notes = null) {
+        return _queueOrSubmit({
+            actionType: 'CHECKLIST_RESULT',
+            workOrderId,
+            endpoint: `work-orders/${workOrderId}/tasks/${taskId}/checklist/${resultId}`,
+            payload: { task_id: taskId, result_id: resultId, value, ...(notes ? { notes } : {}) },
+        })
+    }
+
+    /** Start / complete / skip a task. `action` is the verb the endpoint expects. */
+    async function queueOrSubmitTaskAction(workOrderId, taskId, action, reason = null) {
+        return _queueOrSubmit({
+            actionType: 'TASK_ACTION',
+            workOrderId,
+            endpoint: `work-orders/${workOrderId}/tasks/${taskId}/${action}`,
+            payload: { task_id: taskId, action, ...(reason ? { reason } : {}) },
+        })
+    }
+
+    /**
+     * Shared shape of every queued POST: try the network, fall back to the local
+     * queue only when the network itself failed (a TypeError from fetch) — a 409
+     * from the server is a real answer and must reach the técnico, not be retried
+     * forever in the background.
+     */
+    async function _queueOrSubmit({ actionType, workOrderId, endpoint, payload }) {
+        const idempotencyKey = crypto.randomUUID()
+        loading.value = true
+        error.value = null
+
+        const queue = async () => {
+            await db.pendingActions.add(newPendingAction({
+                action_type: actionType,
+                work_order_id: workOrderId,
+                payload: { ...payload, endpoint },
+                idempotency_key: idempotencyKey,
+            }))
+            await registerBackgroundSync()
+            return { queued: true }
+        }
+
+        try {
+            if (!network.isOnline) return await queue()
+
+            try {
+                const data = await api.post(endpoint, payload, { 'Idempotency-Key': idempotencyKey })
+                return { queued: false, data }
+            } catch (e) {
+                if (e instanceof TypeError) return await queue()
+                throw e
+            }
+        } catch (e) {
+            error.value = e.message
+            throw e
+        } finally {
+            loading.value = false
+        }
+    }
+
     async function _deduplicateAndQueueAlert(alertId, actionType) {
         const existing = await db.pendingActions
             .where('alert_id').equals(alertId)
@@ -287,6 +351,8 @@ export function usePendingActions() {
         queueOrSubmitSignature,
         queueOrSubmitAlertResolve,
         queueOrSubmitAlertDismiss,
+        queueOrSubmitChecklistResult,
+        queueOrSubmitTaskAction,
     }
 }
 

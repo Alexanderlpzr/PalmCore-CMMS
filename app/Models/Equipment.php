@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Domain\Assets\Enums\EquipmentCriticality;
 use App\Domain\Assets\Enums\EquipmentPriority;
 use App\Domain\Assets\Enums\EquipmentStatus;
+use App\Domain\Maintenance\Enums\MeterReadingUnit;
 use App\Domain\Shared\Models\BaseModel;
 use Database\Factories\EquipmentFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -47,6 +48,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'created_by',
     'updated_by',
     'current_meter_reading',
+    'accumulated_meter_reading',
     'meter_unit',
     'last_failure_at',
 ])]
@@ -273,6 +275,8 @@ class Equipment extends BaseModel
             'technical_specs' => 'array',
             'is_active' => 'boolean',
             'current_meter_reading' => 'float',
+            'accumulated_meter_reading' => 'float',
+            'meter_unit' => MeterReadingUnit::class,
             'last_failure_at' => 'datetime',
         ];
     }

@@ -42,6 +42,9 @@ class EquipmentResource extends JsonResource
             'location_notes' => $this->location_notes,
             'technical_specs' => $this->technical_specs,
             'current_meter_reading' => $this->current_meter_reading,
+            // What the dial says vs. what the machine has really worked: the second
+            // survives every meter swap and is what the preventive plan runs on.
+            'accumulated_meter_reading' => $this->accumulated_meter_reading,
             'meter_unit' => $this->meter_unit,
             'purchase_date' => $this->purchase_date?->toDateString(),
             'installation_date' => $this->installation_date?->toDateString(),

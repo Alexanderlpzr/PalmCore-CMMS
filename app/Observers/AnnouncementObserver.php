@@ -9,16 +9,22 @@ class AnnouncementObserver
 {
     public function saved(Announcement $announcement): void
     {
-        Cache::forget("home:announcements:{$announcement->tenant_id}");
+        $this->flush($announcement);
     }
 
     public function deleted(Announcement $announcement): void
     {
-        Cache::forget("home:announcements:{$announcement->tenant_id}");
+        $this->flush($announcement);
     }
 
     public function restored(Announcement $announcement): void
     {
-        Cache::forget("home:announcements:{$announcement->tenant_id}");
+        $this->flush($announcement);
+    }
+
+    private function flush(Announcement $announcement): void
+    {
+        Cache::forget("home:{$announcement->tenant_id}:notices");
+        Cache::forget("home:{$announcement->tenant_id}:news");
     }
 }

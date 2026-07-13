@@ -51,6 +51,9 @@
                     <p class="text-sm text-zinc-300 leading-relaxed">{{ wo.description }}</p>
                 </div>
 
+                <!-- The work itself: tasks + checklist -->
+                <WorkOrderChecklist :work-order-id="workOrderId" />
+
                 <!-- Dates -->
                 <div class="bg-zinc-900 rounded-2xl p-4 space-y-3">
                     <p class="text-xs font-medium text-zinc-400 uppercase tracking-wide">Fechas</p>
@@ -178,6 +181,7 @@ import AppLayout from '../components/AppLayout.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import PriorityBadge from '../components/PriorityBadge.vue'
 import BottomSheet from '../components/BottomSheet.vue'
+import WorkOrderChecklist from '../components/WorkOrderChecklist.vue'
 import WorkOrderTimeForm from '../components/WorkOrderTimeForm.vue'
 import WorkOrderCommentsForm from '../components/WorkOrderCommentsForm.vue'
 import WorkOrderMediaUpload from '../components/WorkOrderMediaUpload.vue'

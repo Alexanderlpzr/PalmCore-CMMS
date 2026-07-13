@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 #[Fillable([
@@ -133,6 +134,22 @@ class WorkOrder extends BaseModel
     public function parts(): HasMany
     {
         return $this->hasMany(WorkOrderPart::class);
+    }
+
+    /** The work itself: a frozen copy of the plan's tasks, executable in the field. */
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(WorkOrderTask::class)->orderBy('sort_order');
+    }
+
+    public function checklistResults(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            WorkOrderChecklistResult::class,
+            WorkOrderTask::class,
+            'work_order_id',
+            'work_order_task_id',
+        );
     }
 
     public function downtimeEvents(): HasMany

@@ -5,16 +5,28 @@ namespace App\Domain\Maintenance\Services;
 use App\Domain\Maintenance\Enums\MeterReadingUnit;
 use App\Models\Equipment;
 use App\Models\EquipmentMeterReading;
+use App\Models\MaintenancePlan;
 use App\Models\User;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
+/**
+ * Horómetros.
+ *
+ * Two numbers live here and they are not the same thing:
+ *
+ *  - `reading_value` / `current_meter_reading`: what the dial says today. It can
+ *    go backwards, because dials get replaced.
+ *  - `accumulated_value` / `accumulated_meter_reading`: how many hours the machine
+ *    has actually worked since it entered service. It never goes backwards, and it
+ *    is the only number a meter-driven preventive plan may be scheduled against.
+ */
 class EquipmentMeterReadingService
 {
     /**
-     * Record a new meter reading for the equipment.
-     * Updates equipment.current_meter_reading as a denormalized cache.
-     *
-     * @throws \RuntimeException if the new reading is lower than the current value (backwards reading)
+     * Record a reading. A value below the current dial is not an error — it is a
+     * meter reset — and it is recorded as such instead of being rejected.
      */
     public function record(
         Equipment $equipment,
@@ -24,31 +36,81 @@ class EquipmentMeterReadingService
         ?CarbonInterface $recordedAt = null,
         ?string $notes = null,
     ): EquipmentMeterReading {
-        $this->validateReading($equipment, $readingValue);
+        if ($readingValue < 0) {
+            throw new \InvalidArgumentException('Una lectura de horómetro no puede ser negativa.');
+        }
 
-        $reading = EquipmentMeterReading::create([
-            'tenant_id' => $equipment->tenant_id,
-            'equipment_id' => $equipment->id,
-            'reading_value' => $readingValue,
-            'reading_unit' => $unit->value,
-            'recorded_at' => $recordedAt ?? now(),
-            'recorded_by' => $recordedBy->id,
-            'notes' => $notes,
-        ]);
+        return DB::transaction(function () use ($equipment, $readingValue, $recordedBy, $unit, $recordedAt, $notes): EquipmentMeterReading {
+            $previous = $this->currentReading($equipment);
+            $isReset = $previous !== null && $readingValue < $previous;
 
-        // Update denormalized cache on equipment
-        $equipment->update([
-            'current_meter_reading' => $readingValue,
-            'meter_unit' => $unit->value,
-        ]);
+            // On a reset the new dial started at zero, so everything it shows is
+            // consumption since the swap. Otherwise it is the plain difference.
+            $delta = match (true) {
+                $previous === null => 0.0,
+                $isReset => $readingValue,
+                default => $readingValue - $previous,
+            };
 
-        return $reading;
+            $accumulated = round((float) $equipment->accumulated_meter_reading + $delta, 1);
+
+            $reading = EquipmentMeterReading::create([
+                'tenant_id' => $equipment->tenant_id,
+                'equipment_id' => $equipment->id,
+                'reading_value' => $readingValue,
+                'previous_value' => $previous,
+                'delta' => round($delta, 1),
+                'accumulated_value' => $accumulated,
+                'is_reset' => $isReset,
+                'reading_unit' => $unit->value,
+                'recorded_at' => $recordedAt ?? now(),
+                'recorded_by' => $recordedBy->id,
+                'notes' => $notes,
+            ]);
+
+            $equipment->update([
+                'current_meter_reading' => $readingValue,
+                'accumulated_meter_reading' => $accumulated,
+                'meter_unit' => $unit->value,
+            ]);
+
+            return $reading;
+        });
     }
 
     /**
-     * Get the latest confirmed reading value for an equipment.
-     * Returns null if no readings have been recorded.
+     * The daily round: one operator walks the plant and enters ~30 dials at once.
+     * One bad reading must not lose the other 29, so each is reported on its own.
+     *
+     * @param  array<int, array{equipment_id: string, reading_value: float, recorded_at?: CarbonInterface|string|null, notes?: ?string}>  $readings
+     * @return array{recorded: list<EquipmentMeterReading>, failed: list<array{equipment_id: string, error: string}>}
      */
+    public function recordBulk(array $readings, User $recordedBy): array
+    {
+        $recorded = [];
+        $failed = [];
+
+        foreach ($readings as $row) {
+            try {
+                $equipment = Equipment::withoutGlobalScopes()->findOrFail($row['equipment_id']);
+
+                $recorded[] = $this->record(
+                    equipment: $equipment,
+                    readingValue: (float) $row['reading_value'],
+                    recordedBy: $recordedBy,
+                    unit: $equipment->meter_unit ?? MeterReadingUnit::Hours,
+                    recordedAt: isset($row['recorded_at']) ? Carbon::parse($row['recorded_at']) : null,
+                    notes: $row['notes'] ?? null,
+                );
+            } catch (\Throwable $e) {
+                $failed[] = ['equipment_id' => $row['equipment_id'], 'error' => $e->getMessage()];
+            }
+        }
+
+        return ['recorded' => $recorded, 'failed' => $failed];
+    }
+
+    /** What the dial reads today. */
     public function currentReading(Equipment $equipment): ?float
     {
         return $equipment->current_meter_reading
@@ -58,18 +120,78 @@ class EquipmentMeterReadingService
                 ->value('reading_value');
     }
 
-    private function validateReading(Equipment $equipment, float $newValue): void
+    /** Hours the machine has really worked — survives every meter swap. */
+    public function accumulatedReading(Equipment $equipment): float
     {
-        $current = $this->currentReading($equipment);
+        return (float) $equipment->accumulated_meter_reading;
+    }
 
-        if ($current !== null && $newValue < $current) {
-            throw new \RuntimeException(
-                sprintf(
-                    'La lectura %.1f es menor al valor actual %.1f. Los horómetros no retroceden.',
-                    $newValue,
-                    $current,
-                )
-            );
+    /**
+     * Average consumption per day over the last window, measured from the readings
+     * themselves — not from the calendar, because a machine that was not read was
+     * usually not running either.
+     *
+     * Null when there is not enough history to say anything honest.
+     */
+    public function consumptionPerDay(Equipment $equipment, int $days = 30): ?float
+    {
+        $since = now()->subDays($days);
+
+        $readings = EquipmentMeterReading::withoutGlobalScopes()
+            ->where('equipment_id', $equipment->id)
+            ->where('recorded_at', '>=', $since)
+            ->orderBy('recorded_at')
+            ->get(['recorded_at', 'delta']);
+
+        if ($readings->count() < 2) {
+            return null;
         }
+
+        $elapsedDays = $readings->first()->recorded_at
+            ->diffInMinutes($readings->last()->recorded_at) / 1440;
+
+        if ($elapsedDays <= 0) {
+            return null;
+        }
+
+        // The first reading's delta belongs to the period *before* the window.
+        $consumed = (float) $readings->skip(1)->sum('delta');
+
+        if ($consumed <= 0) {
+            return null;
+        }
+
+        return round($consumed / $elapsedDays, 2);
+    }
+
+    /**
+     * «Días faltantes» — the column the plant already keeps by hand: at the pace
+     * this machine is being used, how many days until the next preventive falls
+     * due?
+     *
+     * Null when the plan is not meter-driven, has no due point, or the equipment
+     * has no measurable pace yet. Zero means it is already due.
+     */
+    public function daysUntilDue(Equipment $equipment, MaintenancePlan $plan, int $window = 30): ?int
+    {
+        $dueMeter = $plan->schedule?->next_due_meter;
+
+        if ($dueMeter === null) {
+            return null;
+        }
+
+        $remaining = (float) $dueMeter - $this->accumulatedReading($equipment);
+
+        if ($remaining <= 0) {
+            return 0;
+        }
+
+        $pace = $this->consumptionPerDay($equipment, $window);
+
+        if ($pace === null || $pace <= 0) {
+            return null;
+        }
+
+        return (int) ceil($remaining / $pace);
     }
 }

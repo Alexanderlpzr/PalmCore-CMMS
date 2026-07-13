@@ -4,6 +4,7 @@ namespace App\Domain\Maintenance\Services;
 
 use App\Domain\Assets\Enums\EquipmentDowntimeCauseType;
 use App\Domain\Assets\Enums\EquipmentStatus;
+use App\Domain\Assets\Enums\StoppageCategory;
 use App\Domain\Maintenance\Enums\FailureMode;
 use App\Domain\Maintenance\Enums\MaintenanceRequestStatus;
 use App\Domain\Maintenance\Enums\TechnicianRole;
@@ -18,6 +19,7 @@ use App\Events\WorkOrderCreated;
 use App\Events\WorkOrderStatusChanged;
 use App\Models\Equipment;
 use App\Models\EquipmentDowntimeEvent;
+use App\Models\MaintenancePlan;
 use App\Models\MaintenanceRequest;
 use App\Models\User;
 use App\Models\WorkOrder;
@@ -36,6 +38,7 @@ class WorkOrderService
     public function __construct(
         private readonly WorkOrderInventoryService $workOrderInventoryService,
         private readonly ActivityLocationService $locationService,
+        private readonly WorkOrderTaskService $taskService,
     ) {}
 
     // ── Numbering ─────────────────────────────────────────────────────────────
@@ -100,6 +103,16 @@ class WorkOrderService
                 'started_at' => $type->startsInProgress() ? now() : null,
                 'actual_start_at' => $type->startsInProgress() ? now() : null,
             ]);
+
+            // Born from a plan: the plan's tasks and checklist are copied in and
+            // frozen now, so later edits to the template never rewrite this OT.
+            if (! empty($data['maintenance_plan_id'])) {
+                $plan = MaintenancePlan::withoutGlobalScopes()->find($data['maintenance_plan_id']);
+
+                if ($plan !== null) {
+                    $this->taskService->copyFromPlan($workOrder, $plan);
+                }
+            }
 
             // Emergency WOs start InProgress directly — trigger the same syncs a
             // transition would. Each self-guards: equipment status only moves when
@@ -178,6 +191,12 @@ class WorkOrderService
             throw new \RuntimeException(
                 'No es posible planificar la Orden de Trabajo porque no tiene técnicos asignados.'
             );
+        }
+
+        // A preventive closed with unanswered measurements is a preventive that
+        // was never really done. Block it here, at the only door out.
+        if ($toStatus === WorkOrderStatus::Completed) {
+            $this->taskService->assertReadyToComplete($workOrder);
         }
 
         $fromStatus = $workOrder->status;
@@ -492,11 +511,17 @@ class WorkOrderService
                 ['work_order_id' => $workOrder->id],
                 [
                     'tenant_id' => $workOrder->tenant_id,
+                    'plant_id' => $workOrder->plant_id ?? $workOrder->equipment?->plant_id,
                     'equipment_id' => $workOrder->equipment_id,
                     'work_order_number' => $workOrder->work_order_number,
                     'started_at' => $startedAt,
                     'cause_type' => $causeType->value,
+                    'stoppage_category' => StoppageCategory::fromWorkOrderType($workOrder->work_order_type)->value,
                     'was_planned' => $causeType->wasPlanned(),
+                    'source' => 'work_order',
+                    // A failure with the line still running costs no production
+                    // hours — it must not be subtracted from plant efficiency.
+                    'affects_production' => $stopped,
                     // No stoppage → point-in-time failure: close it now with zero
                     // downtime so it counts as a failure without hurting availability.
                     'ended_at' => $stopped ? null : $startedAt,
