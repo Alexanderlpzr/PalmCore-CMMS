@@ -1,0 +1,16 @@
+/*
+ * Tema personalizado del panel de plataforma (sala de máquinas del superadministrador).
+ *
+ * El panel `admin` ya resolvió este mismo problema (ver resources/css/filament/admin/theme.css):
+ * la hoja de estilos que Filament trae por defecto solo incluye las utilidades que el
+ * propio Filament usa internamente. Las clases de Tailwind escritas a mano en las
+ * páginas de plataforma (dashboard.blade.php, backups.blade.php, etc.) nunca se
+ * compilaban — se veían como texto plano sin tarjetas, sin colores, sin bordes, porque
+ * el CSS que las respaldaba nunca existió. `->viteTheme()` en PlatformPanelProvider
+ * apuntaba a este archivo, que hasta ahora no existía.
+ */
+@import '../../../../vendor/filament/filament/resources/css/theme.css';
+
+@source '../../../../app/Filament/Platform/**/*.php';
+@source '../../../../app/Domain/Platform/**/*.php';
+@source '../../../../resources/views/filament/platform/**/*.blade.php';

@@ -32,6 +32,14 @@ class PlatformPanelProvider extends PanelProvider
             ->brandLogo(secure_asset('images/logo.png'))
             ->brandLogoHeight('4rem')
             ->favicon(secure_asset('images/isotipo.png'))
+            // Sin esto, las clases de Tailwind escritas a mano en las páginas de
+            // plataforma (dashboard, respaldos, colas, logs) nunca se compilaban: la
+            // hoja de estilos por defecto de Filament solo incluye las utilidades que
+            // el propio Filament usa. El panel se veía como texto plano sin tarjetas,
+            // sin colores ni bordes, porque el CSS que las respaldaba no existía. El
+            // panel `admin` ya resolvió este mismo problema — ver su propio
+            // ->viteTheme() en AdminPanelProvider.
+            ->viteTheme('resources/css/filament/platform/theme.css')
             ->colors([
                 'primary' => Color::hex('#7c3aed'),
                 'success' => Color::Emerald,
