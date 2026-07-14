@@ -27,6 +27,8 @@ yarn-error.log
 /.vscode
 /.zed
 
+# El BINARIO de Caddy que descarga Octane, no la configuración: el proxy inverso vive
+# versionado en deploy/Caddyfile, donde el compose lo monta.
 **/caddy
 frankenphp
 frankenphp-worker.php

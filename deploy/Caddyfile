@@ -1,0 +1,17 @@
+# Proxy inverso y TLS de Fronda.
+#
+# Este archivo vivía SOLO en el disco del servidor: la regla `**/caddy` del
+# .gitignore —pensada para el binario de Caddy que trae Octane— se tragó también la
+# carpeta de configuración. El día que el despliegue hizo `git reset --hard`, el
+# compose quedó apuntando a un archivo que no existía, Docker creó un directorio
+# vacío en su lugar y el sitio se cayó.
+#
+# Por eso ahora vive aquí, junto al compose que lo monta y con un nombre que ninguna
+# regla ignora. La infraestructura que no está en git no existe: existe hasta que
+# alguien recrea el servidor.
+
+fronda.app, www.fronda.app {
+    encode gzip
+
+    reverse_proxy app:80
+}
