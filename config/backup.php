@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Support\Str;
 use Spatie\Backup\Notifications\Notifiable;
 use Spatie\Backup\Notifications\Notifications\BackupHasFailedNotification;
 use Spatie\Backup\Notifications\Notifications\BackupWasSuccessfulNotification;
@@ -16,10 +17,16 @@ return [
 
     'backup' => [
         /*
-         * The name of this application. You can use this name to monitor
-         * the backups.
+         * El nombre con el que se identifican los respaldos. Es también el nombre de la
+         * CARPETA donde se guardan, así que tiene que ser un nombre de ruta válido.
+         *
+         * Se sanea a propósito: con APP_NAME="Fronda CMMS" —un nombre perfectamente
+         * razonable para mostrar en pantalla— el respaldo moría con un críptico
+         * «ZipArchive::close(): Invalid argument», y el sistema se quedaba sin copia de
+         * seguridad sin que nadie entendiera por qué. El nombre visible de la aplicación
+         * es una decisión de producto; que el ZIP se pueda escribir, no.
          */
-        'name' => env('APP_NAME', 'laravel-backup'),
+        'name' => Str::slug(env('APP_NAME', 'laravel-backup')),
 
         'source' => [
             'files' => [
@@ -302,7 +309,10 @@ return [
      */
     'monitor_backups' => [
         [
-            'name' => env('APP_NAME', 'laravel-backup'),
+            // Tiene que ser EXACTAMENTE el mismo nombre saneado de arriba: es la carpeta
+            // donde se guardan. Si los dos no coinciden, el monitor vigila un directorio
+            // que no existe y jura que no hay respaldos aunque los haya.
+            'name' => Str::slug(env('APP_NAME', 'laravel-backup')),
             'disks' => ['local'],
             'health_checks' => [
                 MaximumAgeInDays::class => 1,
