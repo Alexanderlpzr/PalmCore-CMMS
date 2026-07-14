@@ -204,8 +204,18 @@ return [
         /*
          * The password to be used for archive encryption.
          * Set to `null` to disable encryption.
+         *
+         * El `?: null` no es cosmético. Con `BACKUP_ARCHIVE_PASSWORD=` en el .env —una
+         * variable declarada pero VACÍA, que es como queda al copiar el .env.example—
+         * env() devuelve la cadena vacía, que no es null. Spatie entendía «sí hay
+         * contraseña», activaba el cifrado AES-256 del ZIP e intentaba cifrar con una
+         * contraseña vacía: libzip respondía «ZipArchive::close(): Invalid argument» y
+         * el respaldo moría después de volcar la base correctamente. Producción estuvo
+         * sin una sola copia de seguridad por esto.
+         *
+         * Una variable vacía significa «no hay contraseña», nunca «cifra con nada».
          */
-        'password' => env('BACKUP_ARCHIVE_PASSWORD'),
+        'password' => env('BACKUP_ARCHIVE_PASSWORD') ?: null,
 
         /*
          * The encryption algorithm to be used for archive encryption.
