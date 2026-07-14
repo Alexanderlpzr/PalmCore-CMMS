@@ -1,6 +1,7 @@
 <?php
 
 use App\Console\Commands\SendOverdueMaintenanceNotificationsCommand;
+use App\Domain\Platform\Services\PlatformSettingsService;
 use App\Domain\Reports\Services\ReportManager;
 use App\Jobs\DetectStaleMeterReadingsJob;
 use App\Jobs\EvaluateAutomationRulesJob;
@@ -98,12 +99,22 @@ Schedule::job(new SnapshotPlantKpisJob)
 Schedule::command('horizon:snapshot')
     ->everyFiveMinutes();
 
-// Daily database backup at 01:00, cleanup at 01:30
+// Respaldo diario de la base a la 1:00, limpieza a la 1:30.
+//
+// El interruptor vive en la base de datos y lo controla el superadministrador desde el
+// panel: hay etapas —una instalación recién montada, una migración en curso— en las que
+// respaldar cada noche no aporta nada. Apagarlo es una decisión legítima, y por eso
+// queda registrada con autor y fecha; lo que no es legítimo es que el sistema deje de
+// respaldar sin que nadie lo haya decidido, que es como estuvo hasta hoy.
+$automaticBackupsEnabled = fn (): bool => app(PlatformSettingsService::class)->automaticBackupsEnabled();
+
 Schedule::command('backup:run --only-db')
     ->dailyAt('01:00')
     ->onOneServer()
-    ->runInBackground();
+    ->runInBackground()
+    ->when($automaticBackupsEnabled);
 
 Schedule::command('backup:clean')
     ->dailyAt('01:30')
-    ->onOneServer();
+    ->onOneServer()
+    ->when($automaticBackupsEnabled);

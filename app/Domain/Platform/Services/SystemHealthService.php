@@ -216,6 +216,20 @@ class SystemHealthService
         $disk = config('backup.backup.destination.disks.0', 'local');
         $name = config('backup.backup.name');
 
+        // Apagado a propósito no es lo mismo que roto — pero tampoco es «todo bien».
+        // El superadministrador decidió no tener copias y eso deja de ser una
+        // emergencia; sigue siendo un riesgo, y el panel no va a fingir lo contrario
+        // pintándolo de verde.
+        if (! app(PlatformSettingsService::class)->automaticBackupsEnabled()) {
+            return $this->check(
+                'backups',
+                'Respaldos',
+                HealthStatus::Warning,
+                'Desactivados',
+                'El respaldo automático está apagado a propósito. No se están guardando copias de la base de datos.',
+            );
+        }
+
         try {
             $files = collect(Storage::disk($disk)->files($name))
                 ->filter(fn (string $path): bool => str_ends_with($path, '.zip'));
