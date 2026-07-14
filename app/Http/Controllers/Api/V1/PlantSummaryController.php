@@ -40,7 +40,9 @@ class PlantSummaryController extends Controller
             ->first();
 
         $areas = $plant->areas
-            ->sortBy('sort_order')
+            // Desempate por código: dos áreas pueden compartir sort_order (M4) y el
+            // listado no puede cambiar de orden entre dos peticiones idénticas.
+            ->sortBy(fn (Area $area): string => sprintf('%05d-%s', $area->sort_order, $area->code))
             ->values()
             ->map(fn (Area $area) => [
                 'id' => $area->id,

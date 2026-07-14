@@ -232,6 +232,14 @@ Route::prefix('v1')->group(function () {
             ->name('api.v1.downtime-events.store');
         Route::patch('downtime-events/{id}/end', [DowntimeEventController::class, 'end'])
             ->name('api.v1.downtime-events.end');
+        // A4 — el Tipo I que solo se sabe al destapar la máquina.
+        Route::patch('downtime-events/{id}/classify', [DowntimeEventController::class, 'classify'])
+            ->name('api.v1.downtime-events.classify');
+        // A5 — producción firma (o disputa) las horas que se le restan a la planta.
+        Route::patch('downtime-events/{id}/confirm', [DowntimeEventController::class, 'confirm'])
+            ->name('api.v1.downtime-events.confirm');
+        Route::patch('downtime-events/{id}/dispute', [DowntimeEventController::class, 'dispute'])
+            ->name('api.v1.downtime-events.dispute');
         Route::apiResource('plants', PlantController::class)->only(['index', 'show']);
         Route::get('plants/{id}/summary', PlantSummaryController::class)->name('api.v1.plants.summary');
         Route::apiResource('areas', AreaController::class)->only(['index', 'show']);

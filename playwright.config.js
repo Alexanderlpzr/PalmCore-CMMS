@@ -23,7 +23,13 @@ export default defineConfig({
     projects: [
         {
             name: 'chromium',
-            use: { ...devices['Desktop Chrome'] },
+            use: {
+                ...devices['Desktop Chrome'],
+                // Escape hatch para máquinas donde el binario de Playwright no se
+                // puede descargar: PW_CHANNEL=chrome usa el Chrome del sistema.
+                // Sin la variable, se comporta exactamente como antes.
+                ...(process.env.PW_CHANNEL ? { channel: process.env.PW_CHANNEL } : {}),
+            },
         },
     ],
     webServer: {

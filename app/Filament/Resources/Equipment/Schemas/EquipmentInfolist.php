@@ -120,18 +120,18 @@ class EquipmentInfolist
                     ->schema([
                         TextEntry::make('purchase_price')
                             ->label('Precio de compra')
-                            ->money(fn ($record) => $record->currency_code ?? 'USD')
+                            ->money(fn ($record) => $record->currency_code ?? 'COP')
                             ->placeholder('—'),
                         TextEntry::make('replacement_cost')
                             ->label('Costo de reemplazo')
-                            ->money(fn ($record) => $record->currency_code ?? 'USD')
+                            ->money(fn ($record) => $record->currency_code ?? 'COP')
                             ->placeholder('—'),
                         TextEntry::make('currency_code')
                             ->label('Moneda'),
                         TextEntry::make('components_investment_total')
                             ->label('Invertido en repuestos')
                             ->getStateUsing(fn (Equipment $record): float => $record->componentsInvestmentTotal())
-                            ->money(fn (Equipment $record) => $record->currency_code ?? 'USD'),
+                            ->money(fn (Equipment $record) => $record->currency_code ?? 'COP'),
                         TextEntry::make('components_investment_ratio')
                             ->label('% del costo de reemplazo')
                             ->getStateUsing(fn (Equipment $record): ?string => $record->componentsInvestmentRatio() !== null

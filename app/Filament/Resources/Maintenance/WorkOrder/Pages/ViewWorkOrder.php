@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Maintenance\WorkOrder\Pages;
 
+use App\Domain\Assets\Enums\StoppageCategory;
 use App\Domain\Maintenance\Enums\FailureMode;
 use App\Domain\Maintenance\Enums\WorkOrderSignatureType;
 use App\Domain\Maintenance\Enums\WorkOrderStatus;
@@ -101,6 +102,17 @@ class ViewWorkOrder extends ViewRecord
                         ->helperText('Clasifica la falla para el análisis de Pareto por modo (rodamiento, sello, eléctrico…).')
                         ->options(FailureMode::options())
                         ->searchable()
+                        ->native(false)
+                        ->visible(fn (): bool => $this->record->work_order_type->registersFailure()),
+                    // A4 — el paro nació en «otro» porque al arrancar nadie sabía qué
+                    // se había roto. Ahora el técnico ya destapó la máquina.
+                    Select::make('diagnosed_stoppage_category')
+                        ->label('Tipo I diagnosticado')
+                        ->helperText('Reclasifica el paro que esta OT generó. Sin esto queda como «Otro» y ensucia las horas perdidas por causa.')
+                        ->options(collect(StoppageCategory::options())
+                            ->except(StoppageCategory::Planned->value)
+                            ->all())
+                        ->default(fn () => $this->record->diagnosed_stoppage_category?->value)
                         ->native(false)
                         ->visible(fn (): bool => $this->record->work_order_type->registersFailure()),
                     Textarea::make('root_cause')

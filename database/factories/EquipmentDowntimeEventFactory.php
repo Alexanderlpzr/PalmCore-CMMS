@@ -4,10 +4,12 @@ namespace Database\Factories;
 
 use App\Domain\Assets\Enums\EquipmentDowntimeCauseType;
 use App\Domain\Assets\Enums\StoppageCategory;
+use App\Domain\Assets\Enums\StoppageConfirmationStatus;
 use App\Domain\Maintenance\Enums\FailureMode;
 use App\Models\Equipment;
 use App\Models\EquipmentDowntimeEvent;
 use App\Models\Tenant;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Carbon;
 
@@ -41,7 +43,19 @@ class EquipmentDowntimeEventFactory extends Factory
             'source' => 'manual',
             'failure_mode' => $this->faker->optional()->randomElement(array_column(FailureMode::cases(), 'value')),
             'notes' => $this->faker->optional()->sentence(),
+            // Un paro nace sin firmar: producción todavía no lo vio.
+            'confirmation_status' => StoppageConfirmationStatus::Pending->value,
         ];
+    }
+
+    /** Producción ya firmó estas horas. */
+    public function confirmed(?User $by = null): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'confirmation_status' => StoppageConfirmationStatus::Confirmed->value,
+            'confirmed_by' => $by?->id ?? User::factory()->create(['tenant_id' => $attributes['tenant_id']])->id,
+            'confirmed_at' => now(),
+        ]);
     }
 
     /** A paro de planta: the whole line is down and no single equipment is to blame. */

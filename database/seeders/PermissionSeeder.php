@@ -152,7 +152,19 @@ class PermissionSeeder extends Seeder
         'maintenance-plan-attachments.create',
 
         // Equipment Meter Readings
+        'equipment-meter-readings.view',
         'equipment-meter-readings.create',
+
+        // Paros (A3) — «confirm» es de producción, no de mantenimiento: firmar las
+        // horas que se le restan a la planta no es la misma facultad que registrarlas.
+        'downtime-events.view',
+        'downtime-events.create',
+        'downtime-events.update',
+        'downtime-events.confirm',
+
+        // Calendario de producción — el denominador de la eficiencia de planta.
+        'production-calendar.view',
+        'production-calendar.manage',
 
         // Spare Parts
         'spare-parts.view',

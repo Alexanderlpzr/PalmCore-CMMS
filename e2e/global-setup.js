@@ -11,7 +11,9 @@ export default async function globalSetup() {
     })
 
     console.log('[E2E] Saving auth state for admin@elpajuil.demo...')
-    const browser = await chromium.launch()
+    const browser = await chromium.launch(
+        process.env.PW_CHANNEL ? { channel: process.env.PW_CHANNEL } : {},
+    )
     const page = await browser.newPage()
 
     await page.goto(`${BASE_URL}/admin/login`)

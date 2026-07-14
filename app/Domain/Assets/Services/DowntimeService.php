@@ -5,6 +5,7 @@ namespace App\Domain\Assets\Services;
 use App\Domain\Assets\Enums\EquipmentDowntimeCauseType;
 use App\Domain\Assets\Enums\ReportedStoppageType;
 use App\Domain\Assets\Enums\StoppageCategory;
+use App\Domain\Assets\Enums\StoppageConfirmationStatus;
 use App\Exceptions\BusinessRuleException;
 use App\Models\Equipment;
 use App\Models\EquipmentDowntimeEvent;
@@ -142,6 +143,131 @@ class DowntimeService
                 'duration_minutes' => (int) round($attributes['started_at']->diffInMinutes($endedAt)),
             ]);
         });
+    }
+
+    /**
+     * A4 — afinar el Tipo I cuando por fin se sabe qué se rompió.
+     *
+     * Una OT correctiva abre su paro en «otro»: al arrancar, nadie sabe todavía si
+     * el problema era mecánico o eléctrico, y adivinarlo sería inventar el dato. El
+     * técnico lo afina al diagnosticar, y el Pareto deja de tener una montaña de
+     * «otro» que no le sirve a nadie.
+     *
+     * Dos cosas que este método no hace:
+     *
+     *  - No toca `reported_type`. El Tipo I del cliente es suyo; nuestro diagnóstico
+     *    va al lado, no encima. La diferencia entre los dos es el hallazgo.
+     *  - No convierte una falla en paro programado ni al revés. Si «programado» fuera
+     *    un diagnóstico posible, cualquier falla incómoda podría salirse del MTBF con
+     *    un clic. Eso viene del origen del paro, no de destapar la máquina.
+     *
+     * @throws BusinessRuleException
+     */
+    public function reclassify(
+        EquipmentDowntimeEvent $event,
+        StoppageCategory $category,
+        ?string $cause = null,
+    ): EquipmentDowntimeEvent {
+        if ($category->isPlanned()) {
+            throw new BusinessRuleException(
+                'Un diagnóstico no puede convertir un paro en «Programado»: eso lo define el origen del paro, no el hallazgo.',
+                detail: "downtime_event:{$event->id}",
+            );
+        }
+
+        if ($event->was_planned) {
+            throw new BusinessRuleException(
+                'Este paro es programado. Su Tipo I viene de la intervención que lo originó y no se reclasifica.',
+                detail: "downtime_event:{$event->id}",
+            );
+        }
+
+        $event->update([
+            'stoppage_category' => $category->value,
+            'cause_type' => $this->causeTypeFor($category),
+            'stoppage_cause' => $cause ?? $event->stoppage_cause,
+        ]);
+
+        return $event->refresh();
+    }
+
+    /**
+     * A5 — el jefe de turno firma las horas.
+     *
+     * Producción confirma que la planta estuvo abajo lo que mantenimiento dice que
+     * estuvo abajo. Sin esto, el mismo que queda mal en la foto es el único que
+     * escribe el número.
+     *
+     * @throws BusinessRuleException
+     */
+    public function confirm(
+        EquipmentDowntimeEvent $event,
+        User $confirmedBy,
+        ?string $notes = null,
+    ): EquipmentDowntimeEvent {
+        $this->assertSignable($event);
+
+        $event->update([
+            'confirmation_status' => StoppageConfirmationStatus::Confirmed->value,
+            'confirmed_by' => $confirmedBy->id,
+            'confirmed_at' => now(),
+            'confirmation_notes' => $notes,
+        ]);
+
+        return $event->refresh();
+    }
+
+    /**
+     * Producción no está de acuerdo con las horas. El paro no se borra ni se corrige
+     * a espaldas de nadie: queda marcado, con el motivo escrito, y sigue contando en
+     * los indicadores hasta que las dos áreas se sienten a mirarlo. Un paro en disputa
+     * que desaparece del reporte es exactamente la mentira que este campo evita.
+     *
+     * @throws BusinessRuleException
+     */
+    public function dispute(
+        EquipmentDowntimeEvent $event,
+        User $disputedBy,
+        string $reason,
+    ): EquipmentDowntimeEvent {
+        $this->assertSignable($event);
+
+        if (trim($reason) === '') {
+            throw new BusinessRuleException('Para disputar un paro hay que decir por qué.');
+        }
+
+        $event->update([
+            'confirmation_status' => StoppageConfirmationStatus::Disputed->value,
+            'confirmed_by' => $disputedBy->id,
+            'confirmed_at' => now(),
+            'confirmation_notes' => $reason,
+        ]);
+
+        return $event->refresh();
+    }
+
+    /**
+     * Cuánto del mes va al informe sin que producción lo haya firmado. No es un KPI:
+     * es la medida de cuánto del número hay que creerle a una sola de las dos partes.
+     *
+     * @return array{events: int, hours: float}
+     */
+    public function pendingConfirmation(
+        string $plantId,
+        CarbonInterface $from,
+        CarbonInterface $to,
+    ): array {
+        $pending = fn (): Builder => EquipmentDowntimeEvent::withoutGlobalScopes()
+            ->where('plant_id', $plantId)
+            ->awaitingConfirmation();
+
+        return [
+            'events' => $pending()
+                ->where('started_at', '<', $to)
+                ->where('ended_at', '>', $from)
+                ->count(),
+            'hours' => $this->lostHours->unionHours($pending(), $from, $to),
+        ];
     }
 
     /** The paro currently keeping this equipment down, if any. */
@@ -293,6 +419,39 @@ class DowntimeService
     }
 
     // ── Internals ─────────────────────────────────────────────────────────────
+
+    /**
+     * Solo se firman horas que existen y que le costaron producción a la planta: un
+     * paro abierto todavía no tiene duración, y una falla que no detuvo la línea no
+     * le quitó tiempo a producción. Firmar dos veces tampoco: la firma es un hecho
+     * fechado, no un campo editable.
+     *
+     * @throws BusinessRuleException
+     */
+    private function assertSignable(EquipmentDowntimeEvent $event): void
+    {
+        if ($event->isOngoing()) {
+            throw new BusinessRuleException(
+                'Este paro sigue abierto. Producción firma las horas cuando la planta vuelve a arrancar.',
+                detail: "downtime_event:{$event->id}",
+            );
+        }
+
+        if (! $event->affects_production) {
+            throw new BusinessRuleException(
+                'Este evento no le restó horas a la producción, así que no hay nada que producción deba firmar.',
+                detail: "downtime_event:{$event->id}",
+            );
+        }
+
+        if ($event->isSignedByProduction()) {
+            throw new BusinessRuleException(
+                'Este paro ya fue firmado por producción el '
+                    .$event->confirmed_at->format('d/m/Y H:i').'.',
+                detail: "downtime_event:{$event->id}",
+            );
+        }
+    }
 
     /**
      * Fill in what the caller can be expected to leave out: the plant behind the

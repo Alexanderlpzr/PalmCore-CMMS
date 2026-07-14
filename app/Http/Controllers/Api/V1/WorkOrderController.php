@@ -187,7 +187,10 @@ class WorkOrderController extends Controller
         // Completion Experience data — only the fields actually sent, so a
         // plain "Pausar"/"Iniciar" transition never blanks out existing text.
         $extra = array_filter(
-            $request->only(['work_performed', 'failure_cause', 'root_cause']),
+            $request->only([
+                'work_performed', 'failure_cause', 'root_cause',
+                'failure_mode', 'diagnosed_stoppage_category',
+            ]),
             fn ($value) => $value !== null,
         );
 

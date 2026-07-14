@@ -24,6 +24,8 @@ use Illuminate\Support\Facades\DB;
  */
 class EquipmentMeterReadingService
 {
+    public function __construct(private readonly StaleMeterReadingService $staleReadings) {}
+
     /**
      * Record a reading. A value below the current dial is not an error — it is a
      * meter reset — and it is recorded as such instead of being rejected.
@@ -73,6 +75,10 @@ class EquipmentMeterReadingService
                 'accumulated_meter_reading' => $accumulated,
                 'meter_unit' => $unit->value,
             ]);
+
+            // A7 — el equipo volvió a hablar: la alerta de horómetro mudo se cierra
+            // sola. Nadie va a entrar al tablero a cerrarla a mano.
+            $this->staleReadings->resolveFor($equipment);
 
             return $reading;
         });

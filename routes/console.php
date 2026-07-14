@@ -2,6 +2,7 @@
 
 use App\Console\Commands\SendOverdueMaintenanceNotificationsCommand;
 use App\Domain\Reports\Services\ReportManager;
+use App\Jobs\DetectStaleMeterReadingsJob;
 use App\Jobs\EvaluateAutomationRulesJob;
 use App\Jobs\GeneratePreventiveWorkOrdersJob;
 use App\Jobs\RecalculateAllEquipmentKpisJob;
@@ -38,6 +39,19 @@ Schedule::call(function (): void {
 })
     ->name('automations:evaluate')
     ->hourly()
+    ->onOneServer();
+
+// A7 — los horómetros mudos, antes de generar los preventivos: un plan por horas
+// que no recibe lecturas deja de generar OTs en silencio, y el silencio es el
+// problema. Se avisa la misma mañana, no el día que la máquina se rompe.
+Schedule::call(function (): void {
+    Tenant::withoutGlobalScopes()
+        ->where('is_active', true)
+        ->select('id')
+        ->each(fn (Tenant $tenant) => DetectStaleMeterReadingsJob::dispatch($tenant->id));
+})
+    ->name('maintenance:detect-stale-meters')
+    ->dailyAt('04:30')
     ->onOneServer();
 
 // Generate the preventive work orders due in the next 7 days, one job per tenant.

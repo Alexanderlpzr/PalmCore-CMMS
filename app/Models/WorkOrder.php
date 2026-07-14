@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Domain\Assets\Enums\StoppageCategory;
 use App\Domain\Maintenance\Enums\FailureMode;
 use App\Domain\Maintenance\Enums\WorkOrderPriority;
 use App\Domain\Maintenance\Enums\WorkOrderStatus;
@@ -34,6 +35,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'work_performed',
     'root_cause',
     'failure_mode',
+    'diagnosed_stoppage_category',
     'rejection_reason',
     'equipment_stopped',
     'required_permit_types',
@@ -304,6 +306,7 @@ class WorkOrder extends BaseModel
             'status' => WorkOrderStatus::class,
             'priority' => WorkOrderPriority::class,
             'failure_mode' => FailureMode::class,
+            'diagnosed_stoppage_category' => StoppageCategory::class,
             'equipment_stopped' => 'boolean',
             'required_permit_types' => 'array',
             'planned_labor_hours' => 'float',

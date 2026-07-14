@@ -242,12 +242,14 @@ class EquipmentForm
                         Select::make('currency_code')
                             ->label('Moneda')
                             ->options([
-                                'USD' => 'USD — Dólar estadounidense',
                                 'COP' => 'COP — Peso colombiano',
+                                'USD' => 'USD — Dólar estadounidense',
                                 'MXN' => 'MXN — Peso mexicano',
                                 'EUR' => 'EUR — Euro',
                             ])
-                            ->default('USD'),
+                            // La operación es en pesos. El dólar se elige a propósito
+                            // (una bomba importada), no por descuido del formulario.
+                            ->default('COP'),
                     ]),
 
                 Section::make('Notas')

@@ -123,10 +123,10 @@ class ComponentsRelationManager extends RelationManager
                     ->placeholder('—'),
                 TextColumn::make('unit_cost')
                     ->label('Valor')
-                    ->money(fn (): string => $this->getOwnerRecord()->currency_code ?? 'USD')
+                    ->money(fn (): string => $this->getOwnerRecord()->currency_code ?? 'COP')
                     ->placeholder('—')
                     ->summarize(
-                        Sum::make()->money(fn (): string => $this->getOwnerRecord()->currency_code ?? 'USD')
+                        Sum::make()->money(fn (): string => $this->getOwnerRecord()->currency_code ?? 'COP')
                     ),
             ])
             ->headerActions([

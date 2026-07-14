@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Domain\Assets\Enums\EquipmentDowntimeCauseType;
 use App\Domain\Assets\Enums\ReportedStoppageType;
 use App\Domain\Assets\Enums\StoppageCategory;
+use App\Domain\Assets\Enums\StoppageConfirmationStatus;
 use App\Domain\Maintenance\Enums\FailureMode;
 use App\Domain\Shared\Concerns\BelongsToTenant;
 use Database\Factories\EquipmentDowntimeEventFactory;
@@ -35,6 +36,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'notes',
     'reported_by',
     'registered_by',
+    'confirmation_status',
+    'confirmed_by',
+    'confirmed_at',
+    'confirmation_notes',
 ])]
 class EquipmentDowntimeEvent extends Model
 {
@@ -74,6 +79,12 @@ class EquipmentDowntimeEvent extends Model
         return $this->belongsTo(User::class, 'registered_by');
     }
 
+    /** El jefe de turno que firmó (o disputó) las horas. */
+    public function confirmedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'confirmed_by');
+    }
+
     // ── Scopes ────────────────────────────────────────────────────────────────
 
     public function scopeOngoing(Builder $query): Builder
@@ -103,11 +114,38 @@ class EquipmentDowntimeEvent extends Model
             ->orWhere('source', 'work_order'));
     }
 
+    /**
+     * Paros cerrados que le restan horas a la planta y que producción todavía no
+     * firmó. Son las horas que van al informe sin contraparte.
+     */
+    public function scopeAwaitingConfirmation(Builder $query): Builder
+    {
+        return $query->whereNotNull('ended_at')
+            ->where('affects_production', true)
+            ->where('confirmation_status', StoppageConfirmationStatus::Pending->value);
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     public function isOngoing(): bool
     {
         return $this->ended_at === null;
+    }
+
+    /** ¿Producción ya se pronunció sobre estas horas? */
+    public function isSignedByProduction(): bool
+    {
+        return $this->confirmation_status?->isSigned() ?? false;
+    }
+
+    /**
+     * Un paro solo necesita la firma de producción si le costó horas a la planta y
+     * ya terminó: mientras corre no hay horas que firmar, y una falla sin paro no le
+     * quitó tiempo a nadie.
+     */
+    public function requiresProductionConfirmation(): bool
+    {
+        return $this->affects_production && $this->ended_at !== null;
     }
 
     /** A paro with no equipment is a plant-wide stoppage (falta de fruta, energía). */
@@ -141,6 +179,8 @@ class EquipmentDowntimeEvent extends Model
             'cause_type' => EquipmentDowntimeCauseType::class,
             'stoppage_category' => StoppageCategory::class,
             'reported_type' => ReportedStoppageType::class,
+            'confirmation_status' => StoppageConfirmationStatus::class,
+            'confirmed_at' => 'datetime',
             'failure_mode' => FailureMode::class,
             'was_planned' => 'boolean',
             'affects_production' => 'boolean',

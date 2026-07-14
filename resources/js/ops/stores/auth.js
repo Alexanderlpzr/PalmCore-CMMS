@@ -40,6 +40,10 @@ export const useAuthStore = defineStore('auth', () => {
                     'inventory.read', 'inventory.write',
                     'plants.read', 'areas.read',
                     'alerts.read', 'alerts.write',
+                    // Sin esto la pantalla de Paros no puede ni leer ni registrar:
+                    // el token nacía sin la facultad y la vista quedaba muda.
+                    'downtime.read', 'downtime.write',
+                    'permits.read', 'permits.write',
                     'maintenance-plans.read',
                     'reliability.read',
                     'reports.read',

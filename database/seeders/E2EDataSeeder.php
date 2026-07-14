@@ -25,6 +25,8 @@ use App\Models\Alert;
 use App\Models\Area;
 use App\Models\Equipment;
 use App\Models\EquipmentCategory;
+use App\Models\EquipmentDowntimeEvent;
+use App\Models\EquipmentMeterReading;
 use App\Models\MaintenancePlan;
 use App\Models\MaintenanceRequest;
 use App\Models\Plant;
@@ -36,6 +38,8 @@ use App\Models\WarehouseSparePart;
 use App\Models\WebhookDeliveryLog;
 use App\Models\WebhookSubscription;
 use App\Models\WorkOrder;
+use App\Models\WorkOrderChecklistResult;
+use App\Models\WorkOrderTask;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\PermissionRegistrar;
@@ -394,6 +398,85 @@ class E2EDataSeeder extends Seeder
         if (! $equipment2->qrCode) {
             app(QrCodeService::class)->createForEquipment($equipment2);
         }
+
+        // ── Fase 1/2: checklist ejecutable, paros y horómetros (Grupo 26) ─────
+
+        // Un paro se solapa con cualquier otro del mismo equipo: si una corrida
+        // anterior dejó el suyo abierto, el siguiente registro sería rechazado por
+        // una razón que no tiene nada que ver con lo que el test quiere probar.
+        EquipmentDowntimeEvent::withoutGlobalScopes()
+            ->where('tenant_id', $tenant->id)
+            ->where('source', 'manual')
+            ->delete();
+
+        // El horómetro acumula: si las lecturas de la corrida anterior sobreviven, el
+        // acumulado que el test verifica depende de cuántas veces se corrió la suite.
+        EquipmentMeterReading::withoutGlobalScopes()
+            ->where('tenant_id', $tenant->id)
+            ->delete();
+
+        Equipment::withoutGlobalScopes()
+            ->where('tenant_id', $tenant->id)
+            ->update(['current_meter_reading' => null, 'accumulated_meter_reading' => 0]);
+
+        // E2E-WO-CHECK: la OT del técnico en campo. En ejecución, con su checklist
+        // ya congelado (el generador lo copia del plan; aquí se siembra directo
+        // porque lo que se prueba es ejecutarlo, no generarlo).
+        $checklistWo = WorkOrder::withoutGlobalScopes()->updateOrCreate(
+            ['tenant_id' => $tenant->id, 'work_order_number' => 'E2E-WO-CHECK'],
+            [
+                'equipment_id' => $equipment2->id,
+                'plant_id' => $plant->id,
+                'area_id' => $area->id,
+                'work_order_type' => WorkOrderType::Preventive->value,
+                'status' => WorkOrderStatus::InProgress->value,
+                'priority' => WorkOrderPriority::P3Medium->value,
+                'title' => '[E2E] Preventivo con checklist ejecutable',
+                'description' => 'OT con mediciones obligatorias para el E2E de checklist.',
+                'equipment_stopped' => false,
+                'planned_start_at' => now(),
+                'actual_start_at' => now(),
+                'started_at' => now(),
+                'completed_at' => null,
+                'actual_end_at' => null,
+                'created_by' => $admin->id,
+            ]
+        );
+
+        // Se recrea entero en cada corrida: una respuesta que sobrevive de la
+        // corrida anterior haría pasar el test sin que nadie mida nada.
+        WorkOrderTask::withoutGlobalScopes()->where('work_order_id', $checklistWo->id)->forceDelete();
+
+        $task = WorkOrderTask::withoutGlobalScopes()->create([
+            'tenant_id' => $tenant->id,
+            'work_order_id' => $checklistWo->id,
+            'sort_order' => 1,
+            'title' => '[E2E] Revisión de temperatura del reductor',
+            'description' => 'Medir y registrar antes de cerrar la OT.',
+            'estimated_minutes' => 30,
+            'status' => 'pending',
+        ]);
+
+        WorkOrderChecklistResult::withoutGlobalScopes()->create([
+            'tenant_id' => $tenant->id,
+            'work_order_task_id' => $task->id,
+            'sort_order' => 1,
+            'label' => 'Temperatura del reductor',
+            'item_type' => 'numeric',
+            'unit' => '°C',
+            'expected_min' => 40,
+            'expected_max' => 80,
+            'is_required' => true,
+        ]);
+
+        WorkOrderChecklistResult::withoutGlobalScopes()->create([
+            'tenant_id' => $tenant->id,
+            'work_order_task_id' => $task->id,
+            'sort_order' => 2,
+            'label' => '¿Hay fuga de aceite?',
+            'item_type' => 'boolean',
+            'is_required' => true,
+        ]);
 
         // ── Open alert (for alert flow) ───────────────────────────────────────
 

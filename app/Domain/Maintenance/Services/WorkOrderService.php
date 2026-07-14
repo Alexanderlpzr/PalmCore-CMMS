@@ -5,6 +5,7 @@ namespace App\Domain\Maintenance\Services;
 use App\Domain\Assets\Enums\EquipmentDowntimeCauseType;
 use App\Domain\Assets\Enums\EquipmentStatus;
 use App\Domain\Assets\Enums\StoppageCategory;
+use App\Domain\Assets\Services\DowntimeService;
 use App\Domain\Maintenance\Enums\FailureMode;
 use App\Domain\Maintenance\Enums\MaintenanceRequestStatus;
 use App\Domain\Maintenance\Enums\TechnicianRole;
@@ -44,6 +45,7 @@ class WorkOrderService
         private readonly ActivityLocationService $locationService,
         private readonly WorkOrderTaskService $taskService,
         private readonly WorkPermitService $permitService,
+        private readonly DowntimeService $downtimeService,
     ) {}
 
     // ── Numbering ─────────────────────────────────────────────────────────────
@@ -676,6 +678,10 @@ class WorkOrderService
                 ]);
             }
 
+            if ($event !== null) {
+                $this->propagateDiagnosedCategory($workOrder, $event);
+            }
+
             // The paro belongs to the machine, not to this OT: it may have been
             // opened by an earlier OT, and it must stay open while another OT is
             // still working on the stopped equipment. It closes when the last one
@@ -698,6 +704,25 @@ class WorkOrderService
                     ?? (int) abs($paro->started_at->diffInMinutes($endedAt)),
             ]);
         }
+    }
+
+    /**
+     * A4 — el diagnóstico del técnico baja al paro.
+     *
+     * El paro nació en «otro» porque al arrancar la OT nadie sabía qué se había
+     * roto. Ahora el técnico ya destapó la máquina: su Tipo I manda sobre el que la
+     * OT dedujo de su propio tipo. Un paro programado no se toca — su Tipo I viene
+     * del origen, no del hallazgo, y el servicio de paros lo rechazaría.
+     */
+    private function propagateDiagnosedCategory(WorkOrder $workOrder, EquipmentDowntimeEvent $event): void
+    {
+        $diagnosed = $workOrder->diagnosed_stoppage_category;
+
+        if ($diagnosed === null || $event->was_planned || $diagnosed->isPlanned()) {
+            return;
+        }
+
+        $this->downtimeService->reclassify($event, $diagnosed, $workOrder->failure_cause);
     }
 
     /**

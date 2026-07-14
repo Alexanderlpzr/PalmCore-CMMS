@@ -51,6 +51,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Horómetros
+    |--------------------------------------------------------------------------
+    | stale_reading_days: días sin lectura tras los cuales un equipo con plan
+    | preventivo por horómetro levanta alerta. Un plan por horas que no recibe
+    | lecturas no falla: deja de generar OTs en silencio. Al doble de este plazo
+    | la alerta pasa a crítica.
+    */
+    'meters' => [
+        'stale_reading_days' => env('PALMCORE_METER_STALE_DAYS', 7),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Media Storage
     |--------------------------------------------------------------------------
     | S3-compatible storage for work order photos, documents, and attachments.

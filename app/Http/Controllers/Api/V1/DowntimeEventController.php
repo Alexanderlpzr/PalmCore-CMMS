@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Api\V1;
 use App\Domain\Assets\Enums\StoppageCategory;
 use App\Domain\Assets\Services\DowntimeService;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\ClassifyDowntimeEventRequest;
+use App\Http\Requests\Api\V1\ConfirmDowntimeEventRequest;
+use App\Http\Requests\Api\V1\DisputeDowntimeEventRequest;
 use App\Http\Requests\Api\V1\EndDowntimeEventRequest;
 use App\Http\Requests\Api\V1\StoreDowntimeEventRequest;
 use App\Http\Resources\Api\V1\DowntimeEventResource;
@@ -93,6 +96,49 @@ class DowntimeEventController extends Controller
     }
 
     /**
+     * A4 — el técnico afina el Tipo I cuando ya sabe qué se rompió. El paro que la
+     * OT abrió en «otro» deja de contaminar el Pareto.
+     */
+    public function classify(ClassifyDowntimeEventRequest $request, string $id): DowntimeEventResource
+    {
+        $this->authorizeWrite($request);
+
+        $event = EquipmentDowntimeEvent::findOrFail($id);
+
+        $event = $this->service->reclassify(
+            $event,
+            StoppageCategory::from($request->validated('stoppage_category')),
+            $request->validated('stoppage_cause'),
+        );
+
+        return new DowntimeEventResource($event->load('equipment'));
+    }
+
+    /** A5 — producción firma las horas que se le restan a la planta. */
+    public function confirm(ConfirmDowntimeEventRequest $request, string $id): DowntimeEventResource
+    {
+        $this->authorizeWrite($request);
+
+        $event = EquipmentDowntimeEvent::findOrFail($id);
+
+        $event = $this->service->confirm($event, $request->user(), $request->validated('notes'));
+
+        return new DowntimeEventResource($event->load(['equipment', 'confirmedBy']));
+    }
+
+    /** A5 — producción no está de acuerdo. El paro no se borra: queda en disputa. */
+    public function dispute(DisputeDowntimeEventRequest $request, string $id): DowntimeEventResource
+    {
+        $this->authorizeWrite($request);
+
+        $event = EquipmentDowntimeEvent::findOrFail($id);
+
+        $event = $this->service->dispute($event, $request->user(), $request->validated('reason'));
+
+        return new DowntimeEventResource($event->load(['equipment', 'confirmedBy']));
+    }
+
+    /**
      * Hours of production lost in a window, split by Tipo I. The number the plant
      * argues about every Monday.
      */
@@ -112,6 +158,9 @@ class DowntimeEventController extends Controller
                 'from' => $from->toISOString(),
                 'to' => $to->toISOString(),
                 'total_hours' => round(array_sum($byCategory), 2),
+                // A5 — cuánto de este número todavía no lo firmó producción. No es
+                // un descuento: es la parte que hoy se sostiene en una sola palabra.
+                'pending_confirmation' => $this->service->pendingConfirmation($plant->id, $from, $to),
                 'by_category' => collect($byCategory)
                     ->map(fn (float $hours, string $category): array => [
                         'category' => $category,
