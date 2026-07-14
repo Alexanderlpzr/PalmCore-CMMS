@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\ImpersonationStatusController;
 use App\Http\Controllers\EquipmentPublicController;
 use App\Http\Controllers\HealthCheckController;
 use App\Http\Controllers\ImpersonationController;
+use App\Http\Controllers\PlatformHealthController;
 use App\Http\Controllers\ReportDownloadController;
 use Illuminate\Support\Facades\Route;
 
@@ -13,9 +14,16 @@ use Illuminate\Support\Facades\Route;
 // the dashboard — so no one ever lands on the default Laravel welcome page.
 Route::redirect('/', '/admin')->name('home');
 
+// ¿Respira la aplicación? Lo que Railway consulta para decidir si reinicia el contenedor.
 Route::get('/health', HealthCheckController::class)
     ->middleware('throttle:30,1')
     ->name('health');
+
+// ¿Funciona la plataforma? Scheduler, respaldos, colas sin worker. Reiniciar el
+// contenedor no arregla nada de esto, así que tiene su propia puerta y su propio 503.
+Route::get('/health/platform', PlatformHealthController::class)
+    ->middleware('throttle:30,1')
+    ->name('health.platform');
 
 Route::get('/equipment/qr/{token}', [EquipmentPublicController::class, 'show'])
     ->middleware('throttle:60,1')

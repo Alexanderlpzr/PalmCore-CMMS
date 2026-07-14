@@ -274,6 +274,43 @@ return [
             'timeout' => 330,
             'nice' => 5,
         ],
+
+        /*
+         * Maintenance — el generador de preventivos y el detector de horómetros mudos.
+         *
+         * Estos jobs ya se despachaban a la cola `maintenance`, pero ningún supervisor
+         * la atendía: se quedaban en Redis para siempre, sin error y sin log. El
+         * programa preventivo, que es el corazón del CMMS, no se generaba solo y nadie
+         * podía saber por qué. Horizon solo procesa las colas que tiene declaradas.
+         */
+        'supervisor-maintenance' => [
+            'connection' => 'redis',
+            'queue' => ['maintenance'],
+            'balance' => 'simple',
+            'minProcesses' => 1,
+            'maxProcesses' => 3,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 256,
+            'tries' => 3,
+            'timeout' => 630, // > 600s del GeneratePreventiveWorkOrdersJob, con margen
+            'nice' => 5,
+        ],
+
+        // Analytics — el cierre mensual de KPIs de planta, que tenía el mismo problema.
+        'supervisor-analytics' => [
+            'connection' => 'redis',
+            'queue' => ['analytics'],
+            'balance' => 'simple',
+            'minProcesses' => 1,
+            'maxProcesses' => 2,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 256,
+            'tries' => 3,
+            'timeout' => 630, // > 600s del SnapshotPlantKpisJob
+            'nice' => 5,
+        ],
     ],
 
     'environments' => [
@@ -296,6 +333,12 @@ return [
             'supervisor-exports' => [
                 'maxProcesses' => 3,
             ],
+            'supervisor-maintenance' => [
+                'maxProcesses' => 4,
+            ],
+            'supervisor-analytics' => [
+                'maxProcesses' => 2,
+            ],
         ],
 
         'local' => [
@@ -304,6 +347,8 @@ return [
             'supervisor-automations' => ['maxProcesses' => 1],
             'supervisor-audit' => ['maxProcesses' => 1],
             'supervisor-exports' => ['maxProcesses' => 1],
+            'supervisor-maintenance' => ['maxProcesses' => 1],
+            'supervisor-analytics' => ['maxProcesses' => 1],
         ],
     ],
 

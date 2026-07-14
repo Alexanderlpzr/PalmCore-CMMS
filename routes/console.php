@@ -7,14 +7,36 @@ use App\Jobs\EvaluateAutomationRulesJob;
 use App\Jobs\GeneratePreventiveWorkOrdersJob;
 use App\Jobs\RecalculateAllEquipmentKpisJob;
 use App\Jobs\SnapshotPlantKpisJob;
+use App\Jobs\WatchPlatformHealthJob;
 use App\Models\Tenant;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+/*
+ * El latido del scheduler.
+ *
+ * Si el scheduler deja de correr, nada falla: los preventivos simplemente no se
+ * generan, el mes no se cierra y las alertas no se levantan. No hay error, no hay log
+ * y nadie se entera hasta que una máquina se rompe. Este latido es lo que le permite
+ * al panel de plataforma afirmar que el reloj del sistema sigue andando —y, sobre
+ * todo, gritar cuando se para.
+ */
+Schedule::call(fn () => Cache::forever('platform.scheduler.heartbeat', now()->toISOString()))
+    ->name('platform:heartbeat')
+    ->everyFiveMinutes();
+
+// El vigilante: revisa la salud cada hora y avisa al superadministrador solo cuando
+// algo cambia a mal (o vuelve a estar bien). Un panel que hay que abrir para enterarse
+// no sirve de nada un viernes por la noche.
+Schedule::job(new WatchPlatformHealthJob)
+    ->hourly()
+    ->onOneServer();
 
 Schedule::job(new RecalculateAllEquipmentKpisJob)
     ->dailyAt('02:00')
