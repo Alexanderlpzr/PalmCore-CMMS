@@ -154,8 +154,18 @@ return [
              * ZipArchive::CM_XZ
              *
              * For more check https://www.php.net/manual/zip.constants.php and confirm it's supported by your system.
+             *
+             * CM_STORE (sin comprimir) a propósito, y por dos razones:
+             *
+             * 1. El volcado de la base YA viene comprimido con gzip (ver
+             *    `database_dump_compressor` más abajo). Volver a comprimirlo al nivel 9
+             *    es quemar CPU para no ganar ni un byte.
+             * 2. `CM_DEFAULT` reventaba en producción con «ZipArchive::close(): Invalid
+             *    argument»: la libzip de la imagen Alpine no soporta esa combinación. El
+             *    respaldo moría al empaquetar —después de volcar la base correctamente—
+             *    y el sistema se quedaba sin copias.
              */
-            'compression_method' => ZipArchive::CM_DEFAULT,
+            'compression_method' => ZipArchive::CM_STORE,
 
             /*
              * The compression level corresponding to the used algorithm; an integer between 0 and 9.
@@ -165,7 +175,8 @@ return [
              *
              * Setting of 0 for some algorithms may switch to the strongest compression.
              */
-            'compression_level' => 9,
+            // Con CM_STORE el nivel no aplica: 0 es el único valor coherente.
+            'compression_level' => 0,
 
             /*
              * The filename prefix used for the backup zip file.
