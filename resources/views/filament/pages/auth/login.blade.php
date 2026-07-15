@@ -43,14 +43,6 @@
                         @endif
                     </div>
                 @endforeach
-            @else
-                <div class="flex h-full w-full items-center justify-center">
-                    @if ($hasLogo)
-                        <div class="rounded-2xl bg-white/95 px-10 py-8 shadow-xl">
-                            <x-filament-panels::logo />
-                        </div>
-                    @endif
-                </div>
             @endif
         </div>
 
