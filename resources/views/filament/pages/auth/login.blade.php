@@ -8,13 +8,13 @@
 <div class="fi-simple-page">
     {{ \Filament\Support\Facades\FilamentView::renderHook(\Filament\View\PanelsRenderHook::SIMPLE_PAGE_START, scopes: $this->getRenderHookScopes()) }}
 
-    <div class="grid min-h-screen lg:grid-cols-2">
+    <div class="grid w-full min-h-screen lg:grid-cols-2">
         <div
             @if ($images->count() > 1)
                 x-data="{ slide: 0 }"
                 x-init="setInterval(() => slide = (slide + 1) % {{ $images->count() }}, 6000)"
             @endif
-            class="relative hidden overflow-hidden bg-gradient-to-br from-emerald-700 via-emerald-800 to-emerald-950 lg:block"
+            class="relative hidden overflow-hidden bg-linear-to-br from-emerald-700 via-emerald-800 to-emerald-950 lg:block"
         >
             @if ($images->isNotEmpty())
                 @foreach ($images as $index => $image)
@@ -37,12 +37,18 @@
                         />
 
                         @if ($image->caption)
-                            <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-10 py-8">
+                            <div class="absolute inset-x-0 bottom-0 bg-linear-to-t from-emerald-950/85 to-transparent px-10 py-8">
                                 <p class="text-lg font-medium text-white">{{ $image->caption }}</p>
                             </div>
                         @endif
                     </div>
                 @endforeach
+
+                {{-- Vela de color de marca sobre las fotos: sin esto, cada foto trae su
+                     propio balance de color y el carrusel se ve como fotos sueltas, no
+                     como parte de un mismo producto. --}}
+                <div class="pointer-events-none absolute inset-0 bg-linear-to-b from-emerald-950/30 via-transparent to-emerald-950/50 mix-blend-multiply"></div>
+                <div class="pointer-events-none absolute inset-0 bg-emerald-800/10"></div>
             @endif
         </div>
 
