@@ -3,6 +3,7 @@
 namespace App\Providers\Filament;
 
 use App\Filament\AvatarProviders\InitialsAvatarProvider;
+use App\Filament\Pages\Auth\Login;
 use App\Http\Middleware\CheckTenantSubscription;
 use App\Http\Middleware\EnforceTwoFactor;
 use App\Http\Middleware\SyncSpatieTeamId;
@@ -32,7 +33,7 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
-            ->login()
+            ->login(Login::class)
             ->brandName('Fronda CMMS')
             ->brandLogo(secure_asset('images/logo.png'))
             ->brandLogoHeight('4rem')

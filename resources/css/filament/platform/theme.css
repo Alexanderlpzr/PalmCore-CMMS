@@ -14,3 +14,7 @@
 @source '../../../../app/Filament/Platform/**/*.php';
 @source '../../../../app/Domain/Platform/**/*.php';
 @source '../../../../resources/views/filament/platform/**/*.blade.php';
+
+/* Página de login personalizada (carrusel de imágenes) — compartida con el
+ * panel admin, así que no vive bajo resources/views/filament/platform/. */
+@source '../../../../resources/views/filament/pages/**/*.blade.php';

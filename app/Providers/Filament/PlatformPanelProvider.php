@@ -3,6 +3,7 @@
 namespace App\Providers\Filament;
 
 use App\Filament\AvatarProviders\InitialsAvatarProvider;
+use App\Filament\Pages\Auth\Login;
 use App\Http\Middleware\EnsureSuperAdmin;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -27,7 +28,7 @@ class PlatformPanelProvider extends PanelProvider
         return $panel
             ->id('platform')
             ->path('platform')
-            ->login()
+            ->login(Login::class)
             ->brandName('Fronda · Plataforma')
             ->brandLogo(secure_asset('images/logo.png'))
             ->brandLogoHeight('4rem')
