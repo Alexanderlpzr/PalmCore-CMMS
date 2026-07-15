@@ -42,6 +42,28 @@ until php artisan migrate --force; do
     sleep 5
 done
 
+# Register any permission the code now checks for but the database has never
+# heard of. Sin esto, un permiso nuevo en el código (p. ej. `contractors.view`
+# al agregar Contratistas) tumba el panel admin ENTERO en el primer despliegue:
+# Filament construye el menú lateral revisando canViewAny() de cada recurso en
+# cada carga de página, y Spatie lanza una excepción si el permiso ni siquiera
+# existe como fila -- sin importar si el usuario lo tiene o no. Pasó de verdad
+# el 2026-07-14 y tuvo el panel admin caído hasta que alguien lo corrió a mano.
+#
+# firstOrCreate() por nombre+guard hace esto puramente aditivo: nunca duplica,
+# nunca borra, seguro de correr en cada arranque del contenedor.
+#
+# Lo que esto NO hace: asignar el permiso nuevo a los roles de un tenant que
+# ya existía antes de que el permiso se agregara al código. Eso lo hace
+# TenantRolesSeeder::run($tenant), que reemplaza la lista completa de permisos
+# de cada rol -- por eso queda como paso manual y revisado, no automático:
+# si algún día alguien personaliza un rol a mano desde el panel, correr esto
+# sin pensar se lo llevaría por delante en el próximo despliegue.
+# Falla el despliegue si esto falla: dejarlo pasar en silencio sería desplegar
+# el mismo bug que este paso existe para evitar.
+php artisan db:seed --class="Database\Seeders\PermissionSeeder" --force \
+    || { echo "PermissionSeeder failed"; exit 1; }
+
 # Hand ownership of writable paths to php-fpm's user (www-data) so it can
 # compile views/sessions/cache at runtime. Done last, after the root-run
 # artisan cache commands above created their files.
