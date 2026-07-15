@@ -128,6 +128,10 @@ class PreventiveWorkOrderGenerator
         $workOrder = $this->workOrderService->create([
             'tenant_id' => $plan->tenant_id,
             'equipment_id' => $plan->equipment_id,
+            // El componente que le dio origen al plan, si lo tiene. Sin esto, la OT
+            // quedaba huérfana de la pieza real: se sabía que había que intervenir la
+            // prensa, pero no que era la unidad de potencia la que pedía el aceite.
+            'equipment_component_id' => $plan->equipment_component_id,
             'maintenance_plan_id' => $plan->id,
             'work_order_type' => WorkOrderType::Preventive->value,
             'priority' => $this->priorityFor($equipment)->value,

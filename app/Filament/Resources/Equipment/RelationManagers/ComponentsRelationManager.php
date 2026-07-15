@@ -4,6 +4,10 @@ namespace App\Filament\Resources\Equipment\RelationManagers;
 
 use App\Domain\Assets\Enums\ComponentStatus;
 use App\Domain\Assets\Enums\EquipmentCriticality;
+use App\Domain\Maintenance\Services\EquipmentMeterReadingService;
+use App\Models\Equipment;
+use App\Models\EquipmentComponent;
+use App\Models\MaintenancePlan;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
@@ -18,6 +22,7 @@ use Filament\Schemas\Schema;
 use Filament\Tables\Columns\Summarizers\Sum;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 class ComponentsRelationManager extends RelationManager
@@ -93,6 +98,9 @@ class ComponentsRelationManager extends RelationManager
     {
         return $table
             ->recordTitleAttribute('name')
+            // Sin esto, mostrar «próximo mantenimiento» en cada fila dispararía una
+            // consulta por componente (N+1) para traer sus planes y el schedule de cada uno.
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('maintenancePlans.schedule'))
             ->columns([
                 TextColumn::make('code')
                     ->label('Código')
@@ -118,9 +126,15 @@ class ComponentsRelationManager extends RelationManager
                     ->color(fn (ComponentStatus $state): string => $state->color())
                     ->formatStateUsing(fn (ComponentStatus $state): string => $state->label()),
                 TextColumn::make('worked_hours')
-                    ->label('Horas')
+                    ->label('Horas de vida')
                     ->suffix('h')
-                    ->placeholder('—'),
+                    ->placeholder('—')
+                    ->toggleable(),
+                TextColumn::make('next_maintenance')
+                    ->label('Próximo mantenimiento')
+                    ->getStateUsing(fn (EquipmentComponent $record): ?string => $this->nextMaintenanceSummary($record))
+                    ->placeholder('Sin plan de mantenimiento')
+                    ->wrap(),
                 TextColumn::make('unit_cost')
                     ->label('Valor')
                     ->money(fn (): string => $this->getOwnerRecord()->currency_code ?? 'COP')
@@ -149,5 +163,40 @@ class ComponentsRelationManager extends RelationManager
                     DeleteBulkAction::make(),
                 ]),
             ]);
+    }
+
+    /**
+     * Uno o dos renglones («Aceite: 320 h · Filtro: 12 días») en vez de mandar al
+     * técnico a abrir cada plan para saber qué se le viene a esta pieza. Mezcla
+     * planes por horómetro y por fecha sin distinción: al técnico no le interesa
+     * cómo se dispara, le interesa cuánto falta.
+     */
+    private function nextMaintenanceSummary(EquipmentComponent $component): ?string
+    {
+        /** @var Equipment $equipment */
+        $equipment = $this->getOwnerRecord();
+        $meterService = app(EquipmentMeterReadingService::class);
+
+        $lines = $component->maintenancePlans
+            ->where('is_active', true)
+            ->map(function (MaintenancePlan $plan) use ($equipment, $meterService): ?string {
+                if ($plan->isMeterBased()) {
+                    $remaining = $meterService->metersRemaining($equipment, $plan);
+
+                    return $remaining !== null
+                        ? "{$plan->name}: ".number_format($remaining, 0).' h'
+                        : null;
+                }
+
+                $dueAt = $plan->schedule?->next_due_at;
+
+                return $dueAt !== null
+                    ? "{$plan->name}: ".$dueAt->diffForHumans()
+                    : null;
+            })
+            ->filter()
+            ->values();
+
+        return $lines->isNotEmpty() ? $lines->implode(' · ') : null;
     }
 }

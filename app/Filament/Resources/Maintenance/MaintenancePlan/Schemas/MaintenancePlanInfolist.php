@@ -3,6 +3,8 @@
 namespace App\Filament\Resources\Maintenance\MaintenancePlan\Schemas;
 
 use App\Domain\Maintenance\Enums\MaintenanceTriggerSource;
+use App\Domain\Maintenance\Services\EquipmentMeterReadingService;
+use App\Models\MaintenancePlan;
 use Filament\Infolists\Components\IconEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
@@ -39,6 +41,9 @@ class MaintenancePlanInfolist
                     ->schema([
                         TextEntry::make('equipment.code')->label('Código'),
                         TextEntry::make('equipment.name')->label('Nombre'),
+                        TextEntry::make('equipmentComponent.name')
+                            ->label('Componente')
+                            ->placeholder('Ninguno — el plan es de todo el equipo'),
                         TextEntry::make('responsibleUser.name')
                             ->label('Responsable')
                             ->placeholder('Sin asignar'),
@@ -112,6 +117,20 @@ class MaintenancePlanInfolist
                         TextEntry::make('schedule.times_skipped')
                             ->label('Ciclos omitidos')
                             ->placeholder('0'),
+                        // Solo tiene sentido para planes por horómetro con un objetivo
+                        // ya activado — el mismo dato que decide cuándo se genera la OT,
+                        // mostrado antes de que haga falta abrir el generador para verlo.
+                        TextEntry::make('hours_elapsed')
+                            ->label('Horas transcurridas')
+                            ->state(fn (MaintenancePlan $record): ?string => self::hoursSince($record))
+                            ->placeholder('—')
+                            ->visible(fn (MaintenancePlan $record): bool => $record->isMeterBased()),
+                        TextEntry::make('hours_remaining')
+                            ->label('Horas restantes')
+                            ->state(fn (MaintenancePlan $record): ?string => self::hoursRemaining($record))
+                            ->placeholder('—')
+                            ->color(fn (MaintenancePlan $record): ?string => self::hoursRemaining($record) === '0.0 h' ? 'danger' : null)
+                            ->visible(fn (MaintenancePlan $record): bool => $record->isMeterBased()),
                     ]),
 
                 Section::make('Seguimiento')
@@ -126,5 +145,27 @@ class MaintenancePlanInfolist
                             ->placeholder('—'),
                     ]),
             ]);
+    }
+
+    private static function hoursSince(MaintenancePlan $record): ?string
+    {
+        if ($record->equipment === null) {
+            return null;
+        }
+
+        $hours = app(EquipmentMeterReadingService::class)->metersSinceLastCompletion($record->equipment, $record);
+
+        return $hours !== null ? number_format($hours, 1).' h' : null;
+    }
+
+    private static function hoursRemaining(MaintenancePlan $record): ?string
+    {
+        if ($record->equipment === null) {
+            return null;
+        }
+
+        $hours = app(EquipmentMeterReadingService::class)->metersRemaining($record->equipment, $record);
+
+        return $hours !== null ? number_format($hours, 1).' h' : null;
     }
 }

@@ -184,13 +184,11 @@ class EquipmentMeterReadingService
      */
     public function daysUntilDue(Equipment $equipment, MaintenancePlan $plan, int $window = 30): ?int
     {
-        $dueMeter = $plan->schedule?->next_due_meter;
+        $remaining = $this->metersRemaining($equipment, $plan);
 
-        if ($dueMeter === null) {
+        if ($remaining === null) {
             return null;
         }
-
-        $remaining = (float) $dueMeter - $this->accumulatedReading($equipment);
 
         if ($remaining <= 0) {
             return 0;
@@ -203,5 +201,42 @@ class EquipmentMeterReadingService
         }
 
         return (int) ceil($remaining / $pace);
+    }
+
+    /**
+     * Horas de horómetro que faltan para que el plan venza. `null` si el plan no es
+     * por horómetro o nunca se activó; nunca negativo — un plan vencido muestra 0,
+     * no una deuda que crece para siempre.
+     */
+    public function metersRemaining(Equipment $equipment, MaintenancePlan $plan): ?float
+    {
+        $dueMeter = $plan->schedule?->next_due_meter;
+
+        if ($dueMeter === null) {
+            return null;
+        }
+
+        return max(0.0, round($dueMeter - $this->accumulatedReading($equipment), 1));
+    }
+
+    /**
+     * Horas de horómetro que ya lleva el plan desde la última intervención — o desde
+     * que se activó, si todavía no ha corrido ninguna. Es el número que responde
+     * «¿cuánto le hemos exigido a esta pieza desde el último cambio de aceite?».
+     */
+    public function metersSinceLastCompletion(Equipment $equipment, MaintenancePlan $plan): ?float
+    {
+        $schedule = $plan->schedule;
+
+        if ($schedule === null || ($schedule->last_completed_meter === null && $schedule->next_due_meter === null)) {
+            return null;
+        }
+
+        // Sin ejecución previa, el punto de partida es el horómetro con el que el plan
+        // se activó: next_due_meter menos un intervalo completo.
+        $baseline = $schedule->last_completed_meter
+            ?? ((float) $schedule->next_due_meter - (float) ($plan->meter_interval ?? 0));
+
+        return max(0.0, round($this->accumulatedReading($equipment) - $baseline, 1));
     }
 }

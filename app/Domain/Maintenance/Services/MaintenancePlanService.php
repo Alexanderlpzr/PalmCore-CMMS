@@ -174,7 +174,33 @@ class MaintenancePlanService
 
         $plan->update(['last_generated_at' => now()]);
 
+        if ($plan->equipment_component_id !== null) {
+            $this->logComponentIntervention($plan, $workOrder, $completedAt, $completedMeter);
+        }
+
         return $schedule->refresh();
+    }
+
+    /**
+     * Deja constancia en la bitácora del componente sin que nadie tenga que
+     * escribirla a mano: la OT que se acaba de completar YA es la prueba de que la
+     * pieza tuvo su intervención. Sin esto, ComponentHistory solo tendría lo que un
+     * técnico decidiera anotar por su cuenta — que en la práctica es nada.
+     */
+    private function logComponentIntervention(
+        MaintenancePlan $plan,
+        WorkOrder $workOrder,
+        CarbonInterface $completedAt,
+        ?float $completedMeter,
+    ): void {
+        $plan->equipmentComponent?->history()->create([
+            'tenant_id' => $plan->tenant_id,
+            'user_id' => $workOrder->completed_by,
+            'type' => 'maintenance',
+            'description' => "Generado automáticamente por el plan {$plan->plan_number} — {$plan->name} ({$workOrder->work_order_number}).",
+            'worked_hours_at_event' => $completedMeter,
+            'occurred_at' => $completedAt,
+        ]);
     }
 
     // ── Due Date Calculation ──────────────────────────────────────────────────

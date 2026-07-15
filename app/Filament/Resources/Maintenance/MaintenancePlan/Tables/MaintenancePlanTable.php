@@ -30,6 +30,10 @@ class MaintenancePlanTable
                     ->label('Equipo')
                     ->searchable()
                     ->sortable(),
+                TextColumn::make('equipmentComponent.name')
+                    ->label('Componente')
+                    ->placeholder('Todo el equipo')
+                    ->toggleable(),
                 TextColumn::make('name')
                     ->label('Nombre')
                     ->searchable()

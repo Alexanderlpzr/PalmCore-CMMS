@@ -58,6 +58,11 @@ class EquipmentComponent extends BaseModel
         return $this->hasMany(WorkOrder::class);
     }
 
+    public function maintenancePlans(): HasMany
+    {
+        return $this->hasMany(MaintenancePlan::class);
+    }
+
     protected function casts(): array
     {
         return [

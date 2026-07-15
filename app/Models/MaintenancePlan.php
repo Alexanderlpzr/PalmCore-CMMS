@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 #[Fillable([
     'tenant_id',
     'equipment_id',
+    'equipment_component_id',
     'plan_number',
     'name',
     'description',
@@ -41,6 +42,11 @@ class MaintenancePlan extends BaseModel
     public function equipment(): BelongsTo
     {
         return $this->belongsTo(Equipment::class);
+    }
+
+    public function equipmentComponent(): BelongsTo
+    {
+        return $this->belongsTo(EquipmentComponent::class);
     }
 
     public function responsibleUser(): BelongsTo
@@ -85,6 +91,12 @@ class MaintenancePlan extends BaseModel
     public function isMeterBased(): bool
     {
         return $this->trigger_source->requiresMeterInterval();
+    }
+
+    /** Un plan de pieza, no de equipo entero. El horómetro que usa sigue siendo el del equipo. */
+    public function isComponentScoped(): bool
+    {
+        return $this->equipment_component_id !== null;
     }
 
     public function frequencyLabel(): string

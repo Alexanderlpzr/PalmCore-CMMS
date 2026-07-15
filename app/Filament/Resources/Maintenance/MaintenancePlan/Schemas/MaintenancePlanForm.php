@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Maintenance\MaintenancePlan\Schemas;
 use App\Domain\Maintenance\Enums\MaintenanceTimeFrequency;
 use App\Domain\Maintenance\Enums\MaintenanceTriggerSource;
 use App\Models\Equipment;
+use App\Models\EquipmentComponent;
 use App\Models\User;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -12,6 +13,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 
 class MaintenancePlanForm
@@ -27,7 +29,24 @@ class MaintenancePlanForm
                             ->label('Equipo')
                             ->options(fn (): array => Equipment::orderBy('code')->get()->mapWithKeys(fn ($e) => [$e->id => "{$e->code} — {$e->name}"])->toArray())
                             ->searchable()
-                            ->required(),
+                            ->live()
+                            ->required()
+                            // Cambiar de equipo invalida cualquier componente ya elegido:
+                            // era de otra máquina y ya no aplica.
+                            ->afterStateUpdated(fn (Set $set) => $set('equipment_component_id', null)),
+                        Select::make('equipment_component_id')
+                            ->label('Componente')
+                            ->helperText('Opcional. Sin componente, el plan es del equipo entero — el comportamiento de siempre.')
+                            ->options(fn (Get $get): array => $get('equipment_id')
+                                ? EquipmentComponent::where('equipment_id', $get('equipment_id'))
+                                    ->orderBy('name')
+                                    ->pluck('name', 'id')
+                                    ->all()
+                                : [])
+                            ->searchable()
+                            ->nullable()
+                            ->disabled(fn (Get $get): bool => ! $get('equipment_id'))
+                            ->placeholder('Todo el equipo'),
                         Select::make('responsible_user_id')
                             ->label('Responsable')
                             ->options(fn (): array => User::orderBy('name')->pluck('name', 'id')->toArray())
