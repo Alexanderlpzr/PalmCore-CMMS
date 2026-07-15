@@ -5,7 +5,7 @@
     $images = $this->getBackgroundImages();
 @endphp
 
-<div class="fi-simple-page">
+<div class="fi-simple-page w-full">
     {{ \Filament\Support\Facades\FilamentView::renderHook(\Filament\View\PanelsRenderHook::SIMPLE_PAGE_START, scopes: $this->getRenderHookScopes()) }}
 
     <div class="relative min-h-screen w-full overflow-hidden bg-[linear-gradient(150deg,#264a35,#0d2016_70%)]">
