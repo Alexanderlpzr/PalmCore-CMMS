@@ -9,20 +9,6 @@
     {{ \Filament\Support\Facades\FilamentView::renderHook(\Filament\View\PanelsRenderHook::SIMPLE_PAGE_START, scopes: $this->getRenderHookScopes()) }}
 
     <div class="grid w-full min-h-screen lg:mx-auto lg:max-w-[1600px] lg:grid-cols-2">
-        <div class="flex items-center justify-center px-6 py-12 sm:px-12">
-            <div class="w-full max-w-md">
-                @if (filled($heading) || $hasLogo || filled($subheading))
-                    <x-filament-panels::header.simple
-                        :heading="$heading"
-                        :logo="$hasLogo"
-                        :subheading="$subheading"
-                    />
-                @endif
-
-                {{ $this->content }}
-            </div>
-        </div>
-
         <div
             @if ($images->count() > 1)
                 x-data="{ slide: 0 }"
@@ -64,6 +50,20 @@
                 <div class="pointer-events-none absolute inset-0 bg-linear-to-b from-emerald-950/30 via-transparent to-emerald-950/50 mix-blend-multiply"></div>
                 <div class="pointer-events-none absolute inset-0 bg-emerald-800/10"></div>
             @endif
+        </div>
+
+        <div class="flex items-center justify-center px-6 py-12 sm:px-12">
+            <div class="w-full max-w-md">
+                @if (filled($heading) || $hasLogo || filled($subheading))
+                    <x-filament-panels::header.simple
+                        :heading="$heading"
+                        :logo="$hasLogo"
+                        :subheading="$subheading"
+                    />
+                @endif
+
+                {{ $this->content }}
+            </div>
         </div>
     </div>
 
