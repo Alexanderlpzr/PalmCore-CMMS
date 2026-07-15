@@ -3,6 +3,8 @@
 namespace App\Domain\Analytics\Services;
 
 use App\Domain\Analytics\DTOs\TrendPoint;
+use App\Domain\Assets\Enums\ReportedStoppageType;
+use App\Domain\Assets\Enums\StoppageCategory;
 use App\Domain\Maintenance\Enums\FailureMode;
 use App\Models\EquipmentDowntimeEvent;
 use App\Models\EquipmentKpi;
@@ -119,6 +121,61 @@ class AnalyticsService
             ))
             ->values()
             ->all();
+    }
+
+    /**
+     * @return TrendPoint[] — total downtime hours grouped by reported_type (el "Tipo I"
+     *                      de la planta: quién paró la línea — programada, mantenimiento,
+     *                      operativa, externa — no qué se rompió). $from/$to default to
+     *                      the trailing 12 months when omitted.
+     */
+    public function downtimeByReportedType(string $tenantId, ?CarbonInterface $from = null, ?CarbonInterface $to = null): array
+    {
+        return $this->downtimeByColumn($tenantId, 'reported_type', ReportedStoppageType::class, $from, $to);
+    }
+
+    /**
+     * @return TrendPoint[] — total downtime hours grouped by stoppage_category (la
+     *                      causa física: mecánico, eléctrico, falta de fruta…). $from/$to
+     *                      default to the trailing 12 months when omitted.
+     */
+    public function downtimeByStoppageCategory(string $tenantId, ?CarbonInterface $from = null, ?CarbonInterface $to = null): array
+    {
+        return $this->downtimeByColumn($tenantId, 'stoppage_category', StoppageCategory::class, $from, $to);
+    }
+
+    /**
+     * @param  class-string<ReportedStoppageType|StoppageCategory>  $enumClass
+     * @return TrendPoint[]
+     */
+    private function downtimeByColumn(string $tenantId, string $column, string $enumClass, ?CarbonInterface $from, ?CarbonInterface $to): array
+    {
+        $to = CarbonImmutable::parse($to ?? now())->startOfMonth();
+        $from = CarbonImmutable::parse($from ?? $to->subMonths(11))->startOfMonth();
+
+        $key = "analytics:downtime_by_{$column}:{$tenantId}:{$from->format('Y-m')}:{$to->format('Y-m')}";
+
+        return Cache::remember(
+            $key,
+            now()->addMinutes(20),
+            function () use ($tenantId, $column, $enumClass, $from, $to): array {
+                return DB::table('equipment_downtime_events')
+                    ->where('tenant_id', $tenantId)
+                    ->whereNotNull($column)
+                    ->whereNotNull('ended_at')
+                    ->where('started_at', '>=', $from)
+                    ->where('started_at', '<', $to->addMonth())
+                    ->selectRaw("{$column} AS bucket, COALESCE(SUM(duration_minutes), 0) AS total_minutes")
+                    ->groupBy($column)
+                    ->orderByDesc('total_minutes')
+                    ->get()
+                    ->map(fn ($row) => new TrendPoint(
+                        label: $enumClass::tryFrom((string) $row->bucket)?->label() ?? (string) $row->bucket,
+                        value: round(((float) $row->total_minutes) / 60, 2),
+                    ))
+                    ->all();
+            }
+        );
     }
 
     /**

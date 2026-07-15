@@ -2,6 +2,8 @@
 
 use App\Domain\Analytics\DTOs\TrendPoint;
 use App\Domain\Analytics\Services\AnalyticsService;
+use App\Domain\Assets\Enums\ReportedStoppageType;
+use App\Domain\Assets\Enums\StoppageCategory;
 use App\Domain\Maintenance\Enums\FailureMode;
 use App\Models\Equipment;
 use App\Models\EquipmentDowntimeEvent;
@@ -218,6 +220,129 @@ it('downtimeTrend includes planned events in total downtime', function () {
     $currentMonth = collect($points)->last();
 
     expect($currentMonth->value)->toBe(1.0);
+});
+
+// ── downtimeByReportedType ───────────────────────────────────────────────────
+
+it('downtimeByReportedType groups hours by reported_type and labels them', function () {
+    $tenant = analyticsTenant();
+    $equipA = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+    $equipB = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+    $when = now()->startOfMonth()->addDay();
+
+    EquipmentDowntimeEvent::factory()->create([
+        'tenant_id' => $tenant->id, 'equipment_id' => $equipA->id,
+        'reported_type' => ReportedStoppageType::Scheduled->value,
+        'duration_minutes' => 120, 'started_at' => $when,
+    ]);
+    EquipmentDowntimeEvent::factory()->create([
+        'tenant_id' => $tenant->id, 'equipment_id' => $equipB->id,
+        'reported_type' => ReportedStoppageType::Operational->value,
+        'duration_minutes' => 60, 'started_at' => $when,
+    ]);
+
+    $points = service()->downtimeByReportedType($tenant->id);
+
+    expect($points[0]->label)->toBe(ReportedStoppageType::Scheduled->label())
+        ->and($points[0]->value)->toBe(2.0)
+        ->and($points[1]->label)->toBe(ReportedStoppageType::Operational->label())
+        ->and($points[1]->value)->toBe(1.0);
+});
+
+it('downtimeByReportedType includes planned events', function () {
+    $tenant = analyticsTenant();
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+
+    EquipmentDowntimeEvent::factory()->planned()->create([
+        'tenant_id' => $tenant->id, 'equipment_id' => $equipment->id,
+        'reported_type' => ReportedStoppageType::Scheduled->value,
+        'duration_minutes' => 90, 'started_at' => now()->startOfMonth()->addDay(),
+    ]);
+
+    $points = service()->downtimeByReportedType($tenant->id);
+
+    expect($points)->toHaveCount(1)
+        ->and($points[0]->value)->toBe(1.5);
+});
+
+it('downtimeByReportedType ignores events without a classified reported_type', function () {
+    $tenant = analyticsTenant();
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+
+    EquipmentDowntimeEvent::factory()->create([
+        'tenant_id' => $tenant->id, 'equipment_id' => $equipment->id,
+        'reported_type' => null, 'started_at' => now()->startOfMonth()->addDay(),
+    ]);
+
+    expect(service()->downtimeByReportedType($tenant->id))->toBeEmpty();
+});
+
+it('downtimeByReportedType enforces tenant isolation', function () {
+    $tenantA = analyticsTenant();
+    $tenantB = analyticsTenant();
+    $equipB = Equipment::factory()->create(['tenant_id' => $tenantB->id]);
+
+    EquipmentDowntimeEvent::factory()->create([
+        'tenant_id' => $tenantB->id, 'equipment_id' => $equipB->id,
+        'reported_type' => ReportedStoppageType::Operational->value,
+        'started_at' => now()->startOfMonth()->addDay(),
+    ]);
+
+    expect(service()->downtimeByReportedType($tenantA->id))->toBeEmpty();
+});
+
+// ── downtimeByStoppageCategory ───────────────────────────────────────────────
+
+it('downtimeByStoppageCategory groups hours by stoppage_category and labels them', function () {
+    $tenant = analyticsTenant();
+    $equipA = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+    $equipB = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+    $when = now()->startOfMonth()->addDay();
+
+    EquipmentDowntimeEvent::factory()->create([
+        'tenant_id' => $tenant->id, 'equipment_id' => $equipA->id,
+        'stoppage_category' => StoppageCategory::Mechanical->value,
+        'duration_minutes' => 180, 'started_at' => $when,
+    ]);
+    EquipmentDowntimeEvent::factory()->create([
+        'tenant_id' => $tenant->id, 'equipment_id' => $equipB->id,
+        'stoppage_category' => StoppageCategory::RawMaterial->value,
+        'duration_minutes' => 60, 'started_at' => $when,
+    ]);
+
+    $points = service()->downtimeByStoppageCategory($tenant->id);
+
+    expect($points[0]->label)->toBe(StoppageCategory::Mechanical->label())
+        ->and($points[0]->value)->toBe(3.0)
+        ->and($points[1]->label)->toBe(StoppageCategory::RawMaterial->label())
+        ->and($points[1]->value)->toBe(1.0);
+});
+
+it('downtimeByStoppageCategory excludes ongoing events', function () {
+    $tenant = analyticsTenant();
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+
+    EquipmentDowntimeEvent::factory()->ongoing()->create([
+        'tenant_id' => $tenant->id, 'equipment_id' => $equipment->id,
+        'stoppage_category' => StoppageCategory::Mechanical->value,
+        'started_at' => now()->startOfMonth()->addDay(),
+    ]);
+
+    expect(service()->downtimeByStoppageCategory($tenant->id))->toBeEmpty();
+});
+
+it('downtimeByStoppageCategory enforces tenant isolation', function () {
+    $tenantA = analyticsTenant();
+    $tenantB = analyticsTenant();
+    $equipB = Equipment::factory()->create(['tenant_id' => $tenantB->id]);
+
+    EquipmentDowntimeEvent::factory()->create([
+        'tenant_id' => $tenantB->id, 'equipment_id' => $equipB->id,
+        'stoppage_category' => StoppageCategory::Electrical->value,
+        'started_at' => now()->startOfMonth()->addDay(),
+    ]);
+
+    expect(service()->downtimeByStoppageCategory($tenantA->id))->toBeEmpty();
 });
 
 // ── mtbfTrend ─────────────────────────────────────────────────────────────────

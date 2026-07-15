@@ -4,6 +4,8 @@ namespace App\Filament\Pages;
 
 use App\Domain\Analytics\Support\DashboardPeriod;
 use App\Filament\Widgets\Analytics\CostByEquipmentWidget;
+use App\Filament\Widgets\Analytics\DowntimeByReportedTypeWidget;
+use App\Filament\Widgets\Analytics\DowntimeByStoppageCategoryWidget;
 use App\Filament\Widgets\Analytics\DowntimeTrendWidget;
 use App\Filament\Widgets\Analytics\FailuresByMonthWidget;
 use App\Filament\Widgets\Analytics\MtbfTrendWidget;
@@ -74,6 +76,8 @@ class Dashboard extends BaseDashboard
             MtbfTrendWidget::class,
             MttrTrendWidget::class,
             DowntimeTrendWidget::class,
+            DowntimeByReportedTypeWidget::class,
+            DowntimeByStoppageCategoryWidget::class,
             // Pareto & rankings (last 12 months)
             CostByEquipmentWidget::class,
             ParetoFailuresWidget::class,
