@@ -24,6 +24,12 @@ export default defineConfig({
                 bunny('Instrument Sans', {
                     weights: [400, 500, 600],
                 }),
+                // Serif del encabezado del login (LOGIN-2). Autohospedada como
+                // Instrument Sans, por la misma razón: la CSP no permite hojas de
+                // estilo externas (fonts.bunny.net no está en style-src).
+                bunny('Fraunces', {
+                    weights: [500],
+                }),
             ],
         }),
         tailwindcss(),

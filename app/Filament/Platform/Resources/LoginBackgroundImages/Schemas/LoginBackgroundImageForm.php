@@ -19,7 +19,7 @@ class LoginBackgroundImageForm
                     ->disk(persistent_disk())
                     ->directory('login')
                     ->imageResizeMode('cover')
-                    ->imageCropAspectRatio('3:4')
+                    ->imageCropAspectRatio('16:9')
                     ->required()
                     ->columnSpanFull(),
                 TextInput::make('caption')

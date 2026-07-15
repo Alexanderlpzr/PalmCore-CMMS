@@ -34,7 +34,7 @@ it('el superadministrador puede subir una imagen para el carrusel de login', fun
 
     Livewire::test(CreateLoginBackgroundImage::class)
         ->fillForm([
-            'image_path' => UploadedFile::fake()->image('planta.jpg', 900, 1200),
+            'image_path' => UploadedFile::fake()->image('planta.jpg', 1600, 900),
             'caption' => 'Planta El Pajuil',
             'sort_order' => 1,
             'is_active' => true,
