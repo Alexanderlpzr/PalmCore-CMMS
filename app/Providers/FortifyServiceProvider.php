@@ -45,10 +45,15 @@ class FortifyServiceProvider extends ServiceProvider
      */
     private function configureViews(): void
     {
-        Fortify::loginView(fn () => view('pages::auth.login'));
+        // El scaffold de Livewire/Flux con el que arrancó el proyecto trae sus propias
+        // pantallas de login y registro (genéricas, sin marca). El producto real vive en
+        // Filament (/admin), así que quien llegue a /login o /register por costumbre o por
+        // un enlace viejo debe caer ahí, no en una pantalla huérfana de otro panel.
+        Fortify::loginView(fn () => redirect()->route('filament.admin.auth.login'));
+        Fortify::registerView(fn () => redirect()->route('filament.admin.auth.login'));
+
         Fortify::verifyEmailView(fn () => view('pages::auth.verify-email'));
         Fortify::confirmPasswordView(fn () => view('pages::auth.confirm-password'));
-        Fortify::registerView(fn () => view('pages::auth.register'));
         Fortify::resetPasswordView(fn () => view('pages::auth.reset-password'));
         Fortify::requestPasswordResetLinkView(fn () => view('pages::auth.forgot-password'));
     }

@@ -6,10 +6,12 @@ beforeEach(function () {
     $this->skipUnlessFortifyHas(Features::registration());
 });
 
-test('registration screen can be rendered', function () {
+test('registration screen redirects to the real product login', function () {
+    // Sin registro público real: las cuentas las crea un administrador desde Filament.
+    // La pantalla de registro del scaffold de Livewire/Flux no debe quedar huérfana.
     $response = $this->get(route('register'));
 
-    $response->assertOk();
+    $response->assertRedirect(route('filament.admin.auth.login'));
 });
 
 test('new users can register', function () {

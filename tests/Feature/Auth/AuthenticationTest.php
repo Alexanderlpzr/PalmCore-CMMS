@@ -3,10 +3,13 @@
 use App\Models\User;
 use Laravel\Fortify\Features;
 
-test('login screen can be rendered', function () {
+test('login screen redirects to the real product login', function () {
+    // El scaffold de Livewire/Flux trae su propia pantalla de login genérica, sin marca.
+    // El producto real vive en Filament (/admin), así que /login no debe renderizar nada
+    // propio — debe mandar ahí a quien llegue por costumbre o por un enlace viejo.
     $response = $this->get(route('login'));
 
-    $response->assertOk();
+    $response->assertRedirect(route('filament.admin.auth.login'));
 });
 
 test('users can authenticate using the login screen', function () {
