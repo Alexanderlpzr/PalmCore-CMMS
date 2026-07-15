@@ -8,7 +8,7 @@
 <div class="fi-simple-page">
     {{ \Filament\Support\Facades\FilamentView::renderHook(\Filament\View\PanelsRenderHook::SIMPLE_PAGE_START, scopes: $this->getRenderHookScopes()) }}
 
-    <div class="grid w-full min-h-screen lg:grid-cols-2">
+    <div class="grid w-full min-h-screen lg:mx-auto lg:max-w-[1600px] lg:grid-cols-2">
         <div
             @if ($images->count() > 1)
                 x-data="{ slide: 0 }"
