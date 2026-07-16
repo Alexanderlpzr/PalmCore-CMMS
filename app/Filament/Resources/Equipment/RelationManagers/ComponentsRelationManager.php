@@ -4,10 +4,14 @@ namespace App\Filament\Resources\Equipment\RelationManagers;
 
 use App\Domain\Assets\Enums\ComponentStatus;
 use App\Domain\Assets\Enums\EquipmentCriticality;
+use App\Domain\Maintenance\Enums\MaintenanceTimeFrequency;
+use App\Domain\Maintenance\Enums\MaintenanceTriggerSource;
 use App\Domain\Maintenance\Services\EquipmentMeterReadingService;
+use App\Domain\Maintenance\Services\MaintenancePlanService;
 use App\Models\Equipment;
 use App\Models\EquipmentComponent;
 use App\Models\MaintenancePlan;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
@@ -17,8 +21,11 @@ use Filament\Facades\Filament;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
+use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\Summarizers\Sum;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -153,6 +160,7 @@ class ComponentsRelationManager extends RelationManager
                     }),
             ])
             ->recordActions([
+                $this->scheduleMaintenanceAction(),
                 EditAction::make()
                     ->tooltip('Editar los datos de este componente'),
                 DeleteAction::make()
@@ -163,6 +171,91 @@ class ComponentsRelationManager extends RelationManager
                     DeleteBulkAction::make(),
                 ]),
             ]);
+    }
+
+    /**
+     * «Programar mantenimiento» directo desde la pieza — sin salir a la pantalla de
+     * planes, elegir el equipo y volver a buscar el componente. El técnico ve la
+     * pieza y le agenda su rutina ahí mismo: cada cuántas horas (o cada cuánto
+     * tiempo) y con cuánta anticipación quiere la OT para pedir el repuesto.
+     *
+     * Crea Y activa el plan en un paso: un plan creado pero sin activar no genera
+     * nada, y desde aquí la intención es inequívoca —se está programando, no
+     * dejando un borrador—.
+     */
+    private function scheduleMaintenanceAction(): Action
+    {
+        return Action::make('scheduleMaintenance')
+            ->label('Programar mantenimiento')
+            ->tooltip('Crear un plan de mantenimiento para esta pieza')
+            ->icon(Heroicon::OutlinedCalendarDateRange)
+            ->color('success')
+            ->modalHeading(fn (EquipmentComponent $record): string => "Programar mantenimiento — {$record->name}")
+            ->modalSubmitActionLabel('Programar')
+            ->schema([
+                TextInput::make('name')
+                    ->label('Nombre del plan')
+                    ->required()
+                    ->maxLength(255)
+                    ->default(fn (EquipmentComponent $record): string => "Mantenimiento — {$record->name}"),
+                Select::make('trigger_source')
+                    ->label('Se programa por')
+                    ->options([
+                        MaintenanceTriggerSource::Meter->value => 'Horas de operación (horómetro)',
+                        MaintenanceTriggerSource::Calendar->value => 'Fecha (calendario)',
+                    ])
+                    ->default(MaintenanceTriggerSource::Meter->value)
+                    ->live()
+                    ->required(),
+                TextInput::make('meter_interval')
+                    ->label('Cada cuántas horas')
+                    ->helperText('Cada cuántas horas de operación se repite la intervención (ej: aceite cada 5000 h).')
+                    ->numeric()
+                    ->minValue(1)
+                    ->suffix('h')
+                    ->visible(fn (Get $get): bool => $get('trigger_source') === MaintenanceTriggerSource::Meter->value)
+                    ->required(fn (Get $get): bool => $get('trigger_source') === MaintenanceTriggerSource::Meter->value),
+                TextInput::make('meter_lead_hours')
+                    ->label('Avisar con anticipación')
+                    ->helperText('Cuántas horas antes del vencimiento aparece la OT, para pedir el repuesto a tiempo.')
+                    ->numeric()
+                    ->minValue(0)
+                    ->suffix('h')
+                    ->default(200)
+                    ->visible(fn (Get $get): bool => $get('trigger_source') === MaintenanceTriggerSource::Meter->value),
+                Select::make('time_frequency')
+                    ->label('Cada cuánto')
+                    ->options(MaintenanceTimeFrequency::options())
+                    ->visible(fn (Get $get): bool => $get('trigger_source') === MaintenanceTriggerSource::Calendar->value)
+                    ->required(fn (Get $get): bool => $get('trigger_source') === MaintenanceTriggerSource::Calendar->value),
+            ])
+            ->action(function (array $data, EquipmentComponent $record, MaintenancePlanService $service): void {
+                /** @var Equipment $equipment */
+                $equipment = $this->getOwnerRecord();
+
+                $plan = $service->create([
+                    'tenant_id' => Filament::getTenant()->id,
+                    'equipment_id' => $equipment->id,
+                    'equipment_component_id' => $record->id,
+                    'name' => $data['name'],
+                    'trigger_source' => $data['trigger_source'],
+                    'time_frequency' => $data['time_frequency'] ?? null,
+                    'meter_interval' => isset($data['meter_interval']) ? (int) $data['meter_interval'] : null,
+                    'meter_lead_hours' => isset($data['meter_lead_hours']) && $data['meter_lead_hours'] !== null
+                        ? (int) $data['meter_lead_hours']
+                        : null,
+                ], auth()->user());
+
+                // Sin activar, el plan no genera OTs. Desde aquí la intención es
+                // programar, así que se activa en el mismo paso.
+                $service->activate($plan);
+
+                Notification::make()
+                    ->title('Mantenimiento programado')
+                    ->body("El plan «{$plan->name}» quedó activo para esta pieza.")
+                    ->success()
+                    ->send();
+            });
     }
 
     /**

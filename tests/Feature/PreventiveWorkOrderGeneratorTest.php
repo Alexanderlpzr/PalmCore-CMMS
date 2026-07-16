@@ -206,6 +206,60 @@ it('still generates for a meter plan already past its target even with no measur
     expect($this->generator->generateForTenant($this->tenant->id, $this->actor)['generated'])->toBe(1);
 });
 
+// ── Anticipación por horas de horómetro (no por días) ────────────────────────
+
+it('generates a meter plan when the remaining hours fall within its configured lead', function (): void {
+    // Faltan 150 h para las 5.000 h; el plan pide la OT con 200 h de anticipación.
+    $this->equipment->update(['accumulated_meter_reading' => 4_850]);
+
+    calendarPlan(
+        $this->equipment->refresh(),
+        ['next_due_at' => null, 'next_due_meter' => 5_000],
+        ['trigger_source' => MaintenanceTriggerSource::Meter->value, 'meter_interval' => 5_000, 'meter_lead_hours' => 200],
+    );
+
+    expect($this->generator->generateForTenant($this->tenant->id, $this->actor)['generated'])->toBe(1);
+});
+
+it('waits on a meter plan while the remaining hours are still beyond its lead', function (): void {
+    // Faltan 300 h > 200 h de anticipación: todavía no.
+    $this->equipment->update(['accumulated_meter_reading' => 4_700]);
+
+    calendarPlan(
+        $this->equipment->refresh(),
+        ['next_due_at' => null, 'next_due_meter' => 5_000],
+        ['trigger_source' => MaintenanceTriggerSource::Meter->value, 'meter_interval' => 5_000, 'meter_lead_hours' => 200],
+    );
+
+    expect($this->generator->generateForTenant($this->tenant->id, $this->actor)['generated'])->toBe(0);
+});
+
+it('falls back to the 200-hour default lead when the plan configures none', function (): void {
+    // Sin meter_lead_hours propio: faltan 100 h ≤ 200 h por defecto → genera.
+    $this->equipment->update(['accumulated_meter_reading' => 4_900]);
+
+    calendarPlan(
+        $this->equipment->refresh(),
+        ['next_due_at' => null, 'next_due_meter' => 5_000],
+        ['trigger_source' => MaintenanceTriggerSource::Meter->value, 'meter_interval' => 5_000, 'meter_lead_hours' => null],
+    );
+
+    expect($this->generator->generateForTenant($this->tenant->id, $this->actor)['generated'])->toBe(1);
+});
+
+it('does not generate for a meter plan whose remaining hours exceed the default lead', function (): void {
+    // Sin lead propio y faltan 500 h > 200 h por defecto → espera.
+    $this->equipment->update(['accumulated_meter_reading' => 4_500]);
+
+    calendarPlan(
+        $this->equipment->refresh(),
+        ['next_due_at' => null, 'next_due_meter' => 5_000],
+        ['trigger_source' => MaintenanceTriggerSource::Meter->value, 'meter_interval' => 5_000, 'meter_lead_hours' => null],
+    );
+
+    expect($this->generator->generateForTenant($this->tenant->id, $this->actor)['generated'])->toBe(0);
+});
+
 // ── El ciclo se cierra ────────────────────────────────────────────────────────
 
 it('advances the plan schedule when the preventive is recorded as done', function (): void {

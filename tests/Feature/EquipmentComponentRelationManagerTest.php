@@ -1,9 +1,11 @@
 <?php
 
+use App\Domain\Maintenance\Enums\MaintenanceTriggerSource;
 use App\Filament\Resources\Equipment\Pages\EditEquipment;
 use App\Filament\Resources\Equipment\RelationManagers\ComponentsRelationManager;
 use App\Models\Equipment;
 use App\Models\EquipmentComponent;
+use App\Models\MaintenancePlan;
 use App\Models\Tenant;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
@@ -43,4 +45,63 @@ it('creates a component with tenant_id filled from the current Filament tenant',
     expect($component)->not->toBeNull()
         ->and($component->tenant_id)->toBe($this->tenant->id)
         ->and($component->equipment_id)->toBe($this->equipment->id);
+});
+
+it('schedules a component-scoped meter plan from the row action, already active', function () {
+    $component = EquipmentComponent::factory()->forEquipment($this->equipment)->create([
+        'name' => 'Unidad de potencia',
+    ]);
+
+    Livewire::test(ComponentsRelationManager::class, [
+        'ownerRecord' => $this->equipment,
+        'pageClass' => EditEquipment::class,
+    ])
+        ->callAction(
+            TestAction::make('scheduleMaintenance')->table($component),
+            data: [
+                'name' => 'Cambio de aceite',
+                'trigger_source' => MaintenanceTriggerSource::Meter->value,
+                'meter_interval' => 5000,
+                'meter_lead_hours' => 200,
+            ],
+        )
+        ->assertHasNoActionErrors();
+
+    $plan = MaintenancePlan::where('name', 'Cambio de aceite')->first();
+
+    expect($plan)->not->toBeNull()
+        ->and($plan->equipment_id)->toBe($this->equipment->id)
+        ->and($plan->equipment_component_id)->toBe($component->id)
+        ->and($plan->meter_interval)->toBe(5000)
+        ->and($plan->meter_lead_hours)->toBe(200)
+        ->and($plan->is_active)->toBeTrue()
+        // Activado = tiene un vencimiento; sin esto no generaría ninguna OT.
+        ->and($plan->schedule->next_due_meter)->not->toBeNull();
+});
+
+it('schedules a component-scoped date plan from the row action', function () {
+    $component = EquipmentComponent::factory()->forEquipment($this->equipment)->create([
+        'name' => 'Filtro',
+    ]);
+
+    Livewire::test(ComponentsRelationManager::class, [
+        'ownerRecord' => $this->equipment,
+        'pageClass' => EditEquipment::class,
+    ])
+        ->callAction(
+            TestAction::make('scheduleMaintenance')->table($component),
+            data: [
+                'name' => 'Cambio de filtro',
+                'trigger_source' => MaintenanceTriggerSource::Calendar->value,
+                'time_frequency' => 'monthly',
+            ],
+        )
+        ->assertHasNoActionErrors();
+
+    $plan = MaintenancePlan::where('name', 'Cambio de filtro')->first();
+
+    expect($plan)->not->toBeNull()
+        ->and($plan->equipment_component_id)->toBe($component->id)
+        ->and($plan->is_active)->toBeTrue()
+        ->and($plan->schedule->next_due_at)->not->toBeNull();
 });

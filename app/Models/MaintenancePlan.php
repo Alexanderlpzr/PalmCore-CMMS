@@ -28,6 +28,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'pause_when_equipment_inactive',
     'grace_period_days',
     'grace_meter_hours',
+    'meter_lead_hours',
     'estimated_duration_minutes',
     'is_active',
     'last_generated_at',

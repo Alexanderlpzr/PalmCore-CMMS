@@ -136,6 +136,17 @@ class MaintenancePlanForm
                                 MaintenanceTriggerSource::Meter->value,
                                 MaintenanceTriggerSource::Hybrid->value,
                             ])),
+                        TextInput::make('meter_lead_hours')
+                            ->label('Anticipación de la OT')
+                            ->helperText('Cuántas horas de horómetro antes del vencimiento se genera la OT, para pedir el repuesto a tiempo. Vacío = 200 h.')
+                            ->numeric()
+                            ->minValue(0)
+                            ->suffix('h')
+                            ->default(200)
+                            ->visible(fn (Get $get): bool => in_array($get('trigger_source'), [
+                                MaintenanceTriggerSource::Meter->value,
+                                MaintenanceTriggerSource::Hybrid->value,
+                            ])),
                     ]),
             ]);
     }

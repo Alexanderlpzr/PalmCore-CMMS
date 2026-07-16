@@ -24,6 +24,14 @@ use Illuminate\Support\Facades\Log;
  */
 class PreventiveWorkOrderGenerator
 {
+    /**
+     * Anticipación por defecto, en horas de horómetro, para un plan por horómetro
+     * que no define la suya. La OT se genera cuando faltan estas horas para el
+     * vencimiento, dando tiempo a pedir el repuesto antes de que la pieza lo pida.
+     * Cada plan puede sobreescribirlo con su propia `meter_lead_hours`.
+     */
+    public const DEFAULT_METER_LEAD_HOURS = 200;
+
     public function __construct(
         private readonly WorkOrderService $workOrderService,
         private readonly MaintenancePlanService $planService,
@@ -103,15 +111,20 @@ class PreventiveWorkOrderGenerator
         }
 
         if ($schedule->next_due_meter !== null) {
-            $daysLeft = $this->meterService->daysUntilDue($equipment, $plan);
+            // Anticipación en horas de horómetro, no en días: la OT aparece cuando
+            // faltan `meter_lead_hours` para el vencimiento, sin depender de si la
+            // máquina corrió rápido o lento esa semana. Un plan vencido tiene 0
+            // horas restantes, así que 0 <= lead siempre lo incluye — nunca se
+            // ignora una pieza que ya se pasó de su intervalo.
+            $remaining = $this->meterService->metersRemaining($equipment, $plan);
 
-            // No measurable pace yet: fall back to the raw counter, so a machine
-            // that is already past its target is not ignored forever.
-            if ($daysLeft === null) {
-                return $this->meterService->accumulatedReading($equipment) >= (float) $schedule->next_due_meter;
+            if ($remaining === null) {
+                return false;
             }
 
-            return $daysLeft <= $leadDays;
+            $lead = $plan->meter_lead_hours ?? self::DEFAULT_METER_LEAD_HOURS;
+
+            return $remaining <= $lead;
         }
 
         return false;
