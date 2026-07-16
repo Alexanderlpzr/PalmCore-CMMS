@@ -6,6 +6,7 @@ use App\Filament\Resources\Equipment\RelationManagers\ComponentsRelationManager;
 use App\Models\Equipment;
 use App\Models\EquipmentComponent;
 use App\Models\MaintenancePlan;
+use App\Models\MaintenanceSchedule;
 use App\Models\Tenant;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
@@ -77,6 +78,59 @@ it('schedules a component-scoped meter plan from the row action, already active'
         ->and($plan->is_active)->toBeTrue()
         // Activado = tiene un vencimiento; sin esto no generaría ninguna OT.
         ->and($plan->schedule->next_due_meter)->not->toBeNull();
+});
+
+it('shows the remaining hours at a glance for a component with a meter plan', function () {
+    $component = EquipmentComponent::factory()->forEquipment($this->equipment)->create(['name' => 'Bomba']);
+    $this->equipment->update(['accumulated_meter_reading' => 4750]);
+
+    $plan = MaintenancePlan::factory()->create([
+        'tenant_id' => $this->tenant->id,
+        'equipment_id' => $this->equipment->id,
+        'equipment_component_id' => $component->id,
+        'trigger_source' => MaintenanceTriggerSource::Meter->value,
+        'meter_interval' => 5000,
+        'meter_lead_hours' => 200,
+        'is_active' => true,
+    ]);
+    MaintenanceSchedule::factory()->create([
+        'tenant_id' => $this->tenant->id,
+        'maintenance_plan_id' => $plan->id,
+        'next_due_at' => null,
+        'next_due_meter' => 5000,
+    ]);
+
+    // Acumulado 4750, meta 5000 → faltan 250 h.
+    Livewire::test(ComponentsRelationManager::class, [
+        'ownerRecord' => $this->equipment->refresh(),
+        'pageClass' => EditEquipment::class,
+    ])->assertSee('250 h');
+});
+
+it('marks an overdue component meter plan as vencido', function () {
+    $component = EquipmentComponent::factory()->forEquipment($this->equipment)->create(['name' => 'Rodamiento']);
+    $this->equipment->update(['accumulated_meter_reading' => 5300]);
+
+    $plan = MaintenancePlan::factory()->create([
+        'tenant_id' => $this->tenant->id,
+        'equipment_id' => $this->equipment->id,
+        'equipment_component_id' => $component->id,
+        'trigger_source' => MaintenanceTriggerSource::Meter->value,
+        'meter_interval' => 5000,
+        'is_active' => true,
+    ]);
+    MaintenanceSchedule::factory()->create([
+        'tenant_id' => $this->tenant->id,
+        'maintenance_plan_id' => $plan->id,
+        'next_due_at' => null,
+        'next_due_meter' => 5000,
+    ]);
+
+    // Acumulado 5300 > meta 5000 → vencido.
+    Livewire::test(ComponentsRelationManager::class, [
+        'ownerRecord' => $this->equipment->refresh(),
+        'pageClass' => EditEquipment::class,
+    ])->assertSee('Vencido');
 });
 
 it('schedules a component-scoped date plan from the row action', function () {

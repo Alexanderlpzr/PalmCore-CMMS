@@ -8,6 +8,7 @@ use App\Domain\Maintenance\Enums\MaintenanceTimeFrequency;
 use App\Domain\Maintenance\Enums\MaintenanceTriggerSource;
 use App\Domain\Maintenance\Services\EquipmentMeterReadingService;
 use App\Domain\Maintenance\Services\MaintenancePlanService;
+use App\Domain\Maintenance\Services\PreventiveWorkOrderGenerator;
 use App\Models\Equipment;
 use App\Models\EquipmentComponent;
 use App\Models\MaintenancePlan;
@@ -137,6 +138,13 @@ class ComponentsRelationManager extends RelationManager
                     ->suffix('h')
                     ->placeholder('—')
                     ->toggleable(),
+                TextColumn::make('hours_remaining')
+                    ->label('Faltan')
+                    ->badge()
+                    ->getStateUsing(fn (EquipmentComponent $record): ?string => $this->hoursRemainingLabel($record))
+                    ->color(fn (EquipmentComponent $record): string => $this->hoursRemainingColor($record))
+                    ->tooltip('Horas de horómetro que faltan para el mantenimiento más próximo de esta pieza')
+                    ->placeholder('—'),
                 TextColumn::make('next_maintenance')
                     ->label('Próximo mantenimiento')
                     ->getStateUsing(fn (EquipmentComponent $record): ?string => $this->nextMaintenanceSummary($record))
@@ -256,6 +264,77 @@ class ComponentsRelationManager extends RelationManager
                     ->success()
                     ->send();
             });
+    }
+
+    /**
+     * El plan por horómetro más próximo a vencer de la pieza, con las horas que le
+     * faltan y su anticipación configurada. Null si la pieza no tiene planes por
+     * horómetro (los de fecha se leen en «Próximo mantenimiento»). Es lo que
+     * alimenta el badge «Faltan»: el número que un técnico quiere ver de un vistazo.
+     *
+     * @return array{remaining: float, lead: int}|null
+     */
+    private function mostUrgentMeterPlan(EquipmentComponent $component): ?array
+    {
+        /** @var Equipment $equipment */
+        $equipment = $this->getOwnerRecord();
+        $meterService = app(EquipmentMeterReadingService::class);
+
+        $best = null;
+
+        foreach ($component->maintenancePlans->where('is_active', true) as $plan) {
+            if (! $plan->isMeterBased()) {
+                continue;
+            }
+
+            $remaining = $meterService->metersRemaining($equipment, $plan);
+
+            if ($remaining === null) {
+                continue;
+            }
+
+            if ($best === null || $remaining < $best['remaining']) {
+                $best = [
+                    'remaining' => $remaining,
+                    'lead' => $plan->meter_lead_hours ?? PreventiveWorkOrderGenerator::DEFAULT_METER_LEAD_HOURS,
+                ];
+            }
+        }
+
+        return $best;
+    }
+
+    private function hoursRemainingLabel(EquipmentComponent $component): ?string
+    {
+        $urgent = $this->mostUrgentMeterPlan($component);
+
+        if ($urgent === null) {
+            return null;
+        }
+
+        return $urgent['remaining'] <= 0
+            ? 'Vencido'
+            : number_format($urgent['remaining'], 0).' h';
+    }
+
+    /**
+     * Verde: hay tiempo. Amarillo: ya entró en la ventana de anticipación —la OT se
+     * está por generar o ya se generó—. Rojo: se pasó del intervalo. El mismo umbral
+     * que usa el generador para decidir cuándo crear la OT, así el color no miente.
+     */
+    private function hoursRemainingColor(EquipmentComponent $component): string
+    {
+        $urgent = $this->mostUrgentMeterPlan($component);
+
+        if ($urgent === null) {
+            return 'gray';
+        }
+
+        return match (true) {
+            $urgent['remaining'] <= 0 => 'danger',
+            $urgent['remaining'] <= $urgent['lead'] => 'warning',
+            default => 'success',
+        };
     }
 
     /**
