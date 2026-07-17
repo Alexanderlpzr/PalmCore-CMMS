@@ -65,3 +65,15 @@ it('getBackgroundImages solo trae imagenes activas', function (): void {
 it('se renderiza sin errores cuando no hay imagenes activas', function (): void {
     $this->get('/admin/login')->assertOk();
 });
+
+it('la imagen del carrusel usa una ruta relativa a la raíz, no un host fijo', function (): void {
+    // Con el disco local, el URL debe salir relativo a la raíz (/storage/...) para
+    // cargar desde el mismo host de la visita —www o dominio pelado— y no un host
+    // cruzado que la CSP bloquea. Sin esto, aparece el ícono de imagen rota.
+    config(['filesystems.persistent_disk' => 'public']);
+
+    $image = LoginBackgroundImage::factory()->create(['image_path' => 'login/planta.jpg']);
+
+    expect($image->imageUrl())->toBe('/storage/login/planta.jpg')
+        ->and($image->imageUrl())->not->toStartWith('http');
+});

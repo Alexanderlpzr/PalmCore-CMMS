@@ -40,7 +40,21 @@ class LoginBackgroundImage extends Model
             return null;
         }
 
-        return Storage::disk(persistent_disk())->url($this->image_path);
+        $disk = persistent_disk();
+        $url = Storage::disk($disk)->url($this->image_path);
+
+        // El disco local sirve en APP_URL/storage (p. ej. https://www.fronda.app/...).
+        // El login es la única página que se visita indistintamente por www y por el
+        // dominio pelado —Google enlaza uno, el usuario teclea el otro— y un URL
+        // absoluto a un host distinto del que se está viendo lo bloquea la CSP
+        // `img-src 'self'`: la imagen no carga y sale el ícono roto. Devolver la ruta
+        // relativa a la raíz la hace cargar siempre desde el mismo host de la visita.
+        // Un disco remoto (R2) trae su propio host y se deja intacto.
+        if ($disk === 'public') {
+            return parse_url($url, PHP_URL_PATH) ?: $url;
+        }
+
+        return $url;
     }
 
     protected function casts(): array

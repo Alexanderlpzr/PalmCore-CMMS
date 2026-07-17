@@ -34,6 +34,7 @@
                             src="{{ $image->imageUrl() }}"
                             alt="{{ $image->caption }}"
                             class="h-full w-full object-cover"
+                            onerror="this.style.display='none'"
                         />
                     </div>
                 @endforeach
