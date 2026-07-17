@@ -27,8 +27,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // and generates https:// URLs for assets, redirects, and cookies.
         $middleware->trustProxies(at: '*');
 
-        // Canónico primero: www → dominio pelado antes de cualquier otra cosa.
-        $middleware->prepend(RedirectToCanonicalDomain::class);
+        // www → dominio pelado. Va con append (no prepend) para correr DESPUÉS de
+        // TrustProxies: así ve el X-Forwarded-Proto y arma el destino en https,
+        // sin un salto extra http→https. Antes que SecurityHeaders, para no procesar
+        // de más en un request que solo se va a redirigir.
+        $middleware->append(RedirectToCanonicalDomain::class);
 
         $middleware->append(SecurityHeaders::class);
 
