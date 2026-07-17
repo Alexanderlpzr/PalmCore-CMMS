@@ -4,6 +4,7 @@ use App\Exceptions\BusinessRuleException;
 use App\Http\Middleware\EnsureSuperAdmin;
 use App\Http\Middleware\IdempotencyMiddleware;
 use App\Http\Middleware\LogApiRequest;
+use App\Http\Middleware\RedirectToCanonicalDomain;
 use App\Http\Middleware\ResolveApiTenant;
 use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
@@ -25,6 +26,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // Trust Railway's load balancer so Laravel reads X-Forwarded-Proto: https
         // and generates https:// URLs for assets, redirects, and cookies.
         $middleware->trustProxies(at: '*');
+
+        // Canónico primero: www → dominio pelado antes de cualquier otra cosa.
+        $middleware->prepend(RedirectToCanonicalDomain::class);
 
         $middleware->append(SecurityHeaders::class);
 

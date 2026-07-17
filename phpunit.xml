@@ -20,6 +20,10 @@
     <php>
         <ini name="memory_limit" value="512M"/>
         <env name="APP_ENV" value="testing"/>
+        <!-- Dominio canónico (sin www): los requests de path relativo resuelven aquí,
+             así el middleware RedirectToCanonicalDomain no los 301-redirige. El .env
+             de desarrollo aún trae www; sin fijarlo aquí, toda la suite de API caería. -->
+        <env name="APP_URL" value="https://fronda.app"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
