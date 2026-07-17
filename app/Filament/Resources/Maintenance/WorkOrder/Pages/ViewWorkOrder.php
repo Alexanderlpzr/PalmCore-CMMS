@@ -256,8 +256,8 @@ class ViewWorkOrder extends ViewRecord
                         ->prefix('$')
                         ->live(),
                     Select::make('component_replaced')
-                        ->label('Componente reemplazado')
-                        ->helperText('Selecciona un componente del equipo para sumar su costo registrado a "Repuestos".')
+                        ->label('Pieza reemplazada')
+                        ->helperText('Selecciona una pieza del equipo para sumar su costo registrado a "Repuestos".')
                         ->options(fn (): array => EquipmentComponent::where('equipment_id', $this->record->equipment_id)
                             ->whereNotNull('unit_cost')
                             ->orderBy('name')

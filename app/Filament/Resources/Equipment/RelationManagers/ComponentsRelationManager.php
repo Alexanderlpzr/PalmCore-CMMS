@@ -33,12 +33,13 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 
 class ComponentsRelationManager extends RelationManager
 {
     protected static string $relationship = 'components';
 
-    protected static ?string $title = 'Componentes';
+    protected static ?string $title = 'Piezas';
 
     protected static ?string $recordTitleAttribute = 'name';
 
@@ -114,13 +115,18 @@ class ComponentsRelationManager extends RelationManager
             ->columns([
                 TextColumn::make('code')
                     ->label('Código')
-                    ->placeholder('—'),
+                    ->placeholder('—')
+                    ->toggleable(),
                 TextColumn::make('part_number')
                     ->label('N° de parte')
-                    ->placeholder('—'),
+                    ->placeholder('—')
+                    // Casi siempre vacío: no vale la pena que se coma espacio de
+                    // entrada. Sigue ahí para quien lo necesite.
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('name')
                     ->label('Nombre')
-                    ->searchable(),
+                    ->searchable()
+                    ->weight('medium'),
                 TextColumn::make('manufacturer')
                     ->label('Fabricante')
                     ->placeholder('—')
@@ -139,6 +145,7 @@ class ComponentsRelationManager extends RelationManager
                     ->label('Horas de vida')
                     ->suffix('h')
                     ->placeholder('—')
+                    ->alignEnd()
                     ->toggleable(),
                 TextColumn::make('hours_remaining')
                     ->label('Faltan')
@@ -147,22 +154,29 @@ class ComponentsRelationManager extends RelationManager
                     ->color(fn (EquipmentComponent $record): string => $this->hoursRemainingColor($record))
                     ->tooltip('Horas de horómetro que faltan para el mantenimiento más próximo de esta pieza')
                     ->placeholder('—'),
+                // Una sola línea con lo más urgente, no la lista entera: con varios
+                // planes activos por pieza, mostrarlos todos aquí desbordaba la fila.
+                // El detalle completo está en la pestaña «Planes de mantenimiento» —
+                // este badge es solo el vistazo rápido, con el resto en el tooltip.
                 TextColumn::make('next_maintenance')
                     ->label('Próximo mantenimiento')
                     ->getStateUsing(fn (EquipmentComponent $record): ?string => $this->nextMaintenanceSummary($record))
-                    ->placeholder('Sin plan de mantenimiento')
-                    ->wrap(),
+                    ->tooltip(fn (EquipmentComponent $record): ?string => $this->nextMaintenanceFullList($record))
+                    ->placeholder('Sin plan')
+                    ->limit(35),
                 TextColumn::make('unit_cost')
                     ->label('Valor')
                     ->money(fn (): string => $this->getOwnerRecord()->currency_code ?? 'COP')
                     ->placeholder('—')
+                    ->alignEnd()
                     ->summarize(
                         Sum::make()->money(fn (): string => $this->getOwnerRecord()->currency_code ?? 'COP')
                     ),
             ])
             ->headerActions([
                 CreateAction::make()
-                    ->tooltip('Registrar un componente o repuesto de este equipo')
+                    ->label('Registrar pieza')
+                    ->tooltip('Registrar una pieza o repuesto de este equipo')
                     ->mutateFormDataUsing(function (array $data): array {
                         $data['tenant_id'] = Filament::getTenant()->id;
 
@@ -189,7 +203,7 @@ class ComponentsRelationManager extends RelationManager
             ->recordActions([
                 $this->scheduleMaintenanceAction(),
                 EditAction::make()
-                    ->tooltip('Editar los datos de este componente')
+                    ->tooltip('Editar los datos de esta pieza')
                     ->using(function (EquipmentComponent $record, array $data): EquipmentComponent {
                         $hasWorkedHours = array_key_exists('worked_hours', $data);
                         $newWorkedHours = $data['worked_hours'] ?? null;
@@ -208,13 +222,20 @@ class ComponentsRelationManager extends RelationManager
                         return $record;
                     }),
                 DeleteAction::make()
-                    ->tooltip('Eliminar este componente'),
+                    ->tooltip('Eliminar esta pieza')
+                    ->modalDescription('Sus planes de mantenimiento no se borran: quedan asociados a todo el equipo en vez de a esta pieza.'),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),
                 ]),
-            ]);
+            ])
+            // Sin esto, Filament arma el estado vacío a partir del nombre crudo del
+            // modelo: «Cree un equipment component para empezar». El mismo defecto
+            // bilingüe que tenía el botón de crear, solo que aquí nadie lo ve hasta
+            // que la tabla está vacía.
+            ->emptyStateHeading('Sin piezas registradas')
+            ->emptyStateDescription('Registra los componentes o repuestos de este equipo para llevarles la vida útil y programarles mantenimiento.');
     }
 
     /**
@@ -374,36 +395,64 @@ class ComponentsRelationManager extends RelationManager
     }
 
     /**
-     * Uno o dos renglones («Aceite: 320 h · Filtro: 12 días») en vez de mandar al
-     * técnico a abrir cada plan para saber qué se le viene a esta pieza. Mezcla
-     * planes por horómetro y por fecha sin distinción: al técnico no le interesa
-     * cómo se dispara, le interesa cuánto falta.
+     * Un renglón por plan activo («Aceite: 320 h»), ordenado por lo más urgente
+     * primero. Mezcla planes por horómetro y por fecha sin distinción: a quien
+     * mira la tabla no le interesa cómo se dispara, le interesa cuánto falta.
+     *
+     * @return Collection<int, string>
      */
-    private function nextMaintenanceSummary(EquipmentComponent $component): ?string
+    private function activePlanLines(EquipmentComponent $component): Collection
     {
         /** @var Equipment $equipment */
         $equipment = $this->getOwnerRecord();
         $meterService = app(EquipmentMeterReadingService::class);
 
-        $lines = $component->maintenancePlans
+        return $component->maintenancePlans
             ->where('is_active', true)
-            ->map(function (MaintenancePlan $plan) use ($equipment, $meterService): ?string {
+            ->map(function (MaintenancePlan $plan) use ($equipment, $meterService): ?array {
                 if ($plan->isMeterBased()) {
                     $remaining = $meterService->metersRemaining($equipment, $plan);
 
                     return $remaining !== null
-                        ? "{$plan->name}: ".number_format($remaining, 0).' h'
+                        ? ['label' => "{$plan->name}: ".number_format($remaining, 0).' h', 'sort' => $remaining]
                         : null;
                 }
 
                 $dueAt = $plan->schedule?->next_due_at;
 
                 return $dueAt !== null
-                    ? "{$plan->name}: ".$dueAt->diffForHumans()
+                    ? ['label' => "{$plan->name}: ".$dueAt->diffForHumans(), 'sort' => $dueAt->timestamp]
                     : null;
             })
             ->filter()
-            ->values();
+            ->sortBy('sort')
+            ->values()
+            ->pluck('label');
+    }
+
+    /**
+     * Lo que se ve en la celda: solo el plan más urgente. Con varios planes
+     * activos por pieza —el caso normal una vez que se empieza a usar «Programar
+     * mantenimiento»— listarlos todos aquí desbordaba la fila. El resto vive en
+     * el tooltip y en la pestaña «Planes de mantenimiento».
+     */
+    private function nextMaintenanceSummary(EquipmentComponent $component): ?string
+    {
+        $lines = $this->activePlanLines($component);
+
+        if ($lines->isEmpty()) {
+            return null;
+        }
+
+        $extra = $lines->count() - 1;
+
+        return $extra > 0 ? "{$lines->first()} (+{$extra} más)" : $lines->first();
+    }
+
+    /** El detalle completo, para el tooltip de la celda compacta. */
+    private function nextMaintenanceFullList(EquipmentComponent $component): ?string
+    {
+        $lines = $this->activePlanLines($component);
 
         return $lines->isNotEmpty() ? $lines->implode(' · ') : null;
     }

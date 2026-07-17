@@ -31,12 +31,12 @@ class MaintenancePlanForm
                             ->searchable()
                             ->live()
                             ->required()
-                            // Cambiar de equipo invalida cualquier componente ya elegido:
+                            // Cambiar de equipo invalida cualquier pieza ya elegida:
                             // era de otra máquina y ya no aplica.
                             ->afterStateUpdated(fn (Set $set) => $set('equipment_component_id', null)),
                         Select::make('equipment_component_id')
-                            ->label('Componente')
-                            ->helperText('Opcional. Sin componente, el plan es del equipo entero — el comportamiento de siempre.')
+                            ->label('Pieza')
+                            ->helperText('Opcional. Sin pieza, el plan es del equipo entero — el comportamiento de siempre.')
                             ->options(fn (Get $get): array => $get('equipment_id')
                                 ? EquipmentComponent::where('equipment_id', $get('equipment_id'))
                                     ->orderBy('name')

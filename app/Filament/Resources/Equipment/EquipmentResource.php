@@ -8,6 +8,7 @@ use App\Filament\Resources\Equipment\Pages\ListEquipment;
 use App\Filament\Resources\Equipment\Pages\ViewEquipment;
 use App\Filament\Resources\Equipment\RelationManagers\ComponentsRelationManager;
 use App\Filament\Resources\Equipment\RelationManagers\DocumentsRelationManager;
+use App\Filament\Resources\Equipment\RelationManagers\MaintenancePlansRelationManager;
 use App\Filament\Resources\Equipment\RelationManagers\PhotosRelationManager;
 use App\Filament\Resources\Equipment\RelationManagers\WorkOrdersRelationManager;
 use App\Filament\Resources\Equipment\Schemas\EquipmentForm;
@@ -58,6 +59,7 @@ class EquipmentResource extends Resource
     {
         return [
             'components' => ComponentsRelationManager::class,
+            'maintenance_plans' => MaintenancePlansRelationManager::class,
             'documents' => DocumentsRelationManager::class,
             'photos' => PhotosRelationManager::class,
             'work_orders' => WorkOrdersRelationManager::class,

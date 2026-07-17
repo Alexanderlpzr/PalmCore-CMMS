@@ -205,3 +205,62 @@ it('schedules a component-scoped date plan from the row action', function () {
         ->and($plan->is_active)->toBeTrue()
         ->and($plan->schedule->next_due_at)->not->toBeNull();
 });
+
+// ── «Componentes» ahora se llama «Piezas» ────────────────────────────────────
+
+it('labels the create action as registrar pieza, not the raw model name', function () {
+    Livewire::test(ComponentsRelationManager::class, [
+        'ownerRecord' => $this->equipment,
+        'pageClass' => EditEquipment::class,
+    ])->assertSee('Registrar pieza');
+});
+
+it('does not fall back to the raw model name on the empty state', function () {
+    // Sin piezas, Filament arma un estado vacío a partir del nombre crudo del
+    // modelo si nadie lo dice explícito: «Cree un equipment component para
+    // empezar». El mismo defecto bilingüe que tenía el botón de crear, solo que
+    // este no se ve hasta que la tabla está vacía.
+    Livewire::test(ComponentsRelationManager::class, [
+        'ownerRecord' => $this->equipment,
+        'pageClass' => EditEquipment::class,
+    ])
+        ->assertSee('Sin piezas registradas')
+        ->assertDontSee('equipment component');
+});
+
+// ── La tabla no se desborda con varios planes activos ────────────────────────
+
+it('shows only the most urgent plan in the cell, with the rest behind a count', function () {
+    $component = EquipmentComponent::factory()->forEquipment($this->equipment)->create(['name' => 'Actuadores']);
+    $this->equipment->update(['accumulated_meter_reading' => 0]);
+
+    // Tres planes activos a la vez: el caso real que desbordaba la fila.
+    foreach ([['Cambio de aceite', 250], ['Revisión de sellos', 800], ['Calibración', 2000]] as [$name, $interval]) {
+        $plan = MaintenancePlan::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'equipment_id' => $this->equipment->id,
+            'equipment_component_id' => $component->id,
+            'name' => $name,
+            'trigger_source' => MaintenanceTriggerSource::Meter->value,
+            'meter_interval' => $interval,
+            'is_active' => true,
+        ]);
+        MaintenanceSchedule::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'maintenance_plan_id' => $plan->id,
+            'next_due_at' => null,
+            'next_due_meter' => $interval,
+        ]);
+    }
+
+    // El más urgente (250h) se ve en la celda, con el contador de los otros dos.
+    // El resto vive en el tooltip —también presente en el HTML, solo que no como
+    // el texto principal de la celda— así que no se afirma su ausencia, solo que
+    // el resumen corto es lo que encabeza la fila.
+    Livewire::test(ComponentsRelationManager::class, [
+        'ownerRecord' => $this->equipment->refresh(),
+        'pageClass' => EditEquipment::class,
+    ])
+        ->assertSee('Cambio de aceite: 250 h')
+        ->assertSee('(+2 más)');
+});
