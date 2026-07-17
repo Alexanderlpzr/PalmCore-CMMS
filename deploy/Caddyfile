@@ -10,7 +10,21 @@
 # regla ignora. La infraestructura que no está en git no existe: existe hasta que
 # alguien recrea el servidor.
 
-fronda.app, www.fronda.app {
+# Dominio canónico: fronda.app (decisión del cliente). www redirige aquí con 301.
+#
+# Antes ambos dominios servían la app por igual y los URLs absolutos —fijados a
+# APP_URL— quedaban cruzados al entrar por el otro (Google enlaza uno, el usuario
+# teclea el otro), y la CSP `img-src 'self'` los bloqueaba: la imagen del login
+# salía rota. Con un solo dominio canónico eso deja de pasar de raíz.
+#
+# OJO: para que esto quede completo, APP_URL en producción debe ser
+# https://fronda.app (sin www). Si sigue en www, los URLs absolutos apuntarán al
+# dominio que ahora redirige y darán un salto de más.
+www.fronda.app {
+    redir https://fronda.app{uri} permanent
+}
+
+fronda.app {
     encode gzip
 
     reverse_proxy app:80

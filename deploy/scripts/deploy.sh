@@ -145,6 +145,16 @@ if ! compose exec -T app php artisan optimize; then
     fail "php artisan optimize failed"
 fi
 
+# ─── Reload Caddy ───────────────────────────────────────────────────────────────
+# El Caddyfile se monta como archivo: `docker compose up` no recrea el contenedor
+# por un cambio del archivo, así que Caddy seguiría con el config viejo en memoria.
+# `caddy reload` valida y aplica el nuevo config sin downtime; si fuera inválido,
+# Caddy conserva el anterior y esto solo deja una advertencia, sin tumbar el deploy.
+log "Reloading Caddy configuration"
+if ! compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile; then
+    log "WARNING: caddy reload failed — Caddy keeps its previous config"
+fi
+
 # ─── Cleanup ────────────────────────────────────────────────────────────────────
 log "Pruning dangling images"
 docker image prune -f
