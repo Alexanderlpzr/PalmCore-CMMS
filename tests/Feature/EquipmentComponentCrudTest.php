@@ -125,6 +125,69 @@ it('shows a single component', function (): void {
     expect($res->json('data.name'))->toBe('Motor eléctrico');
 });
 
+// ── Horas de vida: el bug que no puede volver ────────────────────────────────
+
+it('anchors worked_hours to the equipment meter reading at creation', function (): void {
+    ['equipment' => $equipment, 'token' => $token] = componentApiSetup();
+    $equipment->update(['accumulated_meter_reading' => 3000]);
+
+    $res = $this->postJson("/api/v1/equipment/{$equipment->id}/components", [
+        'name' => 'Rodamiento principal',
+        'worked_hours' => 200,
+    ], ['Authorization' => 'Bearer '.$token])->assertCreated();
+
+    $component = EquipmentComponent::find($res->json('data.id'));
+
+    expect($component->worked_hours)->toBe(200.0)
+        ->and($component->meter_reading_baseline)->toBe(3000.0);
+});
+
+it('rebaselines worked_hours when corrected through the API', function (): void {
+    ['equipment' => $equipment, 'token' => $token] = componentApiSetup();
+    $component = EquipmentComponent::factory()->forEquipment($equipment)->create([
+        'worked_hours' => 4500,
+        'meter_reading_baseline' => 6000,
+    ]);
+    $equipment->update(['accumulated_meter_reading' => 8000]);
+
+    $this->patchJson("/api/v1/equipment/{$equipment->id}/components/{$component->id}", [
+        'worked_hours' => 0,
+    ], ['Authorization' => 'Bearer '.$token])->assertOk();
+
+    expect($component->refresh()->worked_hours)->toBe(0.0)
+        ->and($component->meter_reading_baseline)->toBe(8000.0);
+});
+
+it('clears the baseline when worked_hours is explicitly set to null', function (): void {
+    ['equipment' => $equipment, 'token' => $token] = componentApiSetup();
+    $component = EquipmentComponent::factory()->forEquipment($equipment)->create([
+        'worked_hours' => 500,
+        'meter_reading_baseline' => 2000,
+    ]);
+
+    $this->patchJson("/api/v1/equipment/{$equipment->id}/components/{$component->id}", [
+        'worked_hours' => null,
+    ], ['Authorization' => 'Bearer '.$token])->assertOk();
+
+    expect($component->refresh()->worked_hours)->toBeNull()
+        ->and($component->meter_reading_baseline)->toBeNull();
+});
+
+it('does not touch the baseline when updating fields other than worked_hours', function (): void {
+    ['equipment' => $equipment, 'token' => $token] = componentApiSetup();
+    $component = EquipmentComponent::factory()->forEquipment($equipment)->create([
+        'worked_hours' => 500,
+        'meter_reading_baseline' => 2000,
+    ]);
+
+    $this->patchJson("/api/v1/equipment/{$equipment->id}/components/{$component->id}", [
+        'name' => 'Nombre corregido',
+    ], ['Authorization' => 'Bearer '.$token])->assertOk();
+
+    expect($component->refresh()->worked_hours)->toBe(500.0)
+        ->and($component->meter_reading_baseline)->toBe(2000.0);
+});
+
 // ── Update ────────────────────────────────────────────────────────────────────
 
 it('updates component name and criticality', function (): void {

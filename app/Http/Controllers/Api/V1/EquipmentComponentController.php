@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\Assets\Enums\ComponentStatus;
 use App\Domain\Assets\Enums\EquipmentCriticality;
+use App\Domain\Assets\Services\ComponentLifeHoursService;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\V1\EquipmentComponentResource;
 use App\Infrastructure\Tenancy\CurrentTenant;
@@ -80,12 +81,20 @@ class EquipmentComponentController extends Controller
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
+        // worked_hours no se escribe directo: pasa por el servicio para que quede
+        // anclado a un punto de partida en el horómetro del equipo. Sin eso, el
+        // número que se guarda aquí es el mismo que se queda congelado para siempre.
+        $startingHours = $data['worked_hours'] ?? null;
+        unset($data['worked_hours']);
+
         $component = EquipmentComponent::create([
             ...$data,
             'tenant_id' => $tenantId,
             'equipment_id' => $equipment->id,
             'criticality' => $data['criticality'] ?? EquipmentCriticality::Medium->value,
         ]);
+
+        app(ComponentLifeHoursService::class)->initializeBaseline($component, $startingHours);
 
         return (new EquipmentComponentResource($component))
             ->response()
@@ -120,7 +129,23 @@ class EquipmentComponentController extends Controller
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
+        // Igual que en store(): editar «Horas trabajadas» a mano es una corrección
+        // —o el reemplazo físico de la pieza—, y eso también ancla un nuevo punto
+        // de partida. Sin pasar por el servicio, el número volvería a quedar
+        // congelado desde el momento de esta edición en adelante.
+        $hasWorkedHours = array_key_exists('worked_hours', $data);
+        $newWorkedHours = $data['worked_hours'] ?? null;
+        unset($data['worked_hours']);
+
         $component->update($data);
+
+        if ($hasWorkedHours) {
+            $service = app(ComponentLifeHoursService::class);
+
+            $newWorkedHours !== null
+                ? $service->rebaseline($component, (float) $newWorkedHours)
+                : $service->clear($component);
+        }
 
         return new EquipmentComponentResource($component->fresh());
     }

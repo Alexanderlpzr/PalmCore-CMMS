@@ -2,6 +2,7 @@
 
 namespace App\Domain\Maintenance\Services;
 
+use App\Domain\Assets\Services\ComponentLifeHoursService;
 use App\Domain\Maintenance\Enums\MeterReadingUnit;
 use App\Models\Equipment;
 use App\Models\EquipmentMeterReading;
@@ -24,7 +25,10 @@ use Illuminate\Support\Facades\DB;
  */
 class EquipmentMeterReadingService
 {
-    public function __construct(private readonly StaleMeterReadingService $staleReadings) {}
+    public function __construct(
+        private readonly StaleMeterReadingService $staleReadings,
+        private readonly ComponentLifeHoursService $componentLifeHours,
+    ) {}
 
     /**
      * Record a reading. A value below the current dial is not an error — it is a
@@ -75,6 +79,11 @@ class EquipmentMeterReadingService
                 'accumulated_meter_reading' => $accumulated,
                 'meter_unit' => $unit->value,
             ]);
+
+            // El bug que este servicio existe para no repetir: el horómetro del
+            // equipo acumulaba, pero ningún componente se enteraba. Cada lectura
+            // adelanta también las horas de vida de las piezas todavía en servicio.
+            $this->componentLifeHours->syncForEquipment($equipment->fresh());
 
             // A7 — el equipo volvió a hablar: la alerta de horómetro mudo se cierra
             // sola. Nadie va a entrar al tablero a cerrarla a mano.

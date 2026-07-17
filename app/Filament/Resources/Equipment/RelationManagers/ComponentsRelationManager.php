@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Equipment\RelationManagers;
 
 use App\Domain\Assets\Enums\ComponentStatus;
 use App\Domain\Assets\Enums\EquipmentCriticality;
+use App\Domain\Assets\Services\ComponentLifeHoursService;
 use App\Domain\Maintenance\Enums\MaintenanceTimeFrequency;
 use App\Domain\Maintenance\Enums\MaintenanceTriggerSource;
 use App\Domain\Maintenance\Services\EquipmentMeterReadingService;
@@ -87,6 +88,7 @@ class ComponentsRelationManager extends RelationManager
                     ->suffix('h'),
                 TextInput::make('worked_hours')
                     ->label('Horas trabajadas')
+                    ->helperText('Cuánto lleva la pieza HOY. A partir de aquí, el sistema las va sumando solo con cada lectura de horómetro del equipo — no hay que volver a escribirlas.')
                     ->numeric()
                     ->suffix('h'),
                 TextInput::make('unit_cost')
@@ -165,12 +167,46 @@ class ComponentsRelationManager extends RelationManager
                         $data['tenant_id'] = Filament::getTenant()->id;
 
                         return $data;
+                    })
+                    ->using(function (array $data): EquipmentComponent {
+                        // worked_hours no se escribe directo: pasa por el servicio para
+                        // quedar anclado a un punto de partida en el horómetro del
+                        // equipo. Sin eso, el número se queda congelado para siempre —
+                        // que es exactamente el bug que esto arregla.
+                        $startingHours = $data['worked_hours'] ?? null;
+                        unset($data['worked_hours']);
+
+                        /** @var Equipment $equipment */
+                        $equipment = $this->getOwnerRecord();
+
+                        $component = $equipment->components()->create($data);
+
+                        app(ComponentLifeHoursService::class)->initializeBaseline($component, $startingHours);
+
+                        return $component;
                     }),
             ])
             ->recordActions([
                 $this->scheduleMaintenanceAction(),
                 EditAction::make()
-                    ->tooltip('Editar los datos de este componente'),
+                    ->tooltip('Editar los datos de este componente')
+                    ->using(function (EquipmentComponent $record, array $data): EquipmentComponent {
+                        $hasWorkedHours = array_key_exists('worked_hours', $data);
+                        $newWorkedHours = $data['worked_hours'] ?? null;
+                        unset($data['worked_hours']);
+
+                        $record->update($data);
+
+                        if ($hasWorkedHours) {
+                            $service = app(ComponentLifeHoursService::class);
+
+                            $newWorkedHours !== null
+                                ? $service->rebaseline($record, (float) $newWorkedHours)
+                                : $service->clear($record);
+                        }
+
+                        return $record;
+                    }),
                 DeleteAction::make()
                     ->tooltip('Eliminar este componente'),
             ])

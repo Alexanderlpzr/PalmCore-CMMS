@@ -107,6 +107,52 @@ it('shows the remaining hours at a glance for a component with a meter plan', fu
     ])->assertSee('250 h');
 });
 
+// ── El bug: «Horas de vida» ahora se ancla y avanza sola ─────────────────────
+
+it('anchors worked_hours to the equipment meter when creating from the panel', function () {
+    $this->equipment->update(['accumulated_meter_reading' => 2000]);
+
+    Livewire::test(ComponentsRelationManager::class, [
+        'ownerRecord' => $this->equipment,
+        'pageClass' => EditEquipment::class,
+    ])
+        ->callAction(TestAction::make('create')->table(), data: [
+            'name' => 'Actuadores',
+            'worked_hours' => 200,
+        ])
+        ->assertHasNoActionErrors();
+
+    $component = EquipmentComponent::where('name', 'Actuadores')->first();
+
+    expect($component->worked_hours)->toBe(200.0)
+        ->and($component->meter_reading_baseline)->toBe(2000.0);
+});
+
+it('rebaselines worked_hours when it is edited from the panel', function () {
+    $component = EquipmentComponent::factory()->forEquipment($this->equipment)->create([
+        'name' => 'Transmisión y sellado',
+        'worked_hours' => 4500,
+        'meter_reading_baseline' => 6000,
+    ]);
+    $this->equipment->update(['accumulated_meter_reading' => 8000]);
+
+    // El técnico reemplazó la pieza y corrige el contador a 0.
+    Livewire::test(ComponentsRelationManager::class, [
+        'ownerRecord' => $this->equipment->refresh(),
+        'pageClass' => EditEquipment::class,
+    ])
+        ->callAction(TestAction::make('edit')->table($component), data: [
+            'name' => $component->name,
+            'criticality' => $component->criticality->value,
+            'status' => $component->status->value,
+            'worked_hours' => 0,
+        ])
+        ->assertHasNoActionErrors();
+
+    expect($component->refresh()->worked_hours)->toBe(0.0)
+        ->and($component->meter_reading_baseline)->toBe(8000.0);
+});
+
 it('marks an overdue component meter plan as vencido', function () {
     $component = EquipmentComponent::factory()->forEquipment($this->equipment)->create(['name' => 'Rodamiento']);
     $this->equipment->update(['accumulated_meter_reading' => 5300]);
