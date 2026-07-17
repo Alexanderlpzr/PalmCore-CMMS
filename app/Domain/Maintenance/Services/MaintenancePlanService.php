@@ -147,12 +147,16 @@ class MaintenancePlanService
     /**
      * Record execution of a PM plan (called after WO is completed).
      * Updates the schedule and calculates next due date/meter.
+     *
+     * $workOrder is null for a manual execution (recordManualExecution) — the
+     * schedule advances the same way either way, it just has no OT to point to.
      */
     public function recordExecution(
         MaintenancePlan $plan,
-        WorkOrder $workOrder,
+        ?WorkOrder $workOrder,
         CarbonInterface $completedAt,
         ?float $completedMeter = null,
+        ?string $completedByUserId = null,
     ): MaintenanceSchedule {
         $schedule = $plan->schedule ?? $this->initializeSchedule($plan);
 
@@ -169,16 +173,43 @@ class MaintenancePlanService
             'next_due_at' => $nextDueAt,
             'next_due_meter' => $nextDueMeter,
             'times_executed' => $schedule->times_executed + 1,
-            'last_work_order_id' => $workOrder->id,
+            'last_work_order_id' => $workOrder?->id,
         ]);
 
         $plan->update(['last_generated_at' => now()]);
 
         if ($plan->equipment_component_id !== null) {
-            $this->logComponentIntervention($plan, $workOrder, $completedAt, $completedMeter);
+            $this->logComponentIntervention(
+                $plan,
+                $workOrder,
+                $completedAt,
+                $completedMeter,
+                $completedByUserId ?? $workOrder?->completed_by,
+            );
         }
 
         return $schedule->refresh();
+    }
+
+    /**
+     * Un técnico que hizo el cambio de aceite sin pasar por el ciclo completo de
+     * una OT (técnico asignado, permisos, checklist respondido) igual necesita
+     * dejar constancia: reinicia el horómetro del plan y suma una ejecución más,
+     * sin fabricar una orden de trabajo falsa para conseguirlo.
+     */
+    public function recordManualExecution(
+        MaintenancePlan $plan,
+        User $actor,
+        CarbonInterface $completedAt,
+        ?float $completedMeter = null,
+    ): MaintenanceSchedule {
+        return $this->recordExecution(
+            plan: $plan,
+            workOrder: null,
+            completedAt: $completedAt,
+            completedMeter: $completedMeter,
+            completedByUserId: $actor->id,
+        );
     }
 
     /**
@@ -189,15 +220,20 @@ class MaintenancePlanService
      */
     private function logComponentIntervention(
         MaintenancePlan $plan,
-        WorkOrder $workOrder,
+        ?WorkOrder $workOrder,
         CarbonInterface $completedAt,
         ?float $completedMeter,
+        ?string $completedByUserId,
     ): void {
+        $description = $workOrder !== null
+            ? "Generado automáticamente por el plan {$plan->plan_number} — {$plan->name} ({$workOrder->work_order_number})."
+            : "Registrado manualmente por el plan {$plan->plan_number} — {$plan->name}.";
+
         $plan->equipmentComponent?->history()->create([
             'tenant_id' => $plan->tenant_id,
-            'user_id' => $workOrder->completed_by,
+            'user_id' => $completedByUserId,
             'type' => 'maintenance',
-            'description' => "Generado automáticamente por el plan {$plan->plan_number} — {$plan->name} ({$workOrder->work_order_number}).",
+            'description' => $description,
             'worked_hours_at_event' => $completedMeter,
             'occurred_at' => $completedAt,
         ]);

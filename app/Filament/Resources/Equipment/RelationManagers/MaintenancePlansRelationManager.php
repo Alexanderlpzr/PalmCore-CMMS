@@ -4,7 +4,10 @@ namespace App\Filament\Resources\Equipment\RelationManagers;
 
 use App\Domain\Maintenance\Enums\MaintenanceTimeFrequency;
 use App\Domain\Maintenance\Enums\MaintenanceTriggerSource;
+use App\Domain\Maintenance\Services\EquipmentMeterReadingService;
+use App\Filament\Resources\Maintenance\MaintenancePlan\Actions\RegisterManualExecutionAction;
 use App\Filament\Resources\Maintenance\MaintenancePlan\Schemas\MaintenancePlanForm;
+use App\Models\MaintenancePlan;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
@@ -53,7 +56,7 @@ class MaintenancePlansRelationManager extends RelationManager
     {
         return $table
             ->recordTitleAttribute('name')
-            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with(['equipmentComponent', 'schedule']))
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with(['equipmentComponent', 'equipment', 'schedule']))
             ->columns([
                 TextColumn::make('plan_number')
                     ->label('Nº Plan')
@@ -75,6 +78,13 @@ class MaintenancePlansRelationManager extends RelationManager
                 TextColumn::make('meter_interval')
                     ->label('Horómetro')
                     ->suffix(' h')
+                    ->placeholder('—'),
+                TextColumn::make('hours_remaining')
+                    ->label('Faltan')
+                    ->badge()
+                    ->getStateUsing(fn (MaintenancePlan $record): ?string => app(EquipmentMeterReadingService::class)->remainingLabel($record))
+                    ->color(fn (MaintenancePlan $record): string => app(EquipmentMeterReadingService::class)->remainingColor($record))
+                    ->tooltip('Horas de horómetro que faltan para el vencimiento')
                     ->placeholder('—'),
                 TextColumn::make('time_frequency')
                     ->label('Frecuencia')
@@ -107,6 +117,7 @@ class MaintenancePlansRelationManager extends RelationManager
                     ->falseLabel('Inactivos'),
             ])
             ->recordActions([
+                RegisterManualExecutionAction::make(),
                 EditAction::make()
                     ->tooltip('Editar este plan'),
                 DeleteAction::make()

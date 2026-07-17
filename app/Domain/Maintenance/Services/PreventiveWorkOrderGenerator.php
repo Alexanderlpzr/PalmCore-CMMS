@@ -186,10 +186,9 @@ class PreventiveWorkOrderGenerator
             completedMeter: $workOrder->equipment !== null
                 ? $this->meterService->accumulatedReading($workOrder->equipment)
                 : null,
+            completedByUserId: $workOrder->completed_by,
         );
     }
-
-    // ── Internals ─────────────────────────────────────────────────────────────
 
     /**
      * Only *unfinished* work blocks the next generation.
@@ -198,8 +197,12 @@ class PreventiveWorkOrderGenerator
      * waiting for an administrative signature. Treating it as "open" would mean a
      * supervisor who signs off late silently cancels the next preventive, which is
      * exactly how a maintenance program rots without anyone noticing.
+     *
+     * Public because the manual-execution action reuses it: registering a manual
+     * completion while a real OT for the same plan is still open would count the
+     * same job twice once that OT is eventually completed too.
      */
-    private function hasOpenWorkOrder(MaintenancePlan $plan): bool
+    public function hasOpenWorkOrder(MaintenancePlan $plan): bool
     {
         return WorkOrder::withoutGlobalScopes()
             ->where('maintenance_plan_id', $plan->id)

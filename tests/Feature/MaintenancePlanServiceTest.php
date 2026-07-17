@@ -3,7 +3,9 @@
 use App\Domain\Maintenance\Enums\MaintenanceTimeFrequency;
 use App\Domain\Maintenance\Enums\MaintenanceTriggerSource;
 use App\Domain\Maintenance\Services\MaintenancePlanService;
+use App\Models\ComponentHistory;
 use App\Models\Equipment;
+use App\Models\EquipmentComponent;
 use App\Models\MaintenanceSchedule;
 use App\Models\Tenant;
 use App\Models\User;
@@ -247,4 +249,103 @@ it('is overdue by meter when reading exceeds due point plus grace', function () 
     // Due at 1000h, grace = 50h → overdue when reading >= 1050
     expect($service->isOverdue($plan, 1100.0))->toBeTrue()
         ->and($service->isOverdue($plan, 1040.0))->toBeFalse();
+});
+
+// ── Manual execution: «ya se hizo», sin pasar por una OT ───────────────────────
+
+it('records a manual execution without a work order and advances the meter plan', function () {
+    $service = app(MaintenancePlanService::class);
+    $tenant = Tenant::factory()->create();
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+    $user = User::factory()->create();
+
+    $plan = $service->create([
+        'tenant_id' => $tenant->id,
+        'equipment_id' => $equipment->id,
+        'name' => 'Cambio de aceite',
+        'trigger_source' => MaintenanceTriggerSource::Meter->value,
+        'meter_interval' => 1000,
+    ], $user);
+    $service->activate($plan, null, 1000.0);
+
+    $schedule = $service->recordManualExecution($plan, $user, now(), 850.0);
+
+    expect($schedule->last_work_order_id)->toBeNull()
+        ->and($schedule->last_completed_meter)->toBe(850.0)
+        // 850 ejecutado + 1000 de intervalo = el próximo vencimiento.
+        ->and($schedule->next_due_meter)->toBe(1850.0)
+        ->and($schedule->times_executed)->toBe(1);
+});
+
+it('counts every manual execution toward times_executed', function () {
+    $service = app(MaintenancePlanService::class);
+    $tenant = Tenant::factory()->create();
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+    $user = User::factory()->create();
+
+    $plan = $service->create([
+        'tenant_id' => $tenant->id,
+        'equipment_id' => $equipment->id,
+        'name' => 'Cambio de aceite',
+        'trigger_source' => MaintenanceTriggerSource::Meter->value,
+        'meter_interval' => 500,
+    ], $user);
+    $service->activate($plan, null, 500.0);
+
+    $service->recordManualExecution($plan, $user, now(), 500.0);
+    $schedule = $service->recordManualExecution($plan, $user, now(), 1000.0);
+
+    expect($schedule->times_executed)->toBe(2);
+});
+
+it('logs the manual execution to the component history when the plan is piece-scoped', function () {
+    $service = app(MaintenancePlanService::class);
+    $tenant = Tenant::factory()->create();
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+    $component = EquipmentComponent::factory()->forEquipment($equipment)->create(['name' => 'Unidad de potencia']);
+    $user = User::factory()->create();
+
+    $plan = $service->create([
+        'tenant_id' => $tenant->id,
+        'equipment_id' => $equipment->id,
+        'equipment_component_id' => $component->id,
+        'name' => 'Cambio de aceite',
+        'trigger_source' => MaintenanceTriggerSource::Meter->value,
+        'meter_interval' => 500,
+    ], $user);
+    $service->activate($plan, null, 500.0);
+
+    $service->recordManualExecution($plan, $user, now(), 500.0);
+
+    $entry = ComponentHistory::withoutGlobalScopes()
+        ->where('equipment_component_id', $component->id)
+        ->sole();
+
+    expect($entry->type)->toBe('maintenance')
+        ->and($entry->user_id)->toBe($user->id)
+        ->and($entry->description)->toContain('Registrado manualmente')
+        ->and($entry->description)->toContain($plan->plan_number);
+});
+
+it('advances a calendar plan on manual execution the same way as a completed work order', function () {
+    $service = app(MaintenancePlanService::class);
+    $tenant = Tenant::factory()->create();
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+    $user = User::factory()->create();
+
+    $plan = $service->create([
+        'tenant_id' => $tenant->id,
+        'equipment_id' => $equipment->id,
+        'name' => 'Inspección mensual',
+        'trigger_source' => MaintenanceTriggerSource::Calendar->value,
+        'time_frequency' => MaintenanceTimeFrequency::Monthly->value,
+    ], $user);
+    $service->activate($plan);
+
+    $completedAt = now();
+    $schedule = $service->recordManualExecution($plan, $user, $completedAt);
+
+    expect($schedule->last_completed_at->toDateString())->toBe($completedAt->toDateString())
+        ->and($schedule->next_due_at->toDateString())->toBe($completedAt->copy()->addMonth()->toDateString())
+        ->and($schedule->times_executed)->toBe(1);
 });

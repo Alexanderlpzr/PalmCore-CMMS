@@ -1,13 +1,17 @@
 <?php
 
 use App\Domain\Maintenance\Enums\MaintenanceTriggerSource;
+use App\Domain\Maintenance\Enums\WorkOrderStatus;
+use App\Domain\Maintenance\Enums\WorkOrderType;
 use App\Filament\Resources\Equipment\Pages\EditEquipment;
 use App\Filament\Resources\Equipment\RelationManagers\MaintenancePlansRelationManager;
 use App\Models\Equipment;
 use App\Models\EquipmentComponent;
 use App\Models\MaintenancePlan;
+use App\Models\MaintenanceSchedule;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Models\WorkOrder;
 use Database\Seeders\PermissionSeeder;
 use Filament\Actions\Testing\TestAction;
 use Filament\Facades\Filament;
@@ -130,4 +134,87 @@ it('shows the plan count as a badge', function () {
 
 it('shows no badge when the equipment has no plans yet', function () {
     expect(MaintenancePlansRelationManager::getBadge($this->equipment, EditEquipment::class))->toBeNull();
+});
+
+// ── «Registrar ejecución»: ya se hizo, sin pasar por una OT ─────────────────────
+
+it('registers a manual execution and advances the plan meter', function () {
+    $this->equipment->update(['accumulated_meter_reading' => 850]);
+
+    $plan = MaintenancePlan::factory()->create([
+        'tenant_id' => $this->tenant->id,
+        'equipment_id' => $this->equipment->id,
+        'trigger_source' => MaintenanceTriggerSource::Meter->value,
+        'meter_interval' => 1000,
+        'is_active' => true,
+    ]);
+    MaintenanceSchedule::factory()->create([
+        'tenant_id' => $this->tenant->id,
+        'maintenance_plan_id' => $plan->id,
+        'next_due_at' => null,
+        'next_due_meter' => 1000,
+        'times_executed' => 0,
+    ]);
+
+    Livewire::test(MaintenancePlansRelationManager::class, [
+        'ownerRecord' => $this->equipment->refresh(),
+        'pageClass' => EditEquipment::class,
+    ])
+        ->callAction(TestAction::make('registerManualExecution')->table($plan), data: [
+            'completed_at' => now()->toDateTimeString(),
+            'completed_meter' => 850,
+        ])
+        ->assertHasNoActionErrors();
+
+    expect($plan->schedule->refresh()->times_executed)->toBe(1)
+        ->and($plan->schedule->next_due_meter)->toBe(1850.0)
+        ->and($plan->schedule->last_work_order_id)->toBeNull();
+});
+
+it('refuses to register a manual execution while the plan already has an open work order', function () {
+    $plan = MaintenancePlan::factory()->create([
+        'tenant_id' => $this->tenant->id,
+        'equipment_id' => $this->equipment->id,
+        'trigger_source' => MaintenanceTriggerSource::Meter->value,
+        'meter_interval' => 1000,
+        'is_active' => true,
+    ]);
+    MaintenanceSchedule::factory()->create([
+        'tenant_id' => $this->tenant->id,
+        'maintenance_plan_id' => $plan->id,
+        'next_due_at' => null,
+        'next_due_meter' => 1000,
+        'times_executed' => 0,
+    ]);
+    WorkOrder::factory()->create([
+        'tenant_id' => $this->tenant->id,
+        'equipment_id' => $this->equipment->id,
+        'maintenance_plan_id' => $plan->id,
+        'work_order_type' => WorkOrderType::Preventive->value,
+        'status' => WorkOrderStatus::Planned->value,
+    ]);
+
+    Livewire::test(MaintenancePlansRelationManager::class, [
+        'ownerRecord' => $this->equipment,
+        'pageClass' => EditEquipment::class,
+    ])->callAction(TestAction::make('registerManualExecution')->table($plan), data: [
+        'completed_at' => now()->toDateTimeString(),
+        'completed_meter' => 500,
+    ]);
+
+    // No se duplicó: la ejecución abierta sigue siendo la única fuente de verdad.
+    expect($plan->schedule->refresh()->times_executed)->toBe(0);
+});
+
+it('does not offer registerManualExecution on an inactive plan', function () {
+    $plan = MaintenancePlan::factory()->create([
+        'tenant_id' => $this->tenant->id,
+        'equipment_id' => $this->equipment->id,
+        'is_active' => false,
+    ]);
+
+    Livewire::test(MaintenancePlansRelationManager::class, [
+        'ownerRecord' => $this->equipment,
+        'pageClass' => EditEquipment::class,
+    ])->assertActionHidden(TestAction::make('registerManualExecution')->table($plan));
 });

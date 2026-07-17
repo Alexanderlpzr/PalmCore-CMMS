@@ -248,4 +248,51 @@ class EquipmentMeterReadingService
 
         return max(0.0, round($this->accumulatedReading($equipment) - $baseline, 1));
     }
+
+    /**
+     * El mismo «Faltan» que ve un técnico en la pieza, pero para cualquier tabla de
+     * planes — incluidos los que son de todo el equipo, no solo los de una pieza.
+     */
+    public function remainingLabel(MaintenancePlan $plan): ?string
+    {
+        $remaining = $this->remainingFor($plan);
+
+        if ($remaining === null) {
+            return null;
+        }
+
+        return $remaining <= 0 ? 'Vencido' : number_format($remaining, 0).' h';
+    }
+
+    /**
+     * Verde: hay tiempo. Ámbar: ya entró en la ventana de anticipación del plan.
+     * Rojo: se pasó del intervalo. Mismo umbral que usa el generador para decidir
+     * cuándo crear la OT, así el color de la tabla nunca contradice lo que en
+     * realidad va a pasar.
+     */
+    public function remainingColor(MaintenancePlan $plan): string
+    {
+        $remaining = $this->remainingFor($plan);
+
+        if ($remaining === null) {
+            return 'gray';
+        }
+
+        $lead = $plan->meter_lead_hours ?? PreventiveWorkOrderGenerator::DEFAULT_METER_LEAD_HOURS;
+
+        return match (true) {
+            $remaining <= 0 => 'danger',
+            $remaining <= $lead => 'warning',
+            default => 'success',
+        };
+    }
+
+    private function remainingFor(MaintenancePlan $plan): ?float
+    {
+        if (! $plan->isMeterBased() || $plan->equipment === null) {
+            return null;
+        }
+
+        return $this->metersRemaining($plan->equipment, $plan);
+    }
 }

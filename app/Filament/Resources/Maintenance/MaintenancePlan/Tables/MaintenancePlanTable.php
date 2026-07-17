@@ -4,6 +4,9 @@ namespace App\Filament\Resources\Maintenance\MaintenancePlan\Tables;
 
 use App\Domain\Maintenance\Enums\MaintenanceTimeFrequency;
 use App\Domain\Maintenance\Enums\MaintenanceTriggerSource;
+use App\Domain\Maintenance\Services\EquipmentMeterReadingService;
+use App\Filament\Resources\Maintenance\MaintenancePlan\Actions\RegisterManualExecutionAction;
+use App\Models\MaintenancePlan;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -13,12 +16,16 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class MaintenancePlanTable
 {
     public static function configure(Table $table): Table
     {
         return $table
+            // La columna «Faltan» consulta el equipo de cada plan; sin esto sería
+            // una consulta extra por fila.
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with(['equipment', 'schedule']))
             ->columns([
                 TextColumn::make('plan_number')
                     ->label('Nº Plan')
@@ -55,6 +62,13 @@ class MaintenancePlanTable
                     ->suffix(' h')
                     ->placeholder('—')
                     ->sortable(),
+                TextColumn::make('hours_remaining')
+                    ->label('Faltan')
+                    ->badge()
+                    ->getStateUsing(fn (MaintenancePlan $record): ?string => app(EquipmentMeterReadingService::class)->remainingLabel($record))
+                    ->color(fn (MaintenancePlan $record): string => app(EquipmentMeterReadingService::class)->remainingColor($record))
+                    ->tooltip('Horas de horómetro que faltan para el vencimiento')
+                    ->placeholder('—'),
                 IconColumn::make('is_active')
                     ->label('Activo')
                     ->boolean()
@@ -95,6 +109,7 @@ class MaintenancePlanTable
             ->recordActions([
                 ViewAction::make(),
                 EditAction::make(),
+                RegisterManualExecutionAction::make(),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
