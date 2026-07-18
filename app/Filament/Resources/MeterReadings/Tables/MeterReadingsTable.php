@@ -5,6 +5,8 @@ namespace App\Filament\Resources\MeterReadings\Tables;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -13,6 +15,15 @@ class MeterReadingsTable
     public static function configure(Table $table): Table
     {
         return $table
+            // Agrupadas por equipo, la historia de cada dial se lee de corrido —
+            // sin esto, las lecturas de equipos distintos se entrelazan por fecha
+            // y hay que buscar entre todas para seguir una sola máquina.
+            ->groups([
+                Group::make('equipment.code')
+                    ->label('Equipo')
+                    ->collapsible(),
+            ])
+            ->defaultGroup('equipment.code')
             ->columns([
                 TextColumn::make('recorded_at')
                     ->label('Fecha')
@@ -46,6 +57,10 @@ class MeterReadingsTable
                     ->toggleable(),
             ])
             ->filters([
+                SelectFilter::make('equipment_id')
+                    ->label('Equipo')
+                    ->relationship('equipment', 'code')
+                    ->searchable(),
                 Filter::make('is_reset')
                     ->label('Solo cambios de dial')
                     ->query(fn (Builder $query): Builder => $query->where('is_reset', true)),

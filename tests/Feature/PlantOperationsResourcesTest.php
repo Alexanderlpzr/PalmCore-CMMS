@@ -200,6 +200,32 @@ it('records a reading through the service so the accumulated value moves', funct
         ->and($this->equipment->refresh()->accumulated_meter_reading)->toEqual(0.0);
 });
 
+it('groups readings by equipment so two equipos never interleave by date', function (): void {
+    $otherEquipment = Equipment::factory()->create([
+        'tenant_id' => $this->tenant->id,
+        'plant_id' => $this->plant->id,
+        'code' => 'PRE-09',
+    ]);
+
+    EquipmentMeterReading::factory()->create([
+        'tenant_id' => $this->tenant->id,
+        'equipment_id' => $this->equipment->id,
+        'recorded_at' => now(),
+    ]);
+    EquipmentMeterReading::factory()->create([
+        'tenant_id' => $this->tenant->id,
+        'equipment_id' => $otherEquipment->id,
+        'recorded_at' => now()->subDay(),
+    ]);
+
+    $component = Livewire::test(ListMeterReadings::class)
+        ->assertOk()
+        ->assertSee('PRE-02')
+        ->assertSee('PRE-09');
+
+    expect($component->instance()->getTable()->getDefaultGroup()?->getId())->toBe('equipment.code');
+});
+
 it('records a round of several equipment at once through the same service', function (): void {
     $secondEquipment = Equipment::factory()->create([
         'tenant_id' => $this->tenant->id,
