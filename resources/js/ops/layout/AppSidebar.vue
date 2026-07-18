@@ -54,14 +54,6 @@
                 <NavItem :item="{ name: 'Almacenes', to: 'ops.almacenes', icon: icons.warehouse }" />
             </NavGroup>
 
-            <!-- Análisis -->
-            <NavGroup label="Análisis">
-                <NavItem :item="{ name: 'Eficiencia de planta', to: 'ops.eficiencia', icon: icons.chartBar }" />
-                <NavItem :item="{ name: 'Indicadores', to: 'ops.kpis', icon: icons.chartBar }" />
-                <NavItem :item="{ name: 'Resumen Ejecutivo', to: 'ops.gerencial', icon: icons.chartBar }" />
-                <NavItem :item="{ name: 'Reportes', to: 'ops.reportes', icon: icons.fileText }" />
-            </NavGroup>
-
             <!-- Plataforma — exclusivo Super Admin -->
             <NavGroup v-if="auth.isSuperAdmin" label="Plataforma">
                 <NavItem :item="{ name: 'Dashboard Global', to: 'ops.plataforma', icon: icons.chartBar }" />

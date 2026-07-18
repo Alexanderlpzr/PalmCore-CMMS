@@ -13,6 +13,7 @@ use App\Filament\Widgets\Analytics\MttrTrendWidget;
 use App\Filament\Widgets\Analytics\ParetoFailureModesWidget;
 use App\Filament\Widgets\Analytics\ParetoFailuresWidget;
 use App\Filament\Widgets\Analytics\ReliabilityRankingWidget;
+use App\Filament\Widgets\Reliability\AllEquipmentKpisWidget;
 use App\Filament\Widgets\Reliability\GlobalReliabilitySummaryWidget;
 use App\Filament\Widgets\Reliability\HighestDowntimeWidget;
 use App\Filament\Widgets\Reliability\MaintenanceComplianceWidget;
@@ -71,6 +72,7 @@ class Dashboard extends BaseDashboard
             WorstAvailabilityWidget::class,
             MostFailuresWidget::class,
             HighestDowntimeWidget::class,
+            AllEquipmentKpisWidget::class,
             // Trends (driven by the period filter above)
             FailuresByMonthWidget::class,
             MtbfTrendWidget::class,

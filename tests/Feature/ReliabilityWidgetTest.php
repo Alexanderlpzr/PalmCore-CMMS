@@ -5,6 +5,7 @@ use App\Filament\Widgets\Analytics\CostByEquipmentWidget;
 use App\Filament\Widgets\Analytics\ParetoFailureModesWidget;
 use App\Filament\Widgets\Analytics\ParetoFailuresWidget;
 use App\Filament\Widgets\Analytics\ReliabilityRankingWidget;
+use App\Filament\Widgets\Reliability\AllEquipmentKpisWidget;
 use App\Filament\Widgets\Reliability\GlobalReliabilitySummaryWidget;
 use App\Filament\Widgets\Reliability\HighestDowntimeWidget;
 use App\Filament\Widgets\Reliability\MaintenanceComplianceWidget;
@@ -306,7 +307,8 @@ it('reliability widgets are sorted in the correct dashboard order', function () 
     expect(GlobalReliabilitySummaryWidget::getSort())->toBe(2)
         ->and(WorstAvailabilityWidget::getSort())->toBe(3)
         ->and(MostFailuresWidget::getSort())->toBe(4)
-        ->and(HighestDowntimeWidget::getSort())->toBe(5);
+        ->and(HighestDowntimeWidget::getSort())->toBe(5)
+        ->and(AllEquipmentKpisWidget::getSort())->toBe(7);
 });
 
 it('the analytics dashboard actually renders the reliability and pareto widgets', function () {
@@ -320,9 +322,40 @@ it('the analytics dashboard actually renders the reliability and pareto widgets'
         WorstAvailabilityWidget::class,
         MostFailuresWidget::class,
         HighestDowntimeWidget::class,
+        AllEquipmentKpisWidget::class,
         CostByEquipmentWidget::class,
         ParetoFailuresWidget::class,
         ParetoFailureModesWidget::class,
         ReliabilityRankingWidget::class,
     );
+});
+
+// ── AllEquipmentKpisWidget ────────────────────────────────────────────────────
+
+it('AllEquipmentKpisWidget lists every equipment, not just a top 10', function () {
+    $tenant = activeTenant();
+
+    Equipment::factory()->count(15)->create(['tenant_id' => $tenant->id])->each(
+        fn (Equipment $e) => kpiFor($e, ['availability_percentage' => fake()->randomFloat(2, 60, 99), 'failure_count' => 1])
+    );
+
+    $results = EquipmentKpi::query()->get();
+
+    expect($results)->toHaveCount(15);
+});
+
+it('AllEquipmentKpisWidget only returns KPIs for the current tenant', function () {
+    $tenantA = activeTenant();
+    $tenantB = Tenant::factory()->create();
+
+    $equipA = Equipment::factory()->create(['tenant_id' => $tenantA->id]);
+    $equipB = Equipment::factory()->create(['tenant_id' => $tenantB->id]);
+
+    kpiFor($equipA, ['availability_percentage' => 90.00]);
+    kpiFor($equipB, ['availability_percentage' => 80.00]);
+
+    $results = EquipmentKpi::query()->get();
+
+    expect($results)->toHaveCount(1)
+        ->and($results->first()->equipment_id)->toBe($equipA->id);
 });

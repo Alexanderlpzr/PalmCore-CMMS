@@ -91,34 +91,10 @@ const routes = [
                 meta: { title: 'Almacenes' },
             },
             {
-                path: 'kpis',
-                name: 'ops.kpis',
-                component: () => import('../views/KpisView.vue'),
-                meta: { title: 'Indicadores' },
-            },
-            {
-                path: 'eficiencia',
-                name: 'ops.eficiencia',
-                component: () => import('../views/EficienciaPlantaView.vue'),
-                meta: { title: 'Eficiencia de planta' },
-            },
-            {
-                path: 'gerencial',
-                name: 'ops.gerencial',
-                component: () => import('../views/ExecutiveDashboardView.vue'),
-                meta: { title: 'Resumen Ejecutivo' },
-            },
-            {
                 path: 'plataforma',
                 name: 'ops.plataforma',
                 component: () => import('../views/PlatformDashboardView.vue'),
                 meta: { title: 'Dashboard de Plataforma', requiresSuperAdmin: true },
-            },
-            {
-                path: 'reportes',
-                name: 'ops.reportes',
-                component: () => import('../views/ReportesView.vue'),
-                meta: { title: 'Reportes' },
             },
             {
                 path: 'alertas',
