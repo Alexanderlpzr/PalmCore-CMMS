@@ -20,12 +20,16 @@ class WorkOrderInfolist
         return $schema
             ->components([
                 ViewEntry::make('status_timeline')
-                    ->label('')
+                    ->hiddenLabel()
                     ->view('filament.infolists.work-order-status-timeline')
                     ->columnSpanFull(),
 
+                // ->label('') no basta para ocultar el título: Entry::getLabel()
+                // trata la cadena vacía como "sin label" y genera uno a partir del
+                // nombre del campo — «Missing technician alert» apareciendo arriba
+                // de esta misma alerta era ese defecto. hiddenLabel() sí lo suprime.
                 TextEntry::make('missing_technician_alert')
-                    ->label('')
+                    ->hiddenLabel()
                     ->badge()
                     ->columnSpanFull()
                     ->visible(fn (WorkOrder $record): bool => $record->status === WorkOrderStatus::Draft
@@ -34,7 +38,7 @@ class WorkOrderInfolist
                     ->color('danger'),
 
                 TextEntry::make('pending_verification_alert')
-                    ->label('')
+                    ->hiddenLabel()
                     ->badge()
                     ->columnSpanFull()
                     ->visible(fn (WorkOrder $record): bool => $record->status->isPendingVerification())
