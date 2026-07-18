@@ -4,6 +4,7 @@ namespace App\Filament\Resources\MeterReadings\Pages;
 
 use App\Domain\Maintenance\Enums\MeterReadingUnit;
 use App\Domain\Maintenance\Services\EquipmentMeterReadingService;
+use App\Filament\Resources\MeterReadings\Actions\RegisterMeterReadingRoundAction;
 use App\Filament\Resources\MeterReadings\MeterReadingResource;
 use App\Models\Equipment;
 use App\Models\EquipmentMeterReading;
@@ -20,6 +21,7 @@ class ListMeterReadings extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
+            RegisterMeterReadingRoundAction::make(),
             CreateAction::make()
                 ->label('Registrar lectura')
                 ->visible(fn (): bool => auth()->user()->can('create', EquipmentMeterReading::class))

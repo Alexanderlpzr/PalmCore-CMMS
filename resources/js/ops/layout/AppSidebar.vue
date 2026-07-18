@@ -46,7 +46,6 @@
             <!-- Activos -->
             <NavGroup label="Activos">
                 <NavItem :item="{ name: 'Equipos', to: 'ops.equipos', icon: icons.cube }" />
-                <NavItem :item="{ name: 'Horómetros', to: 'ops.horometros', icon: icons.chartBar }" />
             </NavGroup>
 
             <!-- Inventario -->

@@ -73,12 +73,6 @@ const routes = [
                 meta: { title: 'Equipos' },
             },
             {
-                path: 'horometros',
-                name: 'ops.horometros',
-                component: () => import('../views/HorometrosView.vue'),
-                meta: { title: 'Horómetros' },
-            },
-            {
                 path: 'equipos/:id',
                 name: 'ops.equipos.show',
                 component: () => import('../views/EquipmentDetailView.vue'),
