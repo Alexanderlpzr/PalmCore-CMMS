@@ -31,6 +31,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'meter_lead_hours',
     'estimated_duration_minutes',
     'is_active',
+    'is_failure_finding',
     'last_generated_at',
 ])]
 class MaintenancePlan extends BaseModel
@@ -119,6 +120,7 @@ class MaintenancePlan extends BaseModel
             'time_frequency' => MaintenanceTimeFrequency::class,
             'pause_when_equipment_inactive' => 'boolean',
             'is_active' => 'boolean',
+            'is_failure_finding' => 'boolean',
             'last_generated_at' => 'datetime',
         ];
     }

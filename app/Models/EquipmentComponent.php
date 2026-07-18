@@ -64,6 +64,11 @@ class EquipmentComponent extends BaseModel
         return $this->hasMany(MaintenancePlan::class);
     }
 
+    public function failureModeAnalyses(): HasMany
+    {
+        return $this->hasMany(FailureModeAnalysis::class);
+    }
+
     protected function casts(): array
     {
         return [

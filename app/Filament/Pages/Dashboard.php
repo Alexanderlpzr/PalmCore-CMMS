@@ -8,6 +8,7 @@ use App\Filament\Widgets\Analytics\DowntimeByReportedTypeWidget;
 use App\Filament\Widgets\Analytics\DowntimeByStoppageCategoryWidget;
 use App\Filament\Widgets\Analytics\DowntimeTrendWidget;
 use App\Filament\Widgets\Analytics\FailuresByMonthWidget;
+use App\Filament\Widgets\Analytics\HiddenFailuresWithoutFindingTaskWidget;
 use App\Filament\Widgets\Analytics\MtbfTrendWidget;
 use App\Filament\Widgets\Analytics\MttrTrendWidget;
 use App\Filament\Widgets\Analytics\ParetoFailureModesWidget;
@@ -85,6 +86,7 @@ class Dashboard extends BaseDashboard
             ParetoFailuresWidget::class,
             ParetoFailureModesWidget::class,
             ReliabilityRankingWidget::class,
+            HiddenFailuresWithoutFindingTaskWidget::class,
         ];
     }
 

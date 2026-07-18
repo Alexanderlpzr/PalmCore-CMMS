@@ -156,6 +156,11 @@ class Equipment extends BaseModel
         return $this->hasMany(EquipmentComponent::class)->orderBy('name');
     }
 
+    public function failureModeAnalyses(): HasMany
+    {
+        return $this->hasMany(FailureModeAnalysis::class);
+    }
+
     public function downtimeEvents(): HasMany
     {
         return $this->hasMany(EquipmentDowntimeEvent::class)->orderByDesc('started_at');
