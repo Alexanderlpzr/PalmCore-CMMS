@@ -3,13 +3,17 @@
 namespace App\Filament\Widgets\Executive;
 
 use App\Domain\Analytics\Services\ExecutiveDashboardService;
+use App\Domain\Analytics\Support\DashboardPeriod;
 use Filament\Facades\Filament;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Filament\Widgets\Concerns\InteractsWithPageFilters;
 use Filament\Widgets\TableWidget as BaseWidget;
 
 class TopCriticalEquipmentWidget extends BaseWidget
 {
+    use InteractsWithPageFilters;
+
     protected ?string $pollingInterval = null;
 
     protected static ?int $sort = 3;
@@ -20,9 +24,13 @@ class TopCriticalEquipmentWidget extends BaseWidget
     {
         return $table
             ->heading('Equipos Críticos — Top 10 por Fallas')
-            ->records(fn (): array => collect(
-                app(ExecutiveDashboardService::class)->topEquipment(Filament::getTenant()->id)
-            )->keyBy('id')->all())
+            ->records(function (): array {
+                [$from, $to] = DashboardPeriod::resolve($this->pageFilters);
+
+                return collect(
+                    app(ExecutiveDashboardService::class)->topEquipment(Filament::getTenant()->id, $from, $to)
+                )->keyBy('id')->all();
+            })
             ->columns([
                 TextColumn::make('code')
                     ->label('Código')
@@ -45,7 +53,7 @@ class TopCriticalEquipmentWidget extends BaseWidget
                     ->formatStateUsing(fn ($state): string => number_format((float) $state, 1).' h'),
 
                 TextColumn::make('monthly_cost')
-                    ->label('Costo Mensual')
+                    ->label(fn (): string => 'Costo — '.DashboardPeriod::labelForSnapshot($this->pageFilters))
                     ->formatStateUsing(fn ($state): string => 'COP '.number_format((float) $state, 0, ',', '.')),
             ])
             ->paginated(false);

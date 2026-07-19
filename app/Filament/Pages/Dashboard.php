@@ -2,7 +2,7 @@
 
 namespace App\Filament\Pages;
 
-use App\Domain\Analytics\Support\DashboardPeriod;
+use App\Filament\Concerns\HasPeriodFilterForm;
 use App\Filament\Widgets\Analytics\CostByEquipmentWidget;
 use App\Filament\Widgets\Analytics\DowntimeByReportedTypeWidget;
 use App\Filament\Widgets\Analytics\DowntimeByStoppageCategoryWidget;
@@ -21,10 +21,8 @@ use App\Filament\Widgets\Reliability\MaintenanceComplianceWidget;
 use App\Filament\Widgets\Reliability\MostFailuresWidget;
 use App\Filament\Widgets\Reliability\WorstAvailabilityWidget;
 use BackedEnum;
-use Filament\Forms\Components\Select;
 use Filament\Pages\Dashboard as BaseDashboard;
 use Filament\Pages\Dashboard\Concerns\HasFiltersForm;
-use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use UnitEnum;
@@ -42,6 +40,7 @@ use UnitEnum;
 class Dashboard extends BaseDashboard
 {
     use HasFiltersForm;
+    use HasPeriodFilterForm;
 
     protected static string $routePath = '/dashboard';
 
@@ -92,49 +91,6 @@ class Dashboard extends BaseDashboard
 
     public function filtersForm(Schema $schema): Schema
     {
-        return $schema
-            ->components([
-                Select::make('preset')
-                    ->label('Periodo')
-                    ->options([
-                        DashboardPeriod::DEFAULT_PRESET => 'Últimos 12 meses',
-                        'year' => 'Año completo',
-                        'month' => 'Un mes',
-                        'range' => 'Rango de meses',
-                    ])
-                    ->default(DashboardPeriod::DEFAULT_PRESET)
-                    ->live()
-                    ->selectablePlaceholder(false),
-
-                Select::make('year')
-                    ->label('Año')
-                    ->options(DashboardPeriod::yearOptions())
-                    ->default(now()->year)
-                    ->visible(fn (Get $get): bool => in_array($get('preset'), ['year', 'month'], strict: true)),
-
-                Select::make('month')
-                    ->label('Mes')
-                    ->options(DashboardPeriod::monthOptions())
-                    ->default(now()->month)
-                    ->visible(fn (Get $get): bool => $get('preset') === 'month'),
-
-                Select::make('range_year')
-                    ->label('Año')
-                    ->options(DashboardPeriod::yearOptions())
-                    ->default(now()->year)
-                    ->visible(fn (Get $get): bool => $get('preset') === 'range'),
-
-                Select::make('range_from_month')
-                    ->label('Desde')
-                    ->options(DashboardPeriod::monthOptions())
-                    ->default(1)
-                    ->visible(fn (Get $get): bool => $get('preset') === 'range'),
-
-                Select::make('range_to_month')
-                    ->label('Hasta')
-                    ->options(DashboardPeriod::monthOptions())
-                    ->default(now()->month)
-                    ->visible(fn (Get $get): bool => $get('preset') === 'range'),
-            ]);
+        return $this->periodFilterForm($schema);
     }
 }

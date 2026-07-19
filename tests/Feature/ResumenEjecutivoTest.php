@@ -12,8 +12,10 @@ use App\Models\Equipment;
 use App\Models\EquipmentKpi;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Models\WorkOrder;
 use Database\Seeders\PermissionSeeder;
 use Filament\Facades\Filament;
+use Illuminate\Support\Carbon;
 use Livewire\Livewire;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -95,4 +97,68 @@ it('registers every executive widget on the page', function (): void {
         AvailabilityTrendWidget::class,
         CostTrendWidget::class,
     );
+});
+
+// ── Filtro de rango de meses — solo debe mover las cifras de costo ──────────────
+
+it('renders the page with a month-range filter selected', function (): void {
+    Livewire::test(ResumenEjecutivo::class)
+        ->set('filters.preset', 'range')
+        ->set('filters.range_year', now()->year)
+        ->set('filters.range_from_month', 1)
+        ->set('filters.range_to_month', 10)
+        ->assertOk();
+});
+
+it('scopes the monthly cost stat to the selected month range, leaving availability untouched', function (): void {
+    $equipment = Equipment::factory()->create(['tenant_id' => $this->tenant->id]);
+
+    EquipmentKpi::factory()->create([
+        'tenant_id' => $this->tenant->id,
+        'equipment_id' => $equipment->id,
+        'availability_percentage' => 91.50,
+        'is_stale' => false,
+    ]);
+
+    WorkOrder::factory()->create([
+        'tenant_id' => $this->tenant->id,
+        'equipment_id' => $equipment->id,
+        'completed_at' => Carbon::create(2026, 3, 15),
+        'actual_cost_total' => 5000,
+    ]);
+    WorkOrder::factory()->create([
+        'tenant_id' => $this->tenant->id,
+        'equipment_id' => $equipment->id,
+        'completed_at' => now(),
+        'actual_cost_total' => 999999,
+    ]);
+
+    Livewire::test(ExecutiveSummaryWidget::class, [
+        'pageFilters' => [
+            'preset' => 'range',
+            'range_year' => 2026,
+            'range_from_month' => 3,
+            'range_to_month' => 3,
+        ],
+    ])
+        ->assertOk()
+        ->assertSee('COP 5.000')
+        ->assertDontSee('COP 999.999')
+        ->assertSee('91.5%');
+});
+
+it('keeps the availability trend description fixed regardless of the selected cost period', function (): void {
+    // AvailabilityTrendWidget never reads pageFilters at all (equipment_kpis
+    // has no real monthly history to filter) — this is the regression guard
+    // for that: it must render identically no matter what period is picked.
+    Livewire::test(AvailabilityTrendWidget::class, [
+        'pageFilters' => [
+            'preset' => 'range',
+            'range_year' => 2020,
+            'range_from_month' => 1,
+            'range_to_month' => 2,
+        ],
+    ])
+        ->assertOk()
+        ->assertSee('últimos 12 meses');
 });

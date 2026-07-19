@@ -3,12 +3,16 @@
 namespace App\Filament\Widgets\Executive;
 
 use App\Domain\Analytics\Services\ExecutiveDashboardService;
+use App\Domain\Analytics\Support\DashboardPeriod;
 use Filament\Facades\Filament;
+use Filament\Widgets\Concerns\InteractsWithPageFilters;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 
 class ExecutiveSummaryWidget extends BaseWidget
 {
+    use InteractsWithPageFilters;
+
     protected ?string $pollingInterval = null;
 
     protected static ?int $sort = 1;
@@ -17,7 +21,8 @@ class ExecutiveSummaryWidget extends BaseWidget
 
     protected function getStats(): array
     {
-        $summary = app(ExecutiveDashboardService::class)->summary(Filament::getTenant()->id);
+        [$from, $to] = DashboardPeriod::resolve($this->pageFilters);
+        $summary = app(ExecutiveDashboardService::class)->summary(Filament::getTenant()->id, $from, $to);
 
         return [
             Stat::make('Disponibilidad', $summary['availability'].'%')
@@ -36,7 +41,7 @@ class ExecutiveSummaryWidget extends BaseWidget
                 ->color($summary['overdue_preventives'] > 0 ? 'danger' : 'success'),
 
             Stat::make('Costo Mensual', 'COP '.number_format($summary['monthly_cost'], 0, ',', '.'))
-                ->description('Mantenimiento total del período'),
+                ->description('Mantenimiento total — '.DashboardPeriod::labelForSnapshot($this->pageFilters)),
         ];
     }
 }

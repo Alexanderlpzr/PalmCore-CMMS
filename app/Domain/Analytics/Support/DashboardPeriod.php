@@ -53,6 +53,20 @@ class DashboardPeriod
         };
     }
 
+    /**
+     * Same as label(), but for a single-period snapshot figure (e.g. "Costo
+     * Mensual") instead of a multi-month trend. The default preset falls back
+     * to "este mes" here — matching what ExecutiveDashboardService actually
+     * computes when no explicit period is chosen — instead of "últimos 12
+     * meses", which would describe a trend widget, not a snapshot one.
+     */
+    public static function labelForSnapshot(?array $filters): string
+    {
+        $preset = $filters['preset'] ?? self::DEFAULT_PRESET;
+
+        return $preset === self::DEFAULT_PRESET ? 'este mes' : self::label($filters);
+    }
+
     /** @return array<int, string> */
     public static function monthOptions(): array
     {

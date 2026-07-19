@@ -3,13 +3,17 @@
 namespace App\Filament\Widgets\Executive;
 
 use App\Domain\Analytics\Services\ExecutiveDashboardService;
+use App\Domain\Analytics\Support\DashboardPeriod;
 use Filament\Facades\Filament;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Filament\Widgets\Concerns\InteractsWithPageFilters;
 use Filament\Widgets\TableWidget as BaseWidget;
 
 class AreaHealthWidget extends BaseWidget
 {
+    use InteractsWithPageFilters;
+
     protected ?string $pollingInterval = null;
 
     protected static ?int $sort = 2;
@@ -20,9 +24,13 @@ class AreaHealthWidget extends BaseWidget
     {
         return $table
             ->heading('Salud por Área')
-            ->records(fn (): array => collect(
-                app(ExecutiveDashboardService::class)->areas(Filament::getTenant()->id)
-            )->keyBy('code')->all())
+            ->records(function (): array {
+                [$from, $to] = DashboardPeriod::resolve($this->pageFilters);
+
+                return collect(
+                    app(ExecutiveDashboardService::class)->areas(Filament::getTenant()->id, $from, $to)
+                )->keyBy('code')->all();
+            })
             ->columns([
                 TextColumn::make('name')
                     ->label('Área'),
@@ -39,7 +47,7 @@ class AreaHealthWidget extends BaseWidget
                     ->formatStateUsing(fn ($state): string => $state > 0 ? number_format((float) $state, 1).' h' : '—'),
 
                 TextColumn::make('monthly_cost')
-                    ->label('Costo Mensual')
+                    ->label(fn (): string => 'Costo — '.DashboardPeriod::labelForSnapshot($this->pageFilters))
                     ->formatStateUsing(fn ($state): string => 'COP '.number_format((float) $state, 0, ',', '.')),
             ])
             ->paginated(false);

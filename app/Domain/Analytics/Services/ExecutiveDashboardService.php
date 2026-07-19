@@ -5,6 +5,8 @@ namespace App\Domain\Analytics\Services;
 use App\Models\Area;
 use App\Models\EquipmentKpi;
 use App\Models\WorkOrder;
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -20,13 +22,32 @@ use Illuminate\Support\Facades\DB;
 class ExecutiveDashboardService
 {
     /**
+     * Ventana [inicio_de_mes, fin_de_mes] para las cifras de costo — las
+     * únicas de este servicio con historial real por mes (work_orders.
+     * completed_at). Por defecto, el mes actual, igual que el comportamiento
+     * de siempre cuando no se pide un período explícito.
+     *
+     * @return array{0: Carbon, 1: Carbon}
+     */
+    private function resolveCostPeriod(?CarbonInterface $from, ?CarbonInterface $to): array
+    {
+        return [
+            $from !== null ? Carbon::parse($from)->startOfMonth() : Carbon::now()->startOfMonth(),
+            $to !== null ? Carbon::parse($to)->endOfMonth() : Carbon::now()->endOfMonth(),
+        ];
+    }
+
+    /**
      * @return array{availability: float, mtbf_hours: float, mttr_hours: float, open_work_orders: int, overdue_preventives: int, monthly_cost: float}
      */
-    public function summary(string $tenantId): array
+    public function summary(string $tenantId, ?CarbonInterface $from = null, ?CarbonInterface $to = null): array
     {
-        $startOfMonth = Carbon::now()->startOfMonth();
+        [$periodStart, $periodEnd] = $this->resolveCostPeriod($from, $to);
 
-        // KPI averages — prefer fresh records; fall back to all non-deleted
+        // KPI averages — prefer fresh records; fall back to all non-deleted.
+        // Vienen de equipment_kpis, una foto del estado actual (ventana móvil
+        // recalculada in situ, una fila por equipo) — no tienen historial
+        // mes a mes, así que $from/$to no las afecta.
         $freshKpis = EquipmentKpi::where('tenant_id', $tenantId)
             ->whereNull('deleted_at')
             ->where('is_stale', false)
@@ -54,7 +75,7 @@ class ExecutiveDashboardService
 
         $monthlyCost = WorkOrder::where('tenant_id', $tenantId)
             ->whereNotNull('completed_at')
-            ->where('completed_at', '>=', $startOfMonth)
+            ->whereBetween('completed_at', [$periodStart, $periodEnd])
             ->sum('actual_cost_total');
 
         return [
@@ -70,9 +91,9 @@ class ExecutiveDashboardService
     /**
      * @return list<array{code: string, name: string, availability: float, failure_count: int, mttr_hours: float, monthly_cost: float}>
      */
-    public function areas(string $tenantId): array
+    public function areas(string $tenantId, ?CarbonInterface $from = null, ?CarbonInterface $to = null): array
     {
-        $startOfMonth = Carbon::now()->startOfMonth();
+        [$periodStart, $periodEnd] = $this->resolveCostPeriod($from, $to);
 
         $areas = Area::where('tenant_id', $tenantId)
             ->orderBy('sort_order')
@@ -98,7 +119,7 @@ class ExecutiveDashboardService
         // Monthly costs per area in a single grouped query
         $costByArea = WorkOrder::where('tenant_id', $tenantId)
             ->whereNotNull('completed_at')
-            ->where('completed_at', '>=', $startOfMonth)
+            ->whereBetween('completed_at', [$periodStart, $periodEnd])
             ->whereIn('area_id', $areaIds)
             ->groupBy('area_id')
             ->select('area_id', DB::raw('SUM(actual_cost_total) as total_cost'))
@@ -123,9 +144,9 @@ class ExecutiveDashboardService
     /**
      * @return list<array{id: string, code: ?string, name: ?string, area_code: ?string, area_name: ?string, failure_count: int, downtime_hours: float, monthly_cost: float}>
      */
-    public function topEquipment(string $tenantId): array
+    public function topEquipment(string $tenantId, ?CarbonInterface $from = null, ?CarbonInterface $to = null): array
     {
-        $startOfMonth = Carbon::now()->startOfMonth();
+        [$periodStart, $periodEnd] = $this->resolveCostPeriod($from, $to);
 
         $kpis = EquipmentKpi::where('tenant_id', $tenantId)
             ->whereNull('deleted_at')
@@ -139,7 +160,7 @@ class ExecutiveDashboardService
         // Monthly cost per equipment in a single query
         $costByEquipment = WorkOrder::where('tenant_id', $tenantId)
             ->whereNotNull('completed_at')
-            ->where('completed_at', '>=', $startOfMonth)
+            ->whereBetween('completed_at', [$periodStart, $periodEnd])
             ->whereIn('equipment_id', $equipmentIds)
             ->groupBy('equipment_id')
             ->select('equipment_id', DB::raw('SUM(actual_cost_total) as total_cost'))
@@ -167,15 +188,13 @@ class ExecutiveDashboardService
     /**
      * @return array{corrective: float, preventive: float, predictive: float, other: float, total: float, period_start: string, period_end: string}
      */
-    public function costs(string $tenantId): array
+    public function costs(string $tenantId, ?CarbonInterface $from = null, ?CarbonInterface $to = null): array
     {
-        $now = Carbon::now();
-        $startOfMonth = $now->copy()->startOfMonth();
-        $endOfMonth = $now->copy()->endOfMonth();
+        [$periodStart, $periodEnd] = $this->resolveCostPeriod($from, $to);
 
         $rows = WorkOrder::where('tenant_id', $tenantId)
             ->whereNotNull('completed_at')
-            ->whereBetween('completed_at', [$startOfMonth, $endOfMonth])
+            ->whereBetween('completed_at', [$periodStart, $periodEnd])
             ->selectRaw('work_order_type, SUM(actual_cost_total) as total')
             ->groupBy('work_order_type')
             ->get()
@@ -196,8 +215,8 @@ class ExecutiveDashboardService
             'predictive' => round($predictive, 2),
             'other' => round($other, 2),
             'total' => round($total, 2),
-            'period_start' => $startOfMonth->toDateString(),
-            'period_end' => $endOfMonth->toDateString(),
+            'period_start' => $periodStart->toDateString(),
+            'period_end' => $periodEnd->toDateString(),
         ];
     }
 
@@ -244,5 +263,41 @@ class ExecutiveDashboardService
                 'cost' => round((float) ($cost?->total_cost ?? 0), 2),
             ];
         }, $months);
+    }
+
+    /**
+     * Costo por mes acotado al rango pedido — a diferencia de trends(), que
+     * siempre muestra los últimos 12 meses fijos, esta serie sí responde al
+     * selector de período de "Resumen Ejecutivo" porque el costo (a
+     * diferencia de disponibilidad/MTBF) tiene historial real por mes.
+     *
+     * @return list<array{month: string, cost: float}>
+     */
+    public function costTrend(string $tenantId, ?CarbonInterface $from = null, ?CarbonInterface $to = null): array
+    {
+        $to = CarbonImmutable::parse($to ?? now())->startOfMonth();
+        $from = CarbonImmutable::parse($from ?? $to->subMonths(11))->startOfMonth();
+
+        $costRows = DB::table('work_orders')
+            ->where('tenant_id', $tenantId)
+            ->whereNotNull('completed_at')
+            ->where('completed_at', '>=', $from)
+            ->where('completed_at', '<', $to->addMonth())
+            ->selectRaw("TO_CHAR(completed_at, 'YYYY-MM') as month, SUM(actual_cost_total) as total_cost")
+            ->groupByRaw("TO_CHAR(completed_at, 'YYYY-MM')")
+            ->get()
+            ->keyBy('month');
+
+        $months = [];
+        $cursor = $from;
+        while ($cursor->lte($to)) {
+            $months[] = $cursor->format('Y-m');
+            $cursor = $cursor->addMonth();
+        }
+
+        return array_map(fn (string $month): array => [
+            'month' => $month,
+            'cost' => round((float) ($costRows->get($month)?->total_cost ?? 0), 2),
+        ], $months);
     }
 }

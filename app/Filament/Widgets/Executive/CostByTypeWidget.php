@@ -3,11 +3,15 @@
 namespace App\Filament\Widgets\Executive;
 
 use App\Domain\Analytics\Services\ExecutiveDashboardService;
+use App\Domain\Analytics\Support\DashboardPeriod;
 use Filament\Facades\Filament;
 use Filament\Widgets\ChartWidget;
+use Filament\Widgets\Concerns\InteractsWithPageFilters;
 
 class CostByTypeWidget extends ChartWidget
 {
+    use InteractsWithPageFilters;
+
     protected ?string $heading = 'Costos por Tipo';
 
     protected ?string $pollingInterval = null;
@@ -18,12 +22,15 @@ class CostByTypeWidget extends ChartWidget
 
     public function getDescription(): ?string
     {
-        return 'Costo real de órdenes de trabajo completadas este mes, por tipo de mantenimiento.';
+        $period = DashboardPeriod::labelForSnapshot($this->pageFilters);
+
+        return "Costo real de órdenes de trabajo completadas — {$period}, por tipo de mantenimiento.";
     }
 
     protected function getData(): array
     {
-        $costs = app(ExecutiveDashboardService::class)->costs(Filament::getTenant()->id);
+        [$from, $to] = DashboardPeriod::resolve($this->pageFilters);
+        $costs = app(ExecutiveDashboardService::class)->costs(Filament::getTenant()->id, $from, $to);
 
         return [
             'datasets' => [

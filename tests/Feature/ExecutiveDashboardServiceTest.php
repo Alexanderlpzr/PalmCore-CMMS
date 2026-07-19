@@ -230,3 +230,139 @@ it('never mixes data from another tenant', function (): void {
 
     expect($summary['availability'])->toBe(0.0);
 });
+
+// ── Period filter — el "Resumen Ejecutivo" solo puede filtrar honestamente
+//    las cifras de costo (historial real por mes en work_orders.completed_at);
+//    disponibilidad/MTBF/MTTR vienen de equipment_kpis, una foto del estado
+//    actual (una fila por equipo), y deben ignorar el período pedido. ─────────
+
+it('scopes costs() to the explicit period instead of the current month', function (): void {
+    $equipment = Equipment::factory()->create(['tenant_id' => $this->tenant->id]);
+
+    WorkOrder::factory()->create([
+        'tenant_id' => $this->tenant->id,
+        'equipment_id' => $equipment->id,
+        'work_order_type' => WorkOrderType::Corrective->value,
+        'completed_at' => Carbon::create(2026, 3, 15),
+        'actual_cost_total' => 700,
+    ]);
+    WorkOrder::factory()->create([
+        'tenant_id' => $this->tenant->id,
+        'equipment_id' => $equipment->id,
+        'completed_at' => now(),
+        'actual_cost_total' => 999,
+    ]);
+
+    $costs = $this->service->costs(
+        $this->tenant->id,
+        Carbon::create(2026, 3, 1),
+        Carbon::create(2026, 3, 1),
+    );
+
+    expect($costs['total'])->toBe(700.0)
+        ->and($costs['period_start'])->toBe('2026-03-01')
+        ->and($costs['period_end'])->toBe('2026-03-31');
+});
+
+it('scopes summary() monthly_cost to the explicit period but leaves KPI averages untouched', function (): void {
+    $equipment = Equipment::factory()->create(['tenant_id' => $this->tenant->id]);
+
+    EquipmentKpi::factory()->create([
+        'tenant_id' => $this->tenant->id,
+        'equipment_id' => $equipment->id,
+        'availability_percentage' => 95.00,
+        'is_stale' => false,
+    ]);
+    WorkOrder::factory()->create([
+        'tenant_id' => $this->tenant->id,
+        'equipment_id' => $equipment->id,
+        'completed_at' => Carbon::create(2026, 3, 15),
+        'actual_cost_total' => 700,
+    ]);
+    WorkOrder::factory()->create([
+        'tenant_id' => $this->tenant->id,
+        'equipment_id' => $equipment->id,
+        'completed_at' => now(),
+        'actual_cost_total' => 999,
+    ]);
+
+    $unfiltered = $this->service->summary($this->tenant->id);
+    $filtered = $this->service->summary(
+        $this->tenant->id,
+        Carbon::create(2026, 3, 1),
+        Carbon::create(2026, 3, 1),
+    );
+
+    expect($filtered['monthly_cost'])->toBe(700.0)
+        ->and($filtered['availability'])->toBe($unfiltered['availability'])
+        ->and($filtered['availability'])->toBe(95.0);
+});
+
+it('scopes areas() and topEquipment() monthly_cost to the explicit period', function (): void {
+    $plant = Plant::factory()->create(['tenant_id' => $this->tenant->id]);
+    $area = Area::factory()->create(['tenant_id' => $this->tenant->id, 'plant_id' => $plant->id]);
+    $equipment = Equipment::factory()->create(['tenant_id' => $this->tenant->id, 'area_id' => $area->id]);
+
+    EquipmentKpi::factory()->create(['tenant_id' => $this->tenant->id, 'equipment_id' => $equipment->id, 'failure_count' => 2]);
+
+    WorkOrder::factory()->create([
+        'tenant_id' => $this->tenant->id,
+        'equipment_id' => $equipment->id,
+        'area_id' => $area->id,
+        'completed_at' => Carbon::create(2026, 3, 15),
+        'actual_cost_total' => 700,
+    ]);
+    WorkOrder::factory()->create([
+        'tenant_id' => $this->tenant->id,
+        'equipment_id' => $equipment->id,
+        'area_id' => $area->id,
+        'completed_at' => now(),
+        'actual_cost_total' => 999,
+    ]);
+
+    $from = Carbon::create(2026, 3, 1);
+    $to = Carbon::create(2026, 3, 1);
+
+    $areas = $this->service->areas($this->tenant->id, $from, $to);
+    $top = $this->service->topEquipment($this->tenant->id, $from, $to);
+
+    expect($areas[0]['monthly_cost'])->toBe(700.0)
+        ->and($top[0]['monthly_cost'])->toBe(700.0);
+});
+
+// ── costTrend() ───────────────────────────────────────────────────────────────
+
+it('builds a month-by-month cost series bounded to the requested range', function (): void {
+    $equipment = Equipment::factory()->create(['tenant_id' => $this->tenant->id]);
+
+    WorkOrder::factory()->create([
+        'tenant_id' => $this->tenant->id,
+        'equipment_id' => $equipment->id,
+        'completed_at' => Carbon::create(2026, 2, 10),
+        'actual_cost_total' => 100,
+    ]);
+    WorkOrder::factory()->create([
+        'tenant_id' => $this->tenant->id,
+        'equipment_id' => $equipment->id,
+        'completed_at' => Carbon::create(2026, 4, 10),
+        'actual_cost_total' => 50,
+    ]);
+
+    $trend = $this->service->costTrend(
+        $this->tenant->id,
+        Carbon::create(2026, 1, 1),
+        Carbon::create(2026, 4, 1),
+    );
+
+    expect($trend)->toHaveCount(4)
+        ->and($trend[0]['month'])->toBe('2026-01')
+        ->and($trend[1]['cost'])->toBe(100.0)
+        ->and($trend[3]['cost'])->toBe(50.0);
+});
+
+it('defaults costTrend() to the trailing 12 months when no range is given', function (): void {
+    $trend = $this->service->costTrend($this->tenant->id);
+
+    expect($trend)->toHaveCount(12)
+        ->and($trend[11]['month'])->toBe(Carbon::now()->format('Y-m'));
+});

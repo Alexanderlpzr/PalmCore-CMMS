@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Filament\Concerns\HasPeriodFilterForm;
 use App\Filament\Widgets\Executive\AreaHealthWidget;
 use App\Filament\Widgets\Executive\AvailabilityTrendWidget;
 use App\Filament\Widgets\Executive\CostByTypeWidget;
@@ -10,6 +11,8 @@ use App\Filament\Widgets\Executive\ExecutiveSummaryWidget;
 use App\Filament\Widgets\Executive\TopCriticalEquipmentWidget;
 use BackedEnum;
 use Filament\Pages\Dashboard as BaseDashboard;
+use Filament\Pages\Dashboard\Concerns\HasFiltersForm;
+use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use UnitEnum;
 
@@ -19,9 +22,18 @@ use UnitEnum;
  * base de Filament (no Page) por la misma razón que App\Filament\Pages\Dashboard
  * lo hace: es la clase que ya sabe renderizar una lista de widgets sin tener
  * que escribir una vista Blade a mano.
+ *
+ * El selector de período solo mueve las cifras de costo (Costo Mensual,
+ * Costos por Tipo, Tendencia de Costo, la columna de costo en Salud por Área
+ * y Equipos Críticos) — Disponibilidad/MTBF/MTTR vienen de equipment_kpis,
+ * una foto del estado actual (ventana móvil), no un historial mes a mes, así
+ * que no responden al filtro.
  */
 class ResumenEjecutivo extends BaseDashboard
 {
+    use HasFiltersForm;
+    use HasPeriodFilterForm;
+
     protected static string $routePath = '/resumen-ejecutivo';
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedPresentationChartLine;
@@ -47,5 +59,10 @@ class ResumenEjecutivo extends BaseDashboard
             AvailabilityTrendWidget::class,
             CostTrendWidget::class,
         ];
+    }
+
+    public function filtersForm(Schema $schema): Schema
+    {
+        return $this->periodFilterForm($schema);
     }
 }
