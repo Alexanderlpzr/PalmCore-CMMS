@@ -35,6 +35,11 @@ class WarehouseResource extends Resource
 
     protected static bool $isScopedToTenant = true;
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
+
     public static function form(Schema $schema): Schema
     {
         return WarehouseForm::configure($schema);

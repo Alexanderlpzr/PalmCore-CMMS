@@ -34,6 +34,11 @@ class PlantResource extends Resource
 
     protected static bool $isScopedToTenant = true;
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
+
     public static function form(Schema $schema): Schema
     {
         return PlantForm::configure($schema);

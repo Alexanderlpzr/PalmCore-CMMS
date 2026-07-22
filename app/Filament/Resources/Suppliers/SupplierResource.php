@@ -35,6 +35,11 @@ class SupplierResource extends Resource
 
     protected static bool $isScopedToTenant = true;
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
+
     public static function form(Schema $schema): Schema
     {
         return SupplierForm::configure($schema);
@@ -58,10 +63,10 @@ class SupplierResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index'  => ListSuppliers::route('/'),
+            'index' => ListSuppliers::route('/'),
             'create' => CreateSupplier::route('/create'),
-            'view'   => ViewSupplier::route('/{record}'),
-            'edit'   => EditSupplier::route('/{record}/edit'),
+            'view' => ViewSupplier::route('/{record}'),
+            'edit' => EditSupplier::route('/{record}/edit'),
         ];
     }
 

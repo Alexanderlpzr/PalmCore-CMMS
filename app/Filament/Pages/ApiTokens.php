@@ -27,6 +27,11 @@ class ApiTokens extends Page
 
     protected string $view = 'filament.pages.api-tokens';
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
+
     /** Plain-text token to display once after creation. */
     public ?string $newPlainTextToken = null;
 

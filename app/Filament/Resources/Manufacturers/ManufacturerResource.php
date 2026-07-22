@@ -35,6 +35,11 @@ class ManufacturerResource extends Resource
 
     protected static bool $isScopedToTenant = true;
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
+
     public static function form(Schema $schema): Schema
     {
         return ManufacturerForm::configure($schema);
@@ -58,10 +63,10 @@ class ManufacturerResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index'  => ListManufacturers::route('/'),
+            'index' => ListManufacturers::route('/'),
             'create' => CreateManufacturer::route('/create'),
-            'view'   => ViewManufacturer::route('/{record}'),
-            'edit'   => EditManufacturer::route('/{record}/edit'),
+            'view' => ViewManufacturer::route('/{record}'),
+            'edit' => EditManufacturer::route('/{record}/edit'),
         ];
     }
 
