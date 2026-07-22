@@ -43,7 +43,8 @@ class EquipmentResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        return false;
+        // Oculto para los roles de tenant; solo el superadministrador de plataforma lo ve.
+        return auth()->user()?->is_super_admin ?? false;
     }
 
     public static function form(Schema $schema): Schema
