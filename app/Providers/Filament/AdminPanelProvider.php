@@ -79,14 +79,10 @@ class AdminPanelProvider extends PanelProvider
                 NavigationGroup::make('Portal de Inicio'),
                 NavigationGroup::make('Mantenimiento'),
                 NavigationGroup::make('Centro de Alertas'),
-                NavigationGroup::make('Inventario'),
-                NavigationGroup::make('Gestión de Activos'),
                 NavigationGroup::make('Indicadores'),
                 NavigationGroup::make('Estructura Operativa'),
                 NavigationGroup::make('Usuarios & Acceso'),
-                NavigationGroup::make('Integraciones'),
                 NavigationGroup::make('Automatizaciones'),
-                NavigationGroup::make('Configuración'),
             ])
             ->renderHook(
                 PanelsRenderHook::SIDEBAR_NAV_END,

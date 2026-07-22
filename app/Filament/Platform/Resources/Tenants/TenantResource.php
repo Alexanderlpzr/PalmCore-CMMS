@@ -6,6 +6,7 @@ use App\Filament\Platform\Resources\Tenants\Pages\CreateTenant;
 use App\Filament\Platform\Resources\Tenants\Pages\EditTenant;
 use App\Filament\Platform\Resources\Tenants\Pages\ListTenants;
 use App\Filament\Platform\Resources\Tenants\Pages\ViewTenant;
+use App\Filament\Platform\Resources\Tenants\RelationManagers\PlantsRelationManager;
 use App\Filament\Resources\Tenants\Schemas\TenantForm;
 use App\Filament\Resources\Tenants\Schemas\TenantInfolist;
 use App\Filament\Resources\Tenants\Tables\TenantsTable;
@@ -64,7 +65,9 @@ class TenantResource extends Resource
 
     public static function getRelations(): array
     {
-        return [];
+        return [
+            PlantsRelationManager::class,
+        ];
     }
 
     public static function getPages(): array

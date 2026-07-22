@@ -35,6 +35,11 @@ class EquipmentCategoryResource extends Resource
 
     protected static bool $isScopedToTenant = true;
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
+
     public static function form(Schema $schema): Schema
     {
         return EquipmentCategoryForm::configure($schema);
@@ -58,10 +63,10 @@ class EquipmentCategoryResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index'  => ListEquipmentCategories::route('/'),
+            'index' => ListEquipmentCategories::route('/'),
             'create' => CreateEquipmentCategory::route('/create'),
-            'view'   => ViewEquipmentCategory::route('/{record}'),
-            'edit'   => EditEquipmentCategory::route('/{record}/edit'),
+            'view' => ViewEquipmentCategory::route('/{record}'),
+            'edit' => EditEquipmentCategory::route('/{record}/edit'),
         ];
     }
 
