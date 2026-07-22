@@ -4,13 +4,16 @@ namespace App\Filament\Resources\MeterReadings\Pages;
 
 use App\Domain\Maintenance\Enums\MeterReadingUnit;
 use App\Domain\Maintenance\Services\EquipmentMeterReadingService;
+use App\Filament\Pages\WorkedHoursLog;
 use App\Filament\Resources\MeterReadings\Actions\RegisterMeterReadingRoundAction;
 use App\Filament\Resources\MeterReadings\MeterReadingResource;
 use App\Models\Equipment;
 use App\Models\EquipmentMeterReading;
+use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
+use Filament\Support\Icons\Heroicon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 
@@ -21,6 +24,12 @@ class ListMeterReadings extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('workedHours')
+                ->label('Registro de horas trabajadas')
+                ->tooltip('Diario, semanal, mensual y anual — horas trabajadas por equipo, aparte del dial')
+                ->icon(Heroicon::OutlinedCalendarDays)
+                ->color('gray')
+                ->url(fn (): string => WorkedHoursLog::getUrl()),
             RegisterMeterReadingRoundAction::make(),
             CreateAction::make()
                 ->label('Registrar lectura')
