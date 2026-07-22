@@ -33,6 +33,12 @@ class CarouselSlideResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Slides del Carrusel';
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        // Portal de Inicio: oculto para los roles de tenant; solo el superadministrador de plataforma lo ve.
+        return auth()->user()?->is_super_admin ?? false;
+    }
+
     public static function form(Schema $schema): Schema
     {
         return CarouselSlideForm::configure($schema);

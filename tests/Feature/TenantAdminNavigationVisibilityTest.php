@@ -1,6 +1,8 @@
 <?php
 
 use App\Filament\Pages\ApiTokens;
+use App\Filament\Resources\Announcements\AnnouncementResource;
+use App\Filament\Resources\CarouselSlides\CarouselSlideResource;
 use App\Filament\Resources\Equipment\EquipmentResource;
 use App\Filament\Resources\Integrations\Webhooks\WebhookSubscriptions\WebhookSubscriptionResource;
 use App\Filament\Resources\Inventory\Warehouse\WarehouseResource;
@@ -18,6 +20,8 @@ $hidden = [
     PlantResource::class,
     WebhookSubscriptionResource::class,
     ApiTokens::class,
+    CarouselSlideResource::class,
+    AnnouncementResource::class,
 ];
 
 it('esconde la navegación a un usuario de tenant (no superadmin)', function (string $class) {
