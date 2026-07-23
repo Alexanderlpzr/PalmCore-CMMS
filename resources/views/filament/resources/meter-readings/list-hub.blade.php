@@ -12,13 +12,16 @@
             'on' => 'bg-amber-500 text-white shadow-sm',
             'off' => 'bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/20',
         ],
-        'historial' => [
-            'label' => 'Historial',
-            'icon' => 'heroicon-m-clock',
-            'on' => 'bg-slate-700 text-white shadow-sm',
-            'off' => 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10',
-        ],
     ];
+
+    if ($this->controlTabVisible()) {
+        $tabs['control'] = [
+            'label' => 'Control de Mantenimiento',
+            'icon' => 'heroicon-m-wrench-screwdriver',
+            'on' => 'bg-emerald-600 text-white shadow-sm',
+            'off' => 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-300 dark:hover:bg-emerald-500/20',
+        ];
+    }
 @endphp
 
 <x-filament-panels::page>
@@ -40,16 +43,15 @@
         @endforeach
     </div>
 
-    @if ($tab === 'historial')
-        {{ $this->table }}
+    @if ($this->onControlTab())
+        @include('filament.resources.meter-readings.partials.maintenance-control', ['groups' => $this->controlGroups()])
     @else
         @include('filament.resources.meter-readings.partials.matrix', $this->getMatrixData())
-
-        {{-- La página es HasTable, así que <x-filament-panels::page> NO renderiza el
-             contenedor de modales (lo aporta la tabla). En las pestañas de matriz no
-             hay tabla, así que sin esto los modales de las acciones del encabezado
-             —Configurar equipos, Registrar ronda, Registrar lectura— se montan pero no
-             tienen dónde aparecer. En Historial lo aporta {{ $this->table }}. --}}
-        <x-filament-actions::modals />
     @endif
+
+    {{-- La página es HasTable, pero ninguna pestaña renderiza {{ $this->table }}, así
+         que <x-filament-panels::page> no aporta el contenedor de modales. Sin esto los
+         modales de las acciones del encabezado —Configurar equipos, Agregar tarea,
+         Registrar ronda, Registrar lectura— se montan pero no tienen dónde aparecer. --}}
+    <x-filament-actions::modals />
 </x-filament-panels::page>

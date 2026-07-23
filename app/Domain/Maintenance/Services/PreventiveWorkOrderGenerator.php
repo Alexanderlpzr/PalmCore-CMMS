@@ -28,9 +28,10 @@ class PreventiveWorkOrderGenerator
      * Anticipación por defecto, en horas de horómetro, para un plan por horómetro
      * que no define la suya. La OT se genera cuando faltan estas horas para el
      * vencimiento, dando tiempo a pedir el repuesto antes de que la pieza lo pida.
+     * Es también el umbral del semáforo ámbar en la tabla de Control de Mantenimiento.
      * Cada plan puede sobreescribirlo con su propia `meter_lead_hours`.
      */
-    public const DEFAULT_METER_LEAD_HOURS = 200;
+    public const DEFAULT_METER_LEAD_HOURS = 150;
 
     public function __construct(
         private readonly WorkOrderService $workOrderService,

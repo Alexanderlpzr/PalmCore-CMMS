@@ -3,7 +3,6 @@
 use App\Domain\Assets\Enums\MeterReadingFrequency;
 use App\Filament\Resources\MeterReadings\Pages\ListMeterReadings;
 use App\Models\Equipment;
-use App\Models\EquipmentMeterReading;
 use App\Models\Tenant;
 use App\Models\User;
 use Filament\Facades\Filament;
@@ -34,20 +33,12 @@ it('clasifica un equipo como diario o semanal y lo castea al enum', function ():
 
 // ── El filtro de Horómetros ──────────────────────────────────────────────────
 
-it('el filtro de ronda muestra solo las lecturas de los equipos de esa frecuencia', function (): void {
-    $dailyEquip = Equipment::factory()->create(['tenant_id' => $this->tenant->id, 'reading_frequency' => 'daily']);
-    $weeklyEquip = Equipment::factory()->create(['tenant_id' => $this->tenant->id, 'reading_frequency' => 'weekly']);
+it('la tabla del recurso conserva el filtro de ronda', function (): void {
+    // El historial dejó de tener pestaña propia (ya no se renderiza la tabla), pero
+    // el filtro de ronda sigue definido en el recurso. La separación diario/semanal
+    // que le importa al usuario ya la cubren las pestañas de matriz (ver
+    // MeterRegisterTest), así que aquí basta con proteger que el filtro no se perdió.
+    $table = Livewire::test(ListMeterReadings::class)->instance()->getTable();
 
-    $dailyReading = EquipmentMeterReading::factory()->create([
-        'tenant_id' => $this->tenant->id, 'equipment_id' => $dailyEquip->id,
-    ]);
-    $weeklyReading = EquipmentMeterReading::factory()->create([
-        'tenant_id' => $this->tenant->id, 'equipment_id' => $weeklyEquip->id,
-    ]);
-
-    Livewire::test(ListMeterReadings::class)
-        ->call('selectTab', 'historial')
-        ->filterTable('reading_frequency', 'daily')
-        ->assertCanSeeTableRecords([$dailyReading])
-        ->assertCanNotSeeTableRecords([$weeklyReading]);
+    expect($table->getFilter('reading_frequency'))->not->toBeNull();
 });

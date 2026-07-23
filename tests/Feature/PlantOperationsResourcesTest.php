@@ -201,28 +201,9 @@ it('records a reading through the service so the accumulated value moves', funct
 });
 
 it('groups readings by equipment so two equipos never interleave by date', function (): void {
-    $otherEquipment = Equipment::factory()->create([
-        'tenant_id' => $this->tenant->id,
-        'plant_id' => $this->plant->id,
-        'code' => 'PRE-09',
-    ]);
-
-    EquipmentMeterReading::factory()->create([
-        'tenant_id' => $this->tenant->id,
-        'equipment_id' => $this->equipment->id,
-        'recorded_at' => now(),
-    ]);
-    EquipmentMeterReading::factory()->create([
-        'tenant_id' => $this->tenant->id,
-        'equipment_id' => $otherEquipment->id,
-        'recorded_at' => now()->subDay(),
-    ]);
-
-    $component = Livewire::test(ListMeterReadings::class)
-        ->call('selectTab', 'historial')
-        ->assertOk()
-        ->assertSee('PRE-02')
-        ->assertSee('PRE-09');
+    // El historial ya no se renderiza como pestaña; el recurso conserva el agrupado
+    // por equipo, que es lo que este test protege.
+    $component = Livewire::test(ListMeterReadings::class)->assertOk();
 
     expect($component->instance()->getTable()->getDefaultGroup()?->getId())->toBe('equipment.code');
 });

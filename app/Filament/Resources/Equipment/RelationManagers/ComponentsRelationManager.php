@@ -286,7 +286,7 @@ class ComponentsRelationManager extends RelationManager
                     ->numeric()
                     ->minValue(0)
                     ->suffix('h')
-                    ->default(200)
+                    ->default(150)
                     ->visible(fn (Get $get): bool => $get('trigger_source') === MaintenanceTriggerSource::Meter->value),
                 Select::make('time_frequency')
                     ->label('Cada cuánto')

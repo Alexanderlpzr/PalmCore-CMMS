@@ -234,8 +234,8 @@ it('waits on a meter plan while the remaining hours are still beyond its lead', 
     expect($this->generator->generateForTenant($this->tenant->id, $this->actor)['generated'])->toBe(0);
 });
 
-it('falls back to the 200-hour default lead when the plan configures none', function (): void {
-    // Sin meter_lead_hours propio: faltan 100 h ≤ 200 h por defecto → genera.
+it('falls back to the 150-hour default lead when the plan configures none', function (): void {
+    // Sin meter_lead_hours propio: faltan 100 h ≤ 150 h por defecto → genera.
     $this->equipment->update(['accumulated_meter_reading' => 4_900]);
 
     calendarPlan(
@@ -248,7 +248,7 @@ it('falls back to the 200-hour default lead when the plan configures none', func
 });
 
 it('does not generate for a meter plan whose remaining hours exceed the default lead', function (): void {
-    // Sin lead propio y faltan 500 h > 200 h por defecto → espera.
+    // Sin lead propio y faltan 500 h > 150 h por defecto → espera.
     $this->equipment->update(['accumulated_meter_reading' => 4_500]);
 
     calendarPlan(
