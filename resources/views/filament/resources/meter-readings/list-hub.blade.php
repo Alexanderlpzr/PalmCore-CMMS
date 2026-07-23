@@ -24,6 +24,13 @@
         'on' => 'bg-amber-500 text-white shadow-sm',
         'off' => 'bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/20',
     ];
+
+    $tabs['horas'] = [
+        'label' => 'Horas Trabajadas',
+        'icon' => 'heroicon-m-clock',
+        'on' => 'bg-violet-600 text-white shadow-sm',
+        'off' => 'bg-violet-50 text-violet-700 hover:bg-violet-100 dark:bg-violet-500/10 dark:text-violet-300 dark:hover:bg-violet-500/20',
+    ];
 @endphp
 
 <x-filament-panels::page>
@@ -47,6 +54,8 @@
 
     @if ($this->onControlTab())
         @include('filament.resources.meter-readings.partials.maintenance-control', ['groups' => $this->controlGroups()])
+    @elseif ($tab === 'horas')
+        @include('filament.resources.meter-readings.partials.worked-hours', $this->workedHoursReport())
     @else
         {{-- Sub-vista: capturar la ronda del período (cómoda) o la cuadrícula de varios
              días (para revisar y corregir). --}}

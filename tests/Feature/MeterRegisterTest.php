@@ -251,6 +251,42 @@ it('la ronda marca leído el equipo con lectura del período y calcula sus horas
         ->and($row['reference'])->toBe(1_000.0);
 });
 
+// ── Horas trabajadas (consolidado del horómetro) ─────────────────────────────
+
+it('el resumen de horas trabajadas suma los deltas del horómetro del período', function (): void {
+    $eq = Equipment::factory()->create([
+        'tenant_id' => $this->tenant->id, 'code' => 'WH-1', 'reading_frequency' => 'daily',
+        'accumulated_meter_reading' => 0, 'current_meter_reading' => null,
+    ]);
+    $service = app(EquipmentMeterReadingService::class);
+
+    // Del mes en curso: 1000 (delta 0), 1050 (delta 50), 1080 (delta 30) → 80 h.
+    $anchor = now()->startOfMonth();
+    $service->record($eq, 1_000, $this->user, recordedAt: $anchor->copy()->addDays(1)->setTime(12, 0));
+    $service->record($eq->fresh(), 1_050, $this->user, recordedAt: $anchor->copy()->addDays(2)->setTime(12, 0));
+    $service->record($eq->fresh(), 1_080, $this->user, recordedAt: $anchor->copy()->addDays(3)->setTime(12, 0));
+
+    $report = Livewire::test(ListMeterReadings::class)
+        ->call('selectTab', 'horas')
+        ->set('whMode', 'mensual')
+        ->set('whYear', (int) now()->year)
+        ->set('whMonth', (int) now()->month)
+        ->instance()
+        ->workedHoursReport();
+
+    $row = collect($report['rows'])->firstWhere('code', 'WH-1');
+
+    expect($row['total_hours'])->toBe(80.0)
+        ->and($report['total'])->toBe(80.0);
+});
+
+it('la pestaña de horas trabajadas se renderiza', function (): void {
+    Livewire::test(ListMeterReadings::class)
+        ->call('selectTab', 'horas')
+        ->assertSet('tab', 'horas')
+        ->assertSee('Calculado del horómetro');
+});
+
 // ── Configurar equipos de las rondas ─────────────────────────────────────────
 
 it('asigna en bloque los equipos a diario/semanal y saca de la ronda a los quitados', function (): void {

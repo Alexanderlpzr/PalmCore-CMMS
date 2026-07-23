@@ -229,6 +229,33 @@ class EquipmentMeterReadingService
         return ['recorded' => $recorded, 'failed' => $failed];
     }
 
+    /**
+     * Horas trabajadas por equipo en un rango, tomadas del horómetro: la suma de los
+     * `delta` es exactamente las horas que la máquina corrió. Es lo que antes se
+     * tecleaba a mano en una tabla aparte; aquí sale sola del dial, sin doble captura.
+     *
+     * @return list<array{equipment_id: string, code: ?string, name: ?string, total_hours: float}>
+     */
+    public function workedHoursSummary(string $tenantId, CarbonInterface $from, CarbonInterface $to): array
+    {
+        return EquipmentMeterReading::query()
+            ->join('equipment', 'equipment.id', '=', 'equipment_meter_readings.equipment_id')
+            ->where('equipment_meter_readings.tenant_id', $tenantId)
+            ->whereBetween('equipment_meter_readings.recorded_at', [$from, $to])
+            ->groupBy('equipment.id', 'equipment.code', 'equipment.name')
+            ->orderBy('equipment.code')
+            ->select('equipment.id as equipment_id', 'equipment.code', 'equipment.name')
+            ->selectRaw('SUM(equipment_meter_readings.delta) as total_hours')
+            ->get()
+            ->map(fn ($row): array => [
+                'equipment_id' => $row->equipment_id,
+                'code' => $row->code,
+                'name' => $row->name,
+                'total_hours' => round((float) $row->total_hours, 1),
+            ])
+            ->all();
+    }
+
     /** What the dial reads today. */
     public function currentReading(Equipment $equipment): ?float
     {

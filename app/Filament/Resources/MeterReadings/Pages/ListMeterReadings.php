@@ -9,10 +9,10 @@ use App\Domain\Maintenance\Enums\MeterReadingUnit;
 use App\Domain\Maintenance\Services\EquipmentMeterReadingService;
 use App\Domain\Maintenance\Services\MaintenancePlanService;
 use App\Domain\Maintenance\Services\PreventiveWorkOrderGenerator;
-use App\Filament\Pages\WorkedHoursLog;
 use App\Filament\Resources\MeterReadings\Actions\RegisterMeterReadingRoundAction;
 use App\Filament\Resources\MeterReadings\Concerns\InteractsWithMaintenanceControl;
 use App\Filament\Resources\MeterReadings\Concerns\InteractsWithMeterMatrix;
+use App\Filament\Resources\MeterReadings\Concerns\InteractsWithWorkedHoursReport;
 use App\Filament\Resources\MeterReadings\MeterReadingResource;
 use App\Models\Equipment;
 use App\Models\EquipmentComponent;
@@ -48,18 +48,20 @@ class ListMeterReadings extends ListRecords
 {
     use InteractsWithMaintenanceControl;
     use InteractsWithMeterMatrix;
+    use InteractsWithWorkedHoursReport;
 
     protected static string $resource = MeterReadingResource::class;
 
     protected string $view = 'filament.resources.meter-readings.list-hub';
 
-    /** Pestaña activa: 'control' | 'diario' | 'semanal'. */
+    /** Pestaña activa: 'control' | 'diario' | 'semanal' | 'horas'. */
     public string $tab = 'control';
 
     public function mount(): void
     {
         parent::mount();
         $this->resetAnchor();
+        $this->initWorkedHoursReport();
 
         // El tablero de Control es la vista principal para quien puede verlo; los
         // operarios de ronda, que no lo ven, arrancan en la captura diaria.
@@ -99,12 +101,6 @@ class ListMeterReadings extends ListRecords
         return [
             $this->configureEquipmentAction(),
             $this->addControlTaskAction(),
-            Action::make('workedHours')
-                ->label('Horas trabajadas')
-                ->tooltip('Consolidado diario, semanal, mensual y anual de horas por equipo')
-                ->icon(Heroicon::OutlinedCalendarDays)
-                ->color('gray')
-                ->url(fn (): string => WorkedHoursLog::getUrl()),
             RegisterMeterReadingRoundAction::make()
                 ->visible(fn (): bool => $this->onMatrixTab()),
             CreateAction::make()
