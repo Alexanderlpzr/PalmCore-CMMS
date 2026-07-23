@@ -4,7 +4,9 @@ use App\Livewire\Equipment\ReportForm;
 use App\Models\Equipment;
 use App\Models\EquipmentIssueReport;
 use App\Models\EquipmentQrCode;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
 
@@ -15,144 +17,133 @@ function makeQrWithEquipment(): array
     $equipment = Equipment::factory()->create();
 
     $qrCode = EquipmentQrCode::withoutGlobalScopes()->create([
-        'equipment_id'  => $equipment->id,
-        'tenant_id'     => $equipment->tenant_id,
-        'qr_token'      => (string) Str::uuid(),
+        'equipment_id' => $equipment->id,
+        'tenant_id' => $equipment->tenant_id,
+        'qr_token' => (string) Str::uuid(),
         'qr_image_path' => null,
-        'is_active'     => true,
-        'generated_at'  => now(),
-        'scan_count'    => 0,
+        'is_active' => true,
+        'generated_at' => now(),
+        'scan_count' => 0,
     ]);
 
     return [$equipment, $qrCode];
 }
 
-// ── Form rendering ────────────────────────────────────────────────────────────
+/** Un envío válido completo (nombre y cargo ahora son obligatorios). */
+function fillValidReport($component): mixed
+{
+    return $component
+        ->set('description', 'El motor presenta vibración excesiva en el eje principal.')
+        ->set('severity', 'high')
+        ->set('reporterName', 'Juan Pérez')
+        ->set('reporterPosition', 'Operario de planta');
+}
+
+// ── Rendering ─────────────────────────────────────────────────────────────────
 
 it('renders the report form component', function () {
     [$equipment, $qrCode] = makeQrWithEquipment();
 
-    Livewire::test(ReportForm::class, [
-        'equipment' => $equipment,
-        'qrCode'    => $qrCode,
-    ])
+    Livewire::test(ReportForm::class, ['equipment' => $equipment, 'qrCode' => $qrCode])
         ->assertStatus(200)
-        ->assertSee('Reportar novedad');
+        ->assertSee('Reportar novedad')
+        ->assertSee('Cargo');
 });
 
-// ── Validation ────────────────────────────────────────────────────────────────
+// ── Validación ────────────────────────────────────────────────────────────────
 
 it('fails validation when description is empty', function () {
     [$equipment, $qrCode] = makeQrWithEquipment();
 
-    Livewire::test(ReportForm::class, [
-        'equipment' => $equipment,
-        'qrCode'    => $qrCode,
-    ])
+    Livewire::test(ReportForm::class, ['equipment' => $equipment, 'qrCode' => $qrCode])
         ->set('description', '')
         ->call('submit')
         ->assertHasErrors(['description']);
 });
 
-it('fails validation when description is too short', function () {
+it('requires the reporter name', function () {
     [$equipment, $qrCode] = makeQrWithEquipment();
 
-    Livewire::test(ReportForm::class, [
-        'equipment' => $equipment,
-        'qrCode'    => $qrCode,
-    ])
-        ->set('description', 'Corto')
+    fillValidReport(Livewire::test(ReportForm::class, ['equipment' => $equipment, 'qrCode' => $qrCode]))
+        ->set('reporterName', '')
         ->call('submit')
-        ->assertHasErrors(['description']);
+        ->assertHasErrors(['reporterName']);
 });
 
-it('fails validation with an invalid severity value', function () {
+it('requires the reporter position (cargo)', function () {
     [$equipment, $qrCode] = makeQrWithEquipment();
 
-    Livewire::test(ReportForm::class, [
-        'equipment' => $equipment,
-        'qrCode'    => $qrCode,
-    ])
-        ->set('severity', 'extreme')
-        ->set('description', 'Descripción suficientemente larga para pasar validación.')
+    fillValidReport(Livewire::test(ReportForm::class, ['equipment' => $equipment, 'qrCode' => $qrCode]))
+        ->set('reporterPosition', '')
         ->call('submit')
-        ->assertHasErrors(['severity']);
+        ->assertHasErrors(['reporterPosition']);
 });
 
-// ── Successful submission ─────────────────────────────────────────────────────
-
-it('creates an issue report on valid submission', function () {
+it('rejects a non-image photo', function () {
     [$equipment, $qrCode] = makeQrWithEquipment();
 
-    Livewire::test(ReportForm::class, [
-        'equipment' => $equipment,
-        'qrCode'    => $qrCode,
-    ])
-        ->set('description', 'El motor presenta vibración excesiva en el eje principal.')
-        ->set('severity', 'high')
+    fillValidReport(Livewire::test(ReportForm::class, ['equipment' => $equipment, 'qrCode' => $qrCode]))
+        ->set('photo', UploadedFile::fake()->create('nota.pdf', 100, 'application/pdf'))
+        ->call('submit')
+        ->assertHasErrors(['photo']);
+});
+
+// ── Envío exitoso ──────────────────────────────────────────────────────────────
+
+it('creates an issue report with the mandatory name and cargo', function () {
+    [$equipment, $qrCode] = makeQrWithEquipment();
+
+    fillValidReport(Livewire::test(ReportForm::class, ['equipment' => $equipment, 'qrCode' => $qrCode]))
         ->call('submit')
         ->assertHasNoErrors()
         ->assertSet('submitted', true);
 
-    expect(
-        EquipmentIssueReport::withoutGlobalScopes()
-            ->where('equipment_id', $equipment->id)
-            ->where('status', 'open')
-            ->exists()
-    )->toBeTrue();
+    $report = EquipmentIssueReport::withoutGlobalScopes()->where('equipment_id', $equipment->id)->latest()->first();
+
+    expect($report)->not->toBeNull()
+        ->and($report->reporter_name)->toBe('Juan Pérez')
+        ->and($report->reporter_position)->toBe('Operario de planta')
+        ->and($report->status->value)->toBe('open')
+        ->and($report->qr_code_id)->toBe($qrCode->id);
 });
 
-it('stores the correct severity on submission', function () {
+it('stores a photo taken from the phone', function () {
+    Storage::fake('public');
+    config(['filesystems.persistent_disk' => 'public']);
+
     [$equipment, $qrCode] = makeQrWithEquipment();
 
-    Livewire::test(ReportForm::class, [
-        'equipment' => $equipment,
-        'qrCode'    => $qrCode,
-    ])
-        ->set('description', 'Fuga visible de aceite en el sello del compresor.')
-        ->set('severity', 'critical')
-        ->call('submit');
+    fillValidReport(Livewire::test(ReportForm::class, ['equipment' => $equipment, 'qrCode' => $qrCode]))
+        ->set('photo', UploadedFile::fake()->image('falla.jpg', 800, 600))
+        ->call('submit')
+        ->assertHasNoErrors();
 
-    $report = EquipmentIssueReport::withoutGlobalScopes()
-        ->where('equipment_id', $equipment->id)
-        ->latest()
-        ->first();
+    $report = EquipmentIssueReport::withoutGlobalScopes()->where('equipment_id', $equipment->id)->latest()->first();
 
-    expect($report->severity->value)->toBe('critical');
+    expect($report->photo_path)->not->toBeNull();
+    Storage::disk('public')->assertExists($report->photo_path);
 });
 
-it('links the report to the qr code', function () {
+it('creates the report without a photo (it is optional)', function () {
     [$equipment, $qrCode] = makeQrWithEquipment();
 
-    Livewire::test(ReportForm::class, [
-        'equipment' => $equipment,
-        'qrCode'    => $qrCode,
-    ])
-        ->set('description', 'Ruido anormal detectado durante la operación del equipo.')
-        ->set('severity', 'medium')
-        ->call('submit');
+    fillValidReport(Livewire::test(ReportForm::class, ['equipment' => $equipment, 'qrCode' => $qrCode]))
+        ->call('submit')
+        ->assertHasNoErrors();
 
-    $report = EquipmentIssueReport::withoutGlobalScopes()
-        ->where('equipment_id', $equipment->id)
-        ->latest()
-        ->first();
+    $report = EquipmentIssueReport::withoutGlobalScopes()->where('equipment_id', $equipment->id)->latest()->first();
 
-    expect($report->qr_code_id)->toBe($qrCode->id);
+    expect($report->photo_path)->toBeNull();
 });
 
 it('resets form fields after successful submission', function () {
     [$equipment, $qrCode] = makeQrWithEquipment();
 
-    Livewire::test(ReportForm::class, [
-        'equipment' => $equipment,
-        'qrCode'    => $qrCode,
-    ])
-        ->set('description', 'Temperatura elevada detectada en el motor principal del sistema.')
-        ->set('severity', 'high')
-        ->set('reporterName', 'Juan Pérez')
+    fillValidReport(Livewire::test(ReportForm::class, ['equipment' => $equipment, 'qrCode' => $qrCode]))
         ->call('submit')
         ->assertSet('description', '')
-        ->assertSet('reporterName', '');
+        ->assertSet('reporterName', '')
+        ->assertSet('reporterPosition', '');
 });
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────
@@ -162,25 +153,14 @@ it('blocks submission when rate limit is exceeded', function () {
 
     RateLimiter::clear('issue-report:127.0.0.1');
 
-    $component = Livewire::test(ReportForm::class, [
-        'equipment' => $equipment,
-        'qrCode'    => $qrCode,
-    ]);
+    $component = Livewire::test(ReportForm::class, ['equipment' => $equipment, 'qrCode' => $qrCode]);
 
-    // Exhaust the rate limit
     foreach (range(1, 5) as $_) {
-        $component
-            ->set('description', 'Descripción suficientemente larga para pasar la validación del sistema.')
-            ->set('severity', 'low')
-            ->call('submit');
-
+        fillValidReport($component)->call('submit');
         $component->set('submitted', false);
     }
 
-    // 6th attempt should be blocked
-    $component
-        ->set('description', 'Descripción suficientemente larga para pasar la validación del sistema.')
-        ->set('severity', 'low')
+    fillValidReport($component)
         ->call('submit')
         ->assertHasErrors(['description']);
 

@@ -56,35 +56,54 @@
                     @error('description') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                 </div>
 
-                {{-- Reporter info (optional) --}}
-                <details class="group">
-                    <summary class="text-sm text-gray-500 cursor-pointer select-none list-none flex items-center gap-1">
-                        <span class="group-open:rotate-90 transition-transform text-xs">▶</span>
-                        Datos de contacto (opcional)
-                    </summary>
-                    <div class="mt-3 space-y-3">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-                            <input
-                                type="text"
-                                wire:model="reporterName"
-                                placeholder="Tu nombre"
-                                class="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent"
-                            >
-                            @error('reporterName') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Teléfono / Extensión</label>
-                            <input
-                                type="tel"
-                                wire:model="reporterPhone"
-                                placeholder="Ej: 301 555 0100"
-                                class="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent"
-                            >
-                            @error('reporterPhone') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
-                        </div>
+                {{-- Foto: se abre la cámara del celular directamente (capture) --}}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Foto <span class="text-gray-400">(opcional)</span></label>
+                    <label class="flex items-center justify-center gap-2 w-full border-2 border-dashed border-gray-300 rounded-xl py-3 text-sm text-gray-600 cursor-pointer hover:border-emerald-400 transition-colors">
+                        <span class="text-lg">📷</span>
+                        <span wire:loading.remove wire:target="photo">{{ $photo ? 'Cambiar foto' : 'Tomar o subir foto' }}</span>
+                        <span wire:loading wire:target="photo">Cargando...</span>
+                        <input
+                            type="file"
+                            wire:model="photo"
+                            accept="image/*"
+                            capture="environment"
+                            class="sr-only"
+                        >
+                    </label>
+                    @if ($photo && $photo->isPreviewable())
+                        <img src="{{ $photo->temporaryUrl() }}" alt="Vista previa" class="mt-2 h-40 w-full rounded-xl object-cover">
+                    @endif
+                    @error('photo') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
+                </div>
+
+                {{-- Datos del reportante: obligatorios --}}
+                <div class="space-y-3 border-t border-gray-100 pt-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Nombre <span class="text-red-500">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            wire:model="reporterName"
+                            placeholder="Tu nombre completo"
+                            class="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent"
+                        >
+                        @error('reporterName') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                     </div>
-                </details>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Cargo <span class="text-red-500">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            wire:model="reporterPosition"
+                            placeholder="Ej: Operario de planta, Supervisor de turno..."
+                            class="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent"
+                        >
+                        @error('reporterPosition') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
+                    </div>
+                </div>
 
                 {{-- Submit --}}
                 <button

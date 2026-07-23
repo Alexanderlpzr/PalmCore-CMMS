@@ -10,9 +10,13 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\View\View;
 use Livewire\Attributes\Rule;
 use Livewire\Component;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Livewire\WithFileUploads;
 
 class ReportForm extends Component
 {
+    use WithFileUploads;
+
     public Equipment $equipment;
 
     public EquipmentQrCode $qrCode;
@@ -27,11 +31,16 @@ class ReportForm extends Component
     #[Rule('required|in:low,medium,high,critical')]
     public string $severity = 'medium';
 
-    #[Rule('nullable|string|max:255')]
+    /** Foto opcional tomada desde la cámara del celular en planta. */
+    #[Rule('nullable|image|max:5120')]
+    public $photo = null;
+
+    // Datos del reportante: ahora obligatorios (nombre y cargo), no un anexo opcional.
+    #[Rule('required|string|min:3|max:255')]
     public string $reporterName = '';
 
-    #[Rule('nullable|string|max:50')]
-    public string $reporterPhone = '';
+    #[Rule('required|string|min:2|max:255')]
+    public string $reporterPosition = '';
 
     // ── Actions ───────────────────────────────────────────────────────────────
 
@@ -49,21 +58,26 @@ class ReportForm extends Component
 
         RateLimiter::hit($key, decaySeconds: 300);
 
+        $photoPath = $this->photo instanceof TemporaryUploadedFile
+            ? $this->photo->store('issue-reports', persistent_disk())
+            : null;
+
         EquipmentIssueReport::create([
-            'equipment_id'     => $this->equipment->id,
-            'tenant_id'        => $this->equipment->tenant_id,
-            'qr_code_id'       => $this->qrCode->id,
-            'description'      => $this->description,
-            'severity'         => $this->severity,
-            'reporter_name'    => $this->reporterName ?: null,
-            'reporter_phone'   => $this->reporterPhone ?: null,
+            'equipment_id' => $this->equipment->id,
+            'tenant_id' => $this->equipment->tenant_id,
+            'qr_code_id' => $this->qrCode->id,
+            'description' => $this->description,
+            'photo_path' => $photoPath,
+            'severity' => $this->severity,
+            'reporter_name' => $this->reporterName,
+            'reporter_position' => $this->reporterPosition,
             'reporter_user_id' => auth()->id(),
-            'status'           => 'open',
+            'status' => 'open',
         ]);
 
-        $this->reset(['description', 'severity', 'reporterName', 'reporterPhone']);
-        $this->severity   = 'medium';
-        $this->submitted  = true;
+        $this->reset(['description', 'severity', 'reporterName', 'reporterPosition', 'photo']);
+        $this->severity = 'medium';
+        $this->submitted = true;
     }
 
     // ── Computed ──────────────────────────────────────────────────────────────

@@ -11,15 +11,18 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Facades\Storage;
 
 #[Fillable([
     'equipment_id',
     'tenant_id',
     'qr_code_id',
     'description',
+    'photo_path',
     'severity',
     'reporter_name',
     'reporter_phone',
+    'reporter_position',
     'reporter_user_id',
     'status',
     'acknowledged_at',
@@ -53,6 +56,15 @@ class EquipmentIssueReport extends BaseModel
         return $this->belongsTo(User::class, 'reporter_user_id');
     }
 
+    public function photoUrl(): ?string
+    {
+        if (! $this->photo_path) {
+            return null;
+        }
+
+        return Storage::disk(persistent_disk())->url($this->photo_path);
+    }
+
     public function acknowledgedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'acknowledged_by');
@@ -80,7 +92,7 @@ class EquipmentIssueReport extends BaseModel
     public function acknowledge(User $user): void
     {
         $this->update([
-            'status'          => IssueReportStatus::Acknowledged,
+            'status' => IssueReportStatus::Acknowledged,
             'acknowledged_at' => now(),
             'acknowledged_by' => $user->id,
         ]);
@@ -96,8 +108,8 @@ class EquipmentIssueReport extends BaseModel
     protected function casts(): array
     {
         return [
-            'severity'        => IssueSeverity::class,
-            'status'          => IssueReportStatus::class,
+            'severity' => IssueSeverity::class,
+            'status' => IssueReportStatus::class,
             'acknowledged_at' => 'datetime',
         ];
     }

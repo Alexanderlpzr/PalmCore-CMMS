@@ -4,6 +4,8 @@ namespace App\Filament\Resources\Maintenance\IssueReport\Schemas;
 
 use App\Domain\Assets\Enums\IssueSeverity;
 use App\Domain\Maintenance\Enums\IssueReportStatus;
+use App\Models\EquipmentIssueReport;
+use Filament\Infolists\Components\ImageEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -34,6 +36,12 @@ class IssueReportInfolist
                         TextEntry::make('description')
                             ->label('Descripción')
                             ->columnSpanFull(),
+                        ImageEntry::make('photo_path')
+                            ->label('Foto')
+                            ->disk(persistent_disk())
+                            ->height(220)
+                            ->columnSpanFull()
+                            ->visible(fn (EquipmentIssueReport $record): bool => (bool) $record->photo_path),
                     ]),
 
                 Section::make('Reportante')
@@ -41,9 +49,9 @@ class IssueReportInfolist
                     ->schema([
                         TextEntry::make('reporter_name')
                             ->label('Nombre')
-                            ->placeholder('Anónimo'),
-                        TextEntry::make('reporter_phone')
-                            ->label('Teléfono')
+                            ->placeholder('—'),
+                        TextEntry::make('reporter_position')
+                            ->label('Cargo')
                             ->placeholder('—'),
                         TextEntry::make('reporter.name')
                             ->label('Usuario registrado')
