@@ -1,5 +1,6 @@
-<x-filament-panels::page>
-    {{-- Barra: navegación de la ventana --}}
+{{-- Matriz de horómetros estilo Excel: equipos en filas, fechas en columnas.
+     Espera: $columns, $rows, $columnTotals, $grandTotal, $rangeLabel, $isDaily, $canGoNext --}}
+<div class="mt-4 space-y-4">
     <div class="flex flex-wrap items-center justify-between gap-3">
         <div class="flex items-center gap-2">
             <x-filament::button color="gray" size="sm" icon="heroicon-m-chevron-left" wire:click="previousWindow" />
@@ -8,7 +9,7 @@
             <span class="ml-1 text-sm font-medium text-gray-700 dark:text-gray-200">{{ $rangeLabel }}</span>
         </div>
         <p class="text-xs text-gray-500 dark:text-gray-400">
-            Escribe el horómetro en una celda vacía y presiona Enter para guardar. El sistema calcula las horas solo.
+            Escribe el horómetro en una celda vacía y presiona Enter. El sistema calcula las horas solo.
         </p>
     </div>
 
@@ -89,4 +90,4 @@
             </table>
         </div>
     @endif
-</x-filament-panels::page>
+</div>

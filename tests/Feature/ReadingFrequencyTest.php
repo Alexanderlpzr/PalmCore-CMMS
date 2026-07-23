@@ -46,6 +46,7 @@ it('el filtro de ronda muestra solo las lecturas de los equipos de esa frecuenci
     ]);
 
     Livewire::test(ListMeterReadings::class)
+        ->call('selectTab', 'historial')
         ->filterTable('reading_frequency', 'daily')
         ->assertCanSeeTableRecords([$dailyReading])
         ->assertCanNotSeeTableRecords([$weeklyReading]);

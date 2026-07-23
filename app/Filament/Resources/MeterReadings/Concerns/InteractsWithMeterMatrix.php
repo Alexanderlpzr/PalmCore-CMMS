@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Pages;
+namespace App\Filament\Resources\MeterReadings\Concerns;
 
 use App\Domain\Assets\Enums\EquipmentStatus;
 use App\Domain\Assets\Enums\MeterReadingFrequency;
@@ -10,23 +10,22 @@ use App\Models\Equipment;
 use App\Models\EquipmentMeterReading;
 use Carbon\CarbonInterface;
 use Filament\Notifications\Notification;
-use Filament\Pages\Page;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 /**
- * La matriz de horómetros al estilo del Excel de la planta: equipos en las filas,
- * fechas en las columnas, y en cada celda el horómetro leído más las horas
- * trabajadas del período. Dos hojas: la diaria (equipos críticos) y la semanal
- * (el resto). Esta clase abstracta es el motor; cada hoja es una subclase que
- * solo declara su frecuencia y su ventana.
+ * El motor de la matriz de horómetros al estilo del Excel de la planta: equipos
+ * en las filas, fechas en las columnas, y en cada celda el horómetro leído más
+ * las horas trabajadas del período. La frecuencia (diaria o semanal) y la ventana
+ * salen de `$this->tab` de la página que lo usa.
  *
  * A diferencia del Excel, las horas se sacan del `delta` que ya calcula
- * EquipmentMeterReadingService —que nunca da negativo cuando cambian el dial—.
- * Solo se capturan celdas vacías (lecturas nuevas): corregir una lectura pasada
- * es otro problema (recalcular la serie) que aquí no se toca.
+ * EquipmentMeterReadingService —nunca da negativo cuando cambian el dial—. Solo
+ * se capturan celdas vacías: corregir una lectura pasada es otro problema.
+ *
+ * @property string $tab la pestaña activa ('diario'|'semanal'|…) — la declara la página
  */
-abstract class MeterRegister extends Page
+trait InteractsWithMeterMatrix
 {
     /** Fecha más reciente de la ventana visible (Y-m-d). */
     public string $anchor = '';
@@ -34,45 +33,44 @@ abstract class MeterRegister extends Page
     /** Valores tecleados pendientes de guardar: draft[equipmentId][dateKey]. */
     public array $draft = [];
 
-    abstract protected function frequency(): MeterReadingFrequency;
-
-    /** Cuántas columnas de fecha se ven a la vez. */
-    abstract protected function columnCount(): int;
-
-    /** 'day' o 'week': el paso entre columnas. */
-    abstract protected function stepUnit(): string;
-
-    public function mount(): void
+    protected function matrixFrequency(): MeterReadingFrequency
     {
-        $this->anchor = $this->alignAnchor(Carbon::today())->format('Y-m-d');
+        return $this->tab === 'semanal' ? MeterReadingFrequency::Weekly : MeterReadingFrequency::Daily;
     }
 
-    public static function canAccess(): bool
+    protected function matrixColumnCount(): int
     {
-        $user = auth()->user();
+        return $this->tab === 'semanal' ? 8 : 7;
+    }
 
-        return (bool) ($user?->is_super_admin || $user?->can('equipment-meter-readings.view'));
+    protected function matrixStepUnit(): string
+    {
+        return $this->tab === 'semanal' ? 'week' : 'day';
+    }
+
+    public function resetAnchor(): void
+    {
+        $this->anchor = $this->alignAnchor(Carbon::today())->format('Y-m-d');
     }
 
     // ── Navegación de la ventana ──────────────────────────────────────────────
 
     public function previousWindow(): void
     {
-        $this->anchor = $this->step(Carbon::parse($this->anchor), -$this->columnCount())->format('Y-m-d');
+        $this->anchor = $this->step(Carbon::parse($this->anchor), -$this->matrixColumnCount())->format('Y-m-d');
     }
 
     public function nextWindow(): void
     {
-        $next = $this->step(Carbon::parse($this->anchor), $this->columnCount());
+        $next = $this->step(Carbon::parse($this->anchor), $this->matrixColumnCount());
         $today = $this->alignAnchor(Carbon::today());
 
-        // No dejar avanzar al futuro: la última columna es el período actual.
         $this->anchor = $next->greaterThan($today) ? $today->format('Y-m-d') : $next->format('Y-m-d');
     }
 
     public function goToToday(): void
     {
-        $this->anchor = $this->alignAnchor(Carbon::today())->format('Y-m-d');
+        $this->resetAnchor();
     }
 
     // ── Captura ───────────────────────────────────────────────────────────────
@@ -97,8 +95,6 @@ abstract class MeterRegister extends Page
                 readingValue: (float) $raw,
                 recordedBy: auth()->user(),
                 unit: $equipment->meter_unit ?? MeterReadingUnit::Hours,
-                // Mediodía de la fecha de la columna: evita que el huso horario
-                // corra la lectura al día anterior.
                 recordedAt: Carbon::parse($dateKey)->setTime(12, 0),
             );
 
@@ -117,23 +113,23 @@ abstract class MeterRegister extends Page
         }
     }
 
-    // ── Datos de la vista ─────────────────────────────────────────────────────
+    // ── Datos de la matriz ────────────────────────────────────────────────────
 
     /**
      * @return array<string, mixed>
      */
-    protected function getViewData(): array
+    public function getMatrixData(): array
     {
         $columns = $this->columnDates();
-        $equipment = $this->equipment();
+        $equipment = $this->matrixEquipment();
 
         $readings = $this->readingsIn($equipment->pluck('id'), $columns);
         $matrix = $this->buildMatrix($equipment, $columns, $readings);
 
         return [
-            'columns' => array_map(fn (Carbon $d): array => [
+            'columns' => array_map(fn (CarbonInterface $d): array => [
                 'key' => $d->format('Y-m-d'),
-                'label' => $this->stepUnit() === 'week'
+                'label' => $this->matrixStepUnit() === 'week'
                     ? $d->translatedFormat('d M')
                     : $d->translatedFormat('D d'),
             ], $columns),
@@ -141,20 +137,20 @@ abstract class MeterRegister extends Page
             'columnTotals' => $matrix['columnTotals'],
             'grandTotal' => $matrix['grandTotal'],
             'rangeLabel' => reset($columns)->translatedFormat('d M Y').' — '.end($columns)->translatedFormat('d M Y'),
-            'isDaily' => $this->stepUnit() === 'day',
+            'isDaily' => $this->matrixStepUnit() === 'day',
             'canGoNext' => Carbon::parse($this->anchor)->lessThan($this->alignAnchor(Carbon::today())),
         ];
     }
 
     /**
-     * @return list<Carbon> de la más vieja a la más reciente (izquierda → derecha)
+     * @return list<CarbonInterface> de la más vieja a la más reciente (izquierda → derecha)
      */
     private function columnDates(): array
     {
         $anchor = Carbon::parse($this->anchor);
 
         $dates = [];
-        for ($i = $this->columnCount() - 1; $i >= 0; $i--) {
+        for ($i = $this->matrixColumnCount() - 1; $i >= 0; $i--) {
             $dates[] = $this->step($anchor->copy(), -$i);
         }
 
@@ -164,10 +160,10 @@ abstract class MeterRegister extends Page
     /**
      * @return Collection<int, Equipment>
      */
-    private function equipment(): Collection
+    private function matrixEquipment(): Collection
     {
         return Equipment::query()
-            ->where('reading_frequency', $this->frequency()->value)
+            ->where('reading_frequency', $this->matrixFrequency()->value)
             ->whereNotIn('status', [EquipmentStatus::Retired->value, EquipmentStatus::Disposed->value])
             ->orderBy('code')
             ->get(['id', 'code', 'name', 'current_meter_reading', 'meter_unit']);
@@ -175,7 +171,7 @@ abstract class MeterRegister extends Page
 
     /**
      * @param  Collection<int, string>  $equipmentIds
-     * @param  list<Carbon>  $columns
+     * @param  list<CarbonInterface>  $columns
      * @return Collection<int, EquipmentMeterReading>
      */
     private function readingsIn(Collection $equipmentIds, array $columns): Collection
@@ -193,14 +189,14 @@ abstract class MeterRegister extends Page
 
     /**
      * @param  Collection<int, Equipment>  $equipment
-     * @param  list<Carbon>  $columns
+     * @param  list<CarbonInterface>  $columns
      * @param  Collection<int, EquipmentMeterReading>  $readings
      * @return array{rows: list<array<string, mixed>>, columnTotals: array<string, float>, grandTotal: float}
      */
     private function buildMatrix(Collection $equipment, array $columns, Collection $readings): array
     {
         $byEquipment = $readings->groupBy('equipment_id');
-        $columnKeys = array_map(fn (Carbon $d): string => $d->format('Y-m-d'), $columns);
+        $columnKeys = array_map(fn (CarbonInterface $d): string => $d->format('Y-m-d'), $columns);
         $columnTotals = array_fill_keys($columnKeys, 0.0);
         $grandTotal = 0.0;
         $rows = [];
@@ -248,23 +244,21 @@ abstract class MeterRegister extends Page
 
     // ── Helpers de fecha ──────────────────────────────────────────────────────
 
-    /** La clave de columna a la que pertenece una lectura, según diario o semanal. */
     private function columnKeyFor(CarbonInterface $recordedAt): string
     {
         return $this->alignAnchor($recordedAt->copy())->format('Y-m-d');
     }
 
-    /** Diario: el día tal cual. Semanal: el lunes de su semana. */
     private function alignAnchor(CarbonInterface $date): CarbonInterface
     {
-        return $this->stepUnit() === 'week'
+        return $this->matrixStepUnit() === 'week'
             ? $date->startOfWeek(Carbon::MONDAY)
             : $date->startOfDay();
     }
 
-    private function step(Carbon $date, int $amount): Carbon
+    private function step(CarbonInterface $date, int $amount): CarbonInterface
     {
-        return $this->stepUnit() === 'week'
+        return $this->matrixStepUnit() === 'week'
             ? $date->addWeeks($amount)
             : $date->addDays($amount);
     }

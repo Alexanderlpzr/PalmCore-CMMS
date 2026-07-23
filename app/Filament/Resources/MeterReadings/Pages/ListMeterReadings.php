@@ -6,6 +6,7 @@ use App\Domain\Maintenance\Enums\MeterReadingUnit;
 use App\Domain\Maintenance\Services\EquipmentMeterReadingService;
 use App\Filament\Pages\WorkedHoursLog;
 use App\Filament\Resources\MeterReadings\Actions\RegisterMeterReadingRoundAction;
+use App\Filament\Resources\MeterReadings\Concerns\InteractsWithMeterMatrix;
 use App\Filament\Resources\MeterReadings\MeterReadingResource;
 use App\Models\Equipment;
 use App\Models\EquipmentMeterReading;
@@ -17,16 +18,52 @@ use Filament\Support\Icons\Heroicon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 
+/**
+ * El centro de horómetros, todo en una página con pestañas de color en vez de
+ * cuatro botones sueltos en el menú:
+ *
+ *   - Registro Diario (azul)   — la matriz de los equipos de lectura diaria.
+ *   - Registro Semanal (ámbar) — la matriz de los de lectura semanal.
+ *   - Historial (gris)         — la tabla de todas las lecturas registradas.
+ *
+ * Las dos primeras son captura estilo Excel (matriz equipo × fecha); la tercera
+ * es la tabla del recurso de siempre. La consolidación de horas trabajadas
+ * (mensual/anual) sigue en su propia pantalla, accesible desde el encabezado.
+ */
 class ListMeterReadings extends ListRecords
 {
+    use InteractsWithMeterMatrix;
+
     protected static string $resource = MeterReadingResource::class;
+
+    protected string $view = 'filament.resources.meter-readings.list-hub';
+
+    /** Pestaña activa: 'diario' | 'semanal' | 'historial'. */
+    public string $tab = 'diario';
+
+    public function mount(): void
+    {
+        parent::mount();
+        $this->resetAnchor();
+    }
+
+    public function selectTab(string $tab): void
+    {
+        $this->tab = $tab;
+
+        // Al volver a una matriz, la ventana se realinea al período actual (diario y
+        // semanal usan pasos distintos, así que el ancla no puede compartirse tal cual).
+        if ($tab !== 'historial') {
+            $this->resetAnchor();
+        }
+    }
 
     protected function getHeaderActions(): array
     {
         return [
             Action::make('workedHours')
-                ->label('Registro de horas trabajadas')
-                ->tooltip('Diario, semanal, mensual y anual — horas trabajadas por equipo, aparte del dial')
+                ->label('Horas trabajadas')
+                ->tooltip('Consolidado diario, semanal, mensual y anual de horas por equipo')
                 ->icon(Heroicon::OutlinedCalendarDays)
                 ->color('gray')
                 ->url(fn (): string => WorkedHoursLog::getUrl()),

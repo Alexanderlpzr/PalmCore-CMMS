@@ -219,6 +219,7 @@ it('groups readings by equipment so two equipos never interleave by date', funct
     ]);
 
     $component = Livewire::test(ListMeterReadings::class)
+        ->call('selectTab', 'historial')
         ->assertOk()
         ->assertSee('PRE-02')
         ->assertSee('PRE-09');

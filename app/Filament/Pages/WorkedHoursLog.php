@@ -71,6 +71,13 @@ class WorkedHoursLog extends Page implements HasTable
         return (bool) ($user?->is_super_admin || $user?->can('equipment-meter-readings.view'));
     }
 
+    // Fuera del menú lateral: se llega desde el encabezado del centro de Horómetros,
+    // para no repetir botones. La página y su ruta siguen intactas.
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
+
     public function updatedViewMode(): void
     {
         $this->resetTable();
