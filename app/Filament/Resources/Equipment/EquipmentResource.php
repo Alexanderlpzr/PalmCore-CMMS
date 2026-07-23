@@ -43,8 +43,10 @@ class EquipmentResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        // Oculto para los roles de tenant; solo el superadministrador de plataforma lo ve.
-        return auth()->user()?->is_super_admin ?? false;
+        // Equipos SÍ lo ve el admin de tenant (necesita el catálogo de máquinas para
+        // el día a día); el resto de Gestión de Activos sigue oculto. Se muestra a
+        // quien pueda ver equipos, no solo al superadministrador.
+        return (bool) (auth()->user()?->is_super_admin || auth()->user()?->can('equipment.view'));
     }
 
     public static function form(Schema $schema): Schema
