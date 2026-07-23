@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Equipment\Schemas;
 
+use App\Domain\Assets\Enums\ComponentStatus;
 use App\Domain\Assets\Enums\EquipmentCriticality;
 use App\Domain\Assets\Enums\EquipmentPriority;
 use App\Domain\Assets\Enums\EquipmentStatus;
@@ -14,6 +15,7 @@ use App\Models\Supplier;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -282,6 +284,55 @@ class EquipmentForm
                             ->maxSize(10240)
                             ->imageResizeMode('contain')
                             ->helperText('Puedes agregar más fotos y documentos después, desde las pestañas del equipo.'),
+                    ]),
+
+                // Solo al crear: registrar de una vez las piezas del equipo. En la edición
+                // se administran desde la pestaña Componentes (el relation manager), que ya
+                // permite editarlas, borrarlas y programarles mantenimiento.
+                Section::make('Componentes')
+                    ->description('Opcional. Registra las piezas del equipo. Podrás agregar más o editarlas luego desde la ficha.')
+                    ->visible(fn (string $operation): bool => $operation === 'create')
+                    ->schema([
+                        Repeater::make('components')
+                            ->hiddenLabel()
+                            ->schema([
+                                TextInput::make('name')
+                                    ->label('Nombre')
+                                    ->required()
+                                    ->maxLength(255)
+                                    ->columnSpan(2),
+                                TextInput::make('code')
+                                    ->label('Código')
+                                    ->maxLength(50),
+                                TextInput::make('part_number')
+                                    ->label('N° de parte')
+                                    ->maxLength(100),
+                                Select::make('criticality')
+                                    ->label('Criticidad')
+                                    ->options(EquipmentCriticality::options())
+                                    ->default(EquipmentCriticality::Medium->value)
+                                    ->required(),
+                                Select::make('status')
+                                    ->label('Estado')
+                                    ->options(ComponentStatus::options())
+                                    ->default(ComponentStatus::Active->value)
+                                    ->required(),
+                                TextInput::make('useful_life_hours')
+                                    ->label('Vida útil')
+                                    ->numeric()
+                                    ->minValue(0)
+                                    ->suffix('h'),
+                                TextInput::make('unit_cost')
+                                    ->label('Valor del repuesto')
+                                    ->numeric()
+                                    ->minValue(0)
+                                    ->prefix('$'),
+                            ])
+                            ->columns(2)
+                            ->defaultItems(0)
+                            ->addActionLabel('Agregar componente')
+                            ->collapsible()
+                            ->itemLabel(fn (array $state): ?string => $state['name'] ?? null),
                     ]),
             ]);
     }

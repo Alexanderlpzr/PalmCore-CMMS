@@ -59,3 +59,43 @@ it('uploads a primary photo on equipment creation', function () {
     expect($photo)->not->toBeNull()
         ->and($photo->is_primary)->toBeTrue();
 });
+
+it('creates the equipment components inline from the create form', function () {
+    Livewire::test(CreateEquipment::class)
+        ->fillForm([
+            'code' => 'EQ-COMP',
+            'name' => 'Prensa con piezas',
+            'plant_id' => $this->plant->id,
+            'area_id' => $this->area->id,
+            'components' => [
+                ['name' => 'Unidad de potencia', 'criticality' => 'high', 'status' => 'active', 'useful_life_hours' => 5000],
+                ['name' => 'Filtro', 'criticality' => 'medium', 'status' => 'active'],
+            ],
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $equipment = Equipment::where('code', 'EQ-COMP')->firstOrFail();
+
+    expect($equipment->components()->count())->toBe(2)
+        ->and($equipment->components()->pluck('name')->all())->toContain('Unidad de potencia', 'Filtro');
+
+    $power = $equipment->components()->where('name', 'Unidad de potencia')->first();
+
+    expect($power->tenant_id)->toBe($this->tenant->id)
+        ->and((int) $power->useful_life_hours)->toBe(5000);
+});
+
+it('creates equipment with no components when none are added', function () {
+    Livewire::test(CreateEquipment::class)
+        ->fillForm([
+            'code' => 'EQ-NOCOMP',
+            'name' => 'Equipo simple',
+            'plant_id' => $this->plant->id,
+            'area_id' => $this->area->id,
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    expect(Equipment::where('code', 'EQ-NOCOMP')->firstOrFail()->components()->count())->toBe(0);
+});
