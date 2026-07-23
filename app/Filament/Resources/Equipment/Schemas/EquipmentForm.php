@@ -6,6 +6,7 @@ use App\Domain\Assets\Enums\ComponentStatus;
 use App\Domain\Assets\Enums\EquipmentCriticality;
 use App\Domain\Assets\Enums\EquipmentPriority;
 use App\Domain\Assets\Enums\EquipmentStatus;
+use App\Domain\Assets\Enums\MeterCaptureMode;
 use App\Domain\Assets\Enums\MeterReadingFrequency;
 use App\Domain\Assets\Services\ReferenceDataService;
 use App\Models\Equipment;
@@ -106,6 +107,13 @@ class EquipmentForm
                             ->options(MeterReadingFrequency::options())
                             ->native(false)
                             ->nullable(),
+                        Select::make('meter_capture_mode')
+                            ->label('Qué se captura en la ronda')
+                            ->helperText('«Horas trabajadas por día»: escribes las horas de ese día (se suman). «Horómetro acumulado»: escribes lo que marca el cuenta-horas (siempre sube) y el sistema calcula la diferencia.')
+                            ->options(MeterCaptureMode::options())
+                            ->default(MeterCaptureMode::DailyHours->value)
+                            ->native(false)
+                            ->required(),
                     ]),
 
                 Section::make('Ubicación')

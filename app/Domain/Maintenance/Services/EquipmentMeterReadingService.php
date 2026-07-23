@@ -2,6 +2,7 @@
 
 namespace App\Domain\Maintenance\Services;
 
+use App\Domain\Assets\Enums\MeterCaptureMode;
 use App\Domain\Assets\Services\ComponentLifeHoursService;
 use App\Domain\Maintenance\Enums\MeterReadingUnit;
 use App\Models\Equipment;
@@ -47,16 +48,24 @@ class EquipmentMeterReadingService
         }
 
         return DB::transaction(function () use ($equipment, $readingValue, $recordedBy, $unit, $recordedAt, $notes): EquipmentMeterReading {
-            $previous = $this->currentReading($equipment);
-            $isReset = $previous !== null && $readingValue < $previous;
+            if ($equipment->meter_capture_mode === MeterCaptureMode::DailyHours) {
+                // Modo horas por día: el número YA son las horas trabajadas. No hay
+                // dial ni resta ni reset; el acumulado solo suma.
+                $previous = null;
+                $isReset = false;
+                $delta = round($readingValue, 1);
+            } else {
+                $previous = $this->currentReading($equipment);
+                $isReset = $previous !== null && $readingValue < $previous;
 
-            // On a reset the new dial started at zero, so everything it shows is
-            // consumption since the swap. Otherwise it is the plain difference.
-            $delta = match (true) {
-                $previous === null => 0.0,
-                $isReset => $readingValue,
-                default => $readingValue - $previous,
-            };
+                // On a reset the new dial started at zero, so everything it shows is
+                // consumption since the swap. Otherwise it is the plain difference.
+                $delta = match (true) {
+                    $previous === null => 0.0,
+                    $isReset => $readingValue,
+                    default => $readingValue - $previous,
+                };
+            }
 
             $accumulated = round((float) $equipment->accumulated_meter_reading + $delta, 1);
 
@@ -152,28 +161,39 @@ class EquipmentMeterReadingService
             return;
         }
 
+        $isDailyHours = $equipment->meter_capture_mode === MeterCaptureMode::DailyHours;
+
         // El acumulado arranca donde estaba antes de la primera lectura (el equipo pudo
-        // entrar en servicio con horas). Ese punto de partida es el acumulado que la
-        // primera lectura ya tenía —su delta siempre es 0—, así no se pierde al recalcular.
-        $baseline = (float) $readings->first()->accumulated_value;
+        // entrar en servicio con horas). Ese punto de partida es el acumulado de la
+        // primera lectura menos su propio delta, y sirve igual en ambos modos.
+        $first = $readings->first();
+        $baseline = (float) $first->accumulated_value - (float) $first->delta;
 
         $previous = null;
         $accumulated = $baseline;
 
         foreach ($readings as $reading) {
             $value = (float) $reading->reading_value;
-            $isReset = $previous !== null && $value < $previous;
 
-            $delta = match (true) {
-                $previous === null => 0.0,
-                $isReset => $value,
-                default => $value - $previous,
-            };
+            if ($isDailyHours) {
+                // El valor ya son las horas del día: no hay previa, ni resta, ni reset.
+                $isReset = false;
+                $delta = $value;
+                $previousToStore = null;
+            } else {
+                $isReset = $previous !== null && $value < $previous;
+                $delta = match (true) {
+                    $previous === null => 0.0,
+                    $isReset => $value,
+                    default => $value - $previous,
+                };
+                $previousToStore = $previous;
+            }
 
             $accumulated = round($accumulated + $delta, 1);
 
             $reading->update([
-                'previous_value' => $previous,
+                'previous_value' => $previousToStore,
                 'delta' => round($delta, 1),
                 'accumulated_value' => $accumulated,
                 'is_reset' => $isReset,

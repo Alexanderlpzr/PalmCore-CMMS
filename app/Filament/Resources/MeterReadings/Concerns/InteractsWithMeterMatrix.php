@@ -246,6 +246,7 @@ trait InteractsWithMeterMatrix
         $pending = 0;
 
         foreach ($equipment as $eq) {
+            $isDailyHours = $eq->meter_capture_mode?->isDailyHours() ?? false;
             $eqReadings = $readings->get($eq->id, collect());
             $inPeriod = $eqReadings->filter(fn (EquipmentMeterReading $r): bool => $r->recorded_at->greaterThanOrEqualTo($periodStart));
             $prior = $eqReadings->filter(fn (EquipmentMeterReading $r): bool => $r->recorded_at->lessThan($periodStart))->last();
@@ -262,14 +263,18 @@ trait InteractsWithMeterMatrix
                 'id' => $eq->id,
                 'code' => $eq->code,
                 'name' => $eq->name,
-                'reference' => $prior !== null ? round((float) $prior->reading_value, 1) : null,
-                'reference_ago' => $prior?->recorded_at?->diffForHumans(),
+                'daily_hours' => $isDailyHours,
+                // En modo acumulado la referencia es el dial anterior (para comparar);
+                // en horas por día no hay dial que comparar.
+                'reference' => (! $isDailyHours && $prior !== null) ? round((float) $prior->reading_value, 1) : null,
+                'reference_ago' => $isDailyHours ? null : $prior?->recorded_at?->diffForHumans(),
                 'filled' => $current !== null,
                 'reading_id' => $current?->id,
                 'hours' => $current !== null ? round((float) $inPeriod->sum('delta'), 1) : null,
-                // Primera lectura del equipo: es la base, no «0 horas trabajadas».
-                'baseline' => $current !== null && $prior === null && $current->previous_value === null,
-                'reset' => (bool) $inPeriod->contains(fn (EquipmentMeterReading $r): bool => (bool) $r->is_reset),
+                // Primera lectura del equipo: es la base, no «0 horas trabajadas». No
+                // aplica en horas por día.
+                'baseline' => ! $isDailyHours && $current !== null && $prior === null && $current->previous_value === null,
+                'reset' => ! $isDailyHours && $inPeriod->contains(fn (EquipmentMeterReading $r): bool => (bool) $r->is_reset),
             ];
         }
 
@@ -310,7 +315,7 @@ trait InteractsWithMeterMatrix
             ->where('reading_frequency', $this->matrixFrequency()->value)
             ->whereNotIn('status', [EquipmentStatus::Retired->value, EquipmentStatus::Disposed->value])
             ->orderBy('code')
-            ->get(['id', 'code', 'name', 'current_meter_reading', 'meter_unit']);
+            ->get(['id', 'code', 'name', 'current_meter_reading', 'meter_unit', 'meter_capture_mode']);
     }
 
     /**
@@ -346,6 +351,7 @@ trait InteractsWithMeterMatrix
         $rows = [];
 
         foreach ($equipment as $eq) {
+            $isDailyHours = $eq->meter_capture_mode?->isDailyHours() ?? false;
             $eqReadings = $byEquipment->get($eq->id, collect());
             $cells = [];
             $rowTotal = 0.0;
@@ -376,9 +382,10 @@ trait InteractsWithMeterMatrix
                     'reading' => round((float) $latest->reading_value, 1),
                     'hours' => $hours,
                     // Sin lectura previa no hay contra qué restar: es la línea base, no
-                    // «0 horas trabajadas». Se marca para no confundir al operario.
-                    'baseline' => $inPeriod->contains(fn (EquipmentMeterReading $r): bool => $r->previous_value === null),
-                    'reset' => (bool) $inPeriod->contains(fn (EquipmentMeterReading $r): bool => (bool) $r->is_reset),
+                    // «0 horas trabajadas». No aplica en modo horas por día (cada celda ya
+                    // son horas), donde tampoco hay resets.
+                    'baseline' => ! $isDailyHours && $inPeriod->contains(fn (EquipmentMeterReading $r): bool => $r->previous_value === null),
+                    'reset' => ! $isDailyHours && $inPeriod->contains(fn (EquipmentMeterReading $r): bool => (bool) $r->is_reset),
                 ];
             }
 
@@ -386,6 +393,7 @@ trait InteractsWithMeterMatrix
                 'id' => $eq->id,
                 'code' => $eq->code,
                 'name' => $eq->name,
+                'daily_hours' => $isDailyHours,
                 'cells' => $cells,
                 'total' => round($rowTotal, 1),
             ];

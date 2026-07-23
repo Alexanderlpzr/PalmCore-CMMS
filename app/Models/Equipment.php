@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Domain\Assets\Enums\EquipmentCriticality;
 use App\Domain\Assets\Enums\EquipmentPriority;
 use App\Domain\Assets\Enums\EquipmentStatus;
+use App\Domain\Assets\Enums\MeterCaptureMode;
 use App\Domain\Assets\Enums\MeterReadingFrequency;
 use App\Domain\Maintenance\Enums\MeterReadingUnit;
 use App\Domain\Shared\Models\BaseModel;
@@ -52,6 +53,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'accumulated_meter_reading',
     'meter_unit',
     'reading_frequency',
+    'meter_capture_mode',
     'last_failure_at',
 ])]
 class Equipment extends BaseModel
@@ -285,6 +287,7 @@ class Equipment extends BaseModel
             'accumulated_meter_reading' => 'float',
             'meter_unit' => MeterReadingUnit::class,
             'reading_frequency' => MeterReadingFrequency::class,
+            'meter_capture_mode' => MeterCaptureMode::class,
             'last_failure_at' => 'datetime',
         ];
     }

@@ -307,6 +307,64 @@ it('la pestaña de horas trabajadas se renderiza', function (): void {
         ->assertSee('Calculado del horómetro');
 });
 
+// ── Modo «horas trabajadas por día» ──────────────────────────────────────────
+
+it('en modo horas por día cada valor son las horas del día y solo suman al acumulado', function (): void {
+    $eq = Equipment::factory()->create([
+        'tenant_id' => $this->tenant->id, 'meter_capture_mode' => 'daily_hours',
+        'accumulated_meter_reading' => 0, 'current_meter_reading' => null,
+    ]);
+    $service = app(EquipmentMeterReadingService::class);
+
+    // 20, 14, 11 (decrecientes): en modo horas no son reset, cada una es lo del día.
+    $r1 = $service->record($eq, 20, $this->user, recordedAt: today()->subDays(2));
+    $r2 = $service->record($eq->fresh(), 14, $this->user, recordedAt: today()->subDay());
+    $r3 = $service->record($eq->fresh(), 11, $this->user, recordedAt: today());
+
+    expect((float) $r1->delta)->toBe(20.0)
+        ->and((float) $r2->delta)->toBe(14.0)
+        ->and((float) $r3->delta)->toBe(11.0)
+        ->and($r2->is_reset)->toBeFalse()
+        ->and((float) $eq->refresh()->accumulated_meter_reading)->toBe(45.0);
+});
+
+it('la cuadrícula en modo horas por día suma las horas del período (no las resta)', function (): void {
+    $eq = Equipment::factory()->create([
+        'tenant_id' => $this->tenant->id, 'reading_frequency' => 'daily', 'code' => 'DH-1',
+        'meter_capture_mode' => 'daily_hours', 'accumulated_meter_reading' => 0, 'current_meter_reading' => null,
+    ]);
+    $service = app(EquipmentMeterReadingService::class);
+    $service->record($eq, 20, $this->user, recordedAt: today()->subDays(3)->setTime(12, 0));
+    $service->record($eq->fresh(), 14, $this->user, recordedAt: today()->subDays(2)->setTime(12, 0));
+    $service->record($eq->fresh(), 11, $this->user, recordedAt: today()->subDay()->setTime(12, 0));
+    $service->record($eq->fresh(), 6, $this->user, recordedAt: today()->setTime(12, 0));
+
+    $data = Livewire::test(ListMeterReadings::class)
+        ->call('selectTab', 'diario')
+        ->instance()
+        ->getMatrixData();
+
+    $row = collect($data['rows'])->firstWhere('code', 'DH-1');
+
+    expect($row['daily_hours'])->toBeTrue()
+        ->and($row['total'])->toBe(51.0); // 20 + 14 + 11 + 6
+});
+
+it('corregir una hora en modo horas por día recalcula el acumulado', function (): void {
+    $eq = Equipment::factory()->create([
+        'tenant_id' => $this->tenant->id, 'meter_capture_mode' => 'daily_hours',
+        'accumulated_meter_reading' => 0, 'current_meter_reading' => null,
+    ]);
+    $service = app(EquipmentMeterReadingService::class);
+    $service->record($eq, 20, $this->user, recordedAt: today()->subDay());
+    $r2 = $service->record($eq->fresh(), 14, $this->user, recordedAt: today()); // acumulado 34
+
+    $service->updateReading($r2->fresh(), 10); // 14 → 10 ; acumulado 30
+
+    expect((float) $r2->fresh()->delta)->toBe(10.0)
+        ->and((float) $eq->refresh()->accumulated_meter_reading)->toBe(30.0);
+});
+
 // ── Configurar equipos de las rondas ─────────────────────────────────────────
 
 it('asigna en bloque los equipos a diario/semanal y saca de la ronda a los quitados', function (): void {

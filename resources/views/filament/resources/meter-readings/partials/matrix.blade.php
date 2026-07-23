@@ -9,7 +9,7 @@
             <span class="ml-1 text-sm font-medium text-gray-700 dark:text-gray-200">{{ $rangeLabel }}</span>
         </div>
         <p class="text-xs text-gray-500 dark:text-gray-400">
-            Escribe el horómetro en una celda vacía y presiona Enter. El sistema calcula las horas solo.
+            Escribe el valor del día en una celda vacía y Enter (horómetro o horas trabajadas, según el equipo).
             Para corregir un dato ya guardado, edítalo en su celda; para borrarlo, vacíalo.
         </p>
     </div>
@@ -62,7 +62,9 @@
                                             class="w-20 rounded-md border border-transparent bg-transparent px-1.5 py-0.5 text-center text-sm font-semibold text-gray-900 tabular-nums hover:border-gray-300 focus:border-emerald-500 focus:bg-white focus:ring-emerald-500 dark:text-white dark:hover:border-white/20 dark:focus:bg-white/5"
                                         />
                                         <div class="text-[11px] text-gray-500 tabular-nums dark:text-gray-400">
-                                            @if ($cell['baseline'])
+                                            @if ($row['daily_hours'])
+                                                h
+                                            @elseif ($cell['baseline'])
                                                 <span title="Primera lectura: la línea base. Las horas aparecen desde la siguiente." class="text-gray-400">1ª lectura</span>
                                             @else
                                                 {{ number_format($cell['hours'], 0) }} h

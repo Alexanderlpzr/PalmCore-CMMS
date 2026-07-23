@@ -44,7 +44,9 @@
                             <span class="text-gray-500 dark:text-gray-400">— {{ $row['name'] }}</span>
                         </div>
                         <div class="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
-                            @if ($row['reference'] !== null)
+                            @if ($row['daily_hours'])
+                                Horas trabajadas del día
+                            @elseif ($row['reference'] !== null)
                                 Última: <span class="tabular-nums">{{ number_format($row['reference'], 0) }}</span> h
                                 @if ($row['reference_ago']) · {{ $row['reference_ago'] }} @endif
                             @else
@@ -62,6 +64,8 @@
                             ])>
                                 @if ($row['baseline'])
                                     1ª lectura
+                                @elseif ($row['daily_hours'])
+                                    {{ number_format($row['hours'], 0) }} h
                                 @else
                                     +{{ number_format($row['hours'], 0) }} h
                                 @endif
@@ -89,7 +93,7 @@
                                 wire:model="draft.{{ $row['id'] }}.{{ $periodKey }}"
                                 wire:keydown.enter="saveCell('{{ $row['id'] }}', '{{ $periodKey }}')"
                                 wire:blur="saveCell('{{ $row['id'] }}', '{{ $periodKey }}')"
-                                placeholder="Horómetro"
+                                placeholder="{{ $row['daily_hours'] ? 'Horas' : 'Horómetro' }}"
                                 class="w-28 rounded-lg border-gray-300 bg-white px-3 py-2 text-right text-base tabular-nums focus:border-emerald-500 focus:ring-emerald-500 dark:border-white/10 dark:bg-white/5 dark:text-white"
                             />
                         @endif
