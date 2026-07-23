@@ -30,6 +30,9 @@ trait InteractsWithMaintenanceControl
     /** Valores tecleados pendientes de guardar: controlDraft[planId][field]. */
     public array $controlDraft = [];
 
+    /** Búsqueda del tablero: filtra por equipo (código/nombre) o tarea. */
+    public string $controlSearch = '';
+
     // ── Datos ─────────────────────────────────────────────────────────────────
 
     /**
@@ -43,12 +46,23 @@ trait InteractsWithMaintenanceControl
     {
         $meters = app(EquipmentMeterReadingService::class);
 
+        $search = trim($this->controlSearch);
+
         $plans = MaintenancePlan::query()
             ->where('is_active', true)
             ->whereIn('trigger_source', [
                 MaintenanceTriggerSource::Meter->value,
                 MaintenanceTriggerSource::Hybrid->value,
             ])
+            ->when($search !== '', function ($query) use ($search): void {
+                $term = '%'.$search.'%';
+                $query->where(function ($q) use ($term): void {
+                    $q->where('name', 'ilike', $term)
+                        ->orWhereHas('equipment', fn ($e) => $e
+                            ->where('code', 'ilike', $term)
+                            ->orWhere('name', 'ilike', $term));
+                });
+            })
             ->with(['equipment', 'schedule', 'equipmentComponent'])
             ->get()
             ->filter(fn (MaintenancePlan $plan): bool => $plan->equipment !== null
@@ -119,6 +133,9 @@ trait InteractsWithMaintenanceControl
                 'remaining' => $remaining,
                 'days' => $days,
                 'lead' => $lead,
+                // Cuántos mantenimientos se han hecho de esta tarea (cada ejecución
+                // suma uno, sea por OT completada o registro manual «Hecho»).
+                'cycles' => (int) ($schedule?->times_executed ?? 0),
                 'color' => $color,
                 'has_open_ot' => $hasOpenOt,
                 // En ámbar o rojo ya se puede armar la OT; salvo que ya haya una abierta.

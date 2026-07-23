@@ -71,32 +71,6 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 - Use `get-absolute-url` to resolve the correct scheme, domain, and port for project URLs. Always use this before sharing a URL with the user.
 - Use `browser-logs` to read browser logs, errors, and exceptions. Only recent logs are useful, ignore old entries.
 
-## Searching Documentation (IMPORTANT)
-
-- Always use `search-docs` before making code changes. Do not skip this step. It returns version-specific docs based on installed packages automatically.
-- Pass a `packages` array to scope results when you know which packages are relevant.
-- Use multiple broad, topic-based queries: `['rate limiting', 'routing rate limiting', 'routing']`. Expect the most relevant results first.
-- Do not add package names to queries because package info is already shared. Use `test resource table`, not `filament 4 test resource table`.
-
-### Search Syntax
-
-1. Use words for auto-stemmed AND logic: `rate limit` matches both "rate" AND "limit".
-2. Use `"quoted phrases"` for exact position matching: `"infinite scroll"` requires adjacent words in order.
-3. Combine words and phrases for mixed queries: `middleware "rate limit"`.
-4. Use multiple queries for OR logic: `queries=["authentication", "middleware"]`.
-
-## Artisan
-
-- Run Artisan commands directly via the command line (e.g., `php artisan route:list`). Use `php artisan list` to discover available commands and `php artisan [command] --help` to check parameters.
-- Inspect routes with `php artisan route:list`. Filter with: `--method=GET`, `--name=users`, `--path=api`, `--except-vendor`, `--only-vendor`.
-- Read configuration values using dot notation: `php artisan config:show app.name`, `php artisan config:show database.default`. Or read config files directly from the `config/` directory.
-
-## Tinker
-
-- Execute PHP in app context for debugging and testing code. Do not create models without user approval, prefer tests with factories instead. Prefer existing Artisan commands over custom tinker code.
-- Always use single quotes to prevent shell expansion: `php artisan tinker --execute 'Your::code();'`
-  - Double quotes for PHP strings inside: `php artisan tinker --execute 'User::where("active", true)->count();'`
-
 === php rules ===
 
 # PHP
@@ -176,3 +150,89 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 - Do NOT delete tests without approval.
 
 </laravel-boost-guidelines>
+
+## Skills
+
+Skills may exist in both `.claude/skills` and `.agents/skills`.
+
+Treat them as equivalent sources.
+
+Do not duplicate or recreate skills unless explicitly requested.
+
+
+## Knowledge Graph (Graphify)
+
+This repository includes a Graphify knowledge graph under `graphify-out/`.
+
+Before exploring the repository manually:
+
+1. Consult the Graphify knowledge graph to identify the relevant components.
+2. Read only the files necessary for the requested task.
+3. Avoid scanning the whole repository when the graph already identifies relationships.
+4. Use `GRAPH_REPORT.md` to understand architectural hotspots before investigating code.
+5. Prefer graph-guided exploration over brute-force file searching.
+
+
+
+## Large Context Strategy
+
+When working on this project:
+
+- Never read large directories recursively unless explicitly requested.
+- Start from the knowledge graph.
+- Expand only the directly related nodes.
+- Keep context focused on the current feature.
+
+## Architecture Notes
+
+The `User` model is intentionally a central domain object.
+
+Do not assume high connectivity is a design flaw.
+
+Before proposing refactors, verify whether relationships are required by:
+
+- Multi-tenancy
+- Work Orders
+- Inventory
+- Alerts
+- Filament Resources
+- Authorization
+
+
+## Token Efficiency
+
+Always minimize context usage.
+
+Priority order:
+
+1. Graphify Knowledge Graph
+2. Existing skills
+3. search-docs
+4. Targeted file reads
+5. Repository-wide search only as a last resort
+
+Never read entire directories if the graph already identifies the relevant files.
+
+## Repository Exploration
+
+If the knowledge graph clearly identifies the relevant files,
+do not perform additional repository-wide searches.
+
+Trust the graph unless evidence suggests it is outdated.
+
+## Graph Maintenance
+
+Whenever new architectural components are added
+(new modules, domains, services, resources or workflows),
+recommend updating the Graphify knowledge graph.
+
+Do not recommend rebuilding the graph for small code changes.
+
+## Architectural Reasoning
+
+Before proposing a refactor:
+
+- consult the graph
+- identify affected communities
+- estimate the impact
+- only then suggest architectural changes

@@ -96,6 +96,39 @@ it('muestra en rojo y con horas negativas una tarea vencida', function (): void 
         ->and($row['color'])->toBe('danger');
 });
 
+// ── Buscador y ciclos ──────────────────────────────────────────────────────────
+
+it('el buscador filtra el tablero por equipo', function (): void {
+    $bomba = Equipment::factory()->create(['tenant_id' => $this->tenant->id, 'code' => 'BOMBA-01', 'accumulated_meter_reading' => 0]);
+    $redler = Equipment::factory()->create(['tenant_id' => $this->tenant->id, 'code' => 'REDLER-02', 'accumulated_meter_reading' => 0]);
+    meterControlPlan($this->tenant, $bomba, 2_000, 2_000);
+    meterControlPlan($this->tenant, $redler, 2_000, 2_000);
+
+    $groups = Livewire::test(ListMeterReadings::class)
+        ->call('selectTab', 'control')
+        ->set('controlSearch', 'redler')
+        ->instance()
+        ->controlGroups();
+
+    expect($groups)->toHaveCount(1)
+        ->and($groups[0]['equipment']['code'])->toBe('REDLER-02');
+});
+
+it('la columna de ciclos cuenta los mantenimientos hechos', function (): void {
+    $eq = Equipment::factory()->create(['tenant_id' => $this->tenant->id, 'accumulated_meter_reading' => 1_914]);
+    $plan = meterControlPlan($this->tenant, $eq, 2_000, 2_000, lastCompleted: 0);
+
+    $component = Livewire::test(ListMeterReadings::class)->call('selectTab', 'control');
+
+    $before = collect($component->instance()->controlGroups()[0]['rows'])->firstWhere('plan_id', $plan->id);
+    expect($before['cycles'])->toBe(0);
+
+    $component->call('registrarMantenimiento', $plan->id);
+
+    $after = collect($component->instance()->controlGroups()[0]['rows'])->firstWhere('plan_id', $plan->id);
+    expect($after['cycles'])->toBe(1);
+});
+
 // ── Edición en la celda ────────────────────────────────────────────────────────
 
 it('editar la frecuencia recalcula el próximo mantenimiento', function (): void {
