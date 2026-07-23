@@ -5,20 +5,15 @@ namespace App\Filament\Resources\MeterReadings\Pages;
 use App\Domain\Assets\Enums\EquipmentStatus;
 use App\Domain\Assets\Enums\MeterReadingFrequency;
 use App\Domain\Maintenance\Enums\MaintenanceTriggerSource;
-use App\Domain\Maintenance\Enums\MeterReadingUnit;
-use App\Domain\Maintenance\Services\EquipmentMeterReadingService;
 use App\Domain\Maintenance\Services\MaintenancePlanService;
 use App\Domain\Maintenance\Services\PreventiveWorkOrderGenerator;
-use App\Filament\Resources\MeterReadings\Actions\RegisterMeterReadingRoundAction;
 use App\Filament\Resources\MeterReadings\Concerns\InteractsWithMaintenanceControl;
 use App\Filament\Resources\MeterReadings\Concerns\InteractsWithMeterMatrix;
 use App\Filament\Resources\MeterReadings\Concerns\InteractsWithWorkedHoursReport;
 use App\Filament\Resources\MeterReadings\MeterReadingResource;
 use App\Models\Equipment;
 use App\Models\EquipmentComponent;
-use App\Models\EquipmentMeterReading;
 use Filament\Actions\Action;
-use Filament\Actions\CreateAction;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -28,21 +23,18 @@ use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Support\Exceptions\Halt;
 use Filament\Support\Icons\Heroicon;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Carbon;
 
 /**
- * El centro de horómetros, todo en una página con pestañas de color en vez de
- * cuatro botones sueltos en el menú:
+ * El centro de horómetros, todo en una página con pestañas de color:
  *
- *   - Registro Diario (azul)         — la matriz de los equipos de lectura diaria.
- *   - Registro Semanal (ámbar)       — la matriz de los de lectura semanal.
  *   - Control de Mantenimiento (verde) — el tablero de vencimientos por horómetro.
+ *   - Registro Diario (azul)           — captura de los equipos de lectura diaria.
+ *   - Registro Semanal (ámbar)         — captura de los de lectura semanal.
+ *   - Horas Trabajadas (violeta)       — consolidado mensual/anual, sumado del horómetro.
  *
- * Las dos primeras son captura estilo Excel (matriz equipo × fecha) que alimenta el
- * horómetro actual; la tercera lo consume para avisar cuándo toca cada mantenimiento.
- * La consolidación de horas trabajadas (mensual/anual) sigue en su propia pantalla,
- * accesible desde el encabezado.
+ * La captura (Diario/Semanal) alimenta el horómetro actual; el Control lo consume
+ * para avisar cuándo toca cada mantenimiento. La captura se hace dentro de las
+ * pestañas (Capturar/Cuadrícula), sin botones sueltos en el encabezado.
  */
 class ListMeterReadings extends ListRecords
 {
@@ -98,35 +90,11 @@ class ListMeterReadings extends ListRecords
 
     protected function getHeaderActions(): array
     {
+        // La captura de lecturas se hace en las propias pestañas (Capturar/Cuadrícula),
+        // así que ya no hacen falta los botones «Registrar lectura» ni «Registrar ronda».
         return [
             $this->configureEquipmentAction(),
             $this->addControlTaskAction(),
-            RegisterMeterReadingRoundAction::make()
-                ->visible(fn (): bool => $this->onMatrixTab()),
-            CreateAction::make()
-                ->label('Registrar lectura')
-                ->visible(fn (): bool => $this->onMatrixTab() && auth()->user()->can('create', EquipmentMeterReading::class))
-                // La lectura pasa por el servicio: es él quien calcula el delta,
-                // detecta el cambio de dial y mueve el acumulado, que es el único
-                // número contra el que un plan por horómetro puede programarse.
-                ->using(function (array $data): Model {
-                    $equipment = Equipment::findOrFail($data['equipment_id']);
-
-                    try {
-                        return app(EquipmentMeterReadingService::class)->record(
-                            equipment: $equipment,
-                            readingValue: (float) $data['reading_value'],
-                            recordedBy: auth()->user(),
-                            unit: $equipment->meter_unit ?? MeterReadingUnit::Hours,
-                            recordedAt: isset($data['recorded_at']) ? Carbon::parse($data['recorded_at']) : null,
-                            notes: $data['notes'] ?? null,
-                        );
-                    } catch (\Throwable $e) {
-                        Notification::make()->title($e->getMessage())->danger()->send();
-
-                        throw $e;
-                    }
-                }),
         ];
     }
 

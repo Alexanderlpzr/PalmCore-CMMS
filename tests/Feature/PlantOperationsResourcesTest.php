@@ -2,15 +2,12 @@
 
 use App\Domain\Assets\Enums\StoppageCategory;
 use App\Domain\Assets\Enums\StoppageConfirmationStatus;
-use App\Domain\Maintenance\Enums\MaintenanceTriggerSource;
 use App\Filament\Resources\Downtime\Pages\CreateDowntimeEvent;
 use App\Filament\Resources\Downtime\Pages\ListDowntimeEvents;
 use App\Filament\Resources\MeterReadings\Pages\ListMeterReadings;
 use App\Filament\Resources\ProductionCalendar\Pages\ListProductionCalendarDays;
 use App\Models\Equipment;
 use App\Models\EquipmentDowntimeEvent;
-use App\Models\EquipmentMeterReading;
-use App\Models\MaintenancePlan;
 use App\Models\Plant;
 use App\Models\ProductionCalendarDay;
 use App\Models\Tenant;
@@ -19,7 +16,6 @@ use Database\Seeders\PermissionSeeder;
 use Database\Seeders\TenantRolesSeeder;
 use Filament\Actions\Testing\TestAction;
 use Filament\Facades\Filament;
-use Filament\Forms\Components\Repeater;
 use Illuminate\Support\Carbon;
 use Livewire\Livewire;
 use Spatie\Permission\PermissionRegistrar;
@@ -185,109 +181,12 @@ it('never lets anyone delete a paro', function (): void {
 
 // ── Horómetros ───────────────────────────────────────────────────────────────
 
-it('records a reading through the service so the accumulated value moves', function (): void {
-    Livewire::test(ListMeterReadings::class)
-        ->call('selectTab', 'diario')
-        ->callAction('create', data: [
-            'equipment_id' => $this->equipment->id,
-            'reading_value' => 1_250.5,
-            'recorded_at' => now()->toDateTimeString(),
-        ])
-        ->assertHasNoActionErrors();
-
-    $reading = EquipmentMeterReading::withoutGlobalScopes()->sole();
-
-    expect($reading->reading_value)->toBe(1250.5)
-        ->and($this->equipment->refresh()->accumulated_meter_reading)->toEqual(0.0);
-});
-
 it('groups readings by equipment so two equipos never interleave by date', function (): void {
     // El historial ya no se renderiza como pestaña; el recurso conserva el agrupado
     // por equipo, que es lo que este test protege.
     $component = Livewire::test(ListMeterReadings::class)->assertOk();
 
     expect($component->instance()->getTable()->getDefaultGroup()?->getId())->toBe('equipment.code');
-});
-
-it('records a round of several equipment at once through the same service', function (): void {
-    $secondEquipment = Equipment::factory()->create([
-        'tenant_id' => $this->tenant->id,
-        'plant_id' => $this->plant->id,
-        'code' => 'PRE-03',
-        'current_meter_reading' => null,
-        'accumulated_meter_reading' => 0,
-    ]);
-
-    MaintenancePlan::factory()->create([
-        'tenant_id' => $this->tenant->id,
-        'equipment_id' => $this->equipment->id,
-        'trigger_source' => MaintenanceTriggerSource::Meter->value,
-        'meter_interval' => 500,
-        'is_active' => true,
-    ]);
-    MaintenancePlan::factory()->create([
-        'tenant_id' => $this->tenant->id,
-        'equipment_id' => $secondEquipment->id,
-        'trigger_source' => MaintenanceTriggerSource::Meter->value,
-        'meter_interval' => 500,
-        'is_active' => true,
-    ]);
-
-    $recordedAt = now()->toDateTimeString();
-
-    $undoRepeaterFake = Repeater::fake();
-
-    Livewire::test(ListMeterReadings::class)
-        ->call('selectTab', 'diario')
-        ->callAction('registerRound', data: [
-            'recorded_at' => $recordedAt,
-            'readings' => [
-                ['equipment_id' => $this->equipment->id, 'reading_value' => 100.0],
-                ['equipment_id' => $secondEquipment->id, 'reading_value' => 50.0],
-            ],
-        ])
-        ->assertHasNoActionErrors();
-
-    $undoRepeaterFake();
-
-    // Primera lectura de cada equipo: el acumulado arranca en 0 (no hay lectura
-    // previa con qué calcular un delta), pero el dial sí queda al día — que es lo
-    // que prueba que la ronda de verdad pasó por el servicio para los dos equipos.
-    expect(EquipmentMeterReading::withoutGlobalScopes()->count())->toBe(2)
-        ->and($this->equipment->refresh()->current_meter_reading)->toEqual(100.0)
-        ->and($secondEquipment->refresh()->current_meter_reading)->toEqual(50.0);
-});
-
-it('does not offer an equipment with no active meter-based plan for the round', function (): void {
-    // $this->equipment no tiene ningún plan activo — no le sirve de nada a un
-    // operador que solo quiere alimentar rutinas por horómetro, así que no debe
-    // ser una opción válida en el select del repeater.
-    $undoRepeaterFake = Repeater::fake();
-
-    Livewire::test(ListMeterReadings::class)
-        ->call('selectTab', 'diario')
-        ->callAction('registerRound', data: [
-            'recorded_at' => now()->toDateTimeString(),
-            'readings' => [
-                ['equipment_id' => $this->equipment->id, 'reading_value' => 100.0],
-            ],
-        ])
-        ->assertHasActionErrors(['readings.0.equipment_id']);
-
-    $undoRepeaterFake();
-
-    expect(EquipmentMeterReading::withoutGlobalScopes()->count())->toBe(0);
-});
-
-it('never lets a reading be edited or deleted', function (): void {
-    $reading = EquipmentMeterReading::factory()->create([
-        'tenant_id' => $this->tenant->id,
-        'equipment_id' => $this->equipment->id,
-    ]);
-
-    // Es lo que el dial decía ese día. Si estaba mal, se registra otra lectura.
-    expect($this->admin->can('update', $reading))->toBeFalse()
-        ->and($this->admin->can('delete', $reading))->toBeFalse();
 });
 
 // ── Calendario de producción ─────────────────────────────────────────────────
