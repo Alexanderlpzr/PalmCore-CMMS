@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Domain\Assets\Enums\MeterReadingFrequency;
 use App\Domain\Maintenance\Enums\WorkedHoursPeriodType;
 use App\Domain\Maintenance\Services\EquipmentWorkedHoursService;
 use App\Models\Equipment;
@@ -18,6 +19,7 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -173,6 +175,19 @@ class WorkedHoursLog extends Page implements HasTable
                     ->label('Notas')
                     ->placeholder('—')
                     ->toggleable(isToggledHiddenByDefault: true),
+            ])
+            ->filters([
+                SelectFilter::make('reading_frequency')
+                    ->label('Ronda')
+                    ->options(MeterReadingFrequency::options())
+                    ->query(fn (Builder $query, array $data): Builder => $query
+                        ->when(
+                            $data['value'] ?? null,
+                            fn (Builder $q, string $freq): Builder => $q->whereHas(
+                                'equipment',
+                                fn (Builder $e) => $e->where('reading_frequency', $freq)
+                            )
+                        )),
             ])
             ->defaultSort('log_date', 'desc');
     }

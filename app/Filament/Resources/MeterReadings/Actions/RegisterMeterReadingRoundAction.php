@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\MeterReadings\Actions;
 
 use App\Domain\Assets\Enums\EquipmentStatus;
+use App\Domain\Assets\Enums\MeterReadingFrequency;
 use App\Domain\Maintenance\Enums\MaintenanceTriggerSource;
 use App\Domain\Maintenance\Services\EquipmentMeterReadingService;
 use App\Models\Equipment;
@@ -14,6 +15,7 @@ use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Support\Icons\Heroicon;
 
 /**
@@ -46,12 +48,18 @@ class RegisterMeterReadingRoundAction
                     ->default(now())
                     ->native(false)
                     ->required(),
+                Select::make('reading_frequency')
+                    ->label('Ronda')
+                    ->helperText('Filtra qué equipos aparecen: Registro Diario o Semanal. Vacío = todos.')
+                    ->options(MeterReadingFrequency::options())
+                    ->native(false)
+                    ->live(),
                 Repeater::make('readings')
                     ->label('Equipos')
                     ->schema([
                         Select::make('equipment_id')
                             ->label('Equipo')
-                            ->options(fn (): array => self::equipmentOptions())
+                            ->options(fn (Get $get): array => self::equipmentOptions($get('../../reading_frequency')))
                             ->searchable()
                             ->native(false)
                             ->required()
@@ -115,11 +123,12 @@ class RegisterMeterReadingRoundAction
     /**
      * Solo equipos cuyo programa preventivo depende de una lectura. Ofrecer todos
      * los equipos de la planta en una ronda de horómetros sería ruido: la mayoría
-     * no tiene ningún plan por horas que alimentar.
+     * no tiene ningún plan por horas que alimentar. Si se eligió una frecuencia
+     * (diario/semanal), se limita a los equipos de esa ronda.
      *
      * @return array<string, string>
      */
-    private static function equipmentOptions(): array
+    private static function equipmentOptions(?string $frequency = null): array
     {
         return Equipment::whereHas(
             'maintenancePlans',
@@ -128,6 +137,7 @@ class RegisterMeterReadingRoundAction
                 MaintenanceTriggerSource::Hybrid->value,
             ])
         )
+            ->when($frequency, fn ($query) => $query->where('reading_frequency', $frequency))
             ->whereNotIn('status', [EquipmentStatus::Retired->value, EquipmentStatus::Disposed->value])
             ->orderBy('code')
             ->get()

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\MeterReadings\Tables;
 
+use App\Domain\Assets\Enums\MeterReadingFrequency;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
@@ -57,6 +58,17 @@ class MeterReadingsTable
                     ->toggleable(),
             ])
             ->filters([
+                SelectFilter::make('reading_frequency')
+                    ->label('Ronda')
+                    ->options(MeterReadingFrequency::options())
+                    ->query(fn (Builder $query, array $data): Builder => $query
+                        ->when(
+                            $data['value'] ?? null,
+                            fn (Builder $q, string $freq): Builder => $q->whereHas(
+                                'equipment',
+                                fn (Builder $e) => $e->where('reading_frequency', $freq)
+                            )
+                        )),
                 SelectFilter::make('equipment_id')
                     ->label('Equipo')
                     ->relationship('equipment', 'code')

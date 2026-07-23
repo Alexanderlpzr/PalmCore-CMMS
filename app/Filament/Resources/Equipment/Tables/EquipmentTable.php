@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Equipment\Tables;
 use App\Domain\Assets\Enums\EquipmentCriticality;
 use App\Domain\Assets\Enums\EquipmentPriority;
 use App\Domain\Assets\Enums\EquipmentStatus;
+use App\Domain\Assets\Enums\MeterReadingFrequency;
 use App\Domain\Assets\Services\QrCodeService;
 use App\Domain\Assets\Services\ReferenceDataService;
 use App\Models\Equipment;
@@ -62,6 +63,13 @@ class EquipmentTable
                     ->color(fn (EquipmentPriority $state): string => $state->color())
                     ->formatStateUsing(fn (EquipmentPriority $state): string => $state->label())
                     ->sortable(),
+                TextColumn::make('reading_frequency')
+                    ->label('Ronda')
+                    ->badge()
+                    ->placeholder('—')
+                    ->color(fn (?MeterReadingFrequency $state): string => $state?->color() ?? 'gray')
+                    ->formatStateUsing(fn (?MeterReadingFrequency $state): string => $state?->label() ?? '—')
+                    ->toggleable(),
                 TextColumn::make('category.name')
                     ->label('Categoría')
                     ->searchable()
@@ -89,6 +97,9 @@ class EquipmentTable
                 SelectFilter::make('priority')
                     ->label('Prioridad')
                     ->options(EquipmentPriority::options()),
+                SelectFilter::make('reading_frequency')
+                    ->label('Ronda de horómetro')
+                    ->options(MeterReadingFrequency::options()),
                 SelectFilter::make('plant_id')
                     ->label('Planta')
                     ->options(fn () => ReferenceDataService::plants(Filament::getTenant()?->id ?? ''))

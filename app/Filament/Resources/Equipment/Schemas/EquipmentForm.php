@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Equipment\Schemas;
 use App\Domain\Assets\Enums\EquipmentCriticality;
 use App\Domain\Assets\Enums\EquipmentPriority;
 use App\Domain\Assets\Enums\EquipmentStatus;
+use App\Domain\Assets\Enums\MeterReadingFrequency;
 use App\Domain\Assets\Services\ReferenceDataService;
 use App\Models\Equipment;
 use App\Models\EquipmentCategory;
@@ -97,6 +98,12 @@ class EquipmentForm
                             ->options(EquipmentPriority::options())
                             ->default(EquipmentPriority::P3->value)
                             ->required(),
+                        Select::make('reading_frequency')
+                            ->label('Frecuencia de lectura del horómetro')
+                            ->helperText('Define en qué ronda aparece: Registro Diario o Semanal. Vacío = no lleva ronda de horómetro.')
+                            ->options(MeterReadingFrequency::options())
+                            ->native(false)
+                            ->nullable(),
                     ]),
 
                 Section::make('Ubicación')
