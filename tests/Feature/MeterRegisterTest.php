@@ -102,3 +102,36 @@ it('una celda vacía no registra nada', function (): void {
 
     expect(EquipmentMeterReading::where('equipment_id', $eq->id)->count())->toBe(0);
 });
+
+// ── Configurar equipos de las rondas ─────────────────────────────────────────
+
+it('asigna en bloque los equipos a diario/semanal y saca de la ronda a los quitados', function (): void {
+    $a = Equipment::factory()->create(['tenant_id' => $this->tenant->id, 'reading_frequency' => null]);
+    $b = Equipment::factory()->create(['tenant_id' => $this->tenant->id, 'reading_frequency' => null]);
+    // Ya estaba en diario; al no incluirlo, debe quedar sin ronda.
+    $c = Equipment::factory()->create(['tenant_id' => $this->tenant->id, 'reading_frequency' => 'daily']);
+
+    Livewire::test(ListMeterReadings::class)
+        ->callAction('configureEquipment', data: [
+            'daily' => [$a->id],
+            'weekly' => [$b->id],
+        ])
+        ->assertHasNoActionErrors();
+
+    expect($a->refresh()->reading_frequency?->value)->toBe('daily')
+        ->and($b->refresh()->reading_frequency?->value)->toBe('weekly')
+        ->and($c->refresh()->reading_frequency)->toBeNull();
+});
+
+it('rechaza un equipo puesto en diario y semanal a la vez', function (): void {
+    $eq = Equipment::factory()->create(['tenant_id' => $this->tenant->id, 'reading_frequency' => null]);
+
+    Livewire::test(ListMeterReadings::class)
+        ->callAction('configureEquipment', data: [
+            'daily' => [$eq->id],
+            'weekly' => [$eq->id],
+        ]);
+
+    // Se detuvo por el conflicto: el equipo sigue sin ronda.
+    expect($eq->refresh()->reading_frequency)->toBeNull();
+});
