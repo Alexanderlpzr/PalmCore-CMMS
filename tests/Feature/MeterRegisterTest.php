@@ -123,6 +123,20 @@ it('asigna en bloque los equipos a diario/semanal y saca de la ronda a los quita
         ->and($c->refresh()->reading_frequency)->toBeNull();
 });
 
+it('el modal de configurar equipos se renderiza en la pestaña de matriz', function (): void {
+    // La página es HasTable; en las pestañas de matriz no se renderiza la tabla, así
+    // que sin el contenedor de modales propio el modal se monta pero no aparece.
+    Equipment::factory()->create(['tenant_id' => $this->tenant->id, 'reading_frequency' => 'daily']);
+
+    Livewire::test(ListMeterReadings::class)
+        ->assertSet('tab', 'diario')
+        ->mountAction('configureEquipment')
+        ->assertActionMounted('configureEquipment')
+        // El contenedor de modales debe existir en la pestaña de matriz; sin él el
+        // modal se monta pero no tiene dónde inyectarse (era el bug).
+        ->assertSee('filamentActionModals');
+});
+
 it('rechaza un equipo puesto en diario y semanal a la vez', function (): void {
     $eq = Equipment::factory()->create(['tenant_id' => $this->tenant->id, 'reading_frequency' => null]);
 

@@ -44,5 +44,12 @@
         {{ $this->table }}
     @else
         @include('filament.resources.meter-readings.partials.matrix', $this->getMatrixData())
+
+        {{-- La página es HasTable, así que <x-filament-panels::page> NO renderiza el
+             contenedor de modales (lo aporta la tabla). En las pestañas de matriz no
+             hay tabla, así que sin esto los modales de las acciones del encabezado
+             —Configurar equipos, Registrar ronda, Registrar lectura— se montan pero no
+             tienen dónde aparecer. En Historial lo aporta {{ $this->table }}. --}}
+        <x-filament-actions::modals />
     @endif
 </x-filament-panels::page>
