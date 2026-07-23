@@ -35,3 +35,5 @@ frankenphp-worker.php
 rr
 .rr.yaml
 !deploy/.env.production.example
+# Graphify knowledge-graph output (generated locally, not tracked)
+graphify-out/
