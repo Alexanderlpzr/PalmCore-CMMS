@@ -53,13 +53,17 @@ class ListMeterReadings extends ListRecords
 
     protected string $view = 'filament.resources.meter-readings.list-hub';
 
-    /** Pestaña activa: 'diario' | 'semanal' | 'control'. */
-    public string $tab = 'diario';
+    /** Pestaña activa: 'control' | 'diario' | 'semanal'. */
+    public string $tab = 'control';
 
     public function mount(): void
     {
         parent::mount();
         $this->resetAnchor();
+
+        // El tablero de Control es la vista principal para quien puede verlo; los
+        // operarios de ronda, que no lo ven, arrancan en la captura diaria.
+        $this->tab = $this->controlTabVisible() ? 'control' : 'diario';
     }
 
     public function selectTab(string $tab): void

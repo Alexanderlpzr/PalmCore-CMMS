@@ -94,6 +94,106 @@ class EquipmentMeterReadingService
     }
 
     /**
+     * Corregir una lectura mal digitada. No basta con cambiar el número: el delta, el
+     * acumulado y el marcador de reset de esa lectura —y de todas las posteriores del
+     * mismo equipo— dependen de ella. Se reconstruye toda la cadena para que quede
+     * consistente, incluido el horómetro del equipo y las horas de vida de las piezas.
+     */
+    public function updateReading(EquipmentMeterReading $reading, float $newValue): EquipmentMeterReading
+    {
+        if ($newValue < 0) {
+            throw new \InvalidArgumentException('Una lectura de horómetro no puede ser negativa.');
+        }
+
+        return DB::transaction(function () use ($reading, $newValue): EquipmentMeterReading {
+            $equipment = $reading->equipment;
+
+            $reading->update(['reading_value' => $newValue]);
+
+            $this->recomputeChain($equipment);
+
+            return $reading->refresh();
+        });
+    }
+
+    /**
+     * Borrar una lectura mal cargada (una digitada por error, un equipo equivocado).
+     * Igual que la corrección, reconstruye la cadena del equipo desde cero.
+     */
+    public function deleteReading(EquipmentMeterReading $reading): void
+    {
+        DB::transaction(function () use ($reading): void {
+            $equipment = $reading->equipment;
+
+            $reading->delete();
+
+            $this->recomputeChain($equipment);
+        });
+    }
+
+    /**
+     * Reconstruye delta / acumulado / reset de todas las lecturas del equipo, en
+     * orden, y deja el horómetro del equipo y las piezas al día. Reproduce exactamente
+     * la misma cuenta de `record()`, solo que sobre toda la serie: así una corrección
+     * en medio de la historia no deja números inconsistentes aguas abajo.
+     */
+    private function recomputeChain(Equipment $equipment): void
+    {
+        $readings = EquipmentMeterReading::withoutGlobalScopes()
+            ->where('equipment_id', $equipment->id)
+            ->orderBy('recorded_at')
+            ->orderBy('id')
+            ->get();
+
+        if ($readings->isEmpty()) {
+            $equipment->update(['current_meter_reading' => null]);
+            $this->componentLifeHours->syncForEquipment($equipment->fresh());
+
+            return;
+        }
+
+        // El acumulado arranca donde estaba antes de la primera lectura (el equipo pudo
+        // entrar en servicio con horas). Ese punto de partida es el acumulado que la
+        // primera lectura ya tenía —su delta siempre es 0—, así no se pierde al recalcular.
+        $baseline = (float) $readings->first()->accumulated_value;
+
+        $previous = null;
+        $accumulated = $baseline;
+
+        foreach ($readings as $reading) {
+            $value = (float) $reading->reading_value;
+            $isReset = $previous !== null && $value < $previous;
+
+            $delta = match (true) {
+                $previous === null => 0.0,
+                $isReset => $value,
+                default => $value - $previous,
+            };
+
+            $accumulated = round($accumulated + $delta, 1);
+
+            $reading->update([
+                'previous_value' => $previous,
+                'delta' => round($delta, 1),
+                'accumulated_value' => $accumulated,
+                'is_reset' => $isReset,
+            ]);
+
+            $previous = $value;
+        }
+
+        $last = $readings->last();
+
+        $equipment->update([
+            'current_meter_reading' => $last->reading_value,
+            'accumulated_meter_reading' => $accumulated,
+        ]);
+
+        $this->componentLifeHours->syncForEquipment($equipment->fresh());
+        $this->staleReadings->resolveFor($equipment);
+    }
+
+    /**
      * The daily round: one operator walks the plant and enters ~30 dials at once.
      * One bad reading must not lose the other 29, so each is reported on its own.
      *

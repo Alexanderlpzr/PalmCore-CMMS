@@ -33,6 +33,12 @@ trait InteractsWithMeterMatrix
     /** Valores tecleados pendientes de guardar: draft[equipmentId][dateKey]. */
     public array $draft = [];
 
+    /** Correcciones en curso de lecturas ya guardadas: editDraft[readingId]. */
+    public array $editDraft = [];
+
+    /** Sub-vista de captura: 'lista' (ronda del período) | 'cuadricula' (matriz). */
+    public string $roundView = 'lista';
+
     protected function matrixFrequency(): MeterReadingFrequency
     {
         return $this->tab === 'semanal' ? MeterReadingFrequency::Weekly : MeterReadingFrequency::Daily;
@@ -71,6 +77,26 @@ trait InteractsWithMeterMatrix
     public function goToToday(): void
     {
         $this->resetAnchor();
+    }
+
+    public function setRoundView(string $view): void
+    {
+        $this->roundView = $view === 'cuadricula' ? 'cuadricula' : 'lista';
+    }
+
+    // ── Navegación por un solo período (la lista de la ronda) ──────────────────
+
+    public function previousPeriod(): void
+    {
+        $this->anchor = $this->step(Carbon::parse($this->anchor), -1)->format('Y-m-d');
+    }
+
+    public function nextPeriod(): void
+    {
+        $next = $this->step(Carbon::parse($this->anchor), 1);
+        $today = $this->alignAnchor(Carbon::today());
+
+        $this->anchor = $next->greaterThan($today) ? $today->format('Y-m-d') : $next->format('Y-m-d');
     }
 
     // ── Captura ───────────────────────────────────────────────────────────────
@@ -113,6 +139,57 @@ trait InteractsWithMeterMatrix
         }
     }
 
+    /**
+     * Corrige una lectura ya guardada desde su celda. Vaciar el campo la elimina.
+     * El servicio recalcula el delta, el acumulado y todo lo que dependa de ella.
+     */
+    public function saveEditedReading(string $readingId): void
+    {
+        $reading = EquipmentMeterReading::query()->find($readingId);
+
+        if ($reading === null) {
+            return;
+        }
+
+        $service = app(EquipmentMeterReadingService::class);
+        $raw = $this->editDraft[$readingId] ?? null;
+
+        // Campo vacío = borrar la lectura mal cargada.
+        if ($raw === null || $raw === '') {
+            try {
+                $service->deleteReading($reading);
+                unset($this->editDraft[$readingId]);
+
+                Notification::make()->title('Lectura eliminada')->success()->send();
+            } catch (\Throwable $e) {
+                Notification::make()->title('No se pudo eliminar la lectura')->body($e->getMessage())->danger()->send();
+            }
+
+            return;
+        }
+
+        // Sin cambios reales, no se toca nada (evita recomputar la cadena en cada blur).
+        if (abs((float) $raw - (float) $reading->reading_value) < 0.001) {
+            return;
+        }
+
+        try {
+            $service->updateReading($reading, (float) $raw);
+            unset($this->editDraft[$readingId]);
+
+            Notification::make()->title('Lectura corregida')->success()->send();
+        } catch (\Throwable $e) {
+            Notification::make()->title('No se pudo corregir la lectura')->body($e->getMessage())->danger()->send();
+        }
+    }
+
+    private function seedEditCell(string $readingId, float $value): void
+    {
+        if (! array_key_exists($readingId, $this->editDraft)) {
+            $this->editDraft[$readingId] = (string) (0 + $value);
+        }
+    }
+
     // ── Datos de la matriz ────────────────────────────────────────────────────
 
     /**
@@ -137,6 +214,71 @@ trait InteractsWithMeterMatrix
             'columnTotals' => $matrix['columnTotals'],
             'grandTotal' => $matrix['grandTotal'],
             'rangeLabel' => reset($columns)->translatedFormat('d M Y').' — '.end($columns)->translatedFormat('d M Y'),
+            'isDaily' => $this->matrixStepUnit() === 'day',
+            'canGoNext' => Carbon::parse($this->anchor)->lessThan($this->alignAnchor(Carbon::today())),
+        ];
+    }
+
+    /**
+     * La ronda de un solo período: la captura cómoda. Una fila por equipo con su
+     * lectura de referencia (la del período anterior, para comparar) y el campo del
+     * período actual. Reutiliza saveCell para las vacías y saveEditedReading para
+     * corregir las ya cargadas.
+     *
+     * @return array<string, mixed>
+     */
+    public function getRoundData(): array
+    {
+        $periodStart = $this->alignAnchor(Carbon::parse($this->anchor));
+        $periodKey = $periodStart->format('Y-m-d');
+        $periodEnd = $this->step($periodStart->copy(), 1);
+
+        $equipment = $this->matrixEquipment();
+
+        $readings = EquipmentMeterReading::query()
+            ->whereIn('equipment_id', $equipment->pluck('id'))
+            ->where('recorded_at', '<', $periodEnd->copy()->startOfDay())
+            ->orderBy('recorded_at')
+            ->get(['id', 'equipment_id', 'reading_value', 'delta', 'is_reset', 'recorded_at'])
+            ->groupBy('equipment_id');
+
+        $rows = [];
+        $pending = 0;
+
+        foreach ($equipment as $eq) {
+            $eqReadings = $readings->get($eq->id, collect());
+            $inPeriod = $eqReadings->filter(fn (EquipmentMeterReading $r): bool => $r->recorded_at->greaterThanOrEqualTo($periodStart));
+            $prior = $eqReadings->filter(fn (EquipmentMeterReading $r): bool => $r->recorded_at->lessThan($periodStart))->last();
+
+            $current = $inPeriod->sortByDesc('recorded_at')->first();
+
+            if ($current !== null) {
+                $this->seedEditCell($current->id, (float) $current->reading_value);
+            } else {
+                $pending++;
+            }
+
+            $rows[] = [
+                'id' => $eq->id,
+                'code' => $eq->code,
+                'name' => $eq->name,
+                'reference' => $prior !== null ? round((float) $prior->reading_value, 1) : null,
+                'reference_ago' => $prior?->recorded_at?->diffForHumans(),
+                'filled' => $current !== null,
+                'reading_id' => $current?->id,
+                'hours' => $current !== null ? round((float) $inPeriod->sum('delta'), 1) : null,
+                'reset' => (bool) $inPeriod->contains(fn (EquipmentMeterReading $r): bool => (bool) $r->is_reset),
+            ];
+        }
+
+        return [
+            'periodKey' => $periodKey,
+            'periodLabel' => $this->matrixStepUnit() === 'week'
+                ? 'Semana del '.$periodStart->translatedFormat('d M Y')
+                : $periodStart->translatedFormat('l d M Y'),
+            'rows' => $rows,
+            'pending' => $pending,
+            'total' => count($rows),
             'isDaily' => $this->matrixStepUnit() === 'day',
             'canGoNext' => Carbon::parse($this->anchor)->lessThan($this->alignAnchor(Carbon::today())),
         ];
@@ -184,7 +326,7 @@ trait InteractsWithMeterMatrix
             ->where('recorded_at', '>=', $from)
             ->where('recorded_at', '<', $to)
             ->orderBy('recorded_at')
-            ->get(['equipment_id', 'reading_value', 'delta', 'is_reset', 'recorded_at']);
+            ->get(['id', 'equipment_id', 'reading_value', 'delta', 'is_reset', 'recorded_at']);
     }
 
     /**
@@ -222,8 +364,13 @@ trait InteractsWithMeterMatrix
                 $columnTotals[$key] += $hours;
                 $grandTotal += $hours;
 
+                // La celda deja corregir la última lectura del período: se siembra el
+                // borrador con su valor para que el input aparezca ya rellenado.
+                $this->seedEditCell($latest->id, (float) $latest->reading_value);
+
                 $cells[$key] = [
                     'filled' => true,
+                    'reading_id' => $latest->id,
                     'reading' => round((float) $latest->reading_value, 1),
                     'hours' => $hours,
                     'reset' => (bool) $inPeriod->contains(fn (EquipmentMeterReading $r): bool => (bool) $r->is_reset),

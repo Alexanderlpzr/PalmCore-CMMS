@@ -10,6 +10,7 @@
         </div>
         <p class="text-xs text-gray-500 dark:text-gray-400">
             Escribe el horómetro en una celda vacía y presiona Enter. El sistema calcula las horas solo.
+            Para corregir un dato ya guardado, edítalo en su celda; para borrarlo, vacíalo.
         </p>
     </div>
 
@@ -49,7 +50,17 @@
                                     'bg-amber-50 dark:bg-amber-500/10' => $cell['filled'] && $cell['reset'],
                                 ])>
                                     @if ($cell['filled'])
-                                        <div class="font-semibold text-gray-900 tabular-nums dark:text-white">{{ number_format($cell['reading'], 0) }}</div>
+                                        <input
+                                            type="number"
+                                            inputmode="decimal"
+                                            step="0.1"
+                                            min="0"
+                                            wire:model="editDraft.{{ $cell['reading_id'] }}"
+                                            wire:keydown.enter="saveEditedReading('{{ $cell['reading_id'] }}')"
+                                            wire:blur="saveEditedReading('{{ $cell['reading_id'] }}')"
+                                            title="Corrige el valor y presiona Enter. Vacíalo para borrar la lectura."
+                                            class="w-20 rounded-md border border-transparent bg-transparent px-1.5 py-0.5 text-center text-sm font-semibold text-gray-900 tabular-nums hover:border-gray-300 focus:border-emerald-500 focus:bg-white focus:ring-emerald-500 dark:text-white dark:hover:border-white/20 dark:focus:bg-white/5"
+                                        />
                                         <div class="text-[11px] text-gray-500 tabular-nums dark:text-gray-400">
                                             {{ number_format($cell['hours'], 0) }} h
                                             @if ($cell['reset'])

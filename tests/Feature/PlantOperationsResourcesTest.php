@@ -187,6 +187,7 @@ it('never lets anyone delete a paro', function (): void {
 
 it('records a reading through the service so the accumulated value moves', function (): void {
     Livewire::test(ListMeterReadings::class)
+        ->call('selectTab', 'diario')
         ->callAction('create', data: [
             'equipment_id' => $this->equipment->id,
             'reading_value' => 1_250.5,
@@ -237,6 +238,7 @@ it('records a round of several equipment at once through the same service', func
     $undoRepeaterFake = Repeater::fake();
 
     Livewire::test(ListMeterReadings::class)
+        ->call('selectTab', 'diario')
         ->callAction('registerRound', data: [
             'recorded_at' => $recordedAt,
             'readings' => [
@@ -263,6 +265,7 @@ it('does not offer an equipment with no active meter-based plan for the round', 
     $undoRepeaterFake = Repeater::fake();
 
     Livewire::test(ListMeterReadings::class)
+        ->call('selectTab', 'diario')
         ->callAction('registerRound', data: [
             'recorded_at' => now()->toDateTimeString(),
             'readings' => [
