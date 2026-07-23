@@ -62,7 +62,11 @@
                                             class="w-20 rounded-md border border-transparent bg-transparent px-1.5 py-0.5 text-center text-sm font-semibold text-gray-900 tabular-nums hover:border-gray-300 focus:border-emerald-500 focus:bg-white focus:ring-emerald-500 dark:text-white dark:hover:border-white/20 dark:focus:bg-white/5"
                                         />
                                         <div class="text-[11px] text-gray-500 tabular-nums dark:text-gray-400">
-                                            {{ number_format($cell['hours'], 0) }} h
+                                            @if ($cell['baseline'])
+                                                <span title="Primera lectura: la línea base. Las horas aparecen desde la siguiente." class="text-gray-400">1ª lectura</span>
+                                            @else
+                                                {{ number_format($cell['hours'], 0) }} h
+                                            @endif
                                             @if ($cell['reset'])
                                                 <span title="Cambio de dial (reset)" class="text-amber-600">⟳</span>
                                             @endif

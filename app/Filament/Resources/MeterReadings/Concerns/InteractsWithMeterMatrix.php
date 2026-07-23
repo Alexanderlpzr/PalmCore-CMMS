@@ -239,7 +239,7 @@ trait InteractsWithMeterMatrix
             ->whereIn('equipment_id', $equipment->pluck('id'))
             ->where('recorded_at', '<', $periodEnd->copy()->startOfDay())
             ->orderBy('recorded_at')
-            ->get(['id', 'equipment_id', 'reading_value', 'delta', 'is_reset', 'recorded_at'])
+            ->get(['id', 'equipment_id', 'reading_value', 'previous_value', 'delta', 'is_reset', 'recorded_at'])
             ->groupBy('equipment_id');
 
         $rows = [];
@@ -267,6 +267,8 @@ trait InteractsWithMeterMatrix
                 'filled' => $current !== null,
                 'reading_id' => $current?->id,
                 'hours' => $current !== null ? round((float) $inPeriod->sum('delta'), 1) : null,
+                // Primera lectura del equipo: es la base, no «0 horas trabajadas».
+                'baseline' => $current !== null && $prior === null && $current->previous_value === null,
                 'reset' => (bool) $inPeriod->contains(fn (EquipmentMeterReading $r): bool => (bool) $r->is_reset),
             ];
         }
@@ -326,7 +328,7 @@ trait InteractsWithMeterMatrix
             ->where('recorded_at', '>=', $from)
             ->where('recorded_at', '<', $to)
             ->orderBy('recorded_at')
-            ->get(['id', 'equipment_id', 'reading_value', 'delta', 'is_reset', 'recorded_at']);
+            ->get(['id', 'equipment_id', 'reading_value', 'previous_value', 'delta', 'is_reset', 'recorded_at']);
     }
 
     /**
@@ -373,6 +375,9 @@ trait InteractsWithMeterMatrix
                     'reading_id' => $latest->id,
                     'reading' => round((float) $latest->reading_value, 1),
                     'hours' => $hours,
+                    // Sin lectura previa no hay contra qué restar: es la línea base, no
+                    // «0 horas trabajadas». Se marca para no confundir al operario.
+                    'baseline' => $inPeriod->contains(fn (EquipmentMeterReading $r): bool => $r->previous_value === null),
                     'reset' => (bool) $inPeriod->contains(fn (EquipmentMeterReading $r): bool => (bool) $r->is_reset),
                 ];
             }

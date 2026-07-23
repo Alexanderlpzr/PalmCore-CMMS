@@ -55,8 +55,16 @@
 
                     <div class="flex items-center gap-2">
                         @if ($row['filled'])
-                            <span class="hidden text-xs font-medium text-emerald-600 tabular-nums sm:inline dark:text-emerald-400">
-                                +{{ number_format($row['hours'], 0) }} h
+                            <span @class([
+                                'hidden text-xs font-medium tabular-nums sm:inline',
+                                'text-gray-400' => $row['baseline'],
+                                'text-emerald-600 dark:text-emerald-400' => ! $row['baseline'],
+                            ])>
+                                @if ($row['baseline'])
+                                    1ª lectura
+                                @else
+                                    +{{ number_format($row['hours'], 0) }} h
+                                @endif
                                 @if ($row['reset'])
                                     <span title="Cambio de dial (reset)" class="text-amber-600">⟳</span>
                                 @endif

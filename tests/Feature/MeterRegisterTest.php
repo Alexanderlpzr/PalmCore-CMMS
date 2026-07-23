@@ -248,7 +248,27 @@ it('la ronda marca leído el equipo con lectura del período y calcula sus horas
     expect($data['pending'])->toBe(0)
         ->and($row['filled'])->toBeTrue()
         ->and($row['hours'])->toBe(20.0)
+        ->and($row['baseline'])->toBeFalse()
         ->and($row['reference'])->toBe(1_000.0);
+});
+
+it('la primera lectura de un equipo se marca como línea base, no como 0 horas', function (): void {
+    $eq = Equipment::factory()->create([
+        'tenant_id' => $this->tenant->id, 'reading_frequency' => 'daily', 'code' => 'BASE-1',
+        'accumulated_meter_reading' => 0, 'current_meter_reading' => null,
+    ]);
+    app(EquipmentMeterReadingService::class)->record($eq, 24, $this->user, recordedAt: today()->setTime(12, 0));
+
+    $data = Livewire::test(ListMeterReadings::class)
+        ->call('selectTab', 'diario')
+        ->instance()
+        ->getRoundData();
+
+    $row = collect($data['rows'])->firstWhere('code', 'BASE-1');
+
+    expect($row['filled'])->toBeTrue()
+        ->and($row['baseline'])->toBeTrue()
+        ->and($row['hours'])->toBe(0.0);
 });
 
 // ── Horas trabajadas (consolidado del horómetro) ─────────────────────────────
