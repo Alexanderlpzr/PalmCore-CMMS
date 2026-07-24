@@ -128,8 +128,7 @@ it('corregir una celda actualiza la lectura y recalcula el acumulado', function 
 
     Livewire::test(ListMeterReadings::class)
         ->call('selectTab', 'diario')
-        ->set("editDraft.{$second->id}", 1_010)
-        ->call('saveEditedReading', $second->id)
+        ->call('saveEditedReading', $second->id, '1010')
         ->assertHasNoErrors();
 
     expect((float) $second->fresh()->reading_value)->toBe(1_010.0)
@@ -159,8 +158,7 @@ it('vaciar una celda elimina la lectura y recalcula la cadena', function (): voi
 
     Livewire::test(ListMeterReadings::class)
         ->call('selectTab', 'diario')
-        ->set("editDraft.{$second->id}", '')
-        ->call('saveEditedReading', $second->id);
+        ->call('saveEditedReading', $second->id, '');
 
     expect(EquipmentMeterReading::where('equipment_id', $eq->id)->count())->toBe(1)
         ->and((float) $eq->refresh()->accumulated_meter_reading)->toBe(0.0)

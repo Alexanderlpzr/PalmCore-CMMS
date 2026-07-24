@@ -33,9 +33,6 @@ trait InteractsWithMeterMatrix
     /** Valores tecleados pendientes de guardar: draft[equipmentId][dateKey]. */
     public array $draft = [];
 
-    /** Correcciones en curso de lecturas ya guardadas: editDraft[readingId]. */
-    public array $editDraft = [];
-
     /** Sub-vista de captura: 'lista' (ronda del período) | 'cuadricula' (matriz). */
     public string $roundView = 'lista';
 
@@ -140,10 +137,12 @@ trait InteractsWithMeterMatrix
     }
 
     /**
-     * Corrige una lectura ya guardada desde su celda. Vaciar el campo la elimina.
-     * El servicio recalcula el delta, el acumulado y todo lo que dependa de ella.
+     * Corrige una lectura ya guardada desde su celda. El valor llega directo del input
+     * (no de una propiedad sincronizada, que al pasar de celda vacía a llena no se
+     * pintaba). Vaciar el campo la elimina. El servicio recalcula el delta, el acumulado
+     * y todo lo que dependa de ella.
      */
-    public function saveEditedReading(string $readingId): void
+    public function saveEditedReading(string $readingId, ?string $value = null): void
     {
         $reading = EquipmentMeterReading::query()->find($readingId);
 
@@ -152,13 +151,11 @@ trait InteractsWithMeterMatrix
         }
 
         $service = app(EquipmentMeterReadingService::class);
-        $raw = $this->editDraft[$readingId] ?? null;
 
         // Campo vacío = borrar la lectura mal cargada.
-        if ($raw === null || $raw === '') {
+        if ($value === null || trim($value) === '') {
             try {
                 $service->deleteReading($reading);
-                unset($this->editDraft[$readingId]);
 
                 Notification::make()->title('Lectura eliminada')->success()->send();
             } catch (\Throwable $e) {
@@ -169,24 +166,16 @@ trait InteractsWithMeterMatrix
         }
 
         // Sin cambios reales, no se toca nada (evita recomputar la cadena en cada blur).
-        if (abs((float) $raw - (float) $reading->reading_value) < 0.001) {
+        if (abs((float) $value - (float) $reading->reading_value) < 0.001) {
             return;
         }
 
         try {
-            $service->updateReading($reading, (float) $raw);
-            unset($this->editDraft[$readingId]);
+            $service->updateReading($reading, (float) $value);
 
             Notification::make()->title('Lectura corregida')->success()->send();
         } catch (\Throwable $e) {
             Notification::make()->title('No se pudo corregir la lectura')->body($e->getMessage())->danger()->send();
-        }
-    }
-
-    private function seedEditCell(string $readingId, float $value): void
-    {
-        if (! array_key_exists($readingId, $this->editDraft)) {
-            $this->editDraft[$readingId] = (string) (0 + $value);
         }
     }
 
@@ -253,9 +242,7 @@ trait InteractsWithMeterMatrix
 
             $current = $inPeriod->sortByDesc('recorded_at')->first();
 
-            if ($current !== null) {
-                $this->seedEditCell($current->id, (float) $current->reading_value);
-            } else {
+            if ($current === null) {
                 $pending++;
             }
 
@@ -264,6 +251,7 @@ trait InteractsWithMeterMatrix
                 'code' => $eq->code,
                 'name' => $eq->name,
                 'daily_hours' => $isDailyHours,
+                'reading' => $current !== null ? round((float) $current->reading_value, 1) : null,
                 // En modo acumulado la referencia es el dial anterior (para comparar);
                 // en horas por día no hay dial que comparar.
                 'reference' => (! $isDailyHours && $prior !== null) ? round((float) $prior->reading_value, 1) : null,
@@ -371,10 +359,6 @@ trait InteractsWithMeterMatrix
                 $rowTotal += $hours;
                 $columnTotals[$key] += $hours;
                 $grandTotal += $hours;
-
-                // La celda deja corregir la última lectura del período: se siembra el
-                // borrador con su valor para que el input aparezca ya rellenado.
-                $this->seedEditCell($latest->id, (float) $latest->reading_value);
 
                 $cells[$key] = [
                     'filled' => true,

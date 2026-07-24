@@ -50,14 +50,19 @@
                                     'bg-amber-50 dark:bg-amber-500/10' => $cell['filled'] && $cell['reset'],
                                 ])>
                                     @if ($cell['filled'])
+                                        {{-- Valor directo del servidor vía Alpine + wire:key único: al pasar de
+                                             celda vacía a llena, Livewire no puede reutilizar el input vacío y dejar
+                                             el número sin pintar (ese era el bug). --}}
                                         <input
                                             type="number"
                                             inputmode="decimal"
                                             step="0.1"
                                             min="0"
-                                            wire:model="editDraft.{{ $cell['reading_id'] }}"
-                                            wire:keydown.enter="saveEditedReading('{{ $cell['reading_id'] }}')"
-                                            wire:blur="saveEditedReading('{{ $cell['reading_id'] }}')"
+                                            wire:key="cell-{{ $cell['reading_id'] }}-{{ $cell['reading'] }}"
+                                            x-data="{ v: @js((string) $cell['reading']) }"
+                                            x-model="v"
+                                            x-on:keydown.enter.prevent="$wire.saveEditedReading(@js($cell['reading_id']), v)"
+                                            x-on:blur="$wire.saveEditedReading(@js($cell['reading_id']), v)"
                                             title="Corrige el valor y presiona Enter. Vacíalo para borrar la lectura."
                                             class="w-20 rounded-md border border-transparent bg-transparent px-1.5 py-0.5 text-center text-sm font-semibold text-gray-900 tabular-nums hover:border-gray-300 focus:border-emerald-500 focus:bg-white focus:ring-emerald-500 dark:text-white dark:hover:border-white/20 dark:focus:bg-white/5"
                                         />
@@ -79,6 +84,7 @@
                                             inputmode="decimal"
                                             step="0.1"
                                             min="0"
+                                            wire:key="empty-{{ $row['id'] }}-{{ $col['key'] }}"
                                             wire:model="draft.{{ $row['id'] }}.{{ $col['key'] }}"
                                             wire:keydown.enter="saveCell('{{ $row['id'] }}', '{{ $col['key'] }}')"
                                             wire:blur="saveCell('{{ $row['id'] }}', '{{ $col['key'] }}')"
