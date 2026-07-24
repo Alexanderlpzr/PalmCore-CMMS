@@ -34,9 +34,11 @@ class DowntimeByStoppageCategoryWidget extends ChartWidget
 
     protected ?string $pollingInterval = null;
 
-    protected static ?int $sort = 19;
+    protected static ?int $sort = 13;
 
-    protected int|string|array $columnSpan = 'half';
+    protected int|string|array $columnSpan = 1;
+
+    protected ?string $maxHeight = '260px';
 
     public function getDescription(): ?string
     {

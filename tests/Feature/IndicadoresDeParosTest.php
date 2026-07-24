@@ -70,3 +70,7 @@ it('agrupa las horas de paro por sección y por Tipo II', function (): void {
 it('la página de indicadores de paros carga', function (): void {
     Livewire::test(IndicadoresDeParos::class)->assertOk();
 });
+
+it('el dashboard consolidado carga', function (): void {
+    Livewire::test(App\Filament\Pages\Dashboard::class)->assertOk();
+});

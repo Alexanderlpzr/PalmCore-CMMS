@@ -2,9 +2,10 @@
 
 use App\Filament\Pages\Dashboard;
 use App\Filament\Widgets\Analytics\CostByEquipmentWidget;
-use App\Filament\Widgets\Analytics\ParetoFailureModesWidget;
+use App\Filament\Widgets\Analytics\DowntimeByEquipmentWidget;
+use App\Filament\Widgets\Analytics\DowntimeByReportedTypeWidget;
 use App\Filament\Widgets\Analytics\ParetoFailuresWidget;
-use App\Filament\Widgets\Analytics\ReliabilityRankingWidget;
+use App\Filament\Widgets\Executive\PlantEfficiencyStatsWidget;
 use App\Filament\Widgets\Reliability\AllEquipmentKpisWidget;
 use App\Filament\Widgets\Reliability\GlobalReliabilitySummaryWidget;
 use App\Filament\Widgets\Reliability\HighestDowntimeWidget;
@@ -311,22 +312,19 @@ it('reliability widgets are sorted in the correct dashboard order', function () 
         ->and(AllEquipmentKpisWidget::getSort())->toBe(7);
 });
 
-it('the analytics dashboard actually renders the reliability and pareto widgets', function () {
-    // Regression guard: these widgets were built but never listed in
-    // Dashboard::getWidgets(), so they rendered nowhere. They must stay wired.
+it('the dashboard renders the curated indicator widgets', function () {
+    // El Dashboard se consolidó en un set curado por bloques (Resumen, Paros,
+    // Confiabilidad, Costos). Estos deben seguir cableados; las pantallas de
+    // Eficiencia/Paros/Ejecutivo/Gastos se fusionaron aquí y salieron del menú.
     $widgets = (new Dashboard)->getWidgets();
 
     expect($widgets)->toContain(
-        GlobalReliabilitySummaryWidget::class,
+        PlantEfficiencyStatsWidget::class,
+        DowntimeByReportedTypeWidget::class,
+        DowntimeByEquipmentWidget::class,
         MaintenanceComplianceWidget::class,
-        WorstAvailabilityWidget::class,
-        MostFailuresWidget::class,
-        HighestDowntimeWidget::class,
-        AllEquipmentKpisWidget::class,
-        CostByEquipmentWidget::class,
         ParetoFailuresWidget::class,
-        ParetoFailureModesWidget::class,
-        ReliabilityRankingWidget::class,
+        CostByEquipmentWidget::class,
     );
 });
 

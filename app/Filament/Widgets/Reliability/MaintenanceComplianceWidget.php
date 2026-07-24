@@ -17,7 +17,7 @@ class MaintenanceComplianceWidget extends BaseWidget
 {
     protected ?string $pollingInterval = null;
 
-    protected static ?int $sort = 6;
+    protected static ?int $sort = 20;
 
     protected int|string|array $columnSpan = 'full';
 

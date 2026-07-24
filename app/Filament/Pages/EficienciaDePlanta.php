@@ -36,6 +36,12 @@ class EficienciaDePlanta extends BaseDashboard
 
     protected static ?int $navigationSort = 3;
 
+    // Consolidado dentro del Dashboard. La ruta sigue viva; se saca del menú.
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
+
     /**
      * @return array<class-string>
      */

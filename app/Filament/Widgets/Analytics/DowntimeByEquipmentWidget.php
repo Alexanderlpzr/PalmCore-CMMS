@@ -22,9 +22,11 @@ class DowntimeByEquipmentWidget extends ChartWidget
 
     protected ?string $pollingInterval = null;
 
-    protected static ?int $sort = 21;
+    protected static ?int $sort = 14;
 
-    protected int|string|array $columnSpan = 'full';
+    protected int|string|array $columnSpan = 2;
+
+    protected ?string $maxHeight = '320px';
 
     public function getDescription(): ?string
     {

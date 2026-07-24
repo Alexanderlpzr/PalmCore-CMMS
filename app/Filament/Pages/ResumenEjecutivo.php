@@ -46,6 +46,12 @@ class ResumenEjecutivo extends BaseDashboard
 
     protected static ?int $navigationSort = 2;
 
+    // Consolidado dentro del Dashboard. La ruta sigue viva; se saca del menú.
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
+
     /**
      * @return array<class-string>
      */

@@ -21,9 +21,11 @@ class MonthlyCostByTypeWidget extends ChartWidget
 
     protected ?string $pollingInterval = null;
 
-    protected static ?int $sort = 3;
+    protected static ?int $sort = 31;
 
-    protected int|string|array $columnSpan = 'full';
+    protected int|string|array $columnSpan = 1;
+
+    protected ?string $maxHeight = '280px';
 
     protected function getData(): array
     {

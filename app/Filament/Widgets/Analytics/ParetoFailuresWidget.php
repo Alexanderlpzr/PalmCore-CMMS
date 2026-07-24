@@ -12,9 +12,11 @@ class ParetoFailuresWidget extends ChartWidget
 
     protected ?string $pollingInterval = null;
 
-    protected static ?int $sort = 15;
+    protected static ?int $sort = 21;
 
-    protected int|string|array $columnSpan = 'full';
+    protected int|string|array $columnSpan = 1;
+
+    protected ?string $maxHeight = '280px';
 
     public function getDescription(): ?string
     {

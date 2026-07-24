@@ -12,9 +12,11 @@ class CostByEquipmentWidget extends ChartWidget
 
     protected ?string $pollingInterval = null;
 
-    protected static ?int $sort = 14;
+    protected static ?int $sort = 30;
 
-    protected int|string|array $columnSpan = 'full';
+    protected int|string|array $columnSpan = 2;
+
+    protected ?string $maxHeight = '300px';
 
     public function getDescription(): ?string
     {
