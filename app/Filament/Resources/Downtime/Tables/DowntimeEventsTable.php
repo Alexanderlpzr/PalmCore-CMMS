@@ -2,8 +2,11 @@
 
 namespace App\Filament\Resources\Downtime\Tables;
 
+use App\Domain\Assets\Enums\PlantSection;
+use App\Domain\Assets\Enums\ReportedStoppageType;
 use App\Domain\Assets\Enums\StoppageCategory;
 use App\Domain\Assets\Enums\StoppageConfirmationStatus;
+use App\Domain\Assets\Enums\StoppageReason;
 use App\Domain\Assets\Services\DowntimeService;
 use App\Models\EquipmentDowntimeEvent;
 use Filament\Actions\Action;
@@ -29,47 +32,70 @@ class DowntimeEventsTable
         return $table
             ->columns([
                 TextColumn::make('started_at')
-                    ->label('Inicio')
+                    ->label('Fecha / inicio')
                     ->dateTime('d/m/Y H:i')
                     ->sortable(),
+                TextColumn::make('ended_at')
+                    ->label('Fin')
+                    ->dateTime('H:i')
+                    ->placeholder('En curso')
+                    ->toggleable(),
+                TextColumn::make('duration_minutes')
+                    ->label('Tiempo (h)')
+                    ->formatStateUsing(fn (?int $state): string => $state === null
+                        ? 'En curso'
+                        : number_format($state / 60, 2))
+                    ->alignEnd()
+                    ->sortable(),
+                TextColumn::make('reported_type')
+                    ->label('Tipo I')
+                    ->badge()
+                    ->formatStateUsing(fn (?ReportedStoppageType $state): string => $state?->label() ?? '—')
+                    ->color(fn (?ReportedStoppageType $state): string => $state?->color() ?? 'gray'),
+                TextColumn::make('stoppage_reason')
+                    ->label('Tipo II')
+                    ->formatStateUsing(fn (?StoppageReason $state): string => $state?->label() ?? '—')
+                    ->placeholder('—'),
+                TextColumn::make('section')
+                    ->label('Sección')
+                    ->formatStateUsing(fn (?PlantSection $state): string => $state?->label() ?? '—')
+                    ->placeholder('—')
+                    ->toggleable(),
                 TextColumn::make('equipment.code')
                     ->label('Equipo')
                     ->searchable()
                     ->placeholder('Paro de planta'),
-                TextColumn::make('stoppage_category')
-                    ->label('Tipo I')
-                    ->badge()
-                    ->formatStateUsing(fn (?StoppageCategory $state): string => $state?->label() ?? '—')
-                    ->color(fn (?StoppageCategory $state): string => $state?->color() ?? 'gray'),
                 TextColumn::make('stoppage_cause')
-                    ->label('Tipo II')
-                    ->limit(30)
+                    ->label('Causa / Observación')
+                    ->limit(40)
+                    ->tooltip(fn (?string $state): ?string => $state)
                     ->placeholder('—')
                     ->toggleable(),
-                TextColumn::make('duration_minutes')
-                    ->label('Duración')
-                    ->formatStateUsing(fn (?int $state): string => $state === null
-                        ? 'En curso'
-                        : sprintf('%dh %02dmin', intdiv($state, 60), $state % 60))
-                    ->sortable(),
+                TextColumn::make('registeredBy.name')
+                    ->label('Responsable')
+                    ->placeholder('—')
+                    ->toggleable(),
                 IconColumn::make('affects_production')
                     ->label('Resta horas')
                     ->boolean()
-                    ->toggleable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('confirmation_status')
                     ->label('Firma de producción')
                     ->badge()
                     ->formatStateUsing(fn (?StoppageConfirmationStatus $state): string => $state?->label() ?? '—')
-                    ->color(fn (?StoppageConfirmationStatus $state): string => $state?->color() ?? 'gray'),
-                TextColumn::make('work_order_number')
-                    ->label('OT')
-                    ->placeholder('—')
+                    ->color(fn (?StoppageConfirmationStatus $state): string => $state?->color() ?? 'gray')
                     ->toggleable(),
             ])
             ->filters([
-                SelectFilter::make('stoppage_category')
+                SelectFilter::make('reported_type')
                     ->label('Tipo I')
-                    ->options(StoppageCategory::options()),
+                    ->options(ReportedStoppageType::options()),
+                SelectFilter::make('stoppage_reason')
+                    ->label('Tipo II')
+                    ->options(StoppageReason::options()),
+                SelectFilter::make('section')
+                    ->label('Sección')
+                    ->options(PlantSection::options()),
                 SelectFilter::make('confirmation_status')
                     ->label('Firma de producción')
                     ->options(StoppageConfirmationStatus::options()),

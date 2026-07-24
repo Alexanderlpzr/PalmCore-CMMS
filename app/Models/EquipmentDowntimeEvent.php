@@ -3,9 +3,11 @@
 namespace App\Models;
 
 use App\Domain\Assets\Enums\EquipmentDowntimeCauseType;
+use App\Domain\Assets\Enums\PlantSection;
 use App\Domain\Assets\Enums\ReportedStoppageType;
 use App\Domain\Assets\Enums\StoppageCategory;
 use App\Domain\Assets\Enums\StoppageConfirmationStatus;
+use App\Domain\Assets\Enums\StoppageReason;
 use App\Domain\Maintenance\Enums\FailureMode;
 use App\Domain\Shared\Concerns\BelongsToTenant;
 use Database\Factories\EquipmentDowntimeEventFactory;
@@ -22,11 +24,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'equipment_id',
     'work_order_id',
     'work_order_number',
+    'section',
     'started_at',
     'ended_at',
     'duration_minutes',
     'cause_type',
     'stoppage_category',
+    'stoppage_reason',
     'stoppage_cause',
     'reported_type',
     'was_planned',
@@ -178,6 +182,8 @@ class EquipmentDowntimeEvent extends Model
         return [
             'cause_type' => EquipmentDowntimeCauseType::class,
             'stoppage_category' => StoppageCategory::class,
+            'stoppage_reason' => StoppageReason::class,
+            'section' => PlantSection::class,
             'reported_type' => ReportedStoppageType::class,
             'confirmation_status' => StoppageConfirmationStatus::class,
             'confirmed_at' => 'datetime',

@@ -3,9 +3,11 @@
 namespace App\Domain\Assets\Services;
 
 use App\Domain\Assets\Enums\EquipmentDowntimeCauseType;
+use App\Domain\Assets\Enums\PlantSection;
 use App\Domain\Assets\Enums\ReportedStoppageType;
 use App\Domain\Assets\Enums\StoppageCategory;
 use App\Domain\Assets\Enums\StoppageConfirmationStatus;
+use App\Domain\Assets\Enums\StoppageReason;
 use App\Exceptions\BusinessRuleException;
 use App\Models\Equipment;
 use App\Models\EquipmentDowntimeEvent;
@@ -464,9 +466,24 @@ class DowntimeService
      */
     private function normalize(array $data, User $registeredBy): array
     {
-        $category = $data['stoppage_category'] instanceof StoppageCategory
-            ? $data['stoppage_category']
-            : StoppageCategory::from($data['stoppage_category']);
+        // El Tipo II (causa concreta), si viene, define la categoría física y el
+        // Tipo I. Si no, se cae al flujo anterior por categoría explícita.
+        $reason = isset($data['stoppage_reason']) && $data['stoppage_reason'] !== null
+            ? ($data['stoppage_reason'] instanceof StoppageReason
+                ? $data['stoppage_reason']
+                : StoppageReason::from($data['stoppage_reason']))
+            : null;
+
+        $category = $reason?->category()
+            ?? ($data['stoppage_category'] instanceof StoppageCategory
+                ? $data['stoppage_category']
+                : StoppageCategory::from($data['stoppage_category']));
+
+        $section = isset($data['section']) && $data['section'] !== null
+            ? ($data['section'] instanceof PlantSection
+                ? $data['section']
+                : PlantSection::from($data['section']))
+            : null;
 
         $tenantId = $data['tenant_id'];
 
@@ -503,20 +520,23 @@ class DowntimeService
             'tenant_id' => $tenantId,
             'plant_id' => $plantId,
             'equipment_id' => $equipment?->id,
+            'section' => $section?->value,
             'started_at' => isset($data['started_at']) ? Carbon::parse($data['started_at']) : now(),
             'cause_type' => $category->isPlanned()
                 ? EquipmentDowntimeCauseType::Preventive->value
                 : $this->causeTypeFor($category),
             'stoppage_category' => $category->value,
+            'stoppage_reason' => $reason?->value,
             'stoppage_cause' => $data['stoppage_cause'] ?? null,
-            // El Tipo I del cliente. Si nadie lo declara, se deduce de la causa
-            // física; si viene de su planilla, se guarda tal como ellos lo
-            // escribieron, aunque contradiga la causa. Esa contradicción es el dato.
-            'reported_type' => isset($data['reported_type'])
+            // El Tipo I del cliente. Si eligió un Tipo II, sale de él; si lo declara
+            // aparte, se respeta; si no, se deduce de la causa física. Cuando el dato
+            // viene de su planilla se guarda tal como ellos lo escribieron, aunque
+            // contradiga la causa — esa contradicción es el dato.
+            'reported_type' => isset($data['reported_type']) && $data['reported_type'] !== null
                 ? ($data['reported_type'] instanceof ReportedStoppageType
                     ? $data['reported_type']->value
                     : ReportedStoppageType::from($data['reported_type'])->value)
-                : ReportedStoppageType::inferredFrom($category)->value,
+                : ($reason?->reportedType()->value ?? ReportedStoppageType::inferredFrom($category)->value),
             'was_planned' => $category->isPlanned(),
             'affects_production' => $data['affects_production'] ?? true,
             'source' => 'manual',

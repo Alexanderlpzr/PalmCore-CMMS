@@ -1,7 +1,9 @@
 <?php
 
-use App\Domain\Assets\Enums\StoppageCategory;
+use App\Domain\Assets\Enums\PlantSection;
+use App\Domain\Assets\Enums\ReportedStoppageType;
 use App\Domain\Assets\Enums\StoppageConfirmationStatus;
+use App\Domain\Assets\Enums\StoppageReason;
 use App\Filament\Resources\Downtime\Pages\CreateDowntimeEvent;
 use App\Filament\Resources\Downtime\Pages\ListDowntimeEvents;
 use App\Filament\Resources\MeterReadings\Pages\ListMeterReadings;
@@ -83,10 +85,13 @@ it('lists the plant stoppages', function (): void {
 
 it('registers a paro through the domain service, not straight into the table', function (): void {
     Livewire::test(CreateDowntimeEvent::class)
+        // El Tipo I primero: al cambiarlo se limpia el Tipo II dependiente.
+        ->fillForm(['reported_type' => ReportedStoppageType::Maintenance->value])
         ->fillForm([
             'plant_id' => $this->plant->id,
+            'section' => PlantSection::Extraccion->value,
             'equipment_id' => $this->equipment->id,
-            'stoppage_category' => StoppageCategory::Mechanical->value,
+            'stoppage_reason' => StoppageReason::FallaMecanica->value,
             'stoppage_cause' => 'Rodamiento del reductor',
             'started_at' => '2026-06-10 08:00:00',
             'ended_at' => '2026-06-10 11:00:00',
@@ -118,10 +123,12 @@ it('refuses from Filament the overlapping paro the service would refuse anywhere
     // El mismo equipo no puede estar parado dos veces a la vez: esas horas se
     // contarían dos veces contra la planta.
     Livewire::test(CreateDowntimeEvent::class)
+        ->fillForm(['reported_type' => ReportedStoppageType::Maintenance->value])
         ->fillForm([
             'plant_id' => $this->plant->id,
+            'section' => PlantSection::Extraccion->value,
             'equipment_id' => $this->equipment->id,
-            'stoppage_category' => StoppageCategory::Electrical->value,
+            'stoppage_reason' => StoppageReason::FallaElectrica->value,
             'started_at' => '2026-06-10 10:00:00',
             'ended_at' => '2026-06-10 14:00:00',
         ])

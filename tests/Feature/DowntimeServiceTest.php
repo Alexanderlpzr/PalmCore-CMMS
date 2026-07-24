@@ -1,7 +1,10 @@
 <?php
 
 use App\Domain\Assets\Enums\EquipmentDowntimeCauseType;
+use App\Domain\Assets\Enums\PlantSection;
+use App\Domain\Assets\Enums\ReportedStoppageType;
 use App\Domain\Assets\Enums\StoppageCategory;
+use App\Domain\Assets\Enums\StoppageReason;
 use App\Domain\Assets\Services\DowntimeService;
 use App\Exceptions\BusinessRuleException;
 use App\Models\Equipment;
@@ -43,6 +46,40 @@ it('registers a plant-wide stoppage with no equipment and no work order', functi
         ->and($event->stoppage_cause)->toBe('No llegó fruta de proveedor')
         ->and($event->registered_by)->toBe($this->actor->id)
         ->and($event->source)->toBe('manual');
+});
+
+it('registra el paro por Tipo II, derivando categoría física, Tipo I y sección', function (): void {
+    $event = $this->service->register([
+        'tenant_id' => $this->tenant->id,
+        'equipment_id' => $this->equipment->id,
+        'section' => PlantSection::Extraccion->value,
+        'stoppage_reason' => StoppageReason::FallaMecanica->value,
+        'stoppage_cause' => 'Se rompió la cadena del elevador',
+        'started_at' => now()->subHours(2),
+        'ended_at' => now()->subHour(),
+    ], $this->actor);
+
+    expect($event->stoppage_reason)->toBe(StoppageReason::FallaMecanica)
+        ->and($event->stoppage_category)->toBe(StoppageCategory::Mechanical) // derivada del Tipo II
+        ->and($event->reported_type)->toBe(ReportedStoppageType::Maintenance) // Tipo I del Tipo II
+        ->and($event->section)->toBe(PlantSection::Extraccion)
+        ->and($event->cause_type)->toBe(EquipmentDowntimeCauseType::Corrective)
+        ->and($event->duration_minutes)->toBe(60);
+});
+
+it('un Tipo II operativo (atascamiento) no cuenta como falla de mantenimiento', function (): void {
+    $event = $this->service->register([
+        'tenant_id' => $this->tenant->id,
+        'equipment_id' => $this->equipment->id,
+        'section' => PlantSection::Esterilizacion->value,
+        'stoppage_reason' => StoppageReason::Atascamiento->value,
+        'started_at' => now()->subHour(),
+        'ended_at' => now(),
+    ], $this->actor);
+
+    expect($event->stoppage_category)->toBe(StoppageCategory::Process)
+        ->and($event->reported_type)->toBe(ReportedStoppageType::Operational)
+        ->and($event->stoppage_category->isMaintenanceResponsibility())->toBeFalse();
 });
 
 it('derives the plant from the equipment when only the equipment is given', function (): void {

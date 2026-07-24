@@ -2,16 +2,18 @@
 
 namespace App\Filament\Resources\Downtime\Schemas;
 
-use App\Domain\Assets\Enums\StoppageCategory;
+use App\Domain\Assets\Enums\PlantSection;
+use App\Domain\Assets\Enums\ReportedStoppageType;
+use App\Domain\Assets\Enums\StoppageReason;
 use App\Models\Equipment;
 use App\Models\Plant;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 
 class DowntimeEventForm
@@ -29,6 +31,11 @@ class DowntimeEventForm
                         ->searchable()
                         ->required()
                         ->native(false),
+                    Select::make('section')
+                        ->label('Sección')
+                        ->options(PlantSection::options())
+                        ->native(false)
+                        ->required(),
                     Select::make('equipment_id')
                         ->label('Equipo')
                         ->helperText('Vacío = paro de toda la planta.')
@@ -39,21 +46,36 @@ class DowntimeEventForm
                             ->mapWithKeys(fn (Equipment $e): array => [$e->id => "{$e->code} — {$e->name}"])
                             ->all())
                         ->searchable()
-                        ->native(false),
+                        ->native(false)
+                        ->columnSpanFull(),
                 ]),
 
             Section::make('Clasificación')
                 ->columns(2)
                 ->schema([
-                    Select::make('stoppage_category')
+                    Select::make('reported_type')
                         ->label('Tipo I')
-                        ->options(StoppageCategory::options())
+                        ->options(ReportedStoppageType::options())
                         ->required()
-                        ->native(false),
-                    TextInput::make('stoppage_cause')
-                        ->label('Tipo II — causa específica')
-                        ->placeholder('Ej.: atasco en prensa 2')
-                        ->maxLength(255),
+                        ->native(false)
+                        ->live()
+                        // Cambiar el Tipo I invalida el Tipo II ya elegido: era de otra rama.
+                        ->afterStateUpdated(fn (Set $set) => $set('stoppage_reason', null)),
+                    Select::make('stoppage_reason')
+                        ->label('Tipo II')
+                        ->helperText('La causa concreta; la lista depende del Tipo I.')
+                        ->options(fn (Get $get): array => filled($get('reported_type'))
+                            ? StoppageReason::optionsFor(ReportedStoppageType::from($get('reported_type')))
+                            : [])
+                        ->disabled(fn (Get $get): bool => blank($get('reported_type')))
+                        ->native(false)
+                        ->required(),
+                    Textarea::make('stoppage_cause')
+                        ->label('Causa de falla / Observación')
+                        ->placeholder('Ej.: se rompió la cadena de transmisión del elevador de fruto')
+                        ->rows(2)
+                        ->maxLength(500)
+                        ->columnSpanFull(),
                 ]),
 
             Section::make('Duración')
@@ -72,10 +94,7 @@ class DowntimeEventForm
                     Toggle::make('affects_production')
                         ->label('Restó horas de producción')
                         ->helperText('Una falla con la línea andando no le quita horas a la planta.')
-                        ->default(true),
-                    Textarea::make('notes')
-                        ->label('Notas')
-                        ->rows(2)
+                        ->default(true)
                         ->columnSpanFull(),
                 ]),
         ]);

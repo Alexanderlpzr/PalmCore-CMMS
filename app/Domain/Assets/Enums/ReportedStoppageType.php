@@ -38,6 +38,16 @@ enum ReportedStoppageType: string
         };
     }
 
+    public function color(): string
+    {
+        return match ($this) {
+            self::Scheduled => 'info',
+            self::Maintenance => 'danger',
+            self::Operational => 'warning',
+            self::External => 'gray',
+        };
+    }
+
     /** ¿La planta le atribuye este paro a mantenimiento? (Su criterio, no el nuestro.) */
     public function isAttributedToMaintenance(): bool
     {
