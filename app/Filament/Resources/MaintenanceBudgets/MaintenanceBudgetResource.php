@@ -37,6 +37,13 @@ class MaintenanceBudgetResource extends Resource
 
     protected static bool $isScopedToTenant = true;
 
+    // La gestión del presupuesto vive en la página «Presupuesto» (asignar + seguir el
+    // gasto con gráficas). El recurso crudo se saca del menú; su ruta sigue viva.
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
+
     public static function form(Schema $schema): Schema
     {
         return MaintenanceBudgetForm::configure($schema);
