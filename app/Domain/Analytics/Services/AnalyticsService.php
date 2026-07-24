@@ -3,8 +3,10 @@
 namespace App\Domain\Analytics\Services;
 
 use App\Domain\Analytics\DTOs\TrendPoint;
+use App\Domain\Assets\Enums\PlantSection;
 use App\Domain\Assets\Enums\ReportedStoppageType;
 use App\Domain\Assets\Enums\StoppageCategory;
+use App\Domain\Assets\Enums\StoppageReason;
 use App\Domain\Maintenance\Enums\FailureMode;
 use App\Models\EquipmentDowntimeEvent;
 use App\Models\EquipmentKpi;
@@ -145,7 +147,23 @@ class AnalyticsService
     }
 
     /**
-     * @param  class-string<ReportedStoppageType|StoppageCategory>  $enumClass
+     * @return TrendPoint[] — horas de parada por Sección de planta.
+     */
+    public function downtimeBySection(string $tenantId, ?CarbonInterface $from = null, ?CarbonInterface $to = null): array
+    {
+        return $this->downtimeByColumn($tenantId, 'section', PlantSection::class, $from, $to);
+    }
+
+    /**
+     * @return TrendPoint[] — horas de parada por Tipo II (la causa concreta del Excel).
+     */
+    public function downtimeByReason(string $tenantId, ?CarbonInterface $from = null, ?CarbonInterface $to = null): array
+    {
+        return $this->downtimeByColumn($tenantId, 'stoppage_reason', StoppageReason::class, $from, $to);
+    }
+
+    /**
+     * @param  class-string<ReportedStoppageType|StoppageCategory|PlantSection|StoppageReason>  $enumClass
      * @return TrendPoint[]
      */
     private function downtimeByColumn(string $tenantId, string $column, string $enumClass, ?CarbonInterface $from, ?CarbonInterface $to): array

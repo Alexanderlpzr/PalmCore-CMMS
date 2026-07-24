@@ -3,6 +3,7 @@
 namespace App\Filament\Widgets\Executive;
 
 use App\Domain\Analytics\Services\PlantKpiService;
+use App\Domain\Analytics\Support\DashboardPeriod;
 use App\Models\Plant;
 use Filament\Widgets\Concerns\InteractsWithPageFilters;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
@@ -32,11 +33,13 @@ class PlantEfficiencyStatsWidget extends BaseWidget
             return [Stat::make('Eficiencia de planta', 'Sin plantas registradas')];
         }
 
-        $metrics = app(PlantKpiService::class)->calculate(
-            $plant,
-            Carbon::now()->startOfMonth(),
-            Carbon::now()->endOfMonth(),
-        );
+        // Respeta el período elegido en el filtro; sin filtro (o «últimos 12 meses»,
+        // que no es una foto), cae al mes en curso.
+        [$from, $to] = DashboardPeriod::resolve($this->pageFilters);
+        $from = $from !== null ? Carbon::parse($from)->startOfMonth() : Carbon::now()->startOfMonth();
+        $to = $to !== null ? Carbon::parse($to)->endOfMonth() : Carbon::now()->endOfMonth();
+
+        $metrics = app(PlantKpiService::class)->calculate($plant, $from, $to);
 
         $efficiency = $metrics['efficiency_percentage'];
 
