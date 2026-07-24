@@ -16,7 +16,7 @@ enum WorkOrderStatus: string
     public function label(): string
     {
         return match ($this) {
-            self::Draft => 'Borrador',
+            self::Draft => 'Abierta',
             self::Planned => 'Planificada',
             self::InProgress => 'En Ejecución',
             self::OnHold => 'En Espera',
@@ -30,7 +30,7 @@ enum WorkOrderStatus: string
     public function color(): string
     {
         return match ($this) {
-            self::Draft => 'gray',
+            self::Draft => 'info',
             self::Planned => 'info',
             self::InProgress => 'warning',
             self::OnHold => 'orange',
@@ -43,12 +43,16 @@ enum WorkOrderStatus: string
 
     public function allowedTransitions(): array
     {
+        // El flujo vigente es Abierta → Cerrada (+ Cancelada): una OT abierta se
+        // cierra directamente. Las transiciones intermedias (Planned/InProgress/
+        // Completed/Verified) se conservan para las OT heredadas que aún vengan a
+        // medio ciclo, pero desde cualquier estado abierto se puede cerrar de una.
         return match ($this) {
-            self::Draft => [self::Planned, self::Cancelled],
-            self::Planned => [self::InProgress, self::OnHold, self::Cancelled],
-            self::InProgress => [self::OnHold, self::Completed, self::Cancelled],
-            self::OnHold => [self::InProgress, self::Cancelled],
-            self::Completed => [self::Verified, self::InProgress],
+            self::Draft => [self::Planned, self::Closed, self::Cancelled],
+            self::Planned => [self::InProgress, self::OnHold, self::Closed, self::Cancelled],
+            self::InProgress => [self::OnHold, self::Completed, self::Closed, self::Cancelled],
+            self::OnHold => [self::InProgress, self::Closed, self::Cancelled],
+            self::Completed => [self::Verified, self::InProgress, self::Closed],
             self::Verified => [self::Closed],
             self::Closed => [],
             self::Cancelled => [],

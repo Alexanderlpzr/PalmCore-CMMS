@@ -1,6 +1,5 @@
 <?php
 
-use App\Domain\Maintenance\Enums\TechnicianRole;
 use App\Domain\Maintenance\Enums\WorkOrderSignatureType;
 use App\Domain\Maintenance\Enums\WorkOrderStatus;
 use App\Domain\Maintenance\Services\WorkOrderService;
@@ -68,8 +67,8 @@ it('stores a decoded PNG from a data URL as the signature image', function () {
     Storage::disk('work_orders_private')->assertExists($signature->image_path);
 });
 
-it('requires a drawn signature to complete a work order from the Filament action', function () {
-    $tech = signaturePadUser($this->tenant, 'tecnico');
+it('closes a work order from the Filament action, capturing the work performed without a signature', function () {
+    $admin = signaturePadUser($this->tenant, 'administrador-general');
     $service = app(WorkOrderService::class);
 
     $wo = $service->create([
@@ -79,32 +78,18 @@ it('requires a drawn signature to complete a work order from the Filament action
         'priority' => 'p3_medium',
         'title' => 'Test',
         'description' => 'desc',
-    ], $tech);
-    $service->assignTechnician($wo, $tech, TechnicianRole::Technician);
-    $service->transition($wo, WorkOrderStatus::Planned, $tech);
-    $service->transition($wo, WorkOrderStatus::InProgress, $tech);
+    ], $admin);
 
-    $this->actingAs($tech);
+    $this->actingAs($admin);
     Filament::setCurrentPanel(Filament::getPanel('admin'));
     Filament::setTenant($this->tenant);
 
     Livewire::test(ViewWorkOrder::class, ['record' => $wo->id])
-        ->callAction('complete', data: ['work_performed' => 'Listo'])
-        ->assertHasActionErrors(['signature']);
-
-    Livewire::test(ViewWorkOrder::class, ['record' => $wo->id])
-        ->callAction('complete', data: [
-            'work_performed' => 'Listo',
-            'signature' => FAKE_SIGNATURE_DATA_URL,
-        ])
+        ->callAction('close', data: ['work_performed' => 'Listo'])
         ->assertHasNoActionErrors();
 
-    $signature = $wo->fresh()->signatures()
-        ->where('signature_type', WorkOrderSignatureType::TechnicianCompletion->value)
-        ->first();
-
-    expect($wo->fresh()->status)->toBe(WorkOrderStatus::Completed)
-        ->and($signature->image_path)->not->toBeNull();
+    expect($wo->fresh()->status)->toBe(WorkOrderStatus::Closed)
+        ->and($wo->fresh()->work_performed)->toBe('Listo');
 });
 
 it('hides the manual create-signature action from the relation manager', function () {

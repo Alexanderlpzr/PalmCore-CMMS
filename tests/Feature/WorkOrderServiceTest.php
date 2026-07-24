@@ -148,9 +148,10 @@ it('sets started_at when transitioning to in_progress', function () {
 it('throws when transition is invalid', function () {
     $service = app(WorkOrderService::class);
     $user = User::factory()->create();
-    $wo = WorkOrder::factory()->create(); // draft
+    $wo = WorkOrder::factory()->create(); // draft (Abierta)
 
-    expect(fn () => $service->transition($wo, WorkOrderStatus::Closed, $user))
+    // Abierta se puede cerrar directo, pero no saltar a «En Ejecución».
+    expect(fn () => $service->transition($wo, WorkOrderStatus::InProgress, $user))
         ->toThrow(RuntimeException::class);
 });
 

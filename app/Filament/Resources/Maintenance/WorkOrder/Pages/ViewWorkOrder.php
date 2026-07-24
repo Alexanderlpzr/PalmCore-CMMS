@@ -4,7 +4,6 @@ namespace App\Filament\Resources\Maintenance\WorkOrder\Pages;
 
 use App\Domain\Assets\Enums\StoppageCategory;
 use App\Domain\Maintenance\Enums\FailureMode;
-use App\Domain\Maintenance\Enums\WorkOrderSignatureType;
 use App\Domain\Maintenance\Enums\WorkOrderStatus;
 use App\Domain\Maintenance\Services\WorkOrderService;
 use App\Domain\Reports\DTOs\ReportRequest;
@@ -21,7 +20,6 @@ use Filament\Facades\Filament;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\ViewField;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Schemas\Components\Utilities\Get;
@@ -37,58 +35,18 @@ class ViewWorkOrder extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
-            // Plan: Draft → Planned  (work-orders.plan)
-            // No confirmation modal — WorkOrderService already blocks this
-            // transition with a clear error if no technician is assigned yet,
-            // so a "are you sure?" step here would just repeat that check.
-            Action::make('plan')
-                ->label('Planificar')
-                ->tooltip('Confirma técnicos y fechas para dejar la OT lista para iniciar')
-                ->icon(Heroicon::OutlinedCalendar)
-                ->color('info')
-                ->visible(fn (): bool => $this->record->status === WorkOrderStatus::Draft
-                    && auth()->user()->can('work-orders.plan'))
-                ->action(fn (WorkOrderService $service) => $this->doTransition($service, WorkOrderStatus::Planned)),
-
-            // Start: Planned → InProgress  (work-orders.execute)
-            // No confirmation modal — reversible operational toggle used constantly
-            // by técnicos during the day; the confirmation was pure friction.
-            Action::make('start')
-                ->label('Iniciar trabajo')
-                ->tooltip('Empieza la ejecución de la OT y comienza a contar el tiempo trabajado')
-                ->icon(Heroicon::OutlinedPlay)
-                ->color('warning')
-                ->visible(fn (): bool => $this->record->status === WorkOrderStatus::Planned
-                    && auth()->user()->can('work-orders.execute'))
-                ->action(fn (WorkOrderService $service) => $this->doTransition($service, WorkOrderStatus::InProgress)),
-
-            // Pause: InProgress → OnHold  (work-orders.execute)
-            Action::make('pause')
-                ->label('Pausar')
-                ->tooltip('Detiene el conteo de tiempo mientras la OT queda en espera')
-                ->icon(Heroicon::OutlinedPause)
-                ->color('gray')
-                ->visible(fn (): bool => $this->record->status === WorkOrderStatus::InProgress
-                    && auth()->user()->can('work-orders.execute'))
-                ->action(fn (WorkOrderService $service) => $this->doTransition($service, WorkOrderStatus::OnHold)),
-
-            // Resume: OnHold → InProgress  (work-orders.execute)
-            Action::make('resume')
-                ->label('Reanudar')
-                ->tooltip('Retoma la ejecución de la OT desde donde quedó')
-                ->icon(Heroicon::OutlinedPlay)
-                ->color('info')
-                ->visible(fn (): bool => $this->record->status === WorkOrderStatus::OnHold
-                    && auth()->user()->can('work-orders.execute'))
-                ->action(fn (WorkOrderService $service) => $this->doTransition($service, WorkOrderStatus::InProgress)),
-
-            // Complete: InProgress → Completed  (work-orders.execute)
-            Action::make('complete')
-                ->label('Completar')
-                ->tooltip('Registra el trabajo realizado y firma para cerrar la ejecución')
-                ->icon(Heroicon::OutlinedCheckCircle)
+            // Cerrar OT: Abierta → Cerrada  (work-orders.close)
+            // El flujo se colapsó a «crear y cerrar»: aquí se registra qué se hizo,
+            // se clasifica la falla (Tipo I y modo) y se cargan los costos que
+            // alimentan el presupuesto y el dashboard. También sirve para cerrar de
+            // una las OT heredadas que hayan quedado a medio ciclo.
+            Action::make('close')
+                ->label('Cerrar OT')
+                ->tooltip('Registra el trabajo, la falla y los costos, y cierra la OT')
+                ->icon(Heroicon::OutlinedArchiveBox)
                 ->color('success')
-                ->modalHeading('Completar OT')
+                ->modalHeading('Cerrar orden de trabajo')
+                ->modalSubmitActionLabel('Cerrar OT')
                 ->form([
                     Textarea::make('work_performed')
                         ->label('Trabajo realizado')
@@ -104,8 +62,6 @@ class ViewWorkOrder extends ViewRecord
                         ->searchable()
                         ->native(false)
                         ->visible(fn (): bool => $this->record->work_order_type->registersFailure()),
-                    // A4 — el paro nació en «otro» porque al arrancar nadie sabía qué
-                    // se había roto. Ahora el técnico ya destapó la máquina.
                     Select::make('diagnosed_stoppage_category')
                         ->label('Tipo I diagnosticado')
                         ->helperText('Reclasifica el paro que esta OT generó. Sin esto queda como «Otro» y ensucia las horas perdidas por causa.')
@@ -118,95 +74,41 @@ class ViewWorkOrder extends ViewRecord
                     Textarea::make('root_cause')
                         ->label('Causa raíz (si aplica)')
                         ->rows(3),
-                    ViewField::make('signature')
-                        ->label('Firma digital del técnico')
-                        ->view('filament.forms.signature-pad')
-                        ->required()
-                        ->columnSpanFull(),
+                    TextInput::make('actual_cost_labor')
+                        ->label('Costo de mano de obra')
+                        ->helperText('Lo que costó la cuadrilla. Alimenta el gasto de presupuesto al cerrar.')
+                        ->numeric()
+                        ->minValue(0)
+                        ->prefix('$')
+                        ->default(fn () => $this->record->actual_cost_labor),
+                    TextInput::make('actual_cost_parts')
+                        ->label('Costo de repuestos')
+                        ->numeric()
+                        ->minValue(0)
+                        ->prefix('$')
+                        ->default(fn () => $this->record->actual_cost_parts),
+                    TextInput::make('actual_cost_external')
+                        ->label('Costo de terceros')
+                        ->numeric()
+                        ->minValue(0)
+                        ->prefix('$')
+                        ->default(fn () => $this->record->actual_cost_external),
                 ])
-                ->visible(fn (): bool => $this->record->status === WorkOrderStatus::InProgress
-                    && auth()->user()->can('work-orders.execute'))
-                ->action(function (array $data, WorkOrderService $service): void {
-                    $signature = $data['signature'] ?? null;
-                    unset($data['signature']);
-
-                    $this->doTransition($service, WorkOrderStatus::Completed, $data);
-
-                    // Real drawn signature captured on-screen at the moment of completion.
-                    $service->addSignature(
-                        $this->record,
-                        auth()->user(),
-                        WorkOrderSignatureType::TechnicianCompletion,
-                        $data['work_performed'] ?? null,
-                        null,
-                        $signature,
-                    );
-                }),
-
-            // Verify: Completed → Verified  (work-orders.verify — ingeniero/supervisor)
-            Action::make('verify')
-                ->label('Verificar')
-                ->tooltip('Como supervisor: confirma que el trabajo quedó bien hecho y firma')
-                ->icon(Heroicon::OutlinedCheckBadge)
-                ->color('success')
-                ->modalHeading('Verificar trabajo realizado')
-                ->form([
-                    ViewField::make('signature')
-                        ->label('Firma digital del supervisor')
-                        ->view('filament.forms.signature-pad')
-                        ->required()
-                        ->columnSpanFull(),
-                ])
-                ->visible(fn (): bool => $this->record->status === WorkOrderStatus::Completed
-                    && auth()->user()->can('work-orders.verify'))
-                ->action(function (array $data, WorkOrderService $service): void {
-                    $this->doTransition($service, WorkOrderStatus::Verified);
-
-                    // Real drawn signature captured on-screen at the moment of verification.
-                    $service->addSignature(
-                        $this->record,
-                        auth()->user(),
-                        WorkOrderSignatureType::SupervisorVerification,
-                        null,
-                        null,
-                        $data['signature'] ?? null,
-                    );
-
-                    // Recalculate costs before closing
-                    $service->recalculateCosts($this->record);
-                }),
-
-            // Reject back: Completed → InProgress  (work-orders.verify)
-            Action::make('reject_completion')
-                ->label('Rechazar (volver a ejecución)')
-                ->tooltip('El trabajo no quedó conforme — la OT vuelve a "En ejecución"')
-                ->icon(Heroicon::OutlinedArrowUturnLeft)
-                ->color('danger')
-                ->modalHeading('Rechazar trabajo')
-                ->form([
-                    Textarea::make('rejection_reason')
-                        ->label('Motivo del rechazo')
-                        ->required()
-                        ->rows(3),
-                ])
-                ->visible(fn (): bool => $this->record->status === WorkOrderStatus::Completed
-                    && auth()->user()->can('work-orders.verify'))
-                ->action(fn (array $data, WorkOrderService $service) => $this->doTransition(
-                    $service, WorkOrderStatus::InProgress, $data
-                )),
-
-            // Close: Verified → Closed  (work-orders.close)
-            Action::make('close')
-                ->label('Cerrar OT')
-                ->tooltip('Cierra la OT de forma definitiva — ya no podrá modificarse')
-                ->icon(Heroicon::OutlinedArchiveBox)
-                ->color('success')
-                ->requiresConfirmation()
-                ->modalHeading('¿Cerrar definitivamente?')
-                ->modalDescription('Una vez cerrada, la OT no puede modificarse.')
-                ->visible(fn (): bool => $this->record->status === WorkOrderStatus::Verified
+                ->visible(fn (): bool => ! $this->record->status->isTerminal()
                     && auth()->user()->can('work-orders.close'))
-                ->action(fn (WorkOrderService $service) => $this->doTransition($service, WorkOrderStatus::Closed)),
+                ->action(function (array $data, WorkOrderService $service): void {
+                    $labor = $data['actual_cost_labor'] !== null ? (float) $data['actual_cost_labor'] : null;
+                    $parts = $data['actual_cost_parts'] !== null ? (float) $data['actual_cost_parts'] : null;
+                    $external = $data['actual_cost_external'] !== null ? (float) $data['actual_cost_external'] : null;
+                    $total = ($labor ?? 0) + ($parts ?? 0) + ($external ?? 0);
+
+                    $data['actual_cost_labor'] = $labor;
+                    $data['actual_cost_parts'] = $parts;
+                    $data['actual_cost_external'] = $external;
+                    $data['actual_cost_total'] = $total > 0 ? $total : null;
+
+                    $this->doTransition($service, WorkOrderStatus::Closed, $data);
+                }),
 
             // Cancel  (work-orders.update)
             Action::make('cancel')

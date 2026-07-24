@@ -242,8 +242,23 @@ class WorkOrderService
 
         $fromStatus = $workOrder->status;
 
-        $workOrder = DB::transaction(function () use ($workOrder, $fromStatus, $toStatus, $actor, $extra): WorkOrder {
+        // Cierre directo (Abierta → Cerrada) sin pasar por «Completada»: es también
+        // la finalización del trabajo, así que arrastra los efectos que antes
+        // ocurrían al completar (equipo en servicio, consumo de repuestos, reporte
+        // resuelto) y sella las marcas de finalización si aún no existían.
+        $isDirectClose = $toStatus === WorkOrderStatus::Closed
+            && ! in_array($fromStatus, [WorkOrderStatus::Completed, WorkOrderStatus::Verified], strict: true);
+
+        $workOrder = DB::transaction(function () use ($workOrder, $fromStatus, $toStatus, $actor, $extra, $isDirectClose): WorkOrder {
             $timestamps = $this->transitionTimestamps($toStatus, $actor);
+
+            if ($isDirectClose && $workOrder->completed_at === null) {
+                $timestamps += [
+                    'completed_at' => now(),
+                    'actual_end_at' => now(),
+                    'completed_by' => $actor->id,
+                ];
+            }
 
             $workOrder->update(array_merge(['status' => $toStatus->value], $timestamps, $extra));
 
@@ -573,7 +588,8 @@ class WorkOrderService
      */
     private function resolveLinkedIssueReport(WorkOrder $workOrder, WorkOrderStatus $toStatus): void
     {
-        if ($toStatus !== WorkOrderStatus::Completed || $workOrder->issue_report_id === null) {
+        if (! in_array($toStatus, [WorkOrderStatus::Completed, WorkOrderStatus::Closed], strict: true)
+            || $workOrder->issue_report_id === null) {
             return;
         }
 
@@ -609,7 +625,7 @@ class WorkOrderService
             return;
         }
 
-        if ($toStatus === WorkOrderStatus::Completed || $toStatus === WorkOrderStatus::Cancelled) {
+        if (in_array($toStatus, [WorkOrderStatus::Completed, WorkOrderStatus::Closed, WorkOrderStatus::Cancelled], strict: true)) {
             // Completed/Verified/Closed WOs no longer hold the equipment down —
             // their work is finished. Only WOs whose work is still pending
             // (draft/planned/in-progress/on-hold) keep it under maintenance.
@@ -717,6 +733,11 @@ class WorkOrderService
             $toStatus === WorkOrderStatus::Planned => $this->workOrderInventoryService->reservePartsForWorkOrder($workOrder, $actor),
 
             $toStatus === WorkOrderStatus::Completed => $this->workOrderInventoryService->consumePartsForWorkOrder($workOrder, $actor),
+
+            // Cierre directo (Abierta → Cerrada) sin pasar por «Completada»: los
+            // repuestos se consumen aquí, igual que lo harían al completar.
+            $toStatus === WorkOrderStatus::Closed
+                && ! in_array($fromStatus, [WorkOrderStatus::Completed, WorkOrderStatus::Verified], strict: true) => $this->workOrderInventoryService->consumePartsForWorkOrder($workOrder, $actor),
 
             $toStatus === WorkOrderStatus::Cancelled => $this->workOrderInventoryService->releasePartsForWorkOrder($workOrder, $actor),
 

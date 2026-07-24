@@ -78,8 +78,8 @@ class WorkOrderForm
                             ->minValue(0)
                             ->suffix('h'),
                         Select::make('technician_ids')
-                            ->label('Técnicos asignados')
-                            ->helperText('Asigna al menos un técnico aquí para poder planificar la OT sin pasos extra.')
+                            ->label('Técnicos del sistema (opcional)')
+                            ->helperText('Opcional: solo si quieres vincular usuarios del sistema para costeo por hora. Quién hizo el trabajo se escribe en «Ejecutante(s)».')
                             ->multiple()
                             ->options(fn (): array => User::query()->operationalStaff()->orderBy('name')->pluck('name', 'id')->toArray())
                             ->searchable()
