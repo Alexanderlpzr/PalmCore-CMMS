@@ -3,6 +3,8 @@
 namespace App\Filament\Resources\Maintenance\WorkOrder\Schemas;
 
 use App\Domain\Assets\Services\ReferenceDataService;
+use App\Domain\Maintenance\Enums\MaintenanceArea;
+use App\Domain\Maintenance\Enums\PlantProcess;
 use App\Domain\Maintenance\Enums\WorkOrderPriority;
 use App\Domain\Maintenance\Enums\WorkOrderType;
 use App\Domain\Maintenance\Enums\WorkPermitType;
@@ -53,10 +55,28 @@ class WorkOrderForm
                             ->options(WorkOrderPriority::options())
                             ->required()
                             ->default(WorkOrderPriority::P3Medium->value),
+                        Select::make('process')
+                            ->label('Proceso')
+                            ->options(PlantProcess::options())
+                            ->native(false)
+                            ->searchable(),
+                        Select::make('maintenance_area')
+                            ->label('Área de Mtto')
+                            ->options(MaintenanceArea::options())
+                            ->native(false),
                         Select::make('assigned_supervisor')
                             ->label('Supervisor asignado')
                             ->options(fn (): array => User::orderBy('name')->pluck('name', 'id')->toArray())
                             ->searchable(),
+                        TextInput::make('executed_by')
+                            ->label('Ejecutante(s)')
+                            ->helperText('Quién hizo el trabajo — la cuadrilla (ej: «El mecánico y su auxiliar», «Fernando A.»).')
+                            ->maxLength(255),
+                        TextInput::make('meter_reading')
+                            ->label('Horómetro al hacer el trabajo')
+                            ->numeric()
+                            ->minValue(0)
+                            ->suffix('h'),
                         Select::make('technician_ids')
                             ->label('Técnicos asignados')
                             ->helperText('Asigna al menos un técnico aquí para poder planificar la OT sin pasos extra.')

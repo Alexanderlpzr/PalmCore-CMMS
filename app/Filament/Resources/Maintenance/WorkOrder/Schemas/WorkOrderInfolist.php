@@ -4,6 +4,8 @@ namespace App\Filament\Resources\Maintenance\WorkOrder\Schemas;
 
 use App\Domain\Assets\Enums\IssueSeverity;
 use App\Domain\Maintenance\Enums\FailureMode;
+use App\Domain\Maintenance\Enums\MaintenanceArea;
+use App\Domain\Maintenance\Enums\PlantProcess;
 use App\Domain\Maintenance\Enums\WorkOrderPriority;
 use App\Domain\Maintenance\Enums\WorkOrderStatus;
 use App\Domain\Maintenance\Enums\WorkOrderType;
@@ -69,6 +71,23 @@ class WorkOrderInfolist
                             ->badge()
                             ->color(fn (WorkOrderPriority $state): string => $state->color())
                             ->formatStateUsing(fn (WorkOrderPriority $state): string => $state->label()),
+                        TextEntry::make('process')
+                            ->label('Proceso')
+                            ->placeholder('—')
+                            ->formatStateUsing(fn (?PlantProcess $state): ?string => $state?->label()),
+                        TextEntry::make('maintenance_area')
+                            ->label('Área de Mtto')
+                            ->badge()
+                            ->placeholder('—')
+                            ->color(fn (?MaintenanceArea $state): string => $state?->color() ?? 'gray')
+                            ->formatStateUsing(fn (?MaintenanceArea $state): ?string => $state?->label()),
+                        TextEntry::make('executed_by')
+                            ->label('Ejecutante(s)')
+                            ->placeholder('—'),
+                        TextEntry::make('meter_reading')
+                            ->label('Horómetro')
+                            ->placeholder('—')
+                            ->suffix(' h'),
                     ]),
 
                 Section::make('Equipo')

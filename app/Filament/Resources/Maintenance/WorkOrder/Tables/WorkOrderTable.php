@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\Maintenance\WorkOrder\Tables;
 
+use App\Domain\Maintenance\Enums\MaintenanceArea;
+use App\Domain\Maintenance\Enums\PlantProcess;
 use App\Domain\Maintenance\Enums\WorkOrderPriority;
 use App\Domain\Maintenance\Enums\WorkOrderStatus;
 use App\Domain\Maintenance\Enums\WorkOrderType;
@@ -43,6 +45,24 @@ class WorkOrderTable
                     ->color(fn (WorkOrderType $state): string => $state->color())
                     ->formatStateUsing(fn (WorkOrderType $state): string => $state->label())
                     ->sortable(),
+                TextColumn::make('maintenance_area')
+                    ->label('Área de Mtto')
+                    ->badge()
+                    ->placeholder('—')
+                    ->color(fn (?MaintenanceArea $state): string => $state?->color() ?? 'gray')
+                    ->formatStateUsing(fn (?MaintenanceArea $state): ?string => $state?->label())
+                    ->sortable()
+                    ->toggleable(),
+                TextColumn::make('process')
+                    ->label('Proceso')
+                    ->placeholder('—')
+                    ->formatStateUsing(fn (?PlantProcess $state): ?string => $state?->label())
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('executed_by')
+                    ->label('Ejecutante(s)')
+                    ->placeholder('—')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('priority')
                     ->label('Prioridad')
                     ->badge()
@@ -135,6 +155,9 @@ class WorkOrderTable
                 SelectFilter::make('work_order_type')
                     ->label('Tipo')
                     ->options(WorkOrderType::options()),
+                SelectFilter::make('maintenance_area')
+                    ->label('Área de Mtto')
+                    ->options(MaintenanceArea::options()),
                 SelectFilter::make('priority')
                     ->label('Prioridad')
                     ->options(WorkOrderPriority::options()),

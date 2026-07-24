@@ -4,6 +4,8 @@ namespace App\Models;
 
 use App\Domain\Assets\Enums\StoppageCategory;
 use App\Domain\Maintenance\Enums\FailureMode;
+use App\Domain\Maintenance\Enums\MaintenanceArea;
+use App\Domain\Maintenance\Enums\PlantProcess;
 use App\Domain\Maintenance\Enums\WorkOrderPriority;
 use App\Domain\Maintenance\Enums\WorkOrderStatus;
 use App\Domain\Maintenance\Enums\WorkOrderType;
@@ -27,6 +29,10 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'plant_id',
     'area_id',
     'work_order_type',
+    'process',
+    'maintenance_area',
+    'executed_by',
+    'meter_reading',
     'status',
     'priority',
     'title',
@@ -310,6 +316,9 @@ class WorkOrder extends BaseModel
     {
         return [
             'work_order_type' => WorkOrderType::class,
+            'process' => PlantProcess::class,
+            'maintenance_area' => MaintenanceArea::class,
+            'meter_reading' => 'float',
             'status' => WorkOrderStatus::class,
             'priority' => WorkOrderPriority::class,
             'failure_mode' => FailureMode::class,
