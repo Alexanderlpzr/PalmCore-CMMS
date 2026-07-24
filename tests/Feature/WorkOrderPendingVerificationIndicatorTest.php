@@ -34,7 +34,10 @@ beforeEach(function () {
     Filament::setTenant($this->tenant);
 });
 
-it('shows the pending-verification banner once the técnico completes and signs the OT', function () {
+// El flujo se colapsó a «crear y cerrar»: la etapa «Verificada» se retiró, así
+// que el banner «En revisión» ya no debe aparecer ni siquiera en una OT que, por
+// datos heredados, quede en estado «Completada».
+it('does not show the pending-verification banner — the verification stage was retired', function () {
     $service = app(WorkOrderService::class);
     $tech = User::factory()->create(['is_active' => true]);
 
@@ -52,7 +55,7 @@ it('shows the pending-verification banner once the técnico completes and signs 
     $service->transition($wo, WorkOrderStatus::Completed, $this->admin);
 
     Livewire::test(ViewWorkOrder::class, ['record' => $wo->id])
-        ->assertSee('En revisión');
+        ->assertDontSee('En revisión');
 });
 
 it('hides the pending-verification banner once the supervisor verifies the OT', function () {

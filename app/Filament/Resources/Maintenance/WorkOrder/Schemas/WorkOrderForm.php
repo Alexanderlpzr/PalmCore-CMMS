@@ -7,12 +7,8 @@ use App\Domain\Maintenance\Enums\MaintenanceArea;
 use App\Domain\Maintenance\Enums\PlantProcess;
 use App\Domain\Maintenance\Enums\WorkOrderPriority;
 use App\Domain\Maintenance\Enums\WorkOrderType;
-use App\Domain\Maintenance\Enums\WorkPermitType;
 use App\Models\Equipment;
-use App\Models\User;
 use Filament\Facades\Filament;
-use Filament\Forms\Components\CheckboxList;
-use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -64,10 +60,6 @@ class WorkOrderForm
                             ->label('Área de Mtto')
                             ->options(MaintenanceArea::options())
                             ->native(false),
-                        Select::make('assigned_supervisor')
-                            ->label('Supervisor asignado')
-                            ->options(fn (): array => User::orderBy('name')->pluck('name', 'id')->toArray())
-                            ->searchable(),
                         TextInput::make('executed_by')
                             ->label('Ejecutante(s)')
                             ->helperText('Quién hizo el trabajo — la cuadrilla (ej: «El mecánico y su auxiliar», «Fernando A.»).')
@@ -77,14 +69,6 @@ class WorkOrderForm
                             ->numeric()
                             ->minValue(0)
                             ->suffix('h'),
-                        Select::make('technician_ids')
-                            ->label('Técnicos del sistema (opcional)')
-                            ->helperText('Opcional: solo si quieres vincular usuarios del sistema para costeo por hora. Quién hizo el trabajo se escribe en «Ejecutante(s)».')
-                            ->multiple()
-                            ->options(fn (): array => User::query()->operationalStaff()->orderBy('name')->pluck('name', 'id')->toArray())
-                            ->searchable()
-                            ->visibleOn('create')
-                            ->columnSpanFull(),
                         TextInput::make('title')
                             ->label('Título')
                             ->required()
@@ -101,25 +85,6 @@ class WorkOrderForm
                             ->columnSpanFull(),
                     ]),
 
-                Section::make('Planificación')
-                    ->columns(2)
-                    ->schema([
-                        DateTimePicker::make('planned_start_at')
-                            ->label('Inicio planificado')
-                            ->displayFormat('d/m/Y H:i'),
-                        DateTimePicker::make('planned_end_at')
-                            ->label('Fin planificado')
-                            ->displayFormat('d/m/Y H:i'),
-                        TextInput::make('planned_labor_hours')
-                            ->label('Horas de labor planificadas')
-                            ->numeric()
-                            ->suffix('h'),
-                        TextInput::make('estimated_cost')
-                            ->label('Costo estimado')
-                            ->numeric()
-                            ->prefix('$'),
-                    ]),
-
                 Section::make('Impacto en Equipo')
                     ->columns(2)
                     ->schema([
@@ -131,18 +96,6 @@ class WorkOrderForm
                             ->label('Tiempo de paro (minutos)')
                             ->numeric()
                             ->visible(fn (Get $get): bool => (bool) $get('equipment_stopped')),
-                    ]),
-
-                Section::make('Seguridad (HSE)')
-                    ->description('Lo declara quien planifica: es quien sabe que hay que soldar sobre la nave o entrar al digestor.')
-                    ->schema([
-                        CheckboxList::make('required_permit_types')
-                            ->label('Permisos de trabajo exigidos')
-                            ->options(WorkPermitType::options())
-                            ->columns(2)
-                            // No es un recordatorio: la OT no pasa a ejecución sin el
-                            // permiso firmado y vigente de cada tipo marcado aquí.
-                            ->helperText('La OT no podrá iniciarse hasta que cada permiso marcado esté emitido, firmado por el ejecutante y vigente.'),
                     ]),
 
                 // Hidden auto-populated fields

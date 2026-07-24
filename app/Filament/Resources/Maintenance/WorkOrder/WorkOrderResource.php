@@ -8,12 +8,7 @@ use App\Filament\Resources\Maintenance\WorkOrder\Pages\ListWorkOrders;
 use App\Filament\Resources\Maintenance\WorkOrder\Pages\ViewWorkOrder;
 use App\Filament\Resources\Maintenance\WorkOrder\RelationManagers\AttachmentsRelationManager;
 use App\Filament\Resources\Maintenance\WorkOrder\RelationManagers\CommentsRelationManager;
-use App\Filament\Resources\Maintenance\WorkOrder\RelationManagers\ContractorsRelationManager;
 use App\Filament\Resources\Maintenance\WorkOrder\RelationManagers\PartsRelationManager;
-use App\Filament\Resources\Maintenance\WorkOrder\RelationManagers\PermitsRelationManager;
-use App\Filament\Resources\Maintenance\WorkOrder\RelationManagers\SignaturesRelationManager;
-use App\Filament\Resources\Maintenance\WorkOrder\RelationManagers\TechniciansRelationManager;
-use App\Filament\Resources\Maintenance\WorkOrder\RelationManagers\TimeLogsRelationManager;
 use App\Filament\Resources\Maintenance\WorkOrder\Schemas\WorkOrderForm;
 use App\Filament\Resources\Maintenance\WorkOrder\Schemas\WorkOrderInfolist;
 use App\Filament\Resources\Maintenance\WorkOrder\Tables\WorkOrderTable;
@@ -59,21 +54,20 @@ class WorkOrderResource extends Resource
 
     public static function getRelations(): array
     {
+        // El flujo se colapsó a «crear y cerrar» (como el Excel del cliente): se
+        // dejan solo las pestañas que aportan a ese registro. Técnicos, Contratistas,
+        // Permisos de trabajo, Registro de Tiempo y Firmas de Conformidad se retiran
+        // (sus relation managers quedan en disco, dormidos).
         return [
-            'technicians' => TechniciansRelationManager::class,
-            'contractors' => ContractorsRelationManager::class,
-            'permits' => PermitsRelationManager::class,
-            'timeLogs' => TimeLogsRelationManager::class,
             'parts' => PartsRelationManager::class,
             'comments' => CommentsRelationManager::class,
             'attachments' => AttachmentsRelationManager::class,
-            'signatures' => SignaturesRelationManager::class,
         ];
     }
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->with(['equipment'])->withCount('technicians');
+        return parent::getEloquentQuery()->with(['equipment']);
     }
 
     public static function getPages(): array
