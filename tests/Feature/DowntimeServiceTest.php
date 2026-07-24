@@ -82,6 +82,44 @@ it('un Tipo II operativo (atascamiento) no cuenta como falla de mantenimiento', 
         ->and($event->stoppage_category->isMaintenanceResponsibility())->toBeFalse();
 });
 
+it('un paro de falla de mantenimiento marca la última falla del equipo', function (): void {
+    $equipment = Equipment::factory()->create([
+        'tenant_id' => $this->tenant->id,
+        'plant_id' => $this->plant->id,
+        'last_failure_at' => null,
+    ]);
+    $started = now()->subHours(2);
+
+    $this->service->register([
+        'tenant_id' => $this->tenant->id,
+        'equipment_id' => $equipment->id,
+        'stoppage_reason' => StoppageReason::FallaMecanica->value,
+        'started_at' => $started,
+        'ended_at' => now()->subHour(),
+    ], $this->actor);
+
+    // Antes lo marcaba la OT; ahora lo marca el registro manual del paro.
+    expect($equipment->fresh()->last_failure_at?->timestamp)->toBe($started->timestamp);
+});
+
+it('un paro operativo no marca la última falla (no es de mantenimiento)', function (): void {
+    $equipment = Equipment::factory()->create([
+        'tenant_id' => $this->tenant->id,
+        'plant_id' => $this->plant->id,
+        'last_failure_at' => null,
+    ]);
+
+    $this->service->register([
+        'tenant_id' => $this->tenant->id,
+        'equipment_id' => $equipment->id,
+        'stoppage_reason' => StoppageReason::Atascamiento->value,
+        'started_at' => now()->subHour(),
+        'ended_at' => now(),
+    ], $this->actor);
+
+    expect($equipment->fresh()->last_failure_at)->toBeNull();
+});
+
 it('derives the plant from the equipment when only the equipment is given', function (): void {
     $event = $this->service->start([
         'tenant_id' => $this->tenant->id,

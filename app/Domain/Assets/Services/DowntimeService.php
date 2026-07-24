@@ -57,11 +57,15 @@ class DowntimeService
 
             $this->assertNoOverlap($attributes);
 
-            return EquipmentDowntimeEvent::create([
+            $event = EquipmentDowntimeEvent::create([
                 ...$attributes,
                 'ended_at' => null,
                 'duration_minutes' => null,
             ]);
+
+            $this->touchLastFailure($event);
+
+            return $event;
         });
     }
 
@@ -139,11 +143,15 @@ class DowntimeService
         return DB::transaction(function () use ($attributes, $endedAt): EquipmentDowntimeEvent {
             $this->assertNoOverlap($attributes, $endedAt);
 
-            return EquipmentDowntimeEvent::create([
+            $event = EquipmentDowntimeEvent::create([
                 ...$attributes,
                 'ended_at' => $endedAt,
                 'duration_minutes' => (int) round($attributes['started_at']->diffInMinutes($endedAt)),
             ]);
+
+            $this->touchLastFailure($event);
+
+            return $event;
         });
     }
 
@@ -190,7 +198,10 @@ class DowntimeService
             'stoppage_cause' => $cause ?? $event->stoppage_cause,
         ]);
 
-        return $event->refresh();
+        $event->refresh();
+        $this->touchLastFailure($event);
+
+        return $event;
     }
 
     /**
@@ -421,6 +432,33 @@ class DowntimeService
     }
 
     // ── Internals ─────────────────────────────────────────────────────────────
+
+    /**
+     * Un paro de falla de mantenimiento (mecánica/eléctrica/instrumentación) es la
+     * «última falla» del equipo — el dato que alimentan el MTBF y las alertas de
+     * confiabilidad. Antes lo marcaba la OT; ahora que los paros son manuales, lo
+     * marca su registro. Solo avanza: un paro cargado con fecha vieja no pisa una
+     * falla más reciente.
+     */
+    private function touchLastFailure(EquipmentDowntimeEvent $event): void
+    {
+        if ($event->equipment_id === null) {
+            return;
+        }
+
+        $category = $event->stoppage_category;
+
+        if ($category === null || ! $category->isMaintenanceResponsibility() || $category->isPlanned()) {
+            return;
+        }
+
+        Equipment::withoutGlobalScopes()
+            ->whereKey($event->equipment_id)
+            ->where(fn (Builder $query): Builder => $query
+                ->whereNull('last_failure_at')
+                ->orWhere('last_failure_at', '<', $event->started_at))
+            ->update(['last_failure_at' => $event->started_at]);
+    }
 
     /**
      * Solo se firman horas que existen y que le costaron producción a la planta: un

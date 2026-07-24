@@ -2,11 +2,7 @@
 
 namespace App\Domain\Maintenance\Services;
 
-use App\Domain\Assets\Enums\EquipmentDowntimeCauseType;
 use App\Domain\Assets\Enums\EquipmentStatus;
-use App\Domain\Assets\Enums\StoppageCategory;
-use App\Domain\Assets\Services\DowntimeService;
-use App\Domain\Maintenance\Enums\FailureMode;
 use App\Domain\Maintenance\Enums\MaintenanceRequestStatus;
 use App\Domain\Maintenance\Enums\TechnicianRole;
 use App\Domain\Maintenance\Enums\TimeLogActivityType;
@@ -22,7 +18,6 @@ use App\Events\WorkOrderStatusChanged;
 use App\Exceptions\BusinessRuleException;
 use App\Models\Contractor;
 use App\Models\Equipment;
-use App\Models\EquipmentDowntimeEvent;
 use App\Models\MaintenancePlan;
 use App\Models\MaintenanceRequest;
 use App\Models\User;
@@ -45,7 +40,6 @@ class WorkOrderService
         private readonly ActivityLocationService $locationService,
         private readonly WorkOrderTaskService $taskService,
         private readonly WorkPermitService $permitService,
-        private readonly DowntimeService $downtimeService,
     ) {}
 
     // ── Numbering ─────────────────────────────────────────────────────────────
@@ -135,7 +129,6 @@ class WorkOrderService
             // any failure-type WO even if the machine kept running.
             if ($startsNow) {
                 $this->syncEquipmentStatus($workOrder, WorkOrderStatus::InProgress);
-                $this->syncDowntimeEvent($workOrder, WorkOrderStatus::InProgress);
                 $this->syncTimeLogOnTransition($workOrder, WorkOrderStatus::InProgress, $createdBy);
             }
 
@@ -228,7 +221,6 @@ class WorkOrderService
             $workOrder->update(array_merge(['status' => $toStatus->value], $timestamps, $extra));
 
             $this->syncEquipmentStatus($workOrder, $toStatus);
-            $this->syncDowntimeEvent($workOrder, $toStatus);
             $this->syncInventoryOnTransition($workOrder, $fromStatus, $toStatus, $actor);
             $this->syncTimeLogOnTransition($workOrder, $toStatus, $actor);
 
@@ -591,167 +583,6 @@ class WorkOrderService
                 $equipment->update(['status' => EquipmentStatus::Active->value]);
             }
         }
-    }
-
-    // ── Downtime Event Sync ───────────────────────────────────────────────────
-
-    /**
-     * Create or close the downtime/failure event tied to this WO.
-     *
-     * Fires when the equipment was stopped (any WO type — a planned preventive
-     * stop is downtime too) OR when the WO type is itself a failure (corrective/
-     * emergency), so reliability KPIs count the failure even when the machine
-     * kept running. A failure with no stoppage is recorded as a point-in-time
-     * event (closed immediately, zero duration): it feeds failure_count / MTBF /
-     * Pareto but never touches availability or the equipment status.
-     *
-     * Real stoppages are closed when the work is *completed* (using actual_end_at,
-     * the real end of execution) rather than at administrative closure, so MTTR
-     * and availability are not inflated by a delayed supervisor sign-off. A
-     * supervisor rejection (Completed → InProgress) re-opens the paro.
-     */
-    private function syncDowntimeEvent(WorkOrder $workOrder, WorkOrderStatus $toStatus): void
-    {
-        if (! $workOrder->equipment_stopped && ! $workOrder->work_order_type->registersFailure()) {
-            return;
-        }
-
-        $causeType = EquipmentDowntimeCauseType::fromWorkOrderType($workOrder->work_order_type);
-
-        if ($toStatus === WorkOrderStatus::InProgress) {
-            $startedAt = $workOrder->actual_start_at ?? now();
-            $stopped = (bool) $workOrder->equipment_stopped;
-
-            // Two OTs can intervene the same machine at once; the machine is still
-            // down only once. A second paro here would bill those hours twice — and
-            // the database now refuses it outright. The paro already open covers it.
-            if ($stopped && $this->openStoppageOf($workOrder) !== null) {
-                $workOrder->equipment->update(['last_failure_at' => $startedAt]);
-
-                return;
-            }
-
-            $event = EquipmentDowntimeEvent::firstOrCreate(
-                ['work_order_id' => $workOrder->id],
-                [
-                    'tenant_id' => $workOrder->tenant_id,
-                    'plant_id' => $workOrder->plant_id ?? $workOrder->equipment?->plant_id,
-                    'equipment_id' => $workOrder->equipment_id,
-                    'work_order_number' => $workOrder->work_order_number,
-                    'started_at' => $startedAt,
-                    'cause_type' => $causeType->value,
-                    'stoppage_category' => StoppageCategory::fromWorkOrderType($workOrder->work_order_type)->value,
-                    'was_planned' => $causeType->wasPlanned(),
-                    'source' => 'work_order',
-                    // A failure with the line still running costs no production
-                    // hours — it must not be subtracted from plant efficiency.
-                    'affects_production' => $stopped,
-                    // No stoppage → point-in-time failure: close it now with zero
-                    // downtime so it counts as a failure without hurting availability.
-                    'ended_at' => $stopped ? null : $startedAt,
-                    'duration_minutes' => $stopped ? null : 0,
-                ]
-            );
-
-            // Rejected verification re-opened a real paro: clear the close so it
-            // keeps accruing. Only meaningful for stoppages (point-in-time
-            // failures stay closed).
-            if ($stopped && ! $event->wasRecentlyCreated && $event->ended_at !== null) {
-                $event->update(['ended_at' => null, 'duration_minutes' => null]);
-            }
-
-            $workOrder->equipment->update(['last_failure_at' => $startedAt]);
-
-            return;
-        }
-
-        if (in_array($toStatus, [WorkOrderStatus::Completed, WorkOrderStatus::Cancelled, WorkOrderStatus::Closed], strict: true)) {
-            $event = EquipmentDowntimeEvent::where('work_order_id', $workOrder->id)->first();
-
-            // Propagate the failure mode diagnosed at completion — works for both
-            // real paros (still open) and point-in-time failures (already closed).
-            if ($event !== null && $workOrder->failure_mode !== null && $event->failure_mode === null) {
-                $event->update([
-                    'failure_mode' => $workOrder->failure_mode instanceof FailureMode
-                        ? $workOrder->failure_mode->value
-                        : $workOrder->failure_mode,
-                ]);
-            }
-
-            if ($event !== null) {
-                $this->propagateDiagnosedCategory($workOrder, $event);
-            }
-
-            // The paro belongs to the machine, not to this OT: it may have been
-            // opened by an earlier OT, and it must stay open while another OT is
-            // still working on the stopped equipment. It closes when the last one
-            // walks away.
-            $paro = $event?->isOngoing()
-                ? $event
-                : ($workOrder->equipment_stopped ? $this->openStoppageOf($workOrder) : null);
-
-            if ($paro === null || $this->hasOtherStoppedWorkInProgress($workOrder)) {
-                return;
-            }
-
-            // Close at the real end of execution. A WO already closed at Completed
-            // must not have its real end overwritten later.
-            $endedAt = $workOrder->actual_end_at ?? now();
-
-            $paro->update([
-                'ended_at' => $endedAt,
-                'duration_minutes' => $workOrder->downtime_minutes
-                    ?? (int) abs($paro->started_at->diffInMinutes($endedAt)),
-            ]);
-        }
-    }
-
-    /**
-     * A4 — el diagnóstico del técnico baja al paro.
-     *
-     * El paro nació en «otro» porque al arrancar la OT nadie sabía qué se había
-     * roto. Ahora el técnico ya destapó la máquina: su Tipo I manda sobre el que la
-     * OT dedujo de su propio tipo. Un paro programado no se toca — su Tipo I viene
-     * del origen, no del hallazgo, y el servicio de paros lo rechazaría.
-     */
-    private function propagateDiagnosedCategory(WorkOrder $workOrder, EquipmentDowntimeEvent $event): void
-    {
-        $diagnosed = $workOrder->diagnosed_stoppage_category;
-
-        if ($diagnosed === null || $event->was_planned || $diagnosed->isPlanned()) {
-            return;
-        }
-
-        $this->downtimeService->reclassify($event, $diagnosed, $workOrder->failure_cause);
-    }
-
-    /**
-     * The paro currently keeping this OT's equipment down, whichever OT opened it.
-     */
-    private function openStoppageOf(WorkOrder $workOrder): ?EquipmentDowntimeEvent
-    {
-        if ($workOrder->equipment_id === null) {
-            return null;
-        }
-
-        return EquipmentDowntimeEvent::where('equipment_id', $workOrder->equipment_id)
-            ->whereNull('ended_at')
-            ->orderBy('started_at')
-            ->first();
-    }
-
-    /** Is another OT still working on this machine with it stopped? */
-    private function hasOtherStoppedWorkInProgress(WorkOrder $workOrder): bool
-    {
-        if ($workOrder->equipment_id === null) {
-            return false;
-        }
-
-        return WorkOrder::where('equipment_id', $workOrder->equipment_id)
-            ->whereKeyNot($workOrder->id)
-            ->where('equipment_stopped', true)
-            ->where('status', WorkOrderStatus::InProgress)
-            ->exists();
     }
 
     /**
