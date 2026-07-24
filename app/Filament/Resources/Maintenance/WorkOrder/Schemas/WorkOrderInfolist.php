@@ -2,10 +2,12 @@
 
 namespace App\Filament\Resources\Maintenance\WorkOrder\Schemas;
 
+use App\Domain\Assets\Enums\IssueSeverity;
 use App\Domain\Maintenance\Enums\FailureMode;
 use App\Domain\Maintenance\Enums\WorkOrderPriority;
 use App\Domain\Maintenance\Enums\WorkOrderStatus;
 use App\Domain\Maintenance\Enums\WorkOrderType;
+use App\Filament\Resources\Maintenance\IssueReport\IssueReportResource;
 use App\Models\WorkOrder;
 use Filament\Infolists\Components\IconEntry;
 use Filament\Infolists\Components\TextEntry;
@@ -174,6 +176,40 @@ class WorkOrderInfolist
                         TextEntry::make('verifiedBy.name')->label('Verificado por')->placeholder('—'),
                         TextEntry::make('verified_at')->label('Verificado el')->dateTime('d/m/Y H:i')->placeholder('—'),
                         TextEntry::make('maintenanceRequest.request_number')->label('Solicitud origen')->placeholder('—'),
+                    ]),
+
+                // Trazabilidad inversa: si la OT nació de un reporte de novedad, se
+                // muestra el reporte y un enlace para ir a él.
+                Section::make('Reporte de origen')
+                    ->description('Esta orden nació de un reporte de novedad.')
+                    ->visible(fn (WorkOrder $record): bool => $record->issue_report_id !== null)
+                    ->columns(2)
+                    ->schema([
+                        TextEntry::make('issueReport.reporter_name')
+                            ->label('Reportado por')
+                            ->placeholder('—'),
+                        TextEntry::make('issueReport.severity')
+                            ->label('Severidad')
+                            ->badge()
+                            ->placeholder('—')
+                            ->formatStateUsing(fn (?IssueSeverity $state): string => $state?->label() ?? '—')
+                            ->color(fn (?IssueSeverity $state): string => $state?->color() ?? 'gray'),
+                        TextEntry::make('issueReport.description')
+                            ->label('Novedad reportada')
+                            ->columnSpanFull()
+                            ->placeholder('—'),
+                        TextEntry::make('issueReport.created_at')
+                            ->label('Fecha del reporte')
+                            ->dateTime('d/m/Y H:i')
+                            ->placeholder('—'),
+                        TextEntry::make('issue_report_link')
+                            ->label('Trazabilidad')
+                            ->state('Ver reporte de novedad →')
+                            ->url(fn (WorkOrder $record): ?string => $record->issue_report_id !== null
+                                ? IssueReportResource::getUrl('view', ['record' => $record->issue_report_id])
+                                : null)
+                            ->openUrlInNewTab()
+                            ->color('primary'),
                     ]),
             ]);
     }
