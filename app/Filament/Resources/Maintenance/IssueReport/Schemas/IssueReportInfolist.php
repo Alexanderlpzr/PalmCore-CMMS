@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Maintenance\IssueReport\Schemas;
 
 use App\Domain\Assets\Enums\IssueSeverity;
 use App\Domain\Maintenance\Enums\IssueReportStatus;
+use App\Domain\Maintenance\Enums\WorkOrderStatus;
 use App\Models\EquipmentIssueReport;
 use Filament\Infolists\Components\ImageEntry;
 use Filament\Infolists\Components\TextEntry;
@@ -72,12 +73,29 @@ class IssueReportInfolist
                             ->label('Notas internas')
                             ->placeholder('—')
                             ->columnSpanFull(),
-                        TextEntry::make('maintenanceRequest.request_number')
-                            ->label('Solicitud de mantenimiento')
-                            ->placeholder('Sin convertir'),
                         TextEntry::make('created_at')
                             ->label('Fecha de reporte')
                             ->dateTime('d/m/Y H:i'),
+                    ]),
+
+                // Trazabilidad reporte → OT → solución: la OT que atendió el reporte y,
+                // cuando se completó, lo que se hizo.
+                Section::make('Orden de trabajo')
+                    ->columns(2)
+                    ->schema([
+                        TextEntry::make('workOrder.work_order_number')
+                            ->label('OT')
+                            ->placeholder('Sin OT — usa «Crear OT»'),
+                        TextEntry::make('workOrder.status')
+                            ->label('Estado de la OT')
+                            ->badge()
+                            ->placeholder('—')
+                            ->formatStateUsing(fn (?WorkOrderStatus $state): string => $state?->label() ?? '—')
+                            ->color(fn (?WorkOrderStatus $state): string => $state?->color() ?? 'gray'),
+                        TextEntry::make('workOrder.work_performed')
+                            ->label('Solución (lo que se hizo)')
+                            ->placeholder('Pendiente')
+                            ->columnSpanFull(),
                     ]),
             ]);
     }

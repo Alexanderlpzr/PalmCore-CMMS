@@ -21,6 +21,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'tenant_id',
     'work_order_number',
     'maintenance_request_id',
+    'issue_report_id',
     'maintenance_plan_id',
     'equipment_id',
     'plant_id',
@@ -77,6 +78,12 @@ class WorkOrder extends BaseModel
     public function maintenanceRequest(): BelongsTo
     {
         return $this->belongsTo(MaintenanceRequest::class);
+    }
+
+    /** El reporte de novedad que originó esta OT, si nació de uno. */
+    public function issueReport(): BelongsTo
+    {
+        return $this->belongsTo(EquipmentIssueReport::class, 'issue_report_id');
     }
 
     public function maintenancePlan(): BelongsTo

@@ -34,6 +34,13 @@ class MaintenanceRequestResource extends Resource
 
     protected static ?int $navigationSort = 2;
 
+    // La Solicitud dejó de ser un paso: el reporte de novedad crea la OT directo.
+    // Se saca del menú; la ruta y el código siguen vivos para los datos existentes.
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
+
     protected static bool $isScopedToTenant = true;
 
     public static function form(Schema $schema): Schema

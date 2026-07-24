@@ -75,6 +75,12 @@ class EquipmentIssueReport extends BaseModel
         return $this->hasOne(MaintenanceRequest::class, 'issue_report_id');
     }
 
+    /** La OT que se creó a partir de este reporte, si ya se creó. */
+    public function workOrder(): HasOne
+    {
+        return $this->hasOne(WorkOrder::class, 'issue_report_id');
+    }
+
     // ── Scopes ────────────────────────────────────────────────────────────────
 
     public function scopeOpen(Builder $query): Builder
@@ -101,6 +107,18 @@ class EquipmentIssueReport extends BaseModel
     public function markConvertedToMr(): void
     {
         $this->update(['status' => IssueReportStatus::ConvertedToMR]);
+    }
+
+    /** El reporte ya tiene su OT abierta. */
+    public function markConvertedToWo(): void
+    {
+        $this->update(['status' => IssueReportStatus::ConvertedToWO]);
+    }
+
+    /** La OT que lo atendió se completó: el reporte queda resuelto. */
+    public function markResolved(): void
+    {
+        $this->update(['status' => IssueReportStatus::Resolved]);
     }
 
     // ── Casts ─────────────────────────────────────────────────────────────────

@@ -3,6 +3,7 @@
 namespace App\Domain\Maintenance\Services;
 
 use App\Domain\Assets\Enums\EquipmentStatus;
+use App\Domain\Maintenance\Enums\IssueReportStatus;
 use App\Domain\Maintenance\Enums\MaintenanceRequestStatus;
 use App\Domain\Maintenance\Enums\TechnicianRole;
 use App\Domain\Maintenance\Enums\TimeLogActivityType;
@@ -18,6 +19,7 @@ use App\Events\WorkOrderStatusChanged;
 use App\Exceptions\BusinessRuleException;
 use App\Models\Contractor;
 use App\Models\Equipment;
+use App\Models\EquipmentIssueReport;
 use App\Models\MaintenancePlan;
 use App\Models\MaintenanceRequest;
 use App\Models\User;
@@ -141,6 +143,31 @@ class WorkOrderService
     }
 
     /**
+     * Crea una OT directamente desde un reporte de novedad y las liga, para la
+     * trazabilidad reporte → OT → solución. El reporte queda «OT creada» y, al
+     * completarse la OT, pasa solo a «Resuelto» (ver resolveLinkedIssueReport).
+     */
+    public function createFromIssueReport(
+        EquipmentIssueReport $report,
+        array $data,
+        User $createdBy,
+    ): WorkOrder {
+        return DB::transaction(function () use ($report, $data, $createdBy): WorkOrder {
+            $workOrder = $this->create([
+                ...$data,
+                'tenant_id' => $report->tenant_id,
+                'issue_report_id' => $report->id,
+                'equipment_id' => $report->equipment_id,
+                'description' => $data['description'] ?? $report->description,
+            ], $createdBy);
+
+            $report->markConvertedToWo();
+
+            return $workOrder;
+        });
+    }
+
+    /**
      * Convert an approved MaintenanceRequest into a WorkOrder (draft).
      * Updates MR status to Converted.
      */
@@ -223,6 +250,7 @@ class WorkOrderService
             $this->syncEquipmentStatus($workOrder, $toStatus);
             $this->syncInventoryOnTransition($workOrder, $fromStatus, $toStatus, $actor);
             $this->syncTimeLogOnTransition($workOrder, $toStatus, $actor);
+            $this->resolveLinkedIssueReport($workOrder, $toStatus);
 
             // Se acabó el trabajo: se retiran los candados. Un permiso que queda
             // abierto es un equipo que sigue bloqueado y nadie sabe por qué.
@@ -536,6 +564,24 @@ class WorkOrderService
         Storage::disk(private_files_disk())->put($path, $binary);
 
         return $path;
+    }
+
+    /**
+     * La OT que nació de un reporte de novedad se completó: el reporte queda
+     * «Resuelto». Cierra el ciclo reporte → OT → solución sin que nadie tenga que
+     * hacerlo a mano. La solución se lee de la OT (lo que se hizo).
+     */
+    private function resolveLinkedIssueReport(WorkOrder $workOrder, WorkOrderStatus $toStatus): void
+    {
+        if ($toStatus !== WorkOrderStatus::Completed || $workOrder->issue_report_id === null) {
+            return;
+        }
+
+        $report = $workOrder->issueReport;
+
+        if ($report !== null && $report->status !== IssueReportStatus::Resolved) {
+            $report->markResolved();
+        }
     }
 
     // ── Equipment Status Sync ─────────────────────────────────────────────────
