@@ -11,7 +11,6 @@ use App\Domain\Reports\Enums\ReportType;
 use App\Domain\Reports\Services\ReportManager;
 use App\Filament\Resources\Concerns\HasBackAction;
 use App\Filament\Resources\Maintenance\WorkOrder\WorkOrderResource;
-use App\Models\EquipmentComponent;
 use App\Models\WorkOrder;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
@@ -22,8 +21,6 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
-use Filament\Schemas\Components\Utilities\Get;
-use Filament\Schemas\Components\Utilities\Set;
 use Filament\Support\Icons\Heroicon;
 
 class ViewWorkOrder extends ViewRecord
@@ -74,38 +71,19 @@ class ViewWorkOrder extends ViewRecord
                     Textarea::make('root_cause')
                         ->label('Causa raíz (si aplica)')
                         ->rows(3),
-                    TextInput::make('actual_cost_labor')
-                        ->label('Costo de mano de obra')
-                        ->helperText('Lo que costó la cuadrilla. Alimenta el gasto de presupuesto al cerrar.')
+                    TextInput::make('actual_cost_total')
+                        ->label('Costo')
+                        ->helperText('Costo total de la OT. Alimenta el gasto de presupuesto al cerrar.')
                         ->numeric()
                         ->minValue(0)
                         ->prefix('$')
-                        ->default(fn () => $this->record->actual_cost_labor),
-                    TextInput::make('actual_cost_parts')
-                        ->label('Costo de repuestos')
-                        ->numeric()
-                        ->minValue(0)
-                        ->prefix('$')
-                        ->default(fn () => $this->record->actual_cost_parts),
-                    TextInput::make('actual_cost_external')
-                        ->label('Costo de terceros')
-                        ->numeric()
-                        ->minValue(0)
-                        ->prefix('$')
-                        ->default(fn () => $this->record->actual_cost_external),
+                        ->default(fn () => $this->record->actual_cost_total),
                 ])
                 ->visible(fn (): bool => ! $this->record->status->isTerminal()
                     && auth()->user()->can('work-orders.close'))
                 ->action(function (array $data, WorkOrderService $service): void {
-                    $labor = $data['actual_cost_labor'] !== null ? (float) $data['actual_cost_labor'] : null;
-                    $parts = $data['actual_cost_parts'] !== null ? (float) $data['actual_cost_parts'] : null;
-                    $external = $data['actual_cost_external'] !== null ? (float) $data['actual_cost_external'] : null;
-                    $total = ($labor ?? 0) + ($parts ?? 0) + ($external ?? 0);
-
-                    $data['actual_cost_labor'] = $labor;
-                    $data['actual_cost_parts'] = $parts;
-                    $data['actual_cost_external'] = $external;
-                    $data['actual_cost_total'] = $total > 0 ? $total : null;
+                    $total = $data['actual_cost_total'] !== null ? (float) $data['actual_cost_total'] : null;
+                    $data['actual_cost_total'] = $total !== null && $total > 0 ? $total : null;
 
                     $this->doTransition($service, WorkOrderStatus::Closed, $data);
                 }),
@@ -124,69 +102,25 @@ class ViewWorkOrder extends ViewRecord
                     && auth()->user()->can('work-orders.update'))
                 ->action(fn (WorkOrderService $service) => $this->doTransition($service, WorkOrderStatus::Cancelled)),
 
-            // Manual cost override (work-orders.update — admin/supervisor/ingeniero,
-            // not técnico). The automatic labor/parts calculation depends on data
-            // that isn't always complete (técnico hourly_rate, part costs), so this
-            // lets whoever's responsible for the OT type the real numbers in
-            // directly — available at any status, since costs are usually only
-            // known once the work is done.
+            // Ajuste manual del costo (work-orders.update — admin/supervisor, no
+            // técnico). Un solo número: el costo total de la OT. Disponible en
+            // cualquier estado, porque el costo se suele conocer al terminar.
             Action::make('edit_costs')
-                ->label('Editar Costos')
-                ->tooltip('Ajusta manualmente los costos de esta OT')
+                ->label('Editar Costo')
+                ->tooltip('Ajusta manualmente el costo de esta OT')
                 ->icon(Heroicon::OutlinedCurrencyDollar)
                 ->color('gray')
                 ->visible(fn (): bool => auth()->user()->can('work-orders.update'))
                 ->fillForm(fn (WorkOrder $record): array => [
-                    'estimated_cost' => $record->estimated_cost,
-                    'actual_cost_labor' => $record->actual_cost_labor,
-                    'actual_cost_parts' => $record->actual_cost_parts,
-                    'actual_cost_external' => $record->actual_cost_external,
+                    'actual_cost_total' => $record->actual_cost_total,
                 ])
-                ->modalHeading('Editar Costos')
+                ->modalHeading('Editar Costo')
                 ->form([
-                    TextInput::make('estimated_cost')
-                        ->label('Estimado')
+                    TextInput::make('actual_cost_total')
+                        ->label('Costo')
+                        ->helperText('Costo total de la OT. Alimenta el gasto de presupuesto.')
                         ->numeric()
-                        ->prefix('$'),
-                    TextInput::make('actual_cost_labor')
-                        ->label('Mano de obra')
-                        ->numeric()
-                        ->prefix('$'),
-                    TextInput::make('actual_cost_parts')
-                        ->label('Repuestos')
-                        ->numeric()
-                        ->prefix('$')
-                        ->live(),
-                    Select::make('component_replaced')
-                        ->label('Pieza reemplazada')
-                        ->helperText('Selecciona una pieza del equipo para sumar su costo registrado a "Repuestos".')
-                        ->options(fn (): array => EquipmentComponent::where('equipment_id', $this->record->equipment_id)
-                            ->whereNotNull('unit_cost')
-                            ->orderBy('name')
-                            ->get()
-                            ->mapWithKeys(fn (EquipmentComponent $component): array => [
-                                $component->id => "{$component->name} — $".number_format((float) $component->unit_cost, 2),
-                            ])
-                            ->toArray())
-                        ->searchable()
-                        ->dehydrated(false)
-                        ->live()
-                        ->afterStateUpdated(function (Get $get, Set $set, ?string $state): void {
-                            if ($state === null) {
-                                return;
-                            }
-
-                            $unitCost = EquipmentComponent::find($state)?->unit_cost;
-
-                            if ($unitCost !== null) {
-                                $set('actual_cost_parts', round((float) ($get('actual_cost_parts') ?? 0) + (float) $unitCost, 2));
-                            }
-
-                            $set('component_replaced', null);
-                        }),
-                    TextInput::make('actual_cost_external')
-                        ->label('Externo')
-                        ->numeric()
+                        ->minValue(0)
                         ->prefix('$'),
                 ])
                 ->action(function (array $data, WorkOrderService $service): void {
@@ -194,7 +128,7 @@ class ViewWorkOrder extends ViewRecord
                     $this->record->refresh();
 
                     Notification::make()
-                        ->title('Costos actualizados')
+                        ->title('Costo actualizado')
                         ->success()
                         ->send();
                 }),

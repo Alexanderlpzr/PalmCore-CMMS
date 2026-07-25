@@ -49,14 +49,11 @@ it('returns the stopped equipment to service when the OT is closed directly', fu
     expect($wo->equipment->fresh()->status)->toBe(EquipmentStatus::Active);
 });
 
-it('creates budget expenses per cost bucket when the OT is closed with costs', function () {
+it('creates a single budget expense from the OT total cost when closed', function () {
     $wo = openWorkOrder($this->tenant);
 
     app(WorkOrderService::class)->transition($wo, WorkOrderStatus::Closed, $this->actor, [
         'work_performed' => 'Cambio de rodamiento',
-        'actual_cost_labor' => 100000,
-        'actual_cost_parts' => 250000,
-        'actual_cost_external' => 0,
         'actual_cost_total' => 350000,
     ]);
 
@@ -64,11 +61,10 @@ it('creates budget expenses per cost bucket when the OT is closed with costs', f
         ->where('tenant_id', $this->tenant->id)
         ->get();
 
-    // Solo se crean gastos para los conceptos con monto > 0 (terceros era 0).
-    expect($expenses)->toHaveCount(2)
-        ->and($expenses->firstWhere('category', ExpenseCategory::ManoDeObra)?->amount)->toBe(100000.0)
-        ->and($expenses->firstWhere('category', ExpenseCategory::Repuestos)?->amount)->toBe(250000.0)
-        ->and($expenses->firstWhere('category', ExpenseCategory::ServiciosTerceros))->toBeNull();
+    // Un solo gasto con el costo total de la OT, sin desglosar por concepto.
+    expect($expenses)->toHaveCount(1)
+        ->and($expenses->first()->amount)->toBe(350000.0)
+        ->and($expenses->first()->category)->toBe(ExpenseCategory::Otros);
 });
 
 it('does not create budget expenses when the OT is closed with no costs', function () {

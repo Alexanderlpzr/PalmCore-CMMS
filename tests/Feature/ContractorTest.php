@@ -91,7 +91,7 @@ it('freezes what was agreed even if the contractor rate changes later', function
 it('does not wipe a manually typed external cost when no contractor was priced', function (): void {
     $workOrder = contractedWorkOrder();
 
-    $this->service->updateCosts($workOrder, ['actual_cost_external' => 750_000]);
+    $workOrder->update(['actual_cost_external' => 750_000]);
     // Se registra quién lo hizo, pero todavía no llegó la factura.
     $this->service->assignContractor($workOrder, $this->contractor);
 

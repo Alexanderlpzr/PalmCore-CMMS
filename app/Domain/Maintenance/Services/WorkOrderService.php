@@ -494,25 +494,19 @@ class WorkOrderService
     }
 
     /**
-     * Manual override for when the automatic labor/parts calculation is
-     * incomplete (e.g. a técnico's hourly_rate was never set) — lets an
-     * admin/supervisor type the real costs in directly.
+     * Manual override del costo de la OT. Se simplificó a un solo número: el costo
+     * total. Es lo único que el cliente carga (y lo que alimenta el presupuesto),
+     * sin desglosar mano de obra / repuestos / terceros.
      *
-     * @param  array{estimated_cost?: ?float, actual_cost_labor?: ?float, actual_cost_parts?: ?float, actual_cost_external?: ?float}  $data
+     * @param  array{actual_cost_total?: ?float}  $data
      */
     public function updateCosts(WorkOrder $workOrder, array $data): void
     {
-        $laborCost = $data['actual_cost_labor'] ?? null;
-        $partsCost = $data['actual_cost_parts'] ?? null;
-        $externalCost = $data['actual_cost_external'] ?? null;
-        $total = ($laborCost ?? 0) + ($partsCost ?? 0) + ($externalCost ?? 0);
+        $total = $data['actual_cost_total'] ?? null;
+        $total = $total !== null ? (float) $total : null;
 
         $workOrder->update([
-            'estimated_cost' => $data['estimated_cost'] ?? null,
-            'actual_cost_labor' => $laborCost,
-            'actual_cost_parts' => $partsCost,
-            'actual_cost_external' => $externalCost,
-            'actual_cost_total' => $total > 0 ? $total : null,
+            'actual_cost_total' => $total !== null && $total > 0 ? $total : null,
         ]);
     }
 

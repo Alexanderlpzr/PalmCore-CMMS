@@ -110,38 +110,13 @@ class WorkOrderInfolist
                             ->visible(fn (WorkOrder $record): bool => $record->diagnosed_stoppage_category !== null),
                     ]),
 
-                Section::make('Costos')
-                    ->columns(3)
+                Section::make('Costo')
                     ->schema([
-                        TextEntry::make('estimated_cost')->label('Estimado')->money('COP')->placeholder('—'),
-                        TextEntry::make('actual_cost_total')->label('Total real')->money('COP')->placeholder('—'),
-                        TextEntry::make('cost_variance')
-                            ->label('Desviación (real − estimado)')
-                            ->badge()
+                        TextEntry::make('actual_cost_total')
+                            ->label('Costo de la OT')
+                            ->money('COP')
                             ->placeholder('—')
-                            ->getStateUsing(function (WorkOrder $record): ?string {
-                                $variance = $record->costVariance();
-
-                                if ($variance === null) {
-                                    return null;
-                                }
-
-                                $pct = $record->costVariancePercentage();
-                                $sign = $variance > 0 ? '+' : ($variance < 0 ? '−' : '');
-                                $amount = number_format(abs($variance), 0, ',', '.');
-                                $suffix = $pct !== null ? ' ('.($pct > 0 ? '+' : '').$pct.'%)' : '';
-
-                                return $sign.'$'.$amount.$suffix;
-                            })
-                            ->color(fn (WorkOrder $record): string => match (true) {
-                                $record->costVariance() === null => 'gray',
-                                $record->costVariance() > 0 => 'danger',   // over budget
-                                $record->costVariance() < 0 => 'success',  // under budget
-                                default => 'gray',
-                            }),
-                        TextEntry::make('actual_cost_labor')->label('Mano de obra')->money('COP')->placeholder('—'),
-                        TextEntry::make('actual_cost_parts')->label('Repuestos')->money('COP')->placeholder('—'),
-                        TextEntry::make('actual_cost_external')->label('Externo')->money('COP')->placeholder('—'),
+                            ->helperText('Alimenta los gastos del presupuesto al cerrar la OT.'),
                     ]),
 
                 Section::make('Seguimiento')
