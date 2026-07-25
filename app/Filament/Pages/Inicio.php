@@ -181,8 +181,8 @@ class Inicio extends Page
         $sentence = Arr::random($catalogue[$tone] ?? $catalogue['brand']);
 
         if ($tone === 'warning') {
-            $count = (int) ($byKey['overdue_work_orders']['count'] ?? 0)
-                + (int) ($byKey['pending_requests']['count'] ?? 0);
+            $count = (int) ($byKey['equipos_parados']['count'] ?? 0)
+                + (int) ($byKey['pending_issue_reports']['count'] ?? 0);
 
             return strtr($sentence, [
                 '{n}' => $count,

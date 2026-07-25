@@ -162,11 +162,11 @@
             <h2 id="attention-heading" class="mb-5 text-xl font-bold tracking-tight text-gray-900 dark:text-white">
                 Atención requerida
             </h2>
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 @foreach ($home->attentionItems as $item)
                     @php $isZero = (int) $item['count'] === 0; @endphp
                     <a href="{{ $item['route'] }}"
-                       aria-label="{{ $item['count'] }} {{ $item['label'] }} — {{ $item['hint'] }}"
+                       aria-label="{{ $item['count'] }}{{ $item['suffix'] ?? '' }} {{ $item['label'] }} — {{ $item['hint'] }}"
                        @class([
                             'group relative flex flex-col gap-3 rounded-2xl border p-5 shadow-sm ring-1 ring-transparent transition duration-200 hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500',
                             'border-gray-100 bg-white dark:border-gray-700 dark:bg-gray-800' => ! $isZero,
@@ -179,23 +179,28 @@
                                 <x-filament::icon :icon="$item['icon']" class="h-6 w-6" />
                             </span>
                             @if ($isZero)
-                                <span class="text-3xl font-bold tabular-nums text-gray-300 dark:text-gray-600">0</span>
+                                <span class="text-3xl font-bold tabular-nums text-gray-300 dark:text-gray-600">0{{ $item['suffix'] ?? '' }}</span>
                             @else
-                                <span
-                                    class="text-3xl font-bold tabular-nums {{ $toneAccent[$item['tone']] }}"
-                                    x-data="{ n: 0, target: {{ (int) $item['count'] }} }"
-                                    x-init="
-                                        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { n = target; return }
-                                        const start = performance.now(), dur = 340;
-                                        const step = (t) => {
-                                            const p = Math.min((t - start) / dur, 1);
-                                            n = Math.round((1 - Math.pow(1 - p, 3)) * target);
-                                            if (p < 1) requestAnimationFrame(step);
-                                        };
-                                        requestAnimationFrame(step);
-                                    "
-                                    x-text="n"
-                                >{{ $item['count'] }}</span>
+                                <span class="inline-flex items-baseline gap-0.5">
+                                    <span
+                                        class="text-3xl font-bold tabular-nums {{ $toneAccent[$item['tone']] }}"
+                                        x-data="{ n: 0, target: {{ (int) $item['count'] }} }"
+                                        x-init="
+                                            if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { n = target; return }
+                                            const start = performance.now(), dur = 340;
+                                            const step = (t) => {
+                                                const p = Math.min((t - start) / dur, 1);
+                                                n = Math.round((1 - Math.pow(1 - p, 3)) * target);
+                                                if (p < 1) requestAnimationFrame(step);
+                                            };
+                                            requestAnimationFrame(step);
+                                        "
+                                        x-text="n"
+                                    >{{ $item['count'] }}</span>
+                                    @if (! empty($item['suffix']))
+                                        <span class="text-xl font-bold {{ $toneAccent[$item['tone']] }}">{{ $item['suffix'] }}</span>
+                                    @endif
+                                </span>
                             @endif
                         </div>
                         <div>
@@ -216,7 +221,7 @@
             <h2 id="actions-heading" class="mb-5 text-xl font-bold tracking-tight text-gray-900 dark:text-white">
                 Acciones rápidas
             </h2>
-            <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+            <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
                 @foreach ($home->quickActions as $action)
                     <a href="{{ $action['route'] }}"
                        aria-label="{{ $action['label'] }} — {{ $action['description'] }}"

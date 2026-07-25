@@ -3,14 +3,18 @@
 namespace App\Domain\Home\Services;
 
 use App\Domain\Home\Enums\AnnouncementCategory;
+use App\Domain\Maintenance\Services\StaleMeterReadingService;
 use App\Models\Alert;
 use App\Models\Announcement;
 use App\Models\CarouselSlide;
+use App\Models\EquipmentDowntimeEvent;
 use App\Models\EquipmentIssueReport;
-use App\Models\MaintenanceRequest;
+use App\Models\MaintenanceBudget;
+use App\Models\MaintenanceBudgetExpense;
 use App\Models\MaintenanceSchedule;
 use App\Models\WorkOrder;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 
 /**
@@ -111,14 +115,20 @@ class HomePageService
     public function attentionRequired(string $tenantSlug): array
     {
         return $this->remember('attention', function () use ($tenantSlug): array {
-            $overdueWorkOrders = WorkOrder::query()
-                ->whereIn('status', ['planned', 'in_progress', 'on_hold'])
-                ->whereNotNull('planned_end_at')
-                ->where('planned_end_at', '<', now())
+            $criticalAlerts = Alert::query()
+                ->where('severity', 'critical')
+                ->where('status', 'open')
                 ->count();
 
-            $pendingRequests = MaintenanceRequest::query()
-                ->whereIn('status', ['submitted', 'under_review'])
+            // Paros en curso (sin hora de fin): lo más urgente de vigilar.
+            $equiposParados = EquipmentDowntimeEvent::query()->ongoing()->count();
+
+            $pendingIssueReports = EquipmentIssueReport::query()->open()->count();
+
+            // OT abiertas = por cerrar. Ya no hay «vencidas»: el flujo es crear y
+            // cerrar, sin fechas de plazo.
+            $openWorkOrders = WorkOrder::query()
+                ->whereNotIn('status', ['closed', 'cancelled'])
                 ->count();
 
             // MaintenanceSchedule does NOT extend BaseModel (no TenantScope),
@@ -129,31 +139,47 @@ class HomePageService
                 ->whereBetween('next_due_at', [now(), now()->addDays(7)])
                 ->count();
 
-            $criticalAlerts = Alert::query()
-                ->where('severity', 'critical')
-                ->where('status', 'open')
-                ->count();
+            // Equipos con horómetro sin lectura reciente (config stale_reading_days).
+            $staleMeters = count(app(StaleMeterReadingService::class)->detect($this->tenantId));
 
-            $pendingIssueReports = EquipmentIssueReport::query()->open()->count();
+            $budgetPercent = $this->budgetUsedPercent();
 
             return [
                 [
-                    'key' => 'overdue_work_orders',
-                    'count' => $overdueWorkOrders,
-                    'label' => 'OT vencidas',
-                    'hint' => 'Órdenes de trabajo fuera de plazo',
-                    'icon' => 'heroicon-o-clock',
-                    'route' => "/admin/{$tenantSlug}/maintenance/work-order/work-orders",
+                    'key' => 'critical_alerts',
+                    'count' => $criticalAlerts,
+                    'label' => 'Alertas críticas',
+                    'hint' => 'Requieren atención inmediata',
+                    'icon' => 'heroicon-o-bell-alert',
+                    'route' => "/admin/{$tenantSlug}/alerts",
+                    'tone' => 'danger',
+                ],
+                [
+                    'key' => 'equipos_parados',
+                    'count' => $equiposParados,
+                    'label' => 'Equipos parados',
+                    'hint' => 'Paros en curso, sin hora de fin',
+                    'icon' => 'heroicon-o-exclamation-circle',
+                    'route' => "/admin/{$tenantSlug}/downtime/downtime-events",
                     'tone' => 'warning',
                 ],
                 [
-                    'key' => 'pending_requests',
-                    'count' => $pendingRequests,
-                    'label' => 'Solicitudes pendientes',
-                    'hint' => 'Esperan revisión o aprobación',
-                    'icon' => 'heroicon-o-inbox-arrow-down',
-                    'route' => "/admin/{$tenantSlug}/maintenance/maintenance-request/maintenance-requests",
-                    'tone' => 'info',
+                    'key' => 'pending_issue_reports',
+                    'count' => $pendingIssueReports,
+                    'label' => 'Reportes de novedad pendientes',
+                    'hint' => 'Reportes de falla sin atender',
+                    'icon' => 'heroicon-o-exclamation-triangle',
+                    'route' => "/admin/{$tenantSlug}/maintenance/issue-report/issue-reports",
+                    'tone' => 'danger',
+                ],
+                [
+                    'key' => 'open_work_orders',
+                    'count' => $openWorkOrders,
+                    'label' => 'OT abiertas',
+                    'hint' => 'Órdenes de trabajo por cerrar',
+                    'icon' => 'heroicon-o-clipboard-document-list',
+                    'route' => "/admin/{$tenantSlug}/maintenance/work-order/work-orders",
+                    'tone' => 'warning',
                 ],
                 [
                     'key' => 'upcoming_preventives',
@@ -165,22 +191,30 @@ class HomePageService
                     'tone' => 'brand',
                 ],
                 [
-                    'key' => 'critical_alerts',
-                    'count' => $criticalAlerts,
-                    'label' => 'Alertas críticas',
-                    'hint' => 'Requieren atención inmediata',
-                    'icon' => 'heroicon-o-bell-alert',
-                    'route' => "/admin/{$tenantSlug}/alerts",
-                    'tone' => 'danger',
+                    'key' => 'stale_meters',
+                    'count' => $staleMeters,
+                    'label' => 'Horómetros sin lectura',
+                    'hint' => 'Equipos que necesitan captura de horómetro',
+                    'icon' => 'heroicon-o-clock',
+                    'route' => "/admin/{$tenantSlug}/meter-readings",
+                    'tone' => 'info',
                 ],
                 [
-                    'key' => 'pending_issue_reports',
-                    'count' => $pendingIssueReports,
-                    'label' => 'Reportes de novedad pendientes',
-                    'hint' => 'Reportes de falla sin atender',
-                    'icon' => 'heroicon-o-exclamation-triangle',
-                    'route' => "/admin/{$tenantSlug}/maintenance/issue-report/issue-reports",
-                    'tone' => 'danger',
+                    'key' => 'budget_used',
+                    'count' => $budgetPercent ?? 0,
+                    'suffix' => $budgetPercent !== null ? '%' : '',
+                    'label' => 'Presupuesto ejecutado',
+                    'hint' => $budgetPercent !== null
+                        ? 'Del presupuesto de mantenimiento del mes'
+                        : 'Sin presupuesto definido este mes',
+                    'icon' => 'heroicon-o-banknotes',
+                    'route' => "/admin/{$tenantSlug}/presupuesto",
+                    'tone' => match (true) {
+                        $budgetPercent === null => 'neutral',
+                        $budgetPercent >= 100 => 'danger',
+                        $budgetPercent >= 85 => 'warning',
+                        default => 'brand',
+                    },
                 ],
             ];
         });
@@ -225,6 +259,34 @@ class HomePageService
     }
 
     /**
+     * Porcentaje del presupuesto de mantenimiento del mes ya ejecutado (gasto /
+     * presupuesto), sumado sobre las plantas del tenant. Null cuando no hay
+     * presupuesto definido para el mes en curso.
+     */
+    private function budgetUsedPercent(): ?int
+    {
+        $now = Carbon::now();
+
+        $budget = (float) MaintenanceBudget::query()
+            ->where('year', $now->year)
+            ->where('month', $now->month)
+            ->sum('amount');
+
+        if ($budget <= 0) {
+            return null;
+        }
+
+        $spent = (float) MaintenanceBudgetExpense::query()
+            ->whereBetween('expense_date', [
+                $now->copy()->startOfMonth()->toDateString(),
+                $now->copy()->endOfMonth()->toDateString(),
+            ])
+            ->sum('amount');
+
+        return (int) round($spent / $budget * 100);
+    }
+
+    /**
      * Derive the HERO status line from the live attention counts — a calm,
      * human sentence, not a KPI. Returns the message plus a DS tone for the dot.
      *
@@ -235,8 +297,8 @@ class HomePageService
     {
         $byKey = collect($attention)->keyBy('key');
         $critical = (int) ($byKey['critical_alerts']['count'] ?? 0);
-        $overdue = (int) ($byKey['overdue_work_orders']['count'] ?? 0);
-        $pending = (int) ($byKey['pending_requests']['count'] ?? 0);
+        $parados = (int) ($byKey['equipos_parados']['count'] ?? 0);
+        $reports = (int) ($byKey['pending_issue_reports']['count'] ?? 0);
 
         if ($critical > 0) {
             return [
@@ -247,7 +309,7 @@ class HomePageService
             ];
         }
 
-        $tasks = $overdue + $pending;
+        $tasks = $parados + $reports;
 
         if ($tasks > 0) {
             return [
@@ -276,24 +338,31 @@ class HomePageService
         return [
             [
                 'label' => 'Nueva OT',
-                'description' => 'Crea una orden de trabajo correctiva o preventiva.',
+                'description' => 'Crea una orden de trabajo y ciérrala para llevar control.',
                 'icon' => 'heroicon-o-clipboard-document-list',
                 'route' => "/admin/{$tenantSlug}/maintenance/work-order/work-orders/create",
                 'tone' => 'brand',
             ],
             [
-                'label' => 'Nueva solicitud',
-                'description' => 'Registra una solicitud de mantenimiento.',
-                'icon' => 'heroicon-o-inbox-arrow-down',
-                'route' => "/admin/{$tenantSlug}/maintenance/maintenance-request/maintenance-requests/create",
+                'label' => 'Reportar falla',
+                'description' => 'Notifica una incidencia en planta.',
+                'icon' => 'heroicon-o-exclamation-triangle',
+                'route' => "/admin/{$tenantSlug}/maintenance/issue-report/issue-reports",
+                'tone' => 'danger',
+            ],
+            [
+                'label' => 'Capturar horómetros',
+                'description' => 'Registra las horas de los equipos del día.',
+                'icon' => 'heroicon-o-clock',
+                'route' => "/admin/{$tenantSlug}/meter-readings",
                 'tone' => 'info',
             ],
             [
-                'label' => 'Nuevo equipo',
-                'description' => 'Da de alta un activo en el inventario.',
-                'icon' => 'heroicon-o-wrench-screwdriver',
-                'route' => "/admin/{$tenantSlug}/equipment/create",
-                'tone' => 'brand',
+                'label' => 'Registrar paro',
+                'description' => 'Anota un paro de equipo en planta.',
+                'icon' => 'heroicon-o-exclamation-circle',
+                'route' => "/admin/{$tenantSlug}/downtime/downtime-events/create",
+                'tone' => 'warning',
             ],
             [
                 'label' => 'Escanear QR',
@@ -303,11 +372,11 @@ class HomePageService
                 'tone' => 'neutral',
             ],
             [
-                'label' => 'Reportar falla',
-                'description' => 'Notifica una incidencia en planta.',
-                'icon' => 'heroicon-o-exclamation-triangle',
-                'route' => "/admin/{$tenantSlug}/maintenance/issue-report/issue-reports",
-                'tone' => 'danger',
+                'label' => 'Presupuesto',
+                'description' => 'Gastos del mes y cuánto falta del presupuesto.',
+                'icon' => 'heroicon-o-banknotes',
+                'route' => "/admin/{$tenantSlug}/presupuesto",
+                'tone' => 'brand',
             ],
             [
                 'label' => 'Dashboard',
@@ -320,7 +389,7 @@ class HomePageService
     }
 
     /**
-     * Chronological cross-domain activity (work orders, requests, alerts),
+     * Chronological cross-domain activity (work orders, issue reports, alerts),
      * merged newest-first for the timeline. Each entry carries the actor, a
      * human action verb, the entity, an icon, a discreet DS tone and the time.
      *
@@ -345,20 +414,20 @@ class HomePageService
                     'at' => $wo->created_at,
                 ]);
 
-            $requests = MaintenanceRequest::query()
-                ->with(['equipment:id,name', 'createdBy:id,name'])
+            $issueReports = EquipmentIssueReport::query()
+                ->with(['equipment:id,name'])
                 ->latest('created_at')
                 ->limit($limit)
                 ->get()
-                ->map(fn (MaintenanceRequest $mr): array => [
-                    'type' => 'request',
-                    'icon' => 'heroicon-o-inbox-arrow-down',
-                    'tone' => 'info',
-                    'actor' => $mr->createdBy?->name ?? 'Sistema',
-                    'action' => 'registró la solicitud',
-                    'title' => trim(($mr->request_number ? "{$mr->request_number} · " : '').$mr->title),
-                    'meta' => $mr->equipment?->name,
-                    'at' => $mr->created_at,
+                ->map(fn (EquipmentIssueReport $report): array => [
+                    'type' => 'issue_report',
+                    'icon' => 'heroicon-o-exclamation-triangle',
+                    'tone' => 'warning',
+                    'actor' => $report->reporter_name ?? 'Sistema',
+                    'action' => 'reportó una novedad',
+                    'title' => str(strip_tags((string) $report->description))->limit(80)->value() ?: 'Reporte de novedad',
+                    'meta' => $report->equipment?->name,
+                    'at' => $report->created_at,
                 ]);
 
             $alerts = Alert::query()
@@ -377,7 +446,7 @@ class HomePageService
                 ]);
 
             return $workOrders
-                ->concat($requests)
+                ->concat($issueReports)
                 ->concat($alerts)
                 ->filter(fn (array $item): bool => $item['at'] instanceof CarbonInterface)
                 ->sortByDesc(fn (array $item): CarbonInterface => $item['at'])

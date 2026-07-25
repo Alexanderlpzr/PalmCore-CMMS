@@ -85,25 +85,23 @@ it('newsAndCommunications returns non-pinned news and communications only', func
     expect(collect($news)->pluck('title')->all())->toBe(['Noticia']);
 });
 
-it('quickActions builds six tenant-scoped tiles with DS tones (no violet)', function () {
+it('quickActions builds seven tenant-scoped tiles with DS tones (no violet)', function () {
     $tenant = homePageTenant();
 
     $actions = (new HomePageService($tenant->id))->quickActions('acme');
 
-    expect($actions)->toHaveCount(6)
+    expect($actions)->toHaveCount(7)
         ->and($actions[0])->toHaveKeys(['label', 'description', 'icon', 'route', 'tone'])
         ->and($actions[0]['route'])->toContain('/admin/acme/')
         ->and(collect($actions)->pluck('tone')->unique()->all())
         ->each->toBeIn(['brand', 'emerald', 'info', 'blue', 'warning', 'amber', 'danger', 'red', 'neutral', 'gray']);
 });
 
-it('attentionRequired returns five counted, routed, toned cards', function () {
+it('attentionRequired returns seven counted, routed, toned cards', function () {
     $tenant = homePageTenant();
 
-    // Overdue WO (planned end in the past, still open)
-    WorkOrder::factory()->for($tenant)->create([
-        'status' => 'in_progress', 'planned_end_at' => now()->subDays(2),
-    ]);
+    // Open WO (any non-terminal status counts as "por cerrar")
+    WorkOrder::factory()->for($tenant)->create(['status' => 'in_progress']);
     // Critical open alert
     Alert::query()->forceCreate([
         'tenant_id' => $tenant->id, 'severity' => 'critical', 'category' => 'maintenance',
@@ -115,8 +113,8 @@ it('attentionRequired returns five counted, routed, toned cards', function () {
 
     $items = (new HomePageService($tenant->id))->attentionRequired('acme');
 
-    expect($items)->toHaveCount(5)
-        ->and(collect($items)->keyBy('key')->get('overdue_work_orders')['count'])->toBe(1)
+    expect($items)->toHaveCount(7)
+        ->and(collect($items)->keyBy('key')->get('open_work_orders')['count'])->toBe(1)
         ->and(collect($items)->keyBy('key')->get('critical_alerts')['count'])->toBe(1)
         ->and(collect($items)->keyBy('key')->get('pending_issue_reports')['count'])->toBe(1)
         ->and($items[0])->toHaveKeys(['key', 'count', 'label', 'hint', 'icon', 'route', 'tone']);
@@ -126,13 +124,11 @@ it('attentionRequired reflects a new work order without waiting for the cache TT
     $tenant = homePageTenant();
     $service = new HomePageService($tenant->id);
 
-    expect(collect($service->attentionRequired('acme'))->keyBy('key')->get('overdue_work_orders')['count'])->toBe(0);
+    expect(collect($service->attentionRequired('acme'))->keyBy('key')->get('open_work_orders')['count'])->toBe(0);
 
-    WorkOrder::factory()->for($tenant)->create([
-        'status' => 'in_progress', 'planned_end_at' => now()->subDays(2),
-    ]);
+    WorkOrder::factory()->for($tenant)->create(['status' => 'in_progress']);
 
-    expect(collect($service->attentionRequired('acme'))->keyBy('key')->get('overdue_work_orders')['count'])->toBe(1);
+    expect(collect($service->attentionRequired('acme'))->keyBy('key')->get('open_work_orders')['count'])->toBe(1);
 });
 
 it('attentionRequired reflects a new issue report without waiting for the cache TTL', function () {
@@ -152,22 +148,22 @@ it('heroStatus escalates from stable to attention to critical', function () {
 
     $stable = $service->heroStatus([
         ['key' => 'critical_alerts', 'count' => 0],
-        ['key' => 'overdue_work_orders', 'count' => 0],
-        ['key' => 'pending_requests', 'count' => 0],
+        ['key' => 'equipos_parados', 'count' => 0],
+        ['key' => 'pending_issue_reports', 'count' => 0],
     ]);
     expect($stable['tone'])->toBe('brand')->and($stable['message'])->toContain('estable');
 
     $attention = $service->heroStatus([
         ['key' => 'critical_alerts', 'count' => 0],
-        ['key' => 'overdue_work_orders', 'count' => 2],
-        ['key' => 'pending_requests', 'count' => 1],
+        ['key' => 'equipos_parados', 'count' => 2],
+        ['key' => 'pending_issue_reports', 'count' => 1],
     ]);
     expect($attention['tone'])->toBe('warning')->and($attention['message'])->toContain('3 tareas');
 
     $critical = $service->heroStatus([
         ['key' => 'critical_alerts', 'count' => 1],
-        ['key' => 'overdue_work_orders', 'count' => 5],
-        ['key' => 'pending_requests', 'count' => 0],
+        ['key' => 'equipos_parados', 'count' => 5],
+        ['key' => 'pending_issue_reports', 'count' => 0],
     ]);
     expect($critical['tone'])->toBe('danger')->and($critical['message'])->toContain('inmediata');
 });
@@ -213,8 +209,8 @@ it('snapshot returns a HomePageData with every section and merged hero status', 
 
     expect($data->hero['greeting'])->toBe('Buenos días')
         ->and($data->hero['status'])->toHaveKeys(['message', 'tone'])
-        ->and($data->attentionItems)->toHaveCount(5)
-        ->and($data->quickActions)->toHaveCount(6)
+        ->and($data->attentionItems)->toHaveCount(7)
+        ->and($data->quickActions)->toHaveCount(7)
         ->and($data->carouselSlides)->toBeArray()
         ->and($data->importantNotices)->toBeArray()
         ->and($data->newsAndCommunications)->toBeArray()
