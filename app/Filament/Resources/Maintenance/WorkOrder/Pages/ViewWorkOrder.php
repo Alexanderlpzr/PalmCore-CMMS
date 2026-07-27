@@ -24,6 +24,7 @@ use Filament\Resources\Pages\ViewRecord;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Support\Icons\Heroicon;
+use Filament\Support\RawJs;
 
 class ViewWorkOrder extends ViewRecord
 {
@@ -176,6 +177,12 @@ class ViewWorkOrder extends ViewRecord
                 ->numeric()
                 ->minValue(0)
                 ->prefix('$')
+                // Formatea con separador de miles mientras se escribe (COP suele
+                // teclearse "150.000" o "150,000") y lo limpia antes de guardar —
+                // sin esto un separador tecleado rompe el cast numérico y el valor
+                // llega mal (o en 0) al servidor sin ningún aviso.
+                ->mask(RawJs::make('$money($input)'))
+                ->stripCharacters(',')
                 ->default(fn (): ?float => $this->record->actual_cost_labor)
                 ->live(onBlur: true)
                 ->afterStateUpdated($recompute),
@@ -184,6 +191,8 @@ class ViewWorkOrder extends ViewRecord
                 ->numeric()
                 ->minValue(0)
                 ->prefix('$')
+                ->mask(RawJs::make('$money($input)'))
+                ->stripCharacters(',')
                 ->default(fn (): ?float => $this->record->actual_cost_parts)
                 ->live(onBlur: true)
                 ->afterStateUpdated($recompute),
@@ -193,6 +202,8 @@ class ViewWorkOrder extends ViewRecord
                 ->numeric()
                 ->minValue(0)
                 ->prefix('$')
+                ->mask(RawJs::make('$money($input)'))
+                ->stripCharacters(',')
                 ->default(fn (): ?float => $this->record->actual_cost_consumables)
                 ->live(onBlur: true)
                 ->afterStateUpdated($recompute),
