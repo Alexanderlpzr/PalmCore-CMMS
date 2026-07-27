@@ -109,9 +109,9 @@ class EquipmentForm
                             ->nullable(),
                         Select::make('meter_capture_mode')
                             ->label('Qué se captura en la ronda')
-                            ->helperText('«Horas trabajadas por día»: escribes las horas de ese día (se suman). «Horómetro acumulado»: escribes lo que marca el cuenta-horas (siempre sube) y el sistema calcula la diferencia.')
+                            ->helperText('«Horómetro acumulado» (lo normal): escribes lo que marca el cuenta-horas hoy y el sistema calcula las horas trabajadas como la diferencia con la lectura anterior. «Horas trabajadas por día»: solo para equipos sin dial, donde se teclean directamente las horas de ese día.')
                             ->options(MeterCaptureMode::options())
-                            ->default(MeterCaptureMode::DailyHours->value)
+                            ->default(MeterCaptureMode::Accumulated->value)
                             ->native(false)
                             ->required(),
                     ]),

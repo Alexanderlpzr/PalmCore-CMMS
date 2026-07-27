@@ -1,5 +1,6 @@
 <?php
 
+use App\Domain\Assets\Enums\MeterCaptureMode;
 use App\Filament\Resources\Equipment\Pages\CreateEquipment;
 use App\Models\Area;
 use App\Models\Equipment;
@@ -84,6 +85,25 @@ it('creates the equipment components inline from the create form', function () {
 
     expect($power->tenant_id)->toBe($this->tenant->id)
         ->and((int) $power->useful_life_hours)->toBe(5000);
+});
+
+it('defaults new equipment to horómetro acumulado, not horas por día', function () {
+    // El ingeniero confirmó que la planta teclea el horómetro (lo que marca el
+    // cuenta-horas), no las horas trabajadas del día — así que un equipo nuevo
+    // debe nacer en 'accumulated', no en 'daily_hours'.
+    Livewire::test(CreateEquipment::class)
+        ->fillForm([
+            'code' => 'EQ-METER',
+            'name' => 'Equipo con horómetro',
+            'plant_id' => $this->plant->id,
+            'area_id' => $this->area->id,
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $equipment = Equipment::where('code', 'EQ-METER')->firstOrFail();
+
+    expect($equipment->meter_capture_mode)->toBe(MeterCaptureMode::Accumulated);
 });
 
 it('creates equipment with no components when none are added', function () {

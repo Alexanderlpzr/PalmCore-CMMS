@@ -363,6 +363,36 @@ it('corregir una hora en modo horas por día recalcula el acumulado', function (
         ->and((float) $eq->refresh()->accumulated_meter_reading)->toBe(30.0);
 });
 
+// ── Cambiar el modo de captura reinterpreta el historial ────────────────────
+
+it('recomputeChain reinterpreta el historial cuando el equipo pasa de horas por día a acumulado', function () {
+    $eq = Equipment::factory()->create([
+        'tenant_id' => $this->tenant->id, 'meter_capture_mode' => 'daily_hours',
+        'accumulated_meter_reading' => 0, 'current_meter_reading' => null,
+    ]);
+    $service = app(EquipmentMeterReadingService::class);
+
+    // Mientras estuvo (por error) en modo horas por día, el operador tecleó el
+    // horómetro tal cual (629, 630, 631) y cada número se sumó completo al
+    // acumulado: 629 + 630 + 631 = 1890. Mal — esos son lecturas de dial, no horas.
+    $service->record($eq, 629, $this->user, recordedAt: today()->subDays(2));
+    $service->record($eq->fresh(), 630, $this->user, recordedAt: today()->subDay());
+    $service->record($eq->fresh(), 631, $this->user, recordedAt: today());
+
+    expect((float) $eq->refresh()->accumulated_meter_reading)->toBe(1890.0);
+
+    // Se corrige el equipo a 'accumulated' y se recalcula la cadena: ahora cada
+    // número es la lectura del dial y las horas trabajadas son la diferencia con
+    // la anterior — 0, 1, 1 — igual que en el Excel del ingeniero.
+    $eq->update(['meter_capture_mode' => 'accumulated']);
+    $service->recomputeChain($eq->fresh());
+
+    $readings = EquipmentMeterReading::where('equipment_id', $eq->id)->orderBy('recorded_at')->get();
+
+    expect($readings->pluck('delta')->map(fn ($d) => (float) $d)->all())->toBe([0.0, 1.0, 1.0])
+        ->and((float) $eq->refresh()->accumulated_meter_reading)->toBe(2.0);
+});
+
 // ── Configurar equipos de las rondas ─────────────────────────────────────────
 
 it('asigna en bloque los equipos a diario/semanal y saca de la ronda a los quitados', function (): void {

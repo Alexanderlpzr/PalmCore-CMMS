@@ -145,8 +145,13 @@ class EquipmentMeterReadingService
      * orden, y deja el horómetro del equipo y las piezas al día. Reproduce exactamente
      * la misma cuenta de `record()`, solo que sobre toda la serie: así una corrección
      * en medio de la historia no deja números inconsistentes aguas abajo.
+     *
+     * Pública (no solo para updateReading/deleteReading) porque también es lo que
+     * hay que correr después de cambiar el meter_capture_mode de un equipo: las
+     * lecturas ya guardadas quedaron interpretadas con la fórmula del modo viejo y
+     * hay que reinterpretarlas con la del modo nuevo.
      */
-    private function recomputeChain(Equipment $equipment): void
+    public function recomputeChain(Equipment $equipment): void
     {
         $readings = EquipmentMeterReading::withoutGlobalScopes()
             ->where('equipment_id', $equipment->id)
