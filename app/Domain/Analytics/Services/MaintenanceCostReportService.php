@@ -15,10 +15,10 @@ use Illuminate\Support\Collection;
  * la OT se creó: una orden abierta en junio y cerrada en julio es gasto de julio,
  * que es como lo lee un control de presupuesto.
  *
- * Todo se arma sobre los tres componentes de costo de cada OT —mano de obra,
- * repuestos y terceros— de modo que el desglose siempre suma al total y el total
- * siempre suma a lo repartido por tipo. Sin esa disciplina, un reporte de
- * presupuesto donde los números no cuadran no sirve para presentarlo.
+ * Todo se arma sobre los cuatro componentes de costo de cada OT —mano de obra,
+ * repuestos, consumibles y terceros— de modo que el desglose siempre suma al
+ * total y el total siempre suma a lo repartido por tipo. Sin esa disciplina, un
+ * reporte de presupuesto donde los números no cuadran no sirve para presentarlo.
  */
 class MaintenanceCostReportService
 {
@@ -31,6 +31,7 @@ class MaintenanceCostReportService
      *     total: float,
      *     labor: float,
      *     parts: float,
+     *     consumables: float,
      *     external: float,
      *     by_type: array{corrective: float, preventive: float, predictive: float, other: float},
      *     budget: ?float,
@@ -45,8 +46,9 @@ class MaintenanceCostReportService
 
         $labor = $this->sumComponent($workOrders, 'actual_cost_labor');
         $parts = $this->sumComponent($workOrders, 'actual_cost_parts');
+        $consumables = $this->sumComponent($workOrders, 'actual_cost_consumables');
         $external = $this->sumComponent($workOrders, 'actual_cost_external');
-        $total = round($labor + $parts + $external, 2);
+        $total = round($labor + $parts + $consumables + $external, 2);
 
         $budget = MaintenanceBudget::withoutGlobalScopes()
             ->where('tenant_id', $tenantId)
@@ -69,6 +71,7 @@ class MaintenanceCostReportService
             'total' => $total,
             'labor' => $labor,
             'parts' => $parts,
+            'consumables' => $consumables,
             'external' => $external,
             'by_type' => $this->byType($workOrders),
             'budget' => $budgetAmount,
@@ -128,6 +131,7 @@ class MaintenanceCostReportService
 
             $buckets[$bucket] += (float) ($wo->actual_cost_labor ?? 0)
                 + (float) ($wo->actual_cost_parts ?? 0)
+                + (float) ($wo->actual_cost_consumables ?? 0)
                 + (float) ($wo->actual_cost_external ?? 0);
         }
 

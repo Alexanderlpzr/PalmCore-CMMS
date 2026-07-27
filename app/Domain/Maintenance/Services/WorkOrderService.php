@@ -494,20 +494,40 @@ class WorkOrderService
     }
 
     /**
-     * Manual override del costo de la OT. Se simplificó a un solo número: el costo
-     * total. Es lo único que el cliente carga (y lo que alimenta el presupuesto),
-     * sin desglosar mano de obra / repuestos / terceros.
+     * Override manual del costo de la OT, desglosado en tres rubros — mano de
+     * obra, repuestos y consumibles — para que el gasto de presupuesto quede
+     * detallado en vez de un solo número sin explicar. El total se calcula solo,
+     * sumando los tres.
      *
-     * @param  array{actual_cost_total?: ?float}  $data
+     * @param  array{actual_cost_labor?: ?float, actual_cost_parts?: ?float, actual_cost_consumables?: ?float}  $data
      */
     public function updateCosts(WorkOrder $workOrder, array $data): void
     {
-        $total = $data['actual_cost_total'] ?? null;
-        $total = $total !== null ? (float) $total : null;
+        $labor = self::normalizeCost($data['actual_cost_labor'] ?? null);
+        $parts = self::normalizeCost($data['actual_cost_parts'] ?? null);
+        $consumables = self::normalizeCost($data['actual_cost_consumables'] ?? null);
+        $external = (float) ($workOrder->actual_cost_external ?? 0);
+
+        $total = ($labor ?? 0) + ($parts ?? 0) + ($consumables ?? 0) + $external;
 
         $workOrder->update([
-            'actual_cost_total' => $total !== null && $total > 0 ? $total : null,
+            'actual_cost_labor' => $labor,
+            'actual_cost_parts' => $parts,
+            'actual_cost_consumables' => $consumables,
+            'actual_cost_total' => $total > 0 ? round($total, 2) : null,
         ]);
+    }
+
+    /** Null cuando viene vacío o en cero: no hay costo que mostrar, no un $0 real. */
+    public static function normalizeCost(mixed $value): ?float
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $value = (float) $value;
+
+        return $value > 0 ? $value : null;
     }
 
     // ── Signatures ────────────────────────────────────────────────────────────

@@ -38,6 +38,7 @@ class WorkOrderResource extends JsonResource
             'estimated_cost' => $this->estimated_cost !== null ? (float) $this->estimated_cost : null,
             'actual_cost_labor' => $this->actual_cost_labor !== null ? (float) $this->actual_cost_labor : null,
             'actual_cost_parts' => $this->actual_cost_parts !== null ? (float) $this->actual_cost_parts : null,
+            'actual_cost_consumables' => $this->actual_cost_consumables !== null ? (float) $this->actual_cost_consumables : null,
             'actual_cost_external' => $this->actual_cost_external !== null ? (float) $this->actual_cost_external : null,
             'actual_cost_total' => $this->actual_cost_total !== null ? (float) $this->actual_cost_total : null,
             'currency_code' => $this->currency_code,

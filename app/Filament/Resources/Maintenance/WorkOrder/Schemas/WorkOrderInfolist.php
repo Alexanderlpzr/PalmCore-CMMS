@@ -111,11 +111,25 @@ class WorkOrderInfolist
                     ]),
 
                 Section::make('Costo')
+                    ->columns(4)
                     ->schema([
+                        TextEntry::make('actual_cost_labor')
+                            ->label('Mano de obra')
+                            ->money('COP')
+                            ->placeholder('—'),
+                        TextEntry::make('actual_cost_parts')
+                            ->label('Repuesto')
+                            ->money('COP')
+                            ->placeholder('—'),
+                        TextEntry::make('actual_cost_consumables')
+                            ->label('Consumible')
+                            ->money('COP')
+                            ->placeholder('—'),
                         TextEntry::make('actual_cost_total')
-                            ->label('Costo de la OT')
+                            ->label('Total')
                             ->money('COP')
                             ->placeholder('—')
+                            ->weight('bold')
                             ->helperText('Alimenta los gastos del presupuesto al cerrar la OT.'),
                     ]),
 

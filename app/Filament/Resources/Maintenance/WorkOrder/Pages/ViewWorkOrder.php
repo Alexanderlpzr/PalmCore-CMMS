@@ -21,6 +21,8 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Support\Icons\Heroicon;
 
 class ViewWorkOrder extends ViewRecord
@@ -71,19 +73,20 @@ class ViewWorkOrder extends ViewRecord
                     Textarea::make('root_cause')
                         ->label('Causa raíz (si aplica)')
                         ->rows(3),
-                    TextInput::make('actual_cost_total')
-                        ->label('Costo')
-                        ->helperText('Costo total de la OT. Alimenta el gasto de presupuesto al cerrar.')
-                        ->numeric()
-                        ->minValue(0)
-                        ->prefix('$')
-                        ->default(fn () => $this->record->actual_cost_total),
+                    ...$this->costFields(),
                 ])
                 ->visible(fn (): bool => ! $this->record->status->isTerminal()
                     && auth()->user()->can('work-orders.close'))
                 ->action(function (array $data, WorkOrderService $service): void {
-                    $total = $data['actual_cost_total'] !== null ? (float) $data['actual_cost_total'] : null;
-                    $data['actual_cost_total'] = $total !== null && $total > 0 ? $total : null;
+                    $labor = WorkOrderService::normalizeCost($data['actual_cost_labor'] ?? null);
+                    $parts = WorkOrderService::normalizeCost($data['actual_cost_parts'] ?? null);
+                    $consumables = WorkOrderService::normalizeCost($data['actual_cost_consumables'] ?? null);
+                    $total = ($labor ?? 0) + ($parts ?? 0) + ($consumables ?? 0);
+
+                    $data['actual_cost_labor'] = $labor;
+                    $data['actual_cost_parts'] = $parts;
+                    $data['actual_cost_consumables'] = $consumables;
+                    $data['actual_cost_total'] = $total > 0 ? round($total, 2) : null;
 
                     $this->doTransition($service, WorkOrderStatus::Closed, $data);
                 }),
@@ -103,26 +106,17 @@ class ViewWorkOrder extends ViewRecord
                 ->action(fn (WorkOrderService $service) => $this->doTransition($service, WorkOrderStatus::Cancelled)),
 
             // Ajuste manual del costo (work-orders.update — admin/supervisor, no
-            // técnico). Un solo número: el costo total de la OT. Disponible en
-            // cualquier estado, porque el costo se suele conocer al terminar.
+            // técnico). Desglosado en mano de obra / repuestos / consumibles.
+            // Disponible en cualquier estado, porque el costo se suele conocer al
+            // terminar.
             Action::make('edit_costs')
                 ->label('Editar Costo')
                 ->tooltip('Ajusta manualmente el costo de esta OT')
                 ->icon(Heroicon::OutlinedCurrencyDollar)
                 ->color('gray')
                 ->visible(fn (): bool => auth()->user()->can('work-orders.update'))
-                ->fillForm(fn (WorkOrder $record): array => [
-                    'actual_cost_total' => $record->actual_cost_total,
-                ])
                 ->modalHeading('Editar Costo')
-                ->form([
-                    TextInput::make('actual_cost_total')
-                        ->label('Costo')
-                        ->helperText('Costo total de la OT. Alimenta el gasto de presupuesto.')
-                        ->numeric()
-                        ->minValue(0)
-                        ->prefix('$'),
-                ])
+                ->form($this->costFields())
                 ->action(function (array $data, WorkOrderService $service): void {
                     $service->updateCosts($this->record, $data);
                     $this->record->refresh();
@@ -156,6 +150,60 @@ class ViewWorkOrder extends ViewRecord
             DeleteAction::make()
                 ->tooltip('Eliminar esta orden de trabajo'),
             $this->getBackAction(),
+        ];
+    }
+
+    /**
+     * Los tres campos de costo (mano de obra / repuestos / consumibles) más un
+     * total de solo lectura que se recalcula solo — se comparten entre el modal
+     * de cierre y «Editar Costo» para no mantener dos copias del mismo desglose.
+     *
+     * @return array<int, TextInput>
+     */
+    private function costFields(): array
+    {
+        $recompute = function (Get $get, Set $set): void {
+            $total = (float) ($get('actual_cost_labor') ?? 0)
+                + (float) ($get('actual_cost_parts') ?? 0)
+                + (float) ($get('actual_cost_consumables') ?? 0);
+
+            $set('cost_total_preview', round($total, 2));
+        };
+
+        return [
+            TextInput::make('actual_cost_labor')
+                ->label('Mano de obra')
+                ->numeric()
+                ->minValue(0)
+                ->prefix('$')
+                ->default(fn (): ?float => $this->record->actual_cost_labor)
+                ->live(onBlur: true)
+                ->afterStateUpdated($recompute),
+            TextInput::make('actual_cost_parts')
+                ->label('Repuesto')
+                ->numeric()
+                ->minValue(0)
+                ->prefix('$')
+                ->default(fn (): ?float => $this->record->actual_cost_parts)
+                ->live(onBlur: true)
+                ->afterStateUpdated($recompute),
+            TextInput::make('actual_cost_consumables')
+                ->label('Consumible')
+                ->helperText('Lubricantes, filtros, empaques — lo que se consume y no es repuesto ni mano de obra.')
+                ->numeric()
+                ->minValue(0)
+                ->prefix('$')
+                ->default(fn (): ?float => $this->record->actual_cost_consumables)
+                ->live(onBlur: true)
+                ->afterStateUpdated($recompute),
+            TextInput::make('cost_total_preview')
+                ->label('Total')
+                ->helperText('Se calcula solo, sumando los tres. Alimenta el gasto de presupuesto al cerrar.')
+                ->numeric()
+                ->prefix('$')
+                ->disabled()
+                ->dehydrated(false)
+                ->default(fn (): float => $this->record->totalActualCost()),
         ];
     }
 

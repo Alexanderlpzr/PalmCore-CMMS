@@ -59,6 +59,10 @@ class MonthlyWorkOrderCostsWidget extends BaseWidget
                     ->label('Repuestos')
                     ->money('COP')
                     ->placeholder('—'),
+                TextColumn::make('actual_cost_consumables')
+                    ->label('Consumibles')
+                    ->money('COP')
+                    ->placeholder('—'),
                 TextColumn::make('actual_cost_external')
                     ->label('Terceros')
                     ->money('COP')

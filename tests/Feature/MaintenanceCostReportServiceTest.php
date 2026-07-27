@@ -30,25 +30,26 @@ function completedWo(array $overrides = []): WorkOrder
 
 // ── Totales y desglose ────────────────────────────────────────────────────────
 
-it('sums the three cost components into the month total', function (): void {
-    completedWo(['actual_cost_labor' => 100, 'actual_cost_parts' => 200, 'actual_cost_external' => 50, 'actual_cost_total' => 350]);
+it('sums the four cost components into the month total', function (): void {
+    completedWo(['actual_cost_labor' => 100, 'actual_cost_parts' => 200, 'actual_cost_consumables' => 30, 'actual_cost_external' => 50, 'actual_cost_total' => 380]);
     completedWo(['actual_cost_labor' => 10, 'actual_cost_parts' => 0, 'actual_cost_external' => 40, 'actual_cost_total' => 50]);
 
     $report = $this->service->monthlyReport($this->tenant->id, $this->plant->id, (int) now()->year, (int) now()->month);
 
     expect($report['labor'])->toBe(110.0)
         ->and($report['parts'])->toBe(200.0)
+        ->and($report['consumables'])->toBe(30.0)
         ->and($report['external'])->toBe(90.0)
-        ->and($report['total'])->toBe(400.0)
+        ->and($report['total'])->toBe(430.0)
         ->and($report['work_order_count'])->toBe(2);
 });
 
 it('the breakdown always adds up to the total', function (): void {
-    completedWo(['actual_cost_labor' => 123.45, 'actual_cost_parts' => 67.89, 'actual_cost_external' => 10.11, 'actual_cost_total' => 201.45]);
+    completedWo(['actual_cost_labor' => 123.45, 'actual_cost_parts' => 67.89, 'actual_cost_consumables' => 5.55, 'actual_cost_external' => 10.11, 'actual_cost_total' => 207.00]);
 
     $report = $this->service->monthlyReport($this->tenant->id, $this->plant->id, (int) now()->year, (int) now()->month);
 
-    expect(round($report['labor'] + $report['parts'] + $report['external'], 2))->toBe($report['total']);
+    expect(round($report['labor'] + $report['parts'] + $report['consumables'] + $report['external'], 2))->toBe($report['total']);
 });
 
 it('groups spend by type, folding emergency into corrective', function (): void {

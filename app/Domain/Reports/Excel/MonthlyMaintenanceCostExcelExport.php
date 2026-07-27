@@ -30,6 +30,7 @@ class MonthlyMaintenanceCostExcelExport
             'Completada' => $wo->completed_at?->format('Y-m-d'),
             'Mano de Obra' => self::amount($wo->actual_cost_labor),
             'Repuestos' => self::amount($wo->actual_cost_parts),
+            'Consumibles' => self::amount($wo->actual_cost_consumables),
             'Terceros' => self::amount($wo->actual_cost_external),
             'Total' => self::amount($wo->actual_cost_total),
         ]);

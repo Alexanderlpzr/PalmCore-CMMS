@@ -56,6 +56,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'estimated_cost',
     'actual_cost_labor',
     'actual_cost_parts',
+    'actual_cost_consumables',
     'actual_cost_external',
     'actual_cost_total',
     'currency_code',
@@ -243,6 +244,7 @@ class WorkOrder extends BaseModel
     {
         return (float) (($this->actual_cost_labor ?? 0)
             + ($this->actual_cost_parts ?? 0)
+            + ($this->actual_cost_consumables ?? 0)
             + ($this->actual_cost_external ?? 0));
     }
 
@@ -330,6 +332,7 @@ class WorkOrder extends BaseModel
             'estimated_cost' => 'float',
             'actual_cost_labor' => 'float',
             'actual_cost_parts' => 'float',
+            'actual_cost_consumables' => 'float',
             'actual_cost_external' => 'float',
             'actual_cost_total' => 'float',
             'planned_start_at' => 'datetime',

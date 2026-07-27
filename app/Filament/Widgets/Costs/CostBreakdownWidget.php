@@ -9,8 +9,9 @@ use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 
 /**
- * En qué se fue la plata: mano de obra, repuestos y terceros. El desglose que
- * permite decir «el mes se disparó por repuestos», no solo «se disparó».
+ * En qué se fue la plata: mano de obra, repuestos, consumibles y terceros. El
+ * desglose que permite decir «el mes se disparó por repuestos», no solo «se
+ * disparó».
  */
 class CostBreakdownWidget extends BaseWidget
 {
@@ -44,6 +45,8 @@ class CostBreakdownWidget extends BaseWidget
                 ->description(self::share($report['labor'], $report['total'])),
             Stat::make('Repuestos', self::money($report['parts']))
                 ->description(self::share($report['parts'], $report['total'])),
+            Stat::make('Consumibles', self::money($report['consumables']))
+                ->description(self::share($report['consumables'], $report['total'])),
             Stat::make('Terceros', self::money($report['external']))
                 ->description(self::share($report['external'], $report['total'])),
         ];

@@ -33,7 +33,7 @@ function costEditUser(Tenant $tenant, string $role): User
     return $user;
 }
 
-it('lets an administrator manually override the OT cost with a single total', function () {
+it('lets an administrator manually override the OT cost broken down by rubro', function () {
     $admin = costEditUser($this->tenant, 'administrador-general');
     $wo = app(WorkOrderService::class)->create([
         'tenant_id' => $this->tenant->id,
@@ -50,11 +50,16 @@ it('lets an administrator manually override the OT cost with a single total', fu
 
     Livewire::test(ViewWorkOrder::class, ['record' => $wo->id])
         ->callAction(TestAction::make('edit_costs'), data: [
-            'actual_cost_total' => 75000,
+            'actual_cost_labor' => 40000,
+            'actual_cost_parts' => 25000,
+            'actual_cost_consumables' => 10000,
         ])
         ->assertHasNoActionErrors();
 
-    expect($wo->fresh()->actual_cost_total)->toBe(75000.0);
+    expect($wo->fresh()->actual_cost_labor)->toBe(40000.0)
+        ->and($wo->fresh()->actual_cost_parts)->toBe(25000.0)
+        ->and($wo->fresh()->actual_cost_consumables)->toBe(10000.0)
+        ->and($wo->fresh()->actual_cost_total)->toBe(75000.0);
 });
 
 it('hides the cost edit action from a técnico', function () {
