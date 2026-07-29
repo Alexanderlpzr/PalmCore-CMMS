@@ -23,6 +23,7 @@ use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
+use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
 use Illuminate\Contracts\View\View;
 
@@ -31,6 +32,14 @@ class EquipmentTable
     public static function configure(Table $table): Table
     {
         return $table
+            // Agrupado por sección y colapsable: se abre una sección a la vez para
+            // ver sus equipos, igual que la agrupación por equipo en Horómetros.
+            ->groups([
+                Group::make('area.name')
+                    ->label('Sección')
+                    ->collapsible(),
+            ])
+            ->defaultGroup('area.name')
             ->columns([
                 TextColumn::make('area.name')
                     ->label('Sección')
