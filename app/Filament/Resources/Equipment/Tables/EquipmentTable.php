@@ -34,12 +34,16 @@ class EquipmentTable
         return $table
             // Agrupado por sección y colapsable: se abre una sección a la vez para
             // ver sus equipos, igual que la agrupación por equipo en Horómetros.
+            // Los selectores de agrupar/ordenar quedan ocultos porque la sección es
+            // la única agrupación con sentido operativo: se filtra con el selector
+            // de Sección de la barra, no cambiando el criterio de agrupación.
             ->groups([
                 Group::make('area.name')
                     ->label('Sección')
                     ->collapsible(),
             ])
             ->defaultGroup('area.name')
+            ->groupingSettingsHidden()
             ->columns([
                 TextColumn::make('area.name')
                     ->label('Sección')
