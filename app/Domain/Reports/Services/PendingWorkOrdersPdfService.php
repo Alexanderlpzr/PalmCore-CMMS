@@ -25,7 +25,7 @@ class PendingWorkOrdersPdfService implements PdfReport
             ->where('tenant_id', $tenantId)
             ->whereIn('status', array_map(fn (WorkOrderStatus $status): string => $status->value, self::PENDING_STATUSES))
             ->whereNull('deleted_at')
-            ->with(['equipment.plant', 'equipment.area', 'technicians.user'])
+            ->with(['equipment.area'])
             ->orderByRaw("CASE priority
                 WHEN 'p1_critical' THEN 1
                 WHEN 'p2_high' THEN 2

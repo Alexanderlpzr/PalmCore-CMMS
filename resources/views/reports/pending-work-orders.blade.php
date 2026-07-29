@@ -19,7 +19,6 @@
     </div>
 
     @php
-        $needsTechnician = $workOrders->filter(fn ($wo) => $wo->status->value === 'draft' && $wo->technicians->isEmpty())->count();
         $stopped = $workOrders->where('equipment_stopped', true)->count();
     @endphp
 
@@ -34,10 +33,6 @@
                     <div class="summary-stat" style="{{ $stopped > 0 ? 'color:#dc2626' : '' }}">{{ $stopped }}</div>
                     <div class="summary-label">Con equipo detenido</div>
                 </td>
-                <td>
-                    <div class="summary-stat" style="{{ $needsTechnician > 0 ? 'color:#dc2626' : '' }}">{{ $needsTechnician }}</div>
-                    <div class="summary-label">Sin técnico asignado</div>
-                </td>
             </tr>
         </table>
     </div>
@@ -48,30 +43,41 @@
     <table class="data-table">
         <thead>
             <tr>
-                <th style="width:90px;">N.º OT</th>
+                <th style="width:130px;">Equipo</th>
                 <th>Título</th>
-                <th style="width:70px;">Equipo</th>
-                <th style="width:70px;">Planta / Sección</th>
-                <th style="width:55px;">Tipo</th>
-                <th style="width:55px;">Prioridad</th>
+                <th>Descripción</th>
+                <th style="width:60px;">Tipo</th>
+                <th style="width:70px;">Área Mtto</th>
                 <th style="width:60px;">Estado</th>
-                <th>Técnico(s)</th>
-                <th style="width:70px;">Inicio planif.</th>
+                <th style="width:75px;">Inicio planif.</th>
                 <th style="width:45px;">Parado</th>
             </tr>
         </thead>
         <tbody>
             @foreach($workOrders as $wo)
             <tr>
-                <td>{{ $wo->work_order_number }}</td>
-                <td>{{ $wo->title }}</td>
-                <td>{{ $wo->equipment?->code ?? '—' }}</td>
                 <td>
-                    {{ $wo->equipment?->plant?->name ?? '—' }}
-                    @if($wo->equipment?->area) / {{ $wo->equipment->area->name }} @endif
+                    <strong>{{ $wo->equipment?->name ?? 'Sin equipo' }}</strong><br>
+                    <span style="color:#64748b;font-size:8px;">
+                        {{ $wo->equipment?->area?->name ?? '—' }} · {{ $wo->work_order_number }}
+                    </span>
                 </td>
+                <td>{{ $wo->title }}</td>
+                <td>{{ $wo->description ?? '—' }}</td>
                 <td>{{ $wo->work_order_type->label() }}</td>
-                <td>{{ $wo->priority->label() }}</td>
+                <td>
+                    @if($wo->maintenance_area)
+                        @php
+                            $areaBadge = match ($wo->maintenance_area->color()) {
+                                'success', 'warning', 'danger', 'info', 'gray' => $wo->maintenance_area->color(),
+                                default => 'gray',
+                            };
+                        @endphp
+                        <span class="badge badge-{{ $areaBadge }}">{{ $wo->maintenance_area->label() }}</span>
+                    @else
+                        —
+                    @endif
+                </td>
                 <td>
                     @php
                         $statusBadge = match ($wo->status->color()) {
@@ -80,12 +86,6 @@
                         };
                     @endphp
                     <span class="badge badge-{{ $statusBadge }}">{{ $wo->status->label() }}</span>
-                </td>
-                <td>
-                    {{ $wo->technicians->map(fn ($t) => $t->user?->name)->filter()->implode(', ') ?: '—' }}
-                    @if($wo->status->value === 'draft' && $wo->technicians->isEmpty())
-                        <span class="badge badge-danger">Falta técnico</span>
-                    @endif
                 </td>
                 <td>{{ $wo->planned_start_at?->format('d/m/Y H:i') ?? '—' }}</td>
                 <td>{{ $wo->equipment_stopped ? 'Sí' : 'No' }}</td>

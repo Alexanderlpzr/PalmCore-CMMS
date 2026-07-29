@@ -349,6 +349,34 @@ it('PendingWorkOrdersPdfService only includes non-terminal, non-completed status
         ->toBe(collect([$draft->id, $planned->id, $inProgress->id, $onHold->id])->sort()->values()->all());
 });
 
+it('the pending-work-orders blade renders the corrected columns without a técnico column', function () {
+    $tenant = Tenant::factory()->create();
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id, 'name' => 'Redler Fruta']);
+    $wo = WorkOrder::factory()->create([
+        'tenant_id' => $tenant->id,
+        'equipment_id' => $equipment->id,
+        'status' => 'draft',
+        'maintenance_area' => 'mecanico',
+        'description' => 'Cambio de rodamiento del eje principal',
+    ]);
+
+    $html = view('reports.pending-work-orders', [
+        'workOrders' => WorkOrder::where('id', $wo->id)->with('equipment.area')->get(),
+        'tenant' => $tenant,
+        'logoBase64' => null,
+        'documentNumber' => 'OT-PEND-TEST',
+        'documentVersion' => '1.0',
+        'qrBase64' => null,
+        'generatedAt' => now(),
+    ])->render();
+
+    expect($html)->toContain('Redler Fruta')
+        ->and($html)->toContain('Cambio de rodamiento del eje principal')
+        ->and($html)->toContain('Mecánico')
+        ->and($html)->not->toContain('Falta técnico')
+        ->and($html)->not->toContain('Sin técnico asignado');
+});
+
 // ── GenerateInventoryReportJob ────────────────────────────────────────────────
 
 it('GenerateInventoryReportJob stores PDF under tenant path and notifies user', function () {
