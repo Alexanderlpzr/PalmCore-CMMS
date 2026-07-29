@@ -90,7 +90,20 @@ class AlertInfolist
                     ->visible(fn ($record): bool => ! empty($record->metadata))
                     ->schema([
                         KeyValueEntry::make('metadata')
-                            ->label(''),
+                            ->label('')
+                            // KeyValueEntry solo admite pares clave-valor planos (texto).
+                            // Algunas alertas guardan un array como valor (ej. la de
+                            // «Horómetro sin lectura» trae plan_numbers, la lista de planes
+                            // preventivos afectados) — sin aplanarlo aquí, Filament intenta
+                            // escapar ese array como si fuera texto y truena la página entera.
+                            ->state(fn ($record): array => collect($record->metadata ?? [])
+                                ->map(fn ($value): string => match (true) {
+                                    is_array($value) => implode(', ', array_map(strval(...), $value)),
+                                    is_bool($value) => $value ? 'true' : 'false',
+                                    is_null($value) => '—',
+                                    default => (string) $value,
+                                })
+                                ->all()),
                     ]),
             ]);
     }

@@ -67,3 +67,22 @@ it('renders the alerts list without crashing when a row has an unmapped severity
         ->assertOk()
         ->assertSee('Desconocido');
 });
+
+// Reproduce el 500 real (confirmado en el log de producción): la alerta de
+// «Horómetro sin lectura» (StaleMeterReadingService) guarda plan_numbers como
+// array dentro de metadata. KeyValueEntry solo admite valores planos — sin
+// aplanarlos, Filament intenta escapar el array con htmlspecialchars() y truena.
+it('renders the alert view page without crashing when metadata has a nested array value', function () {
+    $alert = invalidAlert($this->tenant, [
+        'title' => 'Horómetro sin lectura: A02STR.03.01',
+        'metadata' => [
+            'equipment_code' => 'A02STR.03.01',
+            'days_without_reading' => 12,
+            'plan_numbers' => ['PM-001', 'PM-002'],
+        ],
+    ]);
+
+    Livewire::test(ViewAlert::class, ['record' => $alert->id])
+        ->assertOk()
+        ->assertSee('PM-001, PM-002');
+});
