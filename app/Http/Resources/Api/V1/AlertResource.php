@@ -12,13 +12,13 @@ class AlertResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'severity' => $this->severity->value,
-            'category' => $this->category->value,
+            'severity' => $this->severity?->value,
+            'category' => $this->category?->value,
             'title' => $this->title,
             'message' => $this->message,
             'entity_type' => $this->entity_type,
             'entity_id' => $this->entity_id,
-            'status' => $this->status->value,
+            'status' => $this->status?->value,
             'closed_at' => $this->closed_at?->toISOString(),
             'created_at' => $this->created_at->toISOString(),
         ];

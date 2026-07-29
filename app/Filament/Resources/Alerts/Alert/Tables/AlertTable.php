@@ -20,14 +20,16 @@ class AlertTable
                     ->label('Severidad')
                     ->badge()
                     ->sortable()
-                    ->color(fn (AlertSeverity $state): string => $state->color())
-                    ->formatStateUsing(fn (AlertSeverity $state): string => $state->label()),
+                    ->placeholder('Desconocido')
+                    ->color(fn (?AlertSeverity $state): string => $state?->color() ?? 'gray')
+                    ->formatStateUsing(fn (?AlertSeverity $state): ?string => $state?->label()),
 
                 TextColumn::make('category')
                     ->label('Categoría')
                     ->badge()
-                    ->color(fn (AlertCategory $state): string => $state->color())
-                    ->formatStateUsing(fn (AlertCategory $state): string => $state->label()),
+                    ->placeholder('Desconocida')
+                    ->color(fn (?AlertCategory $state): string => $state?->color() ?? 'gray')
+                    ->formatStateUsing(fn (?AlertCategory $state): ?string => $state?->label()),
 
                 TextColumn::make('title')
                     ->label('Alerta')
@@ -39,8 +41,9 @@ class AlertTable
                     ->label('Estado')
                     ->badge()
                     ->sortable()
-                    ->color(fn (AlertStatus $state): string => $state->color())
-                    ->formatStateUsing(fn (AlertStatus $state): string => $state->label()),
+                    ->placeholder('Desconocido')
+                    ->color(fn (?AlertStatus $state): string => $state?->color() ?? 'gray')
+                    ->formatStateUsing(fn (?AlertStatus $state): ?string => $state?->label()),
 
                 TextColumn::make('closedBy.name')
                     ->label('Cerrada por')

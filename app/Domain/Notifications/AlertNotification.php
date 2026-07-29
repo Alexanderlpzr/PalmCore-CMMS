@@ -29,8 +29,8 @@ class AlertNotification extends Notification implements ShouldQueue
             'title' => $this->alert->title,
             'body' => Str::limit($this->alert->message ?? $this->alert->title, 200),
             'alert_id' => $this->alert->id,
-            'severity' => $this->alert->severity->value,
-            'category' => $this->alert->category->value,
+            'severity' => $this->alert->severity?->value,
+            'category' => $this->alert->category?->value,
             'entity_type' => $this->alert->entity_type,
             'entity_id' => $this->alert->entity_id,
             'url' => '/mobile/alerts',
@@ -56,7 +56,7 @@ class AlertNotification extends Notification implements ShouldQueue
         return match ($this->alert->severity) {
             AlertSeverity::Critical => '🔴 '.$this->alert->title,
             AlertSeverity::Warning => '🟡 '.$this->alert->title,
-            AlertSeverity::Info => 'ℹ️ '.$this->alert->title,
+            AlertSeverity::Info, null => 'ℹ️ '.$this->alert->title,
         };
     }
 }

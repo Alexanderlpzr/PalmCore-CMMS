@@ -22,20 +22,23 @@ class AlertInfolist
                         TextEntry::make('severity')
                             ->label('Severidad')
                             ->badge()
-                            ->color(fn (AlertSeverity $state): string => $state->color())
-                            ->formatStateUsing(fn (AlertSeverity $state): string => $state->label()),
+                            ->placeholder('Desconocido')
+                            ->color(fn (?AlertSeverity $state): string => $state?->color() ?? 'gray')
+                            ->formatStateUsing(fn (?AlertSeverity $state): ?string => $state?->label()),
 
                         TextEntry::make('category')
                             ->label('Categoría')
                             ->badge()
-                            ->color(fn (AlertCategory $state): string => $state->color())
-                            ->formatStateUsing(fn (AlertCategory $state): string => $state->label()),
+                            ->placeholder('Desconocida')
+                            ->color(fn (?AlertCategory $state): string => $state?->color() ?? 'gray')
+                            ->formatStateUsing(fn (?AlertCategory $state): ?string => $state?->label()),
 
                         TextEntry::make('status')
                             ->label('Estado')
                             ->badge()
-                            ->color(fn (AlertStatus $state): string => $state->color())
-                            ->formatStateUsing(fn (AlertStatus $state): string => $state->label()),
+                            ->placeholder('Desconocido')
+                            ->color(fn (?AlertStatus $state): string => $state?->color() ?? 'gray')
+                            ->formatStateUsing(fn (?AlertStatus $state): ?string => $state?->label()),
 
                         TextEntry::make('title')
                             ->label('Título')

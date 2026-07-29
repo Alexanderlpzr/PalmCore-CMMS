@@ -2,6 +2,7 @@
 
 namespace App\Filament\Widgets\Alerts;
 
+use App\Domain\Alerts\Enums\AlertCategory;
 use App\Domain\Alerts\Enums\AlertStatus;
 use App\Domain\Alerts\Services\AlertService;
 use App\Filament\Resources\Alerts\AlertResource;
@@ -37,8 +38,9 @@ class CriticalAlertsWidget extends BaseWidget
                 TextColumn::make('category')
                     ->label('Categoría')
                     ->badge()
-                    ->formatStateUsing(fn ($state) => $state->label())
-                    ->color(fn ($state) => $state->color()),
+                    ->placeholder('Desconocida')
+                    ->formatStateUsing(fn (?AlertCategory $state): ?string => $state?->label())
+                    ->color(fn (?AlertCategory $state): string => $state?->color() ?? 'gray'),
 
                 TextColumn::make('title')
                     ->label('Alerta')
