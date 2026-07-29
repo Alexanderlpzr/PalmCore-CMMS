@@ -3,10 +3,8 @@
 namespace App\Filament\Resources\Equipment\Schemas;
 
 use App\Domain\Assets\Enums\EquipmentCriticality;
-use App\Domain\Assets\Enums\EquipmentPriority;
 use App\Domain\Assets\Enums\EquipmentStatus;
 use App\Models\Equipment;
-use Filament\Infolists\Components\IconEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -17,6 +15,9 @@ class EquipmentInfolist
     {
         return $schema
             ->components([
+                // Lo que se necesita saber de un golpe: qué equipo es, dónde está
+                // y cómo está. Antes esto vivía repartido en tres tarjetas
+                // (Identificación, Clasificación, Ubicación), la mayoría en «—».
                 Section::make('Identificación')
                     ->columns(2)
                     ->schema([
@@ -24,20 +25,9 @@ class EquipmentInfolist
                             ->label('Código de activo'),
                         TextEntry::make('name')
                             ->label('Nombre'),
-                        TextEntry::make('model')
-                            ->label('Modelo')
-                            ->placeholder('—'),
-                        TextEntry::make('serial_number')
-                            ->label('Número de serie')
-                            ->placeholder('—'),
-                        TextEntry::make('asset_tag')
-                            ->label('Etiqueta de activo')
-                            ->placeholder('—'),
-                    ]),
-
-                Section::make('Clasificación')
-                    ->columns(2)
-                    ->schema([
+                        TextEntry::make('area.name')
+                            ->label('Sección')
+                            ->placeholder('Sin sección'),
                         TextEntry::make('status')
                             ->label('Estado')
                             ->badge()
@@ -48,46 +38,38 @@ class EquipmentInfolist
                             ->badge()
                             ->color(fn (EquipmentCriticality $state): string => $state->color())
                             ->formatStateUsing(fn (EquipmentCriticality $state): string => $state->label()),
-                        TextEntry::make('priority')
-                            ->label('Prioridad')
-                            ->badge()
-                            ->color(fn (EquipmentPriority $state): string => $state->color())
-                            ->formatStateUsing(fn (EquipmentPriority $state): string => $state->label()),
-                        TextEntry::make('category.name')
-                            ->label('Categoría')
-                            ->placeholder('Sin categoría'),
                     ]),
 
-                Section::make('Ubicación')
-                    ->columns(2)
+                // Datos de placa: se consultan una vez cada tanto, así que arrancan
+                // plegados en vez de ocupar media pantalla con guiones.
+                Section::make('Ficha técnica')
+                    ->columns(3)
+                    ->collapsed()
                     ->schema([
-                        TextEntry::make('plant.name')
-                            ->label('Planta'),
-                        TextEntry::make('area.name')
-                            ->label('Sección')
+                        TextEntry::make('model')
+                            ->label('Modelo')
                             ->placeholder('—'),
-                        TextEntry::make('parent.name')
-                            ->label('Equipo padre')
-                            ->placeholder('Equipo independiente'),
-                        TextEntry::make('location_notes')
-                            ->label('Notas de ubicación')
-                            ->columnSpanFull()
+                        TextEntry::make('serial_number')
+                            ->label('Número de serie')
                             ->placeholder('—'),
-                    ]),
-
-                Section::make('Fabricante y Proveedor')
-                    ->columns(2)
-                    ->schema([
+                        TextEntry::make('asset_tag')
+                            ->label('Etiqueta de activo')
+                            ->placeholder('—'),
                         TextEntry::make('manufacturer.name')
                             ->label('Fabricante')
                             ->placeholder('—'),
                         TextEntry::make('supplier.name')
                             ->label('Proveedor')
                             ->placeholder('—'),
+                        TextEntry::make('notes')
+                            ->label('Notas')
+                            ->columnSpanFull()
+                            ->visible(fn (Equipment $record): bool => filled($record->notes)),
                     ]),
 
                 Section::make('Ciclo de Vida')
                     ->columns(3)
+                    ->collapsed()
                     ->schema([
                         TextEntry::make('purchase_date')
                             ->label('Compra')
@@ -155,7 +137,7 @@ class EquipmentInfolist
                             }),
                     ]),
 
-                Section::make('Reliability KPIs')
+                Section::make('Indicadores de Confiabilidad')
                     ->columns(4)
                     ->schema([
                         TextEntry::make('kpi_stale_badge')
@@ -239,31 +221,6 @@ class EquipmentInfolist
                             ->label('Calculado el')
                             ->dateTime('d/m/Y H:i')
                             ->placeholder('—'),
-                    ]),
-
-                Section::make('Auditoría')
-                    ->columns(2)
-                    ->collapsed()
-                    ->schema([
-                        IconEntry::make('is_active')
-                            ->label('Activo')
-                            ->boolean(),
-                        TextEntry::make('notes')
-                            ->label('Notas')
-                            ->columnSpanFull()
-                            ->placeholder('Sin notas'),
-                        TextEntry::make('createdBy.name')
-                            ->label('Creado por')
-                            ->placeholder('—'),
-                        TextEntry::make('created_at')
-                            ->label('Creado')
-                            ->dateTime('d/m/Y H:i'),
-                        TextEntry::make('updatedBy.name')
-                            ->label('Actualizado por')
-                            ->placeholder('—'),
-                        TextEntry::make('updated_at')
-                            ->label('Actualizado')
-                            ->dateTime('d/m/Y H:i'),
                     ]),
             ]);
     }
