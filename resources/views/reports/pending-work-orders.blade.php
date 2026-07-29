@@ -51,7 +51,7 @@
                 <th style="width:90px;">N.º OT</th>
                 <th>Título</th>
                 <th style="width:70px;">Equipo</th>
-                <th style="width:70px;">Planta / Área</th>
+                <th style="width:70px;">Planta / Sección</th>
                 <th style="width:55px;">Tipo</th>
                 <th style="width:55px;">Prioridad</th>
                 <th style="width:60px;">Estado</th>

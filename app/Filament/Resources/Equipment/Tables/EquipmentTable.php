@@ -33,7 +33,7 @@ class EquipmentTable
         return $table
             ->columns([
                 TextColumn::make('area.name')
-                    ->label('Área')
+                    ->label('Sección')
                     ->searchable()
                     ->toggleable(),
                 TextColumn::make('name')

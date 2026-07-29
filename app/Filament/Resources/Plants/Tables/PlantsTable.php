@@ -36,7 +36,7 @@ class PlantsTable
                     ->label('Activa')
                     ->boolean(),
                 TextColumn::make('areas_count')
-                    ->label('Áreas')
+                    ->label('Secciones')
                     ->counts('areas')
                     ->sortable(),
             ])

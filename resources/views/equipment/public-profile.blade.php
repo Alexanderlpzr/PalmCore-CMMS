@@ -68,7 +68,7 @@
         @endif
         @if ($equipment->area)
             <div class="flex items-center justify-between px-4 py-3">
-                <span class="text-sm text-gray-500">Área</span>
+                <span class="text-sm text-gray-500">Sección</span>
                 <span class="text-sm font-medium text-gray-900">{{ $equipment->area->name }}</span>
             </div>
         @endif

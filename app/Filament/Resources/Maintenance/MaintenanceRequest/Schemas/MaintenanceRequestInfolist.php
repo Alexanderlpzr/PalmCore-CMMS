@@ -50,7 +50,7 @@ class MaintenanceRequestInfolist
                             ->label('Planta')
                             ->placeholder('—'),
                         TextEntry::make('equipment.area.name')
-                            ->label('Área')
+                            ->label('Sección')
                             ->placeholder('—'),
                     ]),
 

@@ -147,7 +147,7 @@
                     </div>
 
                     <div v-else class="bg-white rounded-2xl border border-gray-100 shadow-sm py-10 text-center text-xs text-gray-500">
-                        Sin equipos registrados en esta área
+                        Sin equipos registrados en esta sección
                     </div>
                 </div>
 
@@ -197,7 +197,7 @@
                     </div>
 
                     <div v-else-if="!area.kpi" class="bg-white rounded-2xl border border-gray-100 shadow-sm py-10 text-center text-xs text-gray-500">
-                        KPIs aún no calculados para esta área
+                        KPIs aún no calculados para esta sección
                     </div>
                 </div>
 
@@ -209,7 +209,7 @@
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
                         </svg>
                         <p class="text-sm font-semibold text-gray-400">Historial de actividad próximamente</p>
-                        <p class="text-xs text-gray-400">Aquí aparecerán las últimas órdenes de trabajo y eventos del área</p>
+                        <p class="text-xs text-gray-400">Aquí aparecerán las últimas órdenes de trabajo y eventos de la sección</p>
                     </div>
                 </div>
 
@@ -217,7 +217,7 @@
         </template>
 
         <!-- Not found -->
-        <div v-else class="p-8 text-center text-xs text-gray-500">Área no encontrada</div>
+        <div v-else class="p-8 text-center text-xs text-gray-500">Sección no encontrada</div>
 
     </div>
 </template>

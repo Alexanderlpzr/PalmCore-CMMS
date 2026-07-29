@@ -5,7 +5,7 @@
  *   A. Action bar: "Crear OT" button opens quick-create panel
  *   B. Action bar: "Reportar problema" button opens report panel
  *   C. SlidePanel closes on Escape key and backdrop click
- *   D. Equipment list: new filter row (Planta, Área, Criticidad selects)
+ *   D. Equipment list: new filter row (Planta, Sección, Criticidad selects)
  *   E. Equipment list: smart filters (Con OTs activas / Preventivos vencidos)
  *   F. WorkOrderListView: equipment_id filter shows context banner + back link
  *   G. "Ver todas las OTs" link navigates to WO list filtered by equipment
@@ -117,7 +117,7 @@ test.describe('Grupo 25 — Sprint UX-3.1 Equipment Desktop Experience', () => {
 
     // ── Equipment list filters ───────────────────────────────────────────────
 
-    test('25D: lista de equipos muestra filtros de Planta, Área y Criticidad', async ({ page }) => {
+    test('25D: lista de equipos muestra filtros de Planta, Sección y Criticidad', async ({ page }) => {
         await loginToApp(page)
         await page.getByRole('link', { name: 'Equipos', exact: true }).click()
         await page.waitForURL('**/app/equipos')
@@ -125,7 +125,7 @@ test.describe('Grupo 25 — Sprint UX-3.1 Equipment Desktop Experience', () => {
 
         // Three new select filters must be present
         await expect(page.getByRole('combobox').filter({ hasText: 'Todas las plantas' })).toBeVisible()
-        await expect(page.getByRole('combobox').filter({ hasText: 'Todas las áreas' })).toBeVisible()
+        await expect(page.getByRole('combobox').filter({ hasText: 'Todas las secciones' })).toBeVisible()
         await expect(page.getByRole('combobox').filter({ hasText: 'Todas las criticidades' })).toBeVisible()
     })
 

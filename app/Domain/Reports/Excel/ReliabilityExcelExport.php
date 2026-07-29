@@ -26,7 +26,7 @@ class ReliabilityExcelExport
         return [
             'Equipo' => $kpi->equipment?->name,
             'Planta' => $kpi->equipment?->plant?->name,
-            'Área' => $kpi->equipment?->area?->name,
+            'Sección' => $kpi->equipment?->area?->name,
             'Período (inicio)' => $kpi->period_start?->format('Y-m-d'),
             'Período (fin)' => $kpi->period_end?->format('Y-m-d'),
             'MTBF (h)' => $kpi->mtbf_hours !== null ? round((float) $kpi->mtbf_hours, 2) : null,

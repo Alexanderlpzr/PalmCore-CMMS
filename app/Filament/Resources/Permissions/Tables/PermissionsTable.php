@@ -13,7 +13,7 @@ class PermissionsTable
     /** @var array<string, string> */
     private static array $moduleLabels = [
         'announcements' => 'Anuncios',
-        'areas' => 'Áreas',
+        'areas' => 'Secciones',
         'audit-log' => 'Auditoría',
         'carousel-slides' => 'Carrusel',
         'equipment' => 'Equipos',

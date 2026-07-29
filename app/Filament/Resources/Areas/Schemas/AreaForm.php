@@ -16,7 +16,7 @@ class AreaForm
     {
         return $schema
             ->components([
-                Section::make('Información del Área')
+                Section::make('Información de la Sección')
                     ->columns(2)
                     ->schema([
                         Select::make('plant_id')

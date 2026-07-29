@@ -77,8 +77,8 @@ test.describe('Grupo 17 — Navegación Contextual (PX-3)', () => {
         // Heading visible
         await expect(page.locator('h1')).toBeVisible()
 
-        // Áreas tab active by default — tab button visible
-        await expect(page.getByRole('button', { name: 'Áreas' })).toBeVisible()
+        // Secciones tab active by default — tab button visible
+        await expect(page.getByRole('button', { name: 'Secciones' })).toBeVisible()
     })
 
     test('17-4 vista de área muestra equipos e indicadores', async ({ page }) => {

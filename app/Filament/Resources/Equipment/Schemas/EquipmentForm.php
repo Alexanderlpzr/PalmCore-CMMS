@@ -135,7 +135,7 @@ class EquipmentForm
                             ->live()
                             ->afterStateUpdated(fn (Set $set) => $set('area_id', null)),
                         Select::make('area_id')
-                            ->label('Área')
+                            ->label('Sección')
                             ->options(fn (Get $get) => blank($get('plant_id'))
                                 ? []
                                 : ReferenceDataService::areas($get('plant_id'))
@@ -145,7 +145,7 @@ class EquipmentForm
                             ->disabled(fn (Get $get): bool => blank($get('plant_id')))
                             ->placeholder(fn (Get $get): string => blank($get('plant_id'))
                                 ? 'Selecciona una planta primero'
-                                : 'Selecciona un área'
+                                : 'Selecciona una sección'
                             )
                             ->live(),
                         Select::make('parent_equipment_id')

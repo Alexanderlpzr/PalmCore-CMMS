@@ -2,11 +2,15 @@
 
 namespace App\Filament\Resources\Maintenance\MaintenancePlan\Schemas;
 
+use App\Domain\Assets\Services\ReferenceDataService;
 use App\Domain\Maintenance\Enums\MaintenanceTimeFrequency;
 use App\Domain\Maintenance\Enums\MaintenanceTriggerSource;
+use App\Models\Area;
 use App\Models\Equipment;
 use App\Models\EquipmentComponent;
+use App\Models\MaintenancePlan;
 use App\Models\User;
+use Filament\Facades\Filament;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -25,15 +29,37 @@ class MaintenancePlanForm
                 Section::make('Plan de Mantenimiento')
                     ->columns(2)
                     ->schema([
+                        Select::make('area_filter')
+                            ->label('Sección')
+                            ->helperText('Elige la sección para ver solo sus equipos.')
+                            ->options(fn (): array => ReferenceDataService::allAreas(Filament::getTenant()?->id ?? ''))
+                            ->getOptionLabelUsing(fn ($value): ?string => $value ? Area::withoutGlobalScopes()->find($value)?->name : null)
+                            ->native(false)
+                            ->searchable()
+                            ->live()
+                            ->dehydrated(false)
+                            ->default(fn (?MaintenancePlan $record): ?string => $record?->equipment?->area_id)
+                            ->afterStateUpdated(fn (Set $set) => $set('equipment_id', null)),
                         Select::make('equipment_id')
                             ->label('Equipo')
-                            ->options(fn (): array => Equipment::orderBy('code')->get()->mapWithKeys(fn ($e) => [$e->id => "{$e->code} — {$e->name}"])->toArray())
+                            ->options(fn (Get $get): array => Equipment::query()
+                                ->when($get('area_filter'), fn ($query, $areaId) => $query->where('area_id', $areaId))
+                                ->orderBy('code')
+                                ->get()
+                                ->mapWithKeys(fn ($e) => [$e->id => "{$e->code} — {$e->name}"])
+                                ->toArray())
                             ->searchable()
                             ->live()
                             ->required()
                             // Cambiar de equipo invalida cualquier pieza ya elegida:
                             // era de otra máquina y ya no aplica.
-                            ->afterStateUpdated(fn (Set $set) => $set('equipment_component_id', null)),
+                            ->afterStateUpdated(function (Get $get, Set $set, ?string $state): void {
+                                $set('equipment_component_id', null);
+
+                                if ($state) {
+                                    $set('area_filter', Equipment::find($state)?->area_id);
+                                }
+                            }),
                         Select::make('equipment_component_id')
                             ->label('Pieza')
                             ->helperText('Opcional. Sin pieza, el plan es del equipo entero — el comportamiento de siempre.')

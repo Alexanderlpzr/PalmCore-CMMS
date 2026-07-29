@@ -69,6 +69,10 @@ class MeterReadingsTable
                                 fn (Builder $e) => $e->where('reading_frequency', $freq)
                             )
                         )),
+                SelectFilter::make('equipment.area_id')
+                    ->label('Sección')
+                    ->relationship('equipment.area', 'name')
+                    ->searchable(),
                 SelectFilter::make('equipment_id')
                     ->label('Equipo')
                     ->relationship('equipment', 'code')

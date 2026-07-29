@@ -81,9 +81,9 @@
             <!-- ── Content ──────────────────────────────────────────────────────── -->
             <div class="max-w-4xl mx-auto px-4 lg:px-8 py-6 space-y-6">
 
-                <!-- Áreas -->
+                <!-- Secciones -->
                 <div v-if="activeTab === 'areas'">
-                    <h2 class="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3">Áreas</h2>
+                    <h2 class="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3">Secciones</h2>
 
                     <div v-if="plant.areas?.length" class="grid grid-cols-1 lg:grid-cols-2 gap-3">
                         <button v-for="area in plant.areas" :key="area.id"
@@ -105,7 +105,7 @@
                     </div>
 
                     <div v-else class="bg-white rounded-2xl border border-gray-100 shadow-sm py-10 text-center text-xs text-gray-500">
-                        Sin áreas registradas en esta planta
+                        Sin secciones registradas en esta planta
                     </div>
                 </div>
 
@@ -184,7 +184,7 @@ const activeTab = ref('areas')
 const tabs = computed(() => {
     if (!plant.value) { return [] }
     return [
-        { id: 'areas', label: 'Áreas', count: plant.value.areas?.length || null },
+        { id: 'areas', label: 'Secciones', count: plant.value.areas?.length || null },
         { id: 'kpis',  label: 'Indicadores' },
         { id: 'mapa',  label: 'Mapa' },
     ]

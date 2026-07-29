@@ -113,7 +113,7 @@ const routes = [
                 path: 'areas/:id',
                 name: 'ops.areas.show',
                 component: () => import('../views/AreaDetailView.vue'),
-                meta: { title: 'Área' },
+                meta: { title: 'Sección' },
             },
         ],
     },

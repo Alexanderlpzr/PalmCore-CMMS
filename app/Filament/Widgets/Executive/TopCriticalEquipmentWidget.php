@@ -41,7 +41,7 @@ class TopCriticalEquipmentWidget extends BaseWidget
                     ->placeholder('—'),
 
                 TextColumn::make('area_name')
-                    ->label('Área')
+                    ->label('Sección')
                     ->placeholder('—'),
 
                 TextColumn::make('failure_count')

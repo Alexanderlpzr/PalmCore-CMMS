@@ -24,7 +24,7 @@ use UnitEnum;
  * que escribir una vista Blade a mano.
  *
  * El selector de período solo mueve las cifras de costo (Costo Mensual,
- * Costos por Tipo, Tendencia de Costo, la columna de costo en Salud por Área
+ * Costos por Tipo, Tendencia de Costo, la columna de costo en Salud por Sección
  * y Equipos Críticos) — Disponibilidad/MTBF/MTTR vienen de equipment_kpis,
  * una foto del estado actual (ventana móvil), no un historial mes a mes, así
  * que no responden al filtro.

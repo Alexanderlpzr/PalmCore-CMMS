@@ -7,7 +7,7 @@
  *
  * Tests:
  *   14-1  KPI cards visibles tras carga (Disponibilidad, MTBF, MTTR, etc.)
- *   14-2  Sección "Salud por Área" visible
+ *   14-2  Sección "Salud por Sección" visible
  *   14-3  Sección "Equipos Críticos" visible
  *   14-4  Sección "Costos por Tipo" visible
  *   14-5  Sección "Tendencias 12 Meses" visible
@@ -94,22 +94,22 @@ test.describe.serial('Grupo 14-1 — KPI cards visibles', () => {
 })
 
 // ══════════════════════════════════════════════════════════════════════════════
-// Grupo 14-2 — Sección Salud por Área
+// Grupo 14-2 — Sección Salud por Sección
 // ══════════════════════════════════════════════════════════════════════════════
 
-test.describe.serial('Grupo 14-2 — Sección Salud por Área', () => {
+test.describe.serial('Grupo 14-2 — Sección Salud por Sección', () => {
     test.beforeEach(() => execSync('php artisan cache:clear', { stdio: 'ignore' }))
 
-    test('muestra la sección Salud por Área con al menos una fila o empty state', async ({ page }) => {
+    test('muestra la sección Salud por Sección con al menos una fila o empty state', async ({ page }) => {
         const errors = setupErrorListeners(page)
 
         await navToGerencial(page)
 
         // Section heading always renders
-        await expect(page.getByText('Salud por Área', { exact: true })).toBeVisible({ timeout: 10_000 })
+        await expect(page.getByText('Salud por Sección', { exact: true })).toBeVisible({ timeout: 10_000 })
 
         // Either the table header columns OR the empty state are shown
-        const tableHeader = page.getByText('Área', { exact: true })
+        const tableHeader = page.getByText('Sección', { exact: true })
         const emptyState = page.getByText('Sin datos de áreas')
         const visible = await Promise.race([
             tableHeader.waitFor({ state: 'visible', timeout: 8_000 }).then(() => 'table'),

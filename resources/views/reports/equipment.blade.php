@@ -55,7 +55,7 @@
                     <div class="field-label">Planta</div>
                     <div class="field-value">{{ $equipment->plant?->name ?? '—' }}</div>
 
-                    <div class="field-label">Área</div>
+                    <div class="field-label">Sección</div>
                     <div class="field-value">{{ $equipment->area?->name ?? '—' }}</div>
 
                     <div class="field-label">Categoría</div>

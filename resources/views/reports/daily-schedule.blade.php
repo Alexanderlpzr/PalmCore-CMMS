@@ -83,7 +83,7 @@
                         <th style="width:85px;">N.º OT</th>
                         <th style="width:50px;">Prior.</th>
                         <th style="width:70px;">Equipo</th>
-                        <th style="width:70px;">Área</th>
+                        <th style="width:70px;">Sección</th>
                         <th>Trabajo</th>
                         <th style="width:40px;">Paro</th>
                         <th style="width:45px;">Rep.</th>

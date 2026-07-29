@@ -31,7 +31,7 @@ class WorkOrderExcelExport
             'Prioridad' => $workOrder->priority?->label(),
             'Equipo' => $workOrder->equipment?->name,
             'Planta' => $workOrder->plant?->name,
-            'Área' => $workOrder->area?->name,
+            'Sección' => $workOrder->area?->name,
             'Creado Por' => $workOrder->createdBy?->name,
             'Supervisor' => $workOrder->assignedSupervisor?->name,
             'Equipo Detenido' => $workOrder->equipment_stopped ? 'Sí' : 'No',

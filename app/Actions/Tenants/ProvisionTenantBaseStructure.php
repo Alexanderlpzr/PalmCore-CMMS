@@ -38,9 +38,12 @@ class ProvisionTenantBaseStructure
     public function handle(Tenant $tenant): void
     {
         DB::transaction(function () use ($tenant): void {
+            // La planta por defecto se llama como la extractora misma (el tenant),
+            // no «Planta Principal» — así el usuario siempre tiene una opción lista
+            // que reconoce de inmediato, sin tener que crearla ni renombrarla.
             $plant = Plant::withoutGlobalScopes()->firstOrCreate(
                 ['tenant_id' => $tenant->id, 'code' => 'PLT-01'],
-                ['name' => 'Planta Principal', 'is_active' => true],
+                ['name' => $tenant->name, 'is_active' => true],
             );
 
             foreach (self::DEFAULT_AREAS as $area) {

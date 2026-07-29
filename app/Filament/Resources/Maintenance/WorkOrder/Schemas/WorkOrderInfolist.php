@@ -49,7 +49,7 @@ class WorkOrderInfolist
                             ->color(fn (WorkOrderPriority $state): string => $state->color())
                             ->formatStateUsing(fn (WorkOrderPriority $state): string => $state->label()),
                         TextEntry::make('maintenance_area')
-                            ->label('Área de Mtto')
+                            ->label('Clase de mantenimiento')
                             ->badge()
                             ->placeholder('—')
                             ->color(fn (?MaintenanceArea $state): string => $state?->color() ?? 'gray')
@@ -59,7 +59,7 @@ class WorkOrderInfolist
                             ->placeholder('—')
                             ->formatStateUsing(fn (?PlantProcess $state): ?string => $state?->label()),
                         TextEntry::make('executed_by')
-                            ->label('Ejecutante(s)')
+                            ->label('Responsable(s)')
                             ->placeholder('—'),
                         TextEntry::make('meter_reading')
                             ->label('Horómetro')
@@ -73,7 +73,7 @@ class WorkOrderInfolist
                         TextEntry::make('equipment.code')->label('Código'),
                         TextEntry::make('equipment.name')->label('Nombre'),
                         TextEntry::make('plant.name')->label('Planta')->placeholder('—'),
-                        TextEntry::make('area.name')->label('Área')->placeholder('—'),
+                        TextEntry::make('area.name')->label('Sección')->placeholder('—'),
                         IconEntry::make('equipment_stopped')
                             ->label('Equipo detenido')
                             ->boolean()

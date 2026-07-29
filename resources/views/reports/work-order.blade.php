@@ -39,7 +39,7 @@
                     <div class="field-label">Equipo</div>
                     <div class="field-value">{{ $workOrder->equipment?->name ?? '—' }}</div>
 
-                    <div class="field-label">Planta / Área</div>
+                    <div class="field-label">Planta / Sección</div>
                     <div class="field-value">
                         {{ $workOrder->equipment?->plant?->name ?? '—' }}
                         @if($workOrder->equipment?->area)

@@ -4,6 +4,7 @@ namespace App\Filament\Resources\MeterReadings\Pages;
 
 use App\Domain\Assets\Enums\EquipmentStatus;
 use App\Domain\Assets\Enums\MeterReadingFrequency;
+use App\Domain\Assets\Services\ReferenceDataService;
 use App\Domain\Maintenance\Enums\MaintenanceTriggerSource;
 use App\Domain\Maintenance\Services\MaintenancePlanService;
 use App\Domain\Maintenance\Services\PreventiveWorkOrderGenerator;
@@ -11,6 +12,7 @@ use App\Filament\Resources\MeterReadings\Concerns\InteractsWithMaintenanceContro
 use App\Filament\Resources\MeterReadings\Concerns\InteractsWithMeterMatrix;
 use App\Filament\Resources\MeterReadings\Concerns\InteractsWithWorkedHoursReport;
 use App\Filament\Resources\MeterReadings\MeterReadingResource;
+use App\Models\Area;
 use App\Models\Equipment;
 use App\Models\EquipmentComponent;
 use Filament\Actions\Action;
@@ -184,12 +186,22 @@ class ListMeterReadings extends ListRecords
             ->modalHeading('Nueva tarea de mantenimiento')
             ->modalSubmitActionLabel('Agregar')
             ->schema([
+                Select::make('area_filter')
+                    ->label('Sección')
+                    ->helperText('Elige la sección para ver solo sus equipos.')
+                    ->options(fn (): array => ReferenceDataService::allAreas(Filament::getTenant()?->id ?? ''))
+                    ->getOptionLabelUsing(fn ($value): ?string => $value ? Area::withoutGlobalScopes()->find($value)?->name : null)
+                    ->native(false)
+                    ->searchable()
+                    ->live()
+                    ->dehydrated(false)
+                    ->afterStateUpdated(fn (Set $set) => $set('equipment_id', null)),
                 Select::make('equipment_id')
                     ->label('Equipo')
                     ->required()
                     ->searchable()
                     ->live()
-                    ->options(fn (): array => $this->equipmentOptions())
+                    ->options(fn (Get $get): array => $this->equipmentOptions($get('area_filter')))
                     ->afterStateUpdated(fn (Set $set) => $set('equipment_component_id', null)),
                 Select::make('equipment_component_id')
                     ->label('Pieza')
@@ -282,10 +294,11 @@ class ListMeterReadings extends ListRecords
     /**
      * @return array<string, string>
      */
-    private function equipmentOptions(): array
+    private function equipmentOptions(?string $areaId = null): array
     {
         return Equipment::query()
             ->whereNotIn('status', [EquipmentStatus::Retired->value, EquipmentStatus::Disposed->value])
+            ->when($areaId, fn ($query, $id) => $query->where('area_id', $id))
             ->orderBy('code')
             ->get(['id', 'code', 'name'])
             ->mapWithKeys(fn (Equipment $e): array => [$e->id => "{$e->code} — {$e->name}"])

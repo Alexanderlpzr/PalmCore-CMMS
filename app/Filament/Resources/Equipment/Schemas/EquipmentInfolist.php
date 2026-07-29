@@ -64,7 +64,7 @@ class EquipmentInfolist
                         TextEntry::make('plant.name')
                             ->label('Planta'),
                         TextEntry::make('area.name')
-                            ->label('Área')
+                            ->label('Sección')
                             ->placeholder('—'),
                         TextEntry::make('parent.name')
                             ->label('Equipo padre')

@@ -7,7 +7,9 @@ use App\Domain\Maintenance\Enums\MaintenanceArea;
 use App\Domain\Maintenance\Enums\PlantProcess;
 use App\Domain\Maintenance\Enums\WorkOrderPriority;
 use App\Domain\Maintenance\Enums\WorkOrderType;
+use App\Models\Area;
 use App\Models\Equipment;
+use App\Models\WorkOrder;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -27,9 +29,31 @@ class WorkOrderForm
                 Section::make('Orden de Trabajo')
                     ->columns(2)
                     ->schema([
+                        Select::make('area_filter')
+                            ->label('Sección')
+                            ->helperText('Elige la sección para ver solo sus equipos.')
+                            ->options(fn (): array => ReferenceDataService::allAreas(Filament::getTenant()?->id ?? ''))
+                            // El valor puede venir del equipo elegido (afterStateUpdated de
+                            // abajo) en vez de una elección manual dentro de la lista de
+                            // arriba, así que la validación del `in()` de Filament necesita
+                            // resolver la etiqueta directo por id, no solo buscarla en esa
+                            // lista — si no, un equipo cuya área quedó fuera del alcance del
+                            // tenant en la consulta de arriba tumba el guardado sin motivo.
+                            ->getOptionLabelUsing(fn ($value): ?string => $value ? Area::withoutGlobalScopes()->find($value)?->name : null)
+                            ->native(false)
+                            ->searchable()
+                            ->live()
+                            ->dehydrated(false)
+                            ->default(fn (?WorkOrder $record): ?string => $record?->area_id)
+                            ->afterStateUpdated(fn (Set $set) => $set('equipment_id', null)),
                         Select::make('equipment_id')
                             ->label('Equipo')
-                            ->options(fn (): array => Equipment::orderBy('code')->get()->mapWithKeys(fn ($e) => [$e->id => "{$e->code} — {$e->name}"])->toArray())
+                            ->options(fn (Get $get): array => Equipment::query()
+                                ->when($get('area_filter'), fn ($query, $areaId) => $query->where('area_id', $areaId))
+                                ->orderBy('code')
+                                ->get()
+                                ->mapWithKeys(fn ($e) => [$e->id => "{$e->code} — {$e->name}"])
+                                ->toArray())
                             ->searchable()
                             ->required()
                             ->live()
@@ -39,6 +63,7 @@ class WorkOrderForm
                                     if ($equipment) {
                                         $set('plant_id', $equipment->plant_id);
                                         $set('area_id', $equipment->area_id);
+                                        $set('area_filter', $equipment->area_id);
                                     }
                                 }
                             }),
@@ -57,11 +82,11 @@ class WorkOrderForm
                             ->native(false)
                             ->searchable(),
                         Select::make('maintenance_area')
-                            ->label('Área de Mtto')
+                            ->label('Clase de mantenimiento')
                             ->options(MaintenanceArea::options())
                             ->native(false),
                         TextInput::make('executed_by')
-                            ->label('Ejecutante(s)')
+                            ->label('Responsable(s)')
                             ->helperText('Quién hizo el trabajo — la cuadrilla (ej: «El mecánico y su auxiliar», «Fernando A.»).')
                             ->maxLength(255),
                         TextInput::make('meter_reading')
@@ -105,7 +130,7 @@ class WorkOrderForm
                     ->required()
                     ->hidden(),
                 Select::make('area_id')
-                    ->label('Área')
+                    ->label('Sección')
                     ->options(fn (): array => ReferenceDataService::allAreas(Filament::getTenant()?->id ?? ''))
                     ->hidden(),
             ]);

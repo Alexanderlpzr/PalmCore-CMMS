@@ -73,7 +73,7 @@ class ApiTokens extends Page
                             'permits.write' => 'Permisos de trabajo — firma del ejecutante',
                             'plants.read' => 'Plantas — lectura',
                             'plants.write' => 'Plantas / calendario de producción — escritura',
-                            'areas.read' => 'Áreas — lectura',
+                            'areas.read' => 'Secciones — lectura',
                         ])
                         ->default(['*'])
                         ->columns(2)

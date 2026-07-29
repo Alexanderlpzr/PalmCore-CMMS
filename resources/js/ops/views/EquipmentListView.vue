@@ -118,9 +118,9 @@
                 <option v-for="p in plants" :key="p.id" :value="p.id">{{ p.name }}</option>
             </select>
 
-            <!-- Área select -->
+            <!-- Sección select -->
             <select v-model="selectedArea" class="border border-gray-200 rounded-xl text-xs text-gray-700 px-3 py-1.5 focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white" :disabled="!selectedPlant && filteredAreas.length === 0">
-                <option value="">Todas las áreas</option>
+                <option value="">Todas las secciones</option>
                 <option v-for="a in filteredAreas" :key="a.id" :value="a.id">{{ a.name }}</option>
             </select>
 

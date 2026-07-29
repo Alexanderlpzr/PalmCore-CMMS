@@ -26,7 +26,7 @@ class MonthlyMaintenanceCostExcelExport
             'Título' => $wo->title,
             'Tipo' => $wo->work_order_type?->label(),
             'Equipo' => $wo->equipment?->name,
-            'Área' => $wo->area?->name,
+            'Sección' => $wo->area?->name,
             'Completada' => $wo->completed_at?->format('Y-m-d'),
             'Mano de Obra' => self::amount($wo->actual_cost_labor),
             'Repuestos' => self::amount($wo->actual_cost_parts),

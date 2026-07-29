@@ -26,7 +26,7 @@ class DowntimeExcelExport
         return [
             'Equipo' => $event->equipment?->name,
             'Planta' => $event->equipment?->plant?->name,
-            'Área' => $event->equipment?->area?->name,
+            'Sección' => $event->equipment?->area?->name,
             'N° OT' => $event->work_order_number,
             'Inicio' => $event->started_at?->format('Y-m-d H:i'),
             'Fin' => $event->ended_at?->format('Y-m-d H:i'),

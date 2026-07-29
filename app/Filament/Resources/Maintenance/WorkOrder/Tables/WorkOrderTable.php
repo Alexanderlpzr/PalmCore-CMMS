@@ -46,7 +46,7 @@ class WorkOrderTable
                     ->formatStateUsing(fn (WorkOrderType $state): string => $state->label())
                     ->sortable(),
                 TextColumn::make('maintenance_area')
-                    ->label('Área de Mtto')
+                    ->label('Clase de mantenimiento')
                     ->badge()
                     ->placeholder('—')
                     ->color(fn (?MaintenanceArea $state): string => $state?->color() ?? 'gray')
@@ -59,7 +59,7 @@ class WorkOrderTable
                     ->formatStateUsing(fn (?PlantProcess $state): ?string => $state?->label())
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('executed_by')
-                    ->label('Ejecutante(s)')
+                    ->label('Responsable(s)')
                     ->placeholder('—')
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -141,7 +141,7 @@ class WorkOrderTable
                     ->label('Tipo')
                     ->options(WorkOrderType::options()),
                 SelectFilter::make('maintenance_area')
-                    ->label('Área de Mtto')
+                    ->label('Clase de mantenimiento')
                     ->options(MaintenanceArea::options()),
                 SelectFilter::make('priority')
                     ->label('Prioridad')

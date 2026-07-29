@@ -3,7 +3,7 @@
 namespace App\Domain\Maintenance\Enums;
 
 /**
- * «Área de Mtto» de la planilla de OT: la disciplina que hizo el trabajo.
+ * «Clase de mantenimiento» de la planilla de OT: la disciplina que hizo el trabajo.
  */
 enum MaintenanceArea: string
 {

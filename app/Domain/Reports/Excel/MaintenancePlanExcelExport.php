@@ -28,7 +28,7 @@ class MaintenancePlanExcelExport
             'Nombre' => $plan->name,
             'Equipo' => $plan->equipment?->name,
             'Planta' => $plan->equipment?->plant?->name,
-            'Área' => $plan->equipment?->area?->name,
+            'Sección' => $plan->equipment?->area?->name,
             'Responsable' => $plan->responsibleUser?->name,
             'Disparador' => $plan->trigger_source?->label(),
             'Frecuencia' => $plan->frequencyLabel(),

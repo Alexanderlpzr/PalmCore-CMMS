@@ -15,8 +15,8 @@ beforeEach(function () {
     $this->seed(PermissionSeeder::class);
 });
 
-it('provisions a default plant for a new tenant', function () {
-    $tenant = Tenant::factory()->create();
+it('provisions a default plant named after the tenant itself', function () {
+    $tenant = Tenant::factory()->create(['name' => 'Extractora El Pajuil']);
 
     app(ProvisionTenantBaseStructure::class)->handle($tenant);
 
@@ -24,7 +24,7 @@ it('provisions a default plant for a new tenant', function () {
 
     expect($plant)->not->toBeNull()
         ->and($plant->code)->toBe('PLT-01')
-        ->and($plant->name)->toBe('Planta Principal')
+        ->and($plant->name)->toBe('Extractora El Pajuil')
         ->and($plant->is_active)->toBeTrue();
 });
 

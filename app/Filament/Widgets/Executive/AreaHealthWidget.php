@@ -23,7 +23,7 @@ class AreaHealthWidget extends BaseWidget
     public function table(Table $table): Table
     {
         return $table
-            ->heading('Salud por Área')
+            ->heading('Salud por Sección')
             ->records(function (): array {
                 [$from, $to] = DashboardPeriod::resolve($this->pageFilters);
 
@@ -33,7 +33,7 @@ class AreaHealthWidget extends BaseWidget
             })
             ->columns([
                 TextColumn::make('name')
-                    ->label('Área'),
+                    ->label('Sección'),
 
                 TextColumn::make('availability')
                     ->label('Disponibilidad')

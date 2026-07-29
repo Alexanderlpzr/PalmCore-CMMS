@@ -34,7 +34,7 @@
                     <div class="field-label">Equipo</div>
                     <div class="field-value">{{ $plan->equipment?->name ?? '—' }} ({{ $plan->equipment?->code ?? '—' }})</div>
 
-                    <div class="field-label">Planta / Área</div>
+                    <div class="field-label">Planta / Sección</div>
                     <div class="field-value">
                         {{ $plan->equipment?->plant?->name ?? '—' }}
                         @if($plan->equipment?->area) / {{ $plan->equipment->area->name }} @endif

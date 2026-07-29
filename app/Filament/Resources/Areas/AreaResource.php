@@ -24,9 +24,9 @@ class AreaResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedSquares2x2;
 
-    protected static ?string $modelLabel = 'Área';
+    protected static ?string $modelLabel = 'Sección';
 
-    protected static ?string $pluralModelLabel = 'Áreas';
+    protected static ?string $pluralModelLabel = 'Secciones';
 
     protected static string|UnitEnum|null $navigationGroup = 'Estructura Operativa';
 

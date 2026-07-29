@@ -481,7 +481,7 @@
                                         </RouterLink>
                                     </div>
                                     <div v-if="equipment.area" class="flex items-start justify-between py-2.5 gap-4">
-                                        <span class="text-xs text-gray-500 shrink-0">Área</span>
+                                        <span class="text-xs text-gray-500 shrink-0">Sección</span>
                                         <RouterLink
                                             :to="{ name: 'ops.areas.show', params: { id: equipment.area.id }, query: { from: 'ops.equipos.show', fromId: equipment.id } }"
                                             class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors text-right">

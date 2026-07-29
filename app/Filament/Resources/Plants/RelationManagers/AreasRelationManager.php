@@ -15,7 +15,7 @@ class AreasRelationManager extends RelationManager
 {
     protected static string $relationship = 'areas';
 
-    protected static ?string $title = 'Áreas';
+    protected static ?string $title = 'Secciones';
 
     protected static ?string $recordTitleAttribute = 'name';
 

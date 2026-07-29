@@ -138,7 +138,7 @@
                             <div class="px-4 divide-y divide-gray-50">
                                 <InfoRow label="Tipo" :value="typeLabel[wo.work_order_type] ?? wo.work_order_type" />
                                 <InfoRow label="Planta" :value="wo.plant?.name" />
-                                <InfoRow label="Área" :value="wo.area?.name" />
+                                <InfoRow label="Sección" :value="wo.area?.name" />
                                 <InfoRow label="Equipo detenido" :value="wo.equipment_stopped === true ? 'Sí' : wo.equipment_stopped === false ? 'No' : null" />
                                 <InfoRow label="Tiempo de paro" :value="wo.downtime_minutes != null ? `${wo.downtime_minutes} min` : null" />
                             </div>
