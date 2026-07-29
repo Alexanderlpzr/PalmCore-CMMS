@@ -223,6 +223,15 @@ class WorkOrder extends BaseModel
         ]);
     }
 
+    /** El histórico: OT ya cerradas o canceladas, fuera del flujo de trabajo activo. */
+    public function scopeHistorical(Builder $query): Builder
+    {
+        return $query->whereIn('status', [
+            WorkOrderStatus::Closed->value,
+            WorkOrderStatus::Cancelled->value,
+        ]);
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('status', WorkOrderStatus::InProgress->value);
