@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use App\Domain\Assets\Services\ReferenceDataService;
 use App\Domain\Shared\Enums\SubscriptionStatus;
+use App\Filament\Resources\Equipment\Pages\ListEquipment;
 use App\Models\Alert;
 use App\Models\Announcement;
 use App\Models\Area;
@@ -42,7 +44,11 @@ use App\Observers\WorkOrderObserver;
 use App\Observers\WorkOrderPartObserver;
 use App\Security\SsrfValidator;
 use Carbon\CarbonImmutable;
+use Filament\Facades\Filament;
+use Filament\Support\Facades\FilamentView;
+use Filament\Tables\View\TablesRenderHook;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
@@ -78,6 +84,27 @@ class AppServiceProvider extends ServiceProvider
         $this->configureE2EWebhookFakes();
         $this->configureSentry();
         $this->configureLivewire();
+        $this->configureFilamentRenderHooks();
+    }
+
+    /**
+     * Selector de Sección siempre visible en la barra de la tabla de Equipos, en
+     * lugar de escondido tras el ícono de filtros: es el filtro que más se usa
+     * para llegar a un equipo. Réplica del selector de Horómetros.
+     *
+     * Se registra aquí y no en AdminPanelProvider porque los render hooks del
+     * panel sólo quedan activos cuando el panel arranca (Panel::boot()), lo que
+     * no ocurre al renderizar componentes Livewire en pruebas.
+     */
+    private function configureFilamentRenderHooks(): void
+    {
+        FilamentView::registerRenderHook(
+            TablesRenderHook::TOOLBAR_GROUPING_SELECTOR_BEFORE,
+            fn (): View => view('filament.resources.equipment.partials.section-filter', [
+                'areaOptions' => ReferenceDataService::allAreas(Filament::getTenant()?->id ?? ''),
+            ]),
+            scopes: ListEquipment::class,
+        );
     }
 
     private function configureDefaults(): void
