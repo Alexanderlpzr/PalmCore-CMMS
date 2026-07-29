@@ -78,7 +78,6 @@
                         <th class="px-2 py-2 text-center font-semibold text-gray-600 dark:text-gray-300">Actual</th>
                         <th class="px-2 py-2 text-center font-semibold text-gray-600 dark:text-gray-300">Próximo</th>
                         <th class="px-2 py-2 text-center font-semibold text-gray-600 dark:text-gray-300">Faltan</th>
-                        <th class="px-2 py-2 text-center font-semibold text-gray-600 dark:text-gray-300">Días</th>
                         <th class="px-2 py-2 text-center font-semibold text-gray-600 dark:text-gray-300">Aviso</th>
                         <th class="px-2 py-2 text-center font-semibold text-gray-600 dark:text-gray-300" title="Mantenimientos hechos de esta tarea">Ciclos</th>
                         <th class="px-3 py-2 text-right font-semibold text-gray-700 dark:text-gray-200">Acciones</th>
@@ -88,9 +87,9 @@
                     @foreach ($groups as $group)
                         @php $eq = $group['equipment']; @endphp
                         <tr class="border-b border-gray-200 bg-gray-50 dark:border-white/10 dark:bg-white/5">
-                            <td colspan="9" class="sticky left-0 z-10 bg-gray-50 px-3 py-1.5 dark:bg-white/5">
-                                <span class="font-bold text-gray-900 dark:text-white">{{ $eq['code'] }}</span>
-                                <span class="font-semibold text-gray-700 dark:text-gray-200">— {{ $eq['name'] }}</span>
+                            <td colspan="8" class="sticky left-0 z-10 bg-gray-50 px-3 py-1.5 dark:bg-white/5">
+                                <span class="font-bold text-gray-900 dark:text-white">{{ $eq['name'] }}</span>
+                                <span class="ml-1 font-mono text-xs text-gray-500 dark:text-gray-400">{{ $eq['code'] }}</span>
                             </td>
                             <td class="bg-gray-50 px-3 py-1.5 text-right text-xs text-gray-500 tabular-nums dark:bg-white/5 dark:text-gray-400">
                                 Actual: {{ number_format($eq['current'], 0) }} h
@@ -168,11 +167,6 @@
                                             @endif
                                         </span>
                                     @endif
-                                </td>
-
-                                {{-- Días faltantes --}}
-                                <td class="px-2 py-1 text-center text-xs tabular-nums text-gray-500 dark:text-gray-400">
-                                    {{ $row['days'] !== null ? $row['days'] : '—' }}
                                 </td>
 
                                 {{-- Aviso / umbral (editable) --}}

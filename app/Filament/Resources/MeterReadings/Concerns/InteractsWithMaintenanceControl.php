@@ -98,7 +98,6 @@ trait InteractsWithMaintenanceControl
             ->pluck('maintenance_plan_id')
             ->flip();
 
-        $paceCache = [];
         $groups = [];
 
         foreach ($plans as $plan) {
@@ -112,9 +111,6 @@ trait InteractsWithMaintenanceControl
             // Firmado a propósito: el Excel muestra en rojo cuánto se pasó (−624 h),
             // no lo esconde en cero como hace metersRemaining para el generador.
             $remaining = $next !== null ? round((float) $next - $current, 1) : null;
-
-            $pace = $paceCache[$equipment->id] ??= ($meters->consumptionPerDay($equipment) ?? 0.0);
-            $days = ($remaining !== null && $pace > 0) ? (int) ceil($remaining / $pace) : null;
 
             $hasOpenOt = isset($openPlanIds[$plan->id]);
             $color = $meters->remainingColor($plan);
@@ -144,7 +140,6 @@ trait InteractsWithMaintenanceControl
                 'current' => $current,
                 'next' => $next !== null ? round((float) $next, 1) : null,
                 'remaining' => $remaining,
-                'days' => $days,
                 'lead' => $lead,
                 // Cuántos mantenimientos se han hecho de esta tarea (cada ejecución
                 // suma uno, sea por OT completada o registro manual «Hecho»).
