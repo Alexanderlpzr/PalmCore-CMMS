@@ -291,7 +291,7 @@ class EquipmentForm
                             ->visibility(persistent_disk() === 'public' ? 'public' : 'private')
                             ->maxSize(10240)
                             ->imageResizeMode('contain')
-                            ->helperText('Puedes agregar más fotos y documentos después, desde las pestañas del equipo.'),
+                            ->helperText('Es la foto que se ve al escanear el QR del equipo. Solo se puede cargar al crearlo.'),
                     ]),
 
                 // Solo al crear: registrar de una vez las piezas del equipo. En la edición

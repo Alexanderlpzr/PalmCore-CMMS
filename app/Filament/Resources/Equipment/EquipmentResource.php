@@ -7,10 +7,7 @@ use App\Filament\Resources\Equipment\Pages\EditEquipment;
 use App\Filament\Resources\Equipment\Pages\ListEquipment;
 use App\Filament\Resources\Equipment\Pages\ViewEquipment;
 use App\Filament\Resources\Equipment\RelationManagers\ComponentsRelationManager;
-use App\Filament\Resources\Equipment\RelationManagers\DocumentsRelationManager;
-use App\Filament\Resources\Equipment\RelationManagers\FailureModeAnalysisRelationManager;
 use App\Filament\Resources\Equipment\RelationManagers\MaintenancePlansRelationManager;
-use App\Filament\Resources\Equipment\RelationManagers\PhotosRelationManager;
 use App\Filament\Resources\Equipment\RelationManagers\WorkOrdersRelationManager;
 use App\Filament\Resources\Equipment\Schemas\EquipmentForm;
 use App\Filament\Resources\Equipment\Schemas\EquipmentInfolist;
@@ -64,14 +61,20 @@ class EquipmentResource extends Resource
         return EquipmentTable::configure($table);
     }
 
+    /**
+     * Solo las pestañas que se usan en planta: las piezas del equipo, sus
+     * preventivos y sus OT.
+     *
+     * Fuera quedaron Análisis de Fallas RCM (su único consumidor era un widget
+     * que no está en ningún tablero, así que era captura sin retorno),
+     * Documentos y Fotografías. Sus relation managers siguen en el repositorio
+     * por si se reactivan.
+     */
     public static function getRelations(): array
     {
         return [
             'components' => ComponentsRelationManager::class,
             'maintenance_plans' => MaintenancePlansRelationManager::class,
-            'failure_mode_analyses' => FailureModeAnalysisRelationManager::class,
-            'documents' => DocumentsRelationManager::class,
-            'photos' => PhotosRelationManager::class,
             'work_orders' => WorkOrdersRelationManager::class,
         ];
     }
