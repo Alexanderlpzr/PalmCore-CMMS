@@ -97,6 +97,10 @@ class EquipmentTable
                     ->toggleable(),
             ])
             ->filters([
+                SelectFilter::make('area_id')
+                    ->label('Sección')
+                    ->options(fn (): array => ReferenceDataService::allAreas(Filament::getTenant()?->id ?? ''))
+                    ->searchable(),
                 SelectFilter::make('status')
                     ->label('Estado')
                     ->options(EquipmentStatus::options()),
