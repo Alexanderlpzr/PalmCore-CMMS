@@ -38,9 +38,18 @@ class WorkOrderTable
                     ->sortable()
                     ->copyable()
                     ->weight('bold'),
-                TextColumn::make('equipment.code')
+                // El nombre manda y el código va debajo: el usuario reconoce
+                // «Unidad hidráulica tolva recepción» al instante, no «A01REC.02.01».
+                // La búsqueda sigue aceptando ambos.
+                TextColumn::make('equipment.name')
                     ->label('Equipo')
-                    ->searchable()
+                    ->description(fn (WorkOrder $record): ?string => $record->equipment?->code)
+                    ->searchable(query: fn (Builder $query, string $search): Builder => $query->whereHas(
+                        'equipment',
+                        fn (Builder $equipment) => $equipment
+                            ->where('name', 'like', "%{$search}%")
+                            ->orWhere('code', 'like', "%{$search}%")
+                    ))
                     ->sortable(),
                 TextColumn::make('title')
                     ->label('Título')
