@@ -2,16 +2,23 @@
 
 namespace App\Filament\Resources\Maintenance\WorkOrder\Tables;
 
+use App\Domain\Assets\Services\ReferenceDataService;
 use App\Domain\Maintenance\Enums\MaintenanceArea;
 use App\Domain\Maintenance\Enums\PlantProcess;
 use App\Domain\Maintenance\Enums\WorkOrderPriority;
 use App\Domain\Maintenance\Enums\WorkOrderStatus;
 use App\Domain\Maintenance\Enums\WorkOrderType;
+use App\Models\Area;
+use App\Models\Equipment;
 use App\Models\WorkOrder;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
+use Filament\Facades\Filament;
+use Filament\Forms\Components\Select;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
@@ -129,6 +136,52 @@ class WorkOrderTable
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                // Hoja de vida del equipo: se elige la sección y el selector de
+                // equipo queda reducido a los de esa sección. Con el equipo puesto,
+                // el Histórico muestra todas sus OT y nada más.
+                Filter::make('ubicacion')
+                    ->label('Sección y equipo')
+                    ->form([
+                        Select::make('area_id')
+                            ->label('Sección')
+                            ->options(fn (): array => ReferenceDataService::allAreas(Filament::getTenant()?->id ?? ''))
+                            ->searchable()
+                            ->live()
+                            ->afterStateUpdated(fn (Set $set): mixed => $set('equipment_id', null)),
+                        Select::make('equipment_id')
+                            ->label('Equipo')
+                            ->options(fn (Get $get): array => Equipment::query()
+                                ->when($get('area_id'), fn (Builder $query, string $areaId) => $query->where('area_id', $areaId))
+                                ->orderBy('name')
+                                ->pluck('name', 'id')
+                                ->all())
+                            ->searchable(),
+                    ])
+                    ->query(fn (Builder $query, array $data): Builder => $query
+                        ->when(
+                            $data['area_id'] ?? null,
+                            fn (Builder $query, string $areaId) => $query->whereHas(
+                                'equipment',
+                                fn (Builder $equipment) => $equipment->where('area_id', $areaId)
+                            )
+                        )
+                        ->when(
+                            $data['equipment_id'] ?? null,
+                            fn (Builder $query, string $equipmentId) => $query->where('equipment_id', $equipmentId)
+                        ))
+                    ->indicateUsing(function (array $data): array {
+                        $indicators = [];
+
+                        if ($data['area_id'] ?? null) {
+                            $indicators[] = 'Sección: '.(Area::withoutGlobalScopes()->find($data['area_id'])?->name ?? '—');
+                        }
+
+                        if ($data['equipment_id'] ?? null) {
+                            $indicators[] = 'Equipo: '.(Equipment::withoutGlobalScopes()->find($data['equipment_id'])?->name ?? '—');
+                        }
+
+                        return $indicators;
+                    }),
                 Filter::make('assigned_to_me')
                     ->label('Asignadas a mí')
                     ->toggle()

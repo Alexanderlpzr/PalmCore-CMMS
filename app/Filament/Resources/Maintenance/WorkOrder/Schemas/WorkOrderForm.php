@@ -11,6 +11,7 @@ use App\Models\Area;
 use App\Models\Equipment;
 use App\Models\WorkOrder;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -107,6 +108,18 @@ class WorkOrderForm
                         Textarea::make('instructions')
                             ->label('Instrucciones de trabajo')
                             ->rows(4)
+                            ->columnSpanFull(),
+                        // Foto del «antes»: cómo se encontró el equipo. La del
+                        // «después» se pide al cerrar la OT, en su modal.
+                        FileUpload::make('before_photo_path')
+                            ->label('Foto del antes')
+                            ->helperText('Cómo se encontró el equipo. Sirve de referencia para comparar con la foto del después al cerrar la OT.')
+                            ->image()
+                            ->imageEditor()
+                            ->disk(persistent_disk())
+                            ->visibility(persistent_disk() === 'public' ? 'public' : 'private')
+                            ->directory('work-order-photos')
+                            ->maxSize(10240)
                             ->columnSpanFull(),
                     ]),
 

@@ -13,6 +13,7 @@ use App\Domain\Maintenance\Enums\WorkOrderType;
 use App\Filament\Resources\Maintenance\IssueReport\IssueReportResource;
 use App\Models\WorkOrder;
 use Filament\Infolists\Components\IconEntry;
+use Filament\Infolists\Components\ImageEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -108,6 +109,25 @@ class WorkOrderInfolist
                             ->placeholder('—')
                             ->formatStateUsing(fn (?StoppageCategory $state): ?string => $state?->label())
                             ->visible(fn (WorkOrder $record): bool => $record->diagnosed_stoppage_category !== null),
+                    ]),
+
+                // El antes y el después, lado a lado: es la comparación que da
+                // trazabilidad visual del trabajo sin tener que leer la OT.
+                Section::make('Registro fotográfico')
+                    ->columns(2)
+                    ->visible(fn (WorkOrder $record): bool => filled($record->before_photo_path)
+                        || filled($record->after_photo_path))
+                    ->schema([
+                        ImageEntry::make('before_photo_path')
+                            ->label('Antes')
+                            ->disk(persistent_disk())
+                            ->height(240)
+                            ->placeholder('Sin foto del antes'),
+                        ImageEntry::make('after_photo_path')
+                            ->label('Después')
+                            ->disk(persistent_disk())
+                            ->height(240)
+                            ->placeholder('Sin foto del después'),
                     ]),
 
                 Section::make('Costo')

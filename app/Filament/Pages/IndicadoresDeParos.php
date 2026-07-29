@@ -36,9 +36,9 @@ class IndicadoresDeParos extends BaseDashboard
 
     protected static string|UnitEnum|null $navigationGroup = 'Indicadores';
 
-    protected static ?string $navigationLabel = 'Indicadores de Paros';
+    protected static ?string $navigationLabel = 'Indicadores de Paradas';
 
-    protected static ?string $title = 'Indicadores de Paros';
+    protected static ?string $title = 'Indicadores de Paradas';
 
     protected static ?int $navigationSort = 2;
 

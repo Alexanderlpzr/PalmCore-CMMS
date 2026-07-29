@@ -16,6 +16,7 @@ use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -74,6 +75,17 @@ class ViewWorkOrder extends ViewRecord
                     Textarea::make('root_cause')
                         ->label('Causa raíz (si aplica)')
                         ->rows(3),
+                    // Cierra el registro fotográfico que abrió la foto del «antes»
+                    // al crear la OT: cómo quedó el equipo después del trabajo.
+                    FileUpload::make('after_photo_path')
+                        ->label('Foto del después')
+                        ->helperText('Cómo quedó el equipo. Queda junto a la foto del antes en el detalle de la OT.')
+                        ->image()
+                        ->imageEditor()
+                        ->disk(persistent_disk())
+                        ->visibility(persistent_disk() === 'public' ? 'public' : 'private')
+                        ->directory('work-order-photos')
+                        ->maxSize(10240),
                     ...$this->costFields(),
                 ])
                 ->visible(fn (): bool => ! $this->record->status->isTerminal()

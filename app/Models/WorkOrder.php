@@ -40,6 +40,8 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'instructions',
     'failure_cause',
     'work_performed',
+    'before_photo_path',
+    'after_photo_path',
     'root_cause',
     'failure_mode',
     'diagnosed_stoppage_category',

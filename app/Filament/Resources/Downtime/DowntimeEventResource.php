@@ -28,9 +28,11 @@ class DowntimeEventResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedExclamationTriangle;
 
-    protected static ?string $modelLabel = 'Paro';
+    protected static ?string $modelLabel = 'Parada de planta';
 
-    protected static ?string $pluralModelLabel = 'Paros';
+    protected static ?string $pluralModelLabel = 'Paradas de Planta';
+
+    protected static ?string $navigationLabel = 'Paradas de Planta';
 
     protected static string|UnitEnum|null $navigationGroup = 'Mantenimiento';
 
