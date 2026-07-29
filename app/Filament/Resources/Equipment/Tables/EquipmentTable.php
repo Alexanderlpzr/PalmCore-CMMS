@@ -21,6 +21,7 @@ use Filament\Notifications\Notification;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Grouping\Group;
@@ -123,6 +124,7 @@ class EquipmentTable
                     ->searchable(),
                 TrashedFilter::make(),
             ])
+            ->filtersLayout(FiltersLayout::AboveContent)
             ->recordActions([
                 ViewAction::make()
                     ->tooltip('Ver el detalle de este equipo'),
