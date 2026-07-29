@@ -14,17 +14,29 @@
 @endphp
 
 <div class="mt-4 space-y-4">
-    {{-- Buscar equipo o tarea --}}
-    <div class="relative w-full max-w-xs">
-        <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-gray-400">
-            <x-filament::icon icon="heroicon-m-magnifying-glass" class="h-4 w-4" />
-        </span>
-        <input
-            type="search"
-            wire:model.live.debounce.300ms="controlSearch"
-            placeholder="Buscar equipo o tarea…"
-            class="w-full rounded-lg border-gray-300 bg-white py-1.5 pr-3 pl-8 text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:border-white/10 dark:bg-white/5 dark:text-white"
-        />
+    {{-- Sección + Buscar equipo o tarea --}}
+    <div class="flex flex-wrap items-center gap-2">
+        <select
+            wire:model.live="controlAreaFilter"
+            class="rounded-lg border-gray-300 bg-white py-1.5 pr-8 pl-3 text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:border-white/10 dark:bg-white/5 dark:text-white"
+        >
+            <option value="">Todas las secciones</option>
+            @foreach ($this->controlAreaOptions() as $areaId => $areaName)
+                <option value="{{ $areaId }}">{{ $areaName }}</option>
+            @endforeach
+        </select>
+
+        <div class="relative w-full max-w-xs">
+            <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-gray-400">
+                <x-filament::icon icon="heroicon-m-magnifying-glass" class="h-4 w-4" />
+            </span>
+            <input
+                type="search"
+                wire:model.live.debounce.300ms="controlSearch"
+                placeholder="Buscar equipo o tarea…"
+                class="w-full rounded-lg border-gray-300 bg-white py-1.5 pr-3 pl-8 text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:border-white/10 dark:bg-white/5 dark:text-white"
+            />
+        </div>
     </div>
 
     <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
@@ -45,6 +57,8 @@
             <p class="text-sm text-gray-500 dark:text-gray-400">
                 @if (trim($this->controlSearch) !== '')
                     No hay equipos ni tareas que coincidan con «<span class="font-semibold">{{ $this->controlSearch }}</span>».
+                @elseif ($this->controlAreaFilter)
+                    Esta sección no tiene equipos con tareas de mantenimiento por horómetro.
                 @else
                     Aún no hay tareas de mantenimiento por horómetro.
                     @if ($canWrite)

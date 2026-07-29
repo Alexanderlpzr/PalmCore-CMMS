@@ -442,3 +442,20 @@ it('rechaza un equipo puesto en diario y semanal a la vez', function (): void {
     // Se detuvo por el conflicto: el equipo sigue sin ronda.
     expect($eq->refresh()->reading_frequency)->toBeNull();
 });
+
+it('un equipo elegido en una lista deja de ofrecerse como opción en la otra', function (): void {
+    // Es lo que evita el conflicto anterior en la práctica: cada select excluye
+    // lo que ya está elegido en el otro, así el usuario nunca llega a intentarlo.
+    $a = Equipment::factory()->create(['tenant_id' => $this->tenant->id, 'code' => 'EQ-A']);
+    $b = Equipment::factory()->create(['tenant_id' => $this->tenant->id, 'code' => 'EQ-B']);
+
+    $page = Livewire::test(ListMeterReadings::class)->instance();
+
+    $method = new ReflectionMethod($page, 'equipmentOptions');
+    $method->setAccessible(true);
+
+    $weeklyOptions = $method->invoke($page, null, [$a->id]);
+
+    expect($weeklyOptions)->toHaveKey($b->id)
+        ->and($weeklyOptions)->not->toHaveKey($a->id);
+});

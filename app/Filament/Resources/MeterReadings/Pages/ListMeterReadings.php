@@ -121,18 +121,23 @@ class ListMeterReadings extends ListRecords
                 'weekly' => $this->equipmentIdsFor(MeterReadingFrequency::Weekly),
             ])
             ->schema([
+                // Cada lista excluye lo ya elegido en la otra: un equipo no puede
+                // aparecer disponible en Diario y Semanal a la vez, para que no
+                // haga falta el aviso de conflicto al guardar.
                 Select::make('daily')
                     ->label('Registro Diario')
                     ->helperText('Los equipos críticos que se leen todos los días.')
                     ->multiple()
                     ->searchable()
-                    ->options(fn (): array => $this->equipmentOptions()),
+                    ->live()
+                    ->options(fn (Get $get): array => $this->equipmentOptions(exclude: $get('weekly') ?? [])),
                 Select::make('weekly')
                     ->label('Registro Semanal')
                     ->helperText('Los equipos que se leen una vez por semana.')
                     ->multiple()
                     ->searchable()
-                    ->options(fn (): array => $this->equipmentOptions()),
+                    ->live()
+                    ->options(fn (Get $get): array => $this->equipmentOptions(exclude: $get('daily') ?? [])),
             ])
             ->action(function (array $data): void {
                 $daily = array_values($data['daily'] ?? []);
@@ -292,13 +297,15 @@ class ListMeterReadings extends ListRecords
     }
 
     /**
+     * @param  array<int, string>  $exclude  ids a dejar fuera (ya elegidos en la otra lista).
      * @return array<string, string>
      */
-    private function equipmentOptions(?string $areaId = null): array
+    private function equipmentOptions(?string $areaId = null, array $exclude = []): array
     {
         return Equipment::query()
             ->whereNotIn('status', [EquipmentStatus::Retired->value, EquipmentStatus::Disposed->value])
             ->when($areaId, fn ($query, $id) => $query->where('area_id', $id))
+            ->when($exclude !== [], fn ($query) => $query->whereNotIn('id', $exclude))
             ->orderBy('code')
             ->get(['id', 'code', 'name'])
             ->mapWithKeys(fn (Equipment $e): array => [$e->id => "{$e->code} — {$e->name}"])

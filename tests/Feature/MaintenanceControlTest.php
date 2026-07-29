@@ -1,9 +1,11 @@
 <?php
 
 use App\Filament\Resources\MeterReadings\Pages\ListMeterReadings;
+use App\Models\Area;
 use App\Models\Equipment;
 use App\Models\MaintenancePlan;
 use App\Models\MaintenanceSchedule;
+use App\Models\Plant;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\WorkOrder;
@@ -127,6 +129,26 @@ it('la columna de ciclos cuenta los mantenimientos hechos', function (): void {
 
     $after = collect($component->instance()->controlGroups()[0]['rows'])->firstWhere('plan_id', $plan->id);
     expect($after['cycles'])->toBe(1);
+});
+
+it('el filtro de sección limita el tablero a los equipos de esa sección', function (): void {
+    $plant = Plant::factory()->create(['tenant_id' => $this->tenant->id]);
+    $taller = Area::factory()->create(['tenant_id' => $this->tenant->id, 'plant_id' => $plant->id, 'name' => 'Taller']);
+    $esterilizacion = Area::factory()->create(['tenant_id' => $this->tenant->id, 'plant_id' => $plant->id, 'name' => 'Esterilización']);
+
+    $bomba = Equipment::factory()->create(['tenant_id' => $this->tenant->id, 'area_id' => $taller->id, 'code' => 'BOMBA-01', 'accumulated_meter_reading' => 0]);
+    $redler = Equipment::factory()->create(['tenant_id' => $this->tenant->id, 'area_id' => $esterilizacion->id, 'code' => 'REDLER-02', 'accumulated_meter_reading' => 0]);
+    meterControlPlan($this->tenant, $bomba, 2_000, 2_000);
+    meterControlPlan($this->tenant, $redler, 2_000, 2_000);
+
+    $groups = Livewire::test(ListMeterReadings::class)
+        ->call('selectTab', 'control')
+        ->set('controlAreaFilter', $taller->id)
+        ->instance()
+        ->controlGroups();
+
+    expect($groups)->toHaveCount(1)
+        ->and($groups[0]['equipment']['code'])->toBe('BOMBA-01');
 });
 
 // ── Edición en la celda ────────────────────────────────────────────────────────

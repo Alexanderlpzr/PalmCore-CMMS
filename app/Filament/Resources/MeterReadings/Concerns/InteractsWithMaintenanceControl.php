@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\MeterReadings\Concerns;
 
 use App\Domain\Assets\Enums\EquipmentStatus;
+use App\Domain\Assets\Services\ReferenceDataService;
 use App\Domain\Maintenance\Enums\MaintenanceTriggerSource;
 use App\Domain\Maintenance\Enums\WorkOrderStatus;
 use App\Domain\Maintenance\Services\EquipmentMeterReadingService;
@@ -10,6 +11,7 @@ use App\Domain\Maintenance\Services\MaintenancePlanService;
 use App\Domain\Maintenance\Services\PreventiveWorkOrderGenerator;
 use App\Models\MaintenancePlan;
 use App\Models\WorkOrder;
+use Filament\Facades\Filament;
 use Filament\Notifications\Notification;
 
 /**
@@ -32,6 +34,15 @@ trait InteractsWithMaintenanceControl
 
     /** Búsqueda del tablero: filtra por equipo (código/nombre) o tarea. */
     public string $controlSearch = '';
+
+    /** Sección elegida: filtra el tablero a los equipos de esa sección. Vacío = todas. */
+    public ?string $controlAreaFilter = null;
+
+    /** @return array<string, string> */
+    public function controlAreaOptions(): array
+    {
+        return ReferenceDataService::allAreas(Filament::getTenant()?->id ?? '');
+    }
 
     // ── Datos ─────────────────────────────────────────────────────────────────
 
@@ -63,6 +74,8 @@ trait InteractsWithMaintenanceControl
                             ->orWhere('name', 'ilike', $term));
                 });
             })
+            ->when($this->controlAreaFilter, fn ($query, $areaId) => $query
+                ->whereHas('equipment', fn ($e) => $e->where('area_id', $areaId)))
             ->with(['equipment', 'schedule', 'equipmentComponent'])
             ->get()
             ->filter(fn (MaintenancePlan $plan): bool => $plan->equipment !== null
