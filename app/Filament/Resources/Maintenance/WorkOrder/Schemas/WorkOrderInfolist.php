@@ -172,7 +172,7 @@ class WorkOrderInfolist
                             ->label('Reportado por')
                             ->placeholder('—'),
                         TextEntry::make('issueReport.severity')
-                            ->label('Severidad')
+                            ->label('Criticidad')
                             ->badge()
                             ->placeholder('—')
                             ->formatStateUsing(fn (?IssueSeverity $state): string => $state?->label() ?? '—')

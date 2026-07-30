@@ -20,7 +20,7 @@ class AlertInfolist
                     ->columns(3)
                     ->schema([
                         TextEntry::make('severity')
-                            ->label('Severidad')
+                            ->label('Criticidad')
                             ->badge()
                             ->placeholder('Desconocido')
                             ->color(fn (?AlertSeverity $state): string => $state?->color() ?? 'gray')

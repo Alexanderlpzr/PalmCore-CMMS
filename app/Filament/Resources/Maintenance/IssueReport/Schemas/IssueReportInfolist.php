@@ -25,7 +25,7 @@ class IssueReportInfolist
                         TextEntry::make('equipment.name')
                             ->label('Equipo (nombre)'),
                         TextEntry::make('severity')
-                            ->label('Severidad')
+                            ->label('Criticidad')
                             ->badge()
                             ->color(fn (IssueSeverity $state): string => $state->color())
                             ->formatStateUsing(fn (IssueSeverity $state): string => $state->label()),

@@ -21,7 +21,7 @@
 
                 {{-- Severity --}}
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Severidad</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Criticidad</label>
                     <div class="grid grid-cols-4 gap-2">
                         @foreach ($this->getSeverityOptions() as $value => $label)
                             <label class="cursor-pointer">

@@ -31,7 +31,7 @@ class IssueReportTable
                     ->searchable()
                     ->limit(30),
                 TextColumn::make('severity')
-                    ->label('Severidad')
+                    ->label('Criticidad')
                     ->badge()
                     ->color(fn (IssueSeverity $state): string => $state->color())
                     ->formatStateUsing(fn (IssueSeverity $state): string => $state->label())
@@ -57,7 +57,7 @@ class IssueReportTable
             ])
             ->filters([
                 SelectFilter::make('severity')
-                    ->label('Severidad')
+                    ->label('Criticidad')
                     ->options(IssueSeverity::options()),
                 SelectFilter::make('status')
                     ->label('Estado')

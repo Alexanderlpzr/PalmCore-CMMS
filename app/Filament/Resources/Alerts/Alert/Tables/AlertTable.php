@@ -17,7 +17,7 @@ class AlertTable
         return $table
             ->columns([
                 TextColumn::make('severity')
-                    ->label('Severidad')
+                    ->label('Criticidad')
                     ->badge()
                     ->sortable()
                     ->placeholder('Desconocido')
@@ -65,7 +65,7 @@ class AlertTable
             ->defaultSort('created_at', 'desc')
             ->filters([
                 SelectFilter::make('severity')
-                    ->label('Severidad')
+                    ->label('Criticidad')
                     ->options(AlertSeverity::options())
                     ->attribute('severity'),
 

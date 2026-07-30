@@ -172,3 +172,18 @@ it('el detalle del reporte ya no muestra «Usuario registrado»', function () {
         ->assertSee('Reportante')
         ->assertDontSee('Usuario registrado');
 });
+
+it('el reporte rotula la severidad como Criticidad', function () {
+    $report = EquipmentIssueReport::factory()->create([
+        'tenant_id' => $this->tenant->id,
+        'equipment_id' => $this->equipment->id,
+    ]);
+
+    Livewire::test(ViewIssueReport::class, ['record' => $report->getKey()])
+        ->assertSee('Criticidad')
+        ->assertDontSee('Severidad');
+
+    Livewire::test(ListIssueReports::class)
+        ->assertSee('Criticidad')
+        ->assertDontSee('Severidad');
+});
