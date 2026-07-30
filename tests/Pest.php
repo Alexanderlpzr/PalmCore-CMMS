@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /*
@@ -14,8 +15,19 @@ use Tests\TestCase;
 |
 */
 
+/*
+ * Los discos persistentes se falsean para TODA la suite. Sin esto, cualquier test
+ * que cree un Equipment dispara EquipmentObserver -> GenerateEquipmentQrCode, que
+ * con QUEUE_CONNECTION=sync escribe un PNG real en storage/app/public bajo el UUID
+ * del tenant de la factory. Nadie lo limpiaba: la carpeta equipment-qr acumuló
+ * 109.584 imágenes en 85.790 directorios (406 MB) antes de detectarse.
+ */
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
+    ->beforeEach(function (): void {
+        Storage::fake(persistent_disk());
+        Storage::fake(private_files_disk());
+    })
     ->in('Feature');
 
 /*

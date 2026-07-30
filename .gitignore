@@ -37,3 +37,14 @@ rr
 !deploy/.env.production.example
 # Graphify knowledge-graph output (generated locally, not tracked)
 graphify-out/
+
+# Assets de vendor que republica `artisan filament:upgrade` en cada
+# post-autoload-dump. Versionarlos solo generaba churn en cada update de Filament.
+/public/css/filament
+/public/js/filament
+
+# Salidas de la corrida visual de home2. El spec las escribe con
+# page.screenshot({path}) / recordVideo para revisión humana; no son baselines de
+# toHaveScreenshot, así que nada las compara y se regeneran con el propio run.
+/e2e/**/shots
+/e2e/**/videos

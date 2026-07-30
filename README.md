@@ -4,7 +4,7 @@ Ver [`deploy/README.md`](deploy/README.md) para la guía completa de despliegue 
 
 ## Despliegue automático con GitHub Actions
 
-Cada push a `master` dispara [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml), que se conecta por SSH al VPS y ejecuta [`deploy/scripts/deploy.sh`](deploy/scripts/deploy.sh). El script actualiza el código, reconstruye los contenedores, corre migraciones, optimiza la app y valida que quedó sana — sin necesidad de entrar manualmente por SSH.
+Cada push a `master` dispara [`.github/workflows/tests.yml`](.github/workflows/tests.yml); **solo si la suite pasa** se encadena [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) (vía `workflow_run`), que se conecta por SSH al VPS y ejecuta [`deploy/scripts/deploy.sh`](deploy/scripts/deploy.sh). El script actualiza el código, reconstruye los contenedores, corre migraciones, optimiza la app y valida que quedó sana — sin necesidad de entrar manualmente por SSH.
 
 ### Qué hace `deploy.sh`
 
