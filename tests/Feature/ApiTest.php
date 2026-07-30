@@ -436,8 +436,22 @@ it('GET /api/v1/downtime-events filters by was_planned', function () {
     ['tenant' => $tenant, 'token' => $token] = apiTenantWithUser(['downtime.read']);
     $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
 
-    EquipmentDowntimeEvent::factory()->create(['tenant_id' => $tenant->id, 'equipment_id' => $equipment->id, 'was_planned' => true]);
-    EquipmentDowntimeEvent::factory()->create(['tenant_id' => $tenant->id, 'equipment_id' => $equipment->id, 'was_planned' => false]);
+    // Ventanas fijas y bien separadas. La factory reparte started_at al azar en
+    // las últimas 2–72 h con duraciones de hasta 8 h, así que dos paros del mismo
+    // equipo se solapaban cada tanto y PostgreSQL los rechazaba por la restricción
+    // de exclusión downtime_events_equipment_no_overlap.
+    EquipmentDowntimeEvent::factory()->create([
+        'tenant_id' => $tenant->id,
+        'equipment_id' => $equipment->id,
+        'was_planned' => true,
+        'started_at' => now()->subDays(10),
+    ]);
+    EquipmentDowntimeEvent::factory()->create([
+        'tenant_id' => $tenant->id,
+        'equipment_id' => $equipment->id,
+        'was_planned' => false,
+        'started_at' => now()->subDays(5),
+    ]);
 
     $response = $this->withHeaders(apiHeaders($token))->getJson('/api/v1/downtime-events?was_planned=false');
 
