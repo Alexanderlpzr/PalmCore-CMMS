@@ -51,29 +51,30 @@ class WorkOrderService
      * SEQUENTIAL is 6-digit, global per tenant per year.
      * Uses lockForUpdate() to prevent race conditions.
      */
-    public function generateWorkOrderNumber(string $tenantId, string $equipmentCode): string
+    /**
+     * Secuencial simple por organización: OT-0001, OT-0002, OT-0003…
+     *
+     * Antes el número traía año y código de equipo (OT-2026-A02STR.02.01-000006),
+     * ilegible al dictarlo o buscarlo. Las OT viejas conservan su número: el
+     * filtro descarta todo lo que no sea «OT-» seguido solo de dígitos, así que
+     * el formato heredado no entra en el MAX ni desordena la cuenta.
+     */
+    public function generateWorkOrderNumber(string $tenantId): string
     {
-        $year = date('Y');
-
-        // orderByDesc on the full VARCHAR string produces wrong results when
-        // equipment codes differ lexicographically (e.g. 'ZZZ' > 'AAA' pushes a
-        // low-sequence ZZZ row above a high-sequence AAA row, making the extracted
-        // suffix too small and generating a duplicate number). Cast the 6-digit
-        // numeric suffix explicitly so the MAX is always the true global sequence.
         $last = WorkOrder::withoutGlobalScopes()
             ->where('tenant_id', $tenantId)
-            ->where('work_order_number', 'like', "OT-{$year}-%")
+            ->whereRaw("work_order_number ~ '^OT-[0-9]+$'")
             ->lockForUpdate()
-            ->orderByRaw('CAST(RIGHT(work_order_number, 6) AS INTEGER) DESC')
+            // Se ordena por el entero, no por el texto: con más de 9999 OT el
+            // número crece a 5 dígitos y «OT-10000» ordena antes que «OT-9999».
+            ->orderByRaw('CAST(SUBSTRING(work_order_number FROM 4) AS INTEGER) DESC')
             ->value('work_order_number');
 
-        $sequence = 1;
+        $sequence = $last !== null
+            ? ((int) substr($last, 3)) + 1
+            : 1;
 
-        if ($last !== null) {
-            $sequence = (int) substr($last, -6) + 1;
-        }
-
-        return sprintf('OT-%s-%s-%06d', $year, $equipmentCode, $sequence);
+        return sprintf('OT-%04d', $sequence);
     }
 
     // ── Create ────────────────────────────────────────────────────────────────
@@ -102,7 +103,7 @@ class WorkOrderService
 
             $equipment = Equipment::withoutGlobalScopes()->findOrFail($data['equipment_id']);
 
-            $number = $this->generateWorkOrderNumber($data['tenant_id'], $equipment->code);
+            $number = $this->generateWorkOrderNumber($data['tenant_id']);
 
             $workOrder = WorkOrder::create([
                 ...$data,

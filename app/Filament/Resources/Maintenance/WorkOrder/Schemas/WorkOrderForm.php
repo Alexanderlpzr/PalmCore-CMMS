@@ -11,6 +11,7 @@ use App\Models\Area;
 use App\Models\Equipment;
 use App\Models\WorkOrder;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -95,6 +96,11 @@ class WorkOrderForm
                             ->numeric()
                             ->minValue(0)
                             ->suffix('h'),
+                        DatePicker::make('planned_start_at')
+                            ->label('Fecha planificada')
+                            ->helperText('Para cuándo se planea hacer el trabajo. La fecha en que se hizo se registra al cerrar la OT.')
+                            ->native(false)
+                            ->displayFormat('d/m/Y'),
                         TextInput::make('title')
                             ->label('Título')
                             ->required()

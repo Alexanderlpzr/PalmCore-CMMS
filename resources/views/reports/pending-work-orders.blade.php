@@ -44,12 +44,12 @@
         <thead>
             <tr>
                 <th style="width:130px;">Equipo</th>
-                <th>Título</th>
+                <th>Actividad</th>
                 <th>Descripción</th>
                 <th style="width:60px;">Tipo</th>
                 <th style="width:70px;">Área Mtto</th>
                 <th style="width:60px;">Estado</th>
-                <th style="width:75px;">Inicio planif.</th>
+                <th style="width:75px;">Fecha planificada</th>
                 <th style="width:45px;">Parado</th>
             </tr>
         </thead>
@@ -87,7 +87,7 @@
                     @endphp
                     <span class="badge badge-{{ $statusBadge }}">{{ $wo->status->label() }}</span>
                 </td>
-                <td>{{ $wo->planned_start_at?->format('d/m/Y H:i') ?? '—' }}</td>
+                <td>{{ $wo->planned_start_at?->format('d/m/Y') ?? '—' }}</td>
                 <td>{{ $wo->equipment_stopped ? 'Sí' : 'No' }}</td>
             </tr>
             @endforeach

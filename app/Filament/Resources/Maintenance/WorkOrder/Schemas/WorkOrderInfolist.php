@@ -95,8 +95,15 @@ class WorkOrderInfolist
                             ->columnSpanFull()
                             ->visible(fn (WorkOrder $record): bool => filled($record->instructions)),
                         TextEntry::make('work_performed')->label('Trabajo realizado')->placeholder('—')->columnSpanFull(),
-                        TextEntry::make('failure_cause')->label('Causa de la falla')->placeholder('—'),
-                        TextEntry::make('root_cause')->label('Causa raíz')->placeholder('—'),
+                        // Solo se llenan cuando el modo de falla quedó en «Otro». La
+                        // causa raíz ya no se pide al cerrar; se conserva aquí para
+                        // las OT viejas que sí la tienen.
+                        TextEntry::make('failure_cause')
+                            ->label('Causa de la falla')
+                            ->visible(fn (WorkOrder $record): bool => filled($record->failure_cause)),
+                        TextEntry::make('root_cause')
+                            ->label('Causa raíz')
+                            ->visible(fn (WorkOrder $record): bool => filled($record->root_cause)),
                         TextEntry::make('failure_mode')
                             ->label('Modo de falla')
                             ->badge()
@@ -156,6 +163,8 @@ class WorkOrderInfolist
                 Section::make('Seguimiento')
                     ->columns(3)
                     ->schema([
+                        TextEntry::make('planned_start_at')->label('Fecha planificada')->date('d/m/Y')->placeholder('—'),
+                        TextEntry::make('actual_end_at')->label('Fecha ejecutada')->date('d/m/Y')->placeholder('—'),
                         TextEntry::make('createdBy.name')->label('Creado por')->placeholder('—'),
                         TextEntry::make('created_at')->label('Creado el')->dateTime('d/m/Y H:i'),
                         TextEntry::make('closed_at')->label('Cerrada el')->dateTime('d/m/Y H:i')->placeholder('—'),

@@ -374,7 +374,12 @@ it('the pending-work-orders blade renders the corrected columns without a técni
         ->and($html)->toContain('Cambio de rodamiento del eje principal')
         ->and($html)->toContain('Mecánico')
         ->and($html)->not->toContain('Falta técnico')
-        ->and($html)->not->toContain('Sin técnico asignado');
+        ->and($html)->not->toContain('Sin técnico asignado')
+        // Rótulos de columna acordados con el cliente.
+        ->and($html)->toContain('Actividad')
+        ->and($html)->toContain('Fecha planificada')
+        ->and($html)->not->toContain('<th>Título</th>')
+        ->and($html)->not->toContain('Inicio planif.');
 });
 
 // ── GenerateInventoryReportJob ────────────────────────────────────────────────

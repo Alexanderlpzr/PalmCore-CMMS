@@ -17,12 +17,12 @@ it('generates first work order number for a new tenant', function () {
     $tenant = Tenant::factory()->create();
     $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id, 'code' => 'EQ001']);
 
-    $number = $service->generateWorkOrderNumber($tenant->id, $equipment->code);
+    $number = $service->generateWorkOrderNumber($tenant->id);
 
-    expect($number)->toBe('OT-'.date('Y').'-EQ001-000001');
+    expect($number)->toBe('OT-0001');
 });
 
-it('increments sequential per tenant per year', function () {
+it('increments sequential per tenant', function () {
     $service = app(WorkOrderService::class);
     $tenant = Tenant::factory()->create();
     $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id, 'code' => 'PRE-001']);
@@ -40,8 +40,8 @@ it('increments sequential per tenant per year', function () {
         'title' => 'Segunda OT', 'description' => 'desc',
     ], $user);
 
-    expect($wo1->work_order_number)->toEndWith('-000001')
-        ->and($wo2->work_order_number)->toEndWith('-000002');
+    expect($wo1->work_order_number)->toBe('OT-0001')
+        ->and($wo2->work_order_number)->toBe('OT-0002');
 });
 
 it('does not share sequences between tenants', function () {
@@ -64,8 +64,8 @@ it('does not share sequences between tenants', function () {
         'title' => 'B', 'description' => 'desc',
     ], $user);
 
-    expect($woA->work_order_number)->toEndWith('-000001')
-        ->and($woB->work_order_number)->toEndWith('-000001');
+    expect($woA->work_order_number)->toBe('OT-0001')
+        ->and($woB->work_order_number)->toBe('OT-0001');
 });
 
 // ── Create ────────────────────────────────────────────────────────────────────

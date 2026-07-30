@@ -16,6 +16,7 @@ use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -53,16 +54,23 @@ class ViewWorkOrder extends ViewRecord
                         ->label('Trabajo realizado')
                         ->required()
                         ->rows(4),
-                    Textarea::make('failure_cause')
-                        ->label('Causa de la falla (si aplica)')
-                        ->rows(3),
                     Select::make('failure_mode')
                         ->label('Modo de falla')
                         ->helperText('Clasifica la falla para el análisis de Pareto por modo (rodamiento, sello, eléctrico…).')
                         ->options(FailureMode::options())
                         ->searchable()
                         ->native(false)
+                        ->live()
                         ->visible(fn (): bool => $this->record->work_order_type->registersFailure()),
+                    // Los modos de la lista ya dicen cuál fue la causa; escribirla de
+                    // nuevo sobra. Solo «Otro» deja la falla sin clasificar, y ahí sí
+                    // hace falta describirla.
+                    Textarea::make('failure_cause')
+                        ->label('¿Cuál fue la causa?')
+                        ->helperText('El modo quedó como «Otro»: describe la falla para no perderla del análisis.')
+                        ->rows(3)
+                        ->required()
+                        ->visible(fn (Get $get): bool => $get('failure_mode') === FailureMode::Other->value),
                     Select::make('diagnosed_stoppage_category')
                         ->label('Tipo I diagnosticado')
                         ->helperText('Reclasifica el paro que esta OT generó. Sin esto queda como «Otro» y ensucia las horas perdidas por causa.')
@@ -72,9 +80,12 @@ class ViewWorkOrder extends ViewRecord
                         ->default(fn () => $this->record->diagnosed_stoppage_category?->value)
                         ->native(false)
                         ->visible(fn (): bool => $this->record->work_order_type->registersFailure()),
-                    Textarea::make('root_cause')
-                        ->label('Causa raíz (si aplica)')
-                        ->rows(3),
+                    DatePicker::make('actual_end_at')
+                        ->label('Fecha ejecutada')
+                        ->helperText('El día en que realmente se hizo el trabajo.')
+                        ->native(false)
+                        ->displayFormat('d/m/Y')
+                        ->default(fn () => now()),
                     // Cierra el registro fotográfico que abrió la foto del «antes»
                     // al crear la OT: cómo quedó el equipo después del trabajo.
                     FileUpload::make('after_photo_path')

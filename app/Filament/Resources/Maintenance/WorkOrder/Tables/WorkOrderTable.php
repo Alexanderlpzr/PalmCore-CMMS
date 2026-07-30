@@ -97,8 +97,14 @@ class WorkOrderTable
                     ->trueColor('danger')
                     ->falseColor('gray'),
                 TextColumn::make('planned_start_at')
-                    ->label('Inicio planif.')
-                    ->dateTime('d/m/Y H:i')
+                    ->label('Fecha planificada')
+                    ->date('d/m/Y')
+                    ->placeholder('—')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('actual_end_at')
+                    ->label('Fecha ejecutada')
+                    ->date('d/m/Y')
                     ->placeholder('—')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),

@@ -12,15 +12,15 @@ use App\Models\WorkOrder;
 // ── MR → WorkOrder conversion ─────────────────────────────────────────────────
 
 it('creates work order from approved maintenance request', function () {
-    $service   = app(WorkOrderService::class);
-    $tenant    = Tenant::factory()->create();
+    $service = app(WorkOrderService::class);
+    $tenant = Tenant::factory()->create();
     $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
-    $user      = User::factory()->create();
+    $user = User::factory()->create();
 
     $mr = MaintenanceRequest::factory()->create([
-        'tenant_id'    => $tenant->id,
+        'tenant_id' => $tenant->id,
         'equipment_id' => $equipment->id,
-        'status'       => MaintenanceRequestStatus::Approved->value,
+        'status' => MaintenanceRequestStatus::Approved->value,
     ]);
 
     $wo = $service->createFromMaintenanceRequest($mr, [
@@ -35,15 +35,15 @@ it('creates work order from approved maintenance request', function () {
 });
 
 it('marks maintenance request as converted after WO creation', function () {
-    $service   = app(WorkOrderService::class);
-    $tenant    = Tenant::factory()->create();
+    $service = app(WorkOrderService::class);
+    $tenant = Tenant::factory()->create();
     $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
-    $user      = User::factory()->create();
+    $user = User::factory()->create();
 
     $mr = MaintenanceRequest::factory()->create([
-        'tenant_id'    => $tenant->id,
+        'tenant_id' => $tenant->id,
         'equipment_id' => $equipment->id,
-        'status'       => MaintenanceRequestStatus::Approved->value,
+        'status' => MaintenanceRequestStatus::Approved->value,
     ]);
 
     $service->createFromMaintenanceRequest($mr, ['work_order_type' => 'corrective'], $user);
@@ -53,15 +53,15 @@ it('marks maintenance request as converted after WO creation', function () {
 });
 
 it('links mr.work_order_id to the created work order', function () {
-    $service   = app(WorkOrderService::class);
-    $tenant    = Tenant::factory()->create();
+    $service = app(WorkOrderService::class);
+    $tenant = Tenant::factory()->create();
     $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
-    $user      = User::factory()->create();
+    $user = User::factory()->create();
 
     $mr = MaintenanceRequest::factory()->create([
-        'tenant_id'    => $tenant->id,
+        'tenant_id' => $tenant->id,
         'equipment_id' => $equipment->id,
-        'status'       => MaintenanceRequestStatus::Approved->value,
+        'status' => MaintenanceRequestStatus::Approved->value,
     ]);
 
     $wo = $service->createFromMaintenanceRequest($mr, ['work_order_type' => 'corrective'], $user);
@@ -71,17 +71,17 @@ it('links mr.work_order_id to the created work order', function () {
 });
 
 it('inherits title and description from maintenance request', function () {
-    $service   = app(WorkOrderService::class);
-    $tenant    = Tenant::factory()->create();
+    $service = app(WorkOrderService::class);
+    $tenant = Tenant::factory()->create();
     $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
-    $user      = User::factory()->create();
+    $user = User::factory()->create();
 
     $mr = MaintenanceRequest::factory()->create([
-        'tenant_id'    => $tenant->id,
+        'tenant_id' => $tenant->id,
         'equipment_id' => $equipment->id,
-        'status'       => MaintenanceRequestStatus::Approved->value,
-        'title'        => 'Falla en compresor principal',
-        'description'  => 'El compresor pierde presión.',
+        'status' => MaintenanceRequestStatus::Approved->value,
+        'title' => 'Falla en compresor principal',
+        'description' => 'El compresor pierde presión.',
     ]);
 
     $wo = $service->createFromMaintenanceRequest($mr, ['work_order_type' => 'corrective'], $user);
@@ -91,32 +91,32 @@ it('inherits title and description from maintenance request', function () {
 });
 
 it('generates a valid OT number on conversion', function () {
-    $service   = app(WorkOrderService::class);
-    $tenant    = Tenant::factory()->create();
+    $service = app(WorkOrderService::class);
+    $tenant = Tenant::factory()->create();
     $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id, 'code' => 'COMP-01']);
-    $user      = User::factory()->create();
+    $user = User::factory()->create();
 
     $mr = MaintenanceRequest::factory()->create([
-        'tenant_id'    => $tenant->id,
+        'tenant_id' => $tenant->id,
         'equipment_id' => $equipment->id,
-        'status'       => MaintenanceRequestStatus::Approved->value,
+        'status' => MaintenanceRequestStatus::Approved->value,
     ]);
 
     $wo = $service->createFromMaintenanceRequest($mr, ['work_order_type' => 'corrective'], $user);
 
-    expect($wo->work_order_number)->toStartWith('OT-'.date('Y').'-COMP-01-');
+    expect($wo->work_order_number)->toBe('OT-0001');
 });
 
 it('emergency conversion starts work order in in_progress', function () {
-    $service   = app(WorkOrderService::class);
-    $tenant    = Tenant::factory()->create();
+    $service = app(WorkOrderService::class);
+    $tenant = Tenant::factory()->create();
     $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
-    $user      = User::factory()->create();
+    $user = User::factory()->create();
 
     $mr = MaintenanceRequest::factory()->create([
-        'tenant_id'    => $tenant->id,
+        'tenant_id' => $tenant->id,
         'equipment_id' => $equipment->id,
-        'status'       => MaintenanceRequestStatus::Approved->value,
+        'status' => MaintenanceRequestStatus::Approved->value,
     ]);
 
     $wo = $service->createFromMaintenanceRequest($mr, ['work_order_type' => 'emergency'], $user);
