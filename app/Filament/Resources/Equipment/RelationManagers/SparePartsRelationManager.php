@@ -12,6 +12,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
+use Filament\Support\RawJs;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
@@ -64,6 +65,16 @@ class SparePartsRelationManager extends RelationManager
                     ->label('Referencia')
                     ->helperText('Opcional. El número de parte con el que se pide.')
                     ->maxLength(100),
+                TextInput::make('unit_cost')
+                    ->label('Costo')
+                    ->helperText('Opcional. Lo que cuesta reponerlo.')
+                    ->numeric()
+                    ->minValue(0)
+                    ->prefix('$')
+                    // Sin la máscara, teclear «150.000» rompe el cast numérico y el
+                    // valor llega mal (o en 0) sin ningún aviso.
+                    ->mask(RawJs::make('$money($input)'))
+                    ->stripCharacters(','),
                 Textarea::make('notes')
                     ->label('Notas')
                     ->rows(2)
@@ -84,6 +95,11 @@ class SparePartsRelationManager extends RelationManager
                 TextColumn::make('part_number')
                     ->label('Referencia')
                     ->searchable()
+                    ->placeholder('—'),
+                // Solo el dato: cuánto cuesta el repuesto. No suma ni alimenta nada.
+                TextColumn::make('unit_cost')
+                    ->label('Costo')
+                    ->money(fn (): string => $this->getOwnerRecord()->currency_code ?? 'COP')
                     ->placeholder('—'),
                 TextColumn::make('notes')
                     ->label('Notas')

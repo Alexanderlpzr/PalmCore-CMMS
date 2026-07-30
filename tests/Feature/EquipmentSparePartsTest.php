@@ -69,6 +69,27 @@ it('guarda la referencia cuando se indica', function () {
         ->toBe('REF-7788');
 });
 
+it('guarda el costo del repuesto', function () {
+    sparePartsManager($this->equipment)
+        ->callAction(TestAction::make('create')->table(), data: [
+            'name' => 'Rodamiento 6205',
+            'unit_cost' => 185000,
+        ])
+        ->assertHasNoActionErrors();
+
+    expect((float) EquipmentSparePart::where('equipment_id', $this->equipment->id)->first()->unit_cost)
+        ->toBe(185000.0);
+});
+
+it('el costo es opcional', function () {
+    sparePartsManager($this->equipment)
+        ->callAction(TestAction::make('create')->table(), data: ['name' => 'Empaque de tapa'])
+        ->assertHasNoActionErrors();
+
+    expect(EquipmentSparePart::where('equipment_id', $this->equipment->id)->first()->unit_cost)
+        ->toBeNull();
+});
+
 it('lista los repuestos del equipo y no los de otro', function () {
     $propio = EquipmentSparePart::factory()->create([
         'tenant_id' => $this->tenant->id,

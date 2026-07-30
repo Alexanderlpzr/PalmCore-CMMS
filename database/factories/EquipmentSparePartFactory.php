@@ -19,6 +19,7 @@ class EquipmentSparePartFactory extends Factory
             'equipment_id' => Equipment::factory(),
             'name' => fake()->words(3, true),
             'part_number' => fake()->optional(0.5)->bothify('REF-####'),
+            'unit_cost' => fake()->optional(0.7)->randomFloat(2, 5000, 2000000),
             'notes' => fake()->optional(0.3)->sentence(),
         ];
     }

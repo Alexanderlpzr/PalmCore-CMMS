@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'equipment_id',
     'name',
     'part_number',
+    'unit_cost',
     'notes',
 ])]
 class EquipmentSparePart extends BaseModel
@@ -30,5 +31,12 @@ class EquipmentSparePart extends BaseModel
     public function equipment(): BelongsTo
     {
         return $this->belongsTo(Equipment::class);
+    }
+
+    protected function casts(): array
+    {
+        return [
+            'unit_cost' => 'decimal:2',
+        ];
     }
 }
