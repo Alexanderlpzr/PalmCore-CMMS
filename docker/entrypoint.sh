@@ -22,6 +22,16 @@ php artisan storage:link --force 2>/dev/null || true
 # file, bypassing PHP routing entirely (avoids hash-based route 404 issues).
 php artisan vendor:publish --tag=livewire:assets --force 2>/dev/null || true
 
+# Publish Filament's CSS/JS/fonts to public/{css,js,fonts}/filament/. Obligatorio
+# aquí y no en el Dockerfile: el `composer install` del build usa --no-scripts, así
+# que el post-autoload-dump (donde vive `filament:upgrade`) nunca corre. Antes esto
+# no se notaba porque los assets iban versionados en git y entraban por el COPY;
+# al dejar de trackearlos, sin este paso el panel admin queda sin JS ni estilos.
+# Fatal a propósito: es exactamente el fallo silencioso que ya rompió producción
+# una vez, y un panel sin JS es indistinguible de uno funcionando hasta que
+# alguien lo abre.
+php artisan filament:assets || { echo "filament:assets failed"; exit 1; }
+
 # Cache config, routes, and views for production performance
 php artisan config:cache   || { echo "config:cache failed";   exit 1; }
 # route:cache excluded: Livewire 4 registers routes via closures that cannot
