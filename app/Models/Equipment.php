@@ -160,6 +160,12 @@ class Equipment extends BaseModel
         return $this->hasMany(EquipmentComponent::class)->orderBy('name');
     }
 
+    /** Listado de repuestos que lleva el equipo, para saber qué pedir. */
+    public function spareParts(): HasMany
+    {
+        return $this->hasMany(EquipmentSparePart::class)->orderBy('name');
+    }
+
     public function failureModeAnalyses(): HasMany
     {
         return $this->hasMany(FailureModeAnalysis::class);

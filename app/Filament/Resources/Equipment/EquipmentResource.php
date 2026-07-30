@@ -8,6 +8,7 @@ use App\Filament\Resources\Equipment\Pages\ListEquipment;
 use App\Filament\Resources\Equipment\Pages\ViewEquipment;
 use App\Filament\Resources\Equipment\RelationManagers\ComponentsRelationManager;
 use App\Filament\Resources\Equipment\RelationManagers\MaintenancePlansRelationManager;
+use App\Filament\Resources\Equipment\RelationManagers\SparePartsRelationManager;
 use App\Filament\Resources\Equipment\RelationManagers\WorkOrdersRelationManager;
 use App\Filament\Resources\Equipment\Schemas\EquipmentForm;
 use App\Filament\Resources\Equipment\Schemas\EquipmentInfolist;
@@ -63,7 +64,7 @@ class EquipmentResource extends Resource
 
     /**
      * Solo las pestañas que se usan en planta: las piezas del equipo, sus
-     * preventivos y sus OT.
+     * repuestos, sus preventivos y sus OT.
      *
      * Fuera quedaron Análisis de Fallas RCM (su único consumidor era un widget
      * que no está en ningún tablero, así que era captura sin retorno),
@@ -74,6 +75,7 @@ class EquipmentResource extends Resource
     {
         return [
             'components' => ComponentsRelationManager::class,
+            'spare_parts' => SparePartsRelationManager::class,
             'maintenance_plans' => MaintenancePlansRelationManager::class,
             'work_orders' => WorkOrdersRelationManager::class,
         ];

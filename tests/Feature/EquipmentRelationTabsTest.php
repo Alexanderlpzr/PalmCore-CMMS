@@ -3,11 +3,13 @@
 use App\Filament\Resources\Equipment\EquipmentResource;
 use App\Filament\Resources\Equipment\RelationManagers\ComponentsRelationManager;
 use App\Filament\Resources\Equipment\RelationManagers\MaintenancePlansRelationManager;
+use App\Filament\Resources\Equipment\RelationManagers\SparePartsRelationManager;
 use App\Filament\Resources\Equipment\RelationManagers\WorkOrdersRelationManager;
 
-it('el equipo solo expone las pestañas de Componentes, Preventivos y OT', function () {
+it('el equipo solo expone las pestañas de Piezas, Repuestos, Preventivos y OT', function () {
     expect(EquipmentResource::getRelations())->toBe([
         'components' => ComponentsRelationManager::class,
+        'spare_parts' => SparePartsRelationManager::class,
         'maintenance_plans' => MaintenancePlansRelationManager::class,
         'work_orders' => WorkOrdersRelationManager::class,
     ]);

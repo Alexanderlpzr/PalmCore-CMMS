@@ -60,17 +60,14 @@ it('conserva la ficha técnica, el ciclo de vida y los indicadores en español',
 });
 
 it('las notas solo aparecen cuando el equipo tiene notas', function () {
+    // Se compara el mismo equipo antes y después de escribirle notas. No sirve
+    // buscar el rótulo «Notas» suelto: la pestaña Repuestos también tiene una
+    // columna con ese nombre.
     Livewire::test(ViewEquipment::class, ['record' => $this->equipment->getKey()])
-        ->assertDontSee('Notas');
+        ->assertDontSee('Requiere purga semanal del fondo');
 
-    $conNotas = Equipment::factory()->create([
-        'tenant_id' => $this->tenant->id,
-        'plant_id' => $this->plant->id,
-        'area_id' => $this->area->id,
-        'code' => 'CLA-02',
-        'notes' => 'Requiere purga semanal del fondo',
-    ]);
+    $this->equipment->update(['notes' => 'Requiere purga semanal del fondo']);
 
-    Livewire::test(ViewEquipment::class, ['record' => $conNotas->getKey()])
+    Livewire::test(ViewEquipment::class, ['record' => $this->equipment->getKey()])
         ->assertSee('Requiere purga semanal del fondo');
 });
