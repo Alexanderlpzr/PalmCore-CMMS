@@ -42,8 +42,14 @@ class PruneOrphanQrImages extends Command
 
         $this->info("Scanning '{$prefix}' on disk '{$diskName}'…");
 
+        // acrossAllTenants() es obligatorio, no defensivo: TenantScope solo filtra
+        // cuando CurrentTenant está seteado, así que en consola es un no-op y la
+        // consulta ya vería todo. Pero si este comando se invocara desde un
+        // contexto con tenant activo, el scope reduciría las filas a ese tenant y
+        // las imágenes de todos los demás pasarían por huérfanas — borrado masivo.
         /** @var array<string, true> $referenced */
         $referenced = EquipmentQrCode::withTrashed()
+            ->acrossAllTenants()
             ->whereNotNull('qr_image_path')
             ->pluck('qr_image_path')
             ->mapWithKeys(fn (string $path): array => [ltrim($path, '/') => true])

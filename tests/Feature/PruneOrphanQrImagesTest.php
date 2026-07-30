@@ -1,6 +1,7 @@
 <?php
 
 use App\Domain\Assets\Services\QrCodeService;
+use App\Infrastructure\Tenancy\CurrentTenant;
 use App\Models\Equipment;
 use Illuminate\Support\Facades\Storage;
 
@@ -58,6 +59,26 @@ it('removes tenant directories left empty after pruning', function () {
         ->assertSuccessful();
 
     expect(Storage::disk(persistent_disk())->directories('equipment-qr'))->toBe([]);
+});
+
+it('keeps images of every tenant even when a current tenant is set', function () {
+    $mine = Equipment::factory()->create();
+    $other = Equipment::factory()->create();
+    $service = app(QrCodeService::class);
+
+    $myQr = $service->createForEquipment($mine);
+    $otherQr = $service->createForEquipment($other);
+
+    // Sin esto el TenantScope reduce la consulta a un solo tenant y las imágenes
+    // del resto se contarían como huérfanas.
+    CurrentTenant::set($mine->tenant);
+
+    $this->artisan('qr:prune-orphans', ['--force' => true])
+        ->expectsOutputToContain('orphans: 0')
+        ->assertSuccessful();
+
+    Storage::disk(persistent_disk())->assertExists($myQr->qr_image_path);
+    Storage::disk(persistent_disk())->assertExists($otherQr->qr_image_path);
 });
 
 it('succeeds when the prefix does not exist', function () {
