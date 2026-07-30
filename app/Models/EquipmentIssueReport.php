@@ -88,6 +88,12 @@ class EquipmentIssueReport extends BaseModel
         return $query->where('status', IssueReportStatus::Open->value);
     }
 
+    /** Ya los vio alguien: reconocidos, convertidos en OT o resueltos. */
+    public function scopeAttended(Builder $query): Builder
+    {
+        return $query->where('status', '!=', IssueReportStatus::Open->value);
+    }
+
     public function scopeBySeverity(Builder $query, IssueSeverity $severity): Builder
     {
         return $query->where('severity', $severity->value);

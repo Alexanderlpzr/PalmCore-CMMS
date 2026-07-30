@@ -54,9 +54,6 @@ class IssueReportInfolist
                         TextEntry::make('reporter_position')
                             ->label('Cargo')
                             ->placeholder('—'),
-                        TextEntry::make('reporter.name')
-                            ->label('Usuario registrado')
-                            ->placeholder('—'),
                     ]),
 
                 Section::make('Seguimiento')

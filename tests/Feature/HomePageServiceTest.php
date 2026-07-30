@@ -1,5 +1,6 @@
 <?php
 
+use App\Domain\Assets\Enums\IssueSeverity;
 use App\Domain\Home\Enums\AnnouncementCategory;
 use App\Domain\Home\Services\HomePageService;
 use App\Domain\Maintenance\Enums\IssueReportStatus;
@@ -108,8 +109,13 @@ it('attentionRequired returns seven counted, routed, toned cards', function () {
         'title' => 'Crítica', 'message' => 'x', 'entity_type' => 'equipment',
         'entity_id' => $tenant->id, 'status' => 'open',
     ]);
-    // Open issue report
-    EquipmentIssueReport::factory()->for($tenant)->create(['status' => IssueReportStatus::Open]);
+    // Open issue report. Severidad fija a propósito: un reporte nuevo levanta su
+    // propia alerta y, con la severidad aleatoria de la factory, a veces salía
+    // crítica y desviaba el conteo de critical_alerts que este test fija en 1.
+    EquipmentIssueReport::factory()->for($tenant)->create([
+        'status' => IssueReportStatus::Open,
+        'severity' => IssueSeverity::Low,
+    ]);
 
     $items = (new HomePageService($tenant->id))->attentionRequired('acme');
 

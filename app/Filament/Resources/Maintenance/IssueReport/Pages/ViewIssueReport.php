@@ -3,6 +3,8 @@
 namespace App\Filament\Resources\Maintenance\IssueReport\Pages;
 
 use App\Domain\Maintenance\Enums\IssueReportStatus;
+use App\Domain\Maintenance\Enums\MaintenanceArea;
+use App\Domain\Maintenance\Enums\PlantProcess;
 use App\Domain\Maintenance\Enums\WorkOrderPriority;
 use App\Domain\Maintenance\Enums\WorkOrderType;
 use App\Domain\Maintenance\Services\WorkOrderService;
@@ -11,9 +13,11 @@ use App\Filament\Resources\Maintenance\IssueReport\IssueReportResource;
 use App\Models\EquipmentIssueReport;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Support\Icons\Heroicon;
@@ -56,12 +60,11 @@ class ViewIssueReport extends ViewRecord
                     IssueReportStatus::Open,
                     IssueReportStatus::Acknowledged,
                 ], true))
+                // Mismos campos que «Crear Orden de Trabajo». Solo falta elegir
+                // Sección y Equipo, que ya vienen del reporte. Antes el modal
+                // pedía cuatro datos y dejaba la OT sin responsable ni clase de
+                // mantenimiento, que había que completar entrando a editarla.
                 ->form([
-                    TextInput::make('title')
-                        ->label('Título')
-                        ->required()
-                        ->maxLength(255)
-                        ->default(fn (): string => 'Mantenimiento — '.$this->record->equipment->code),
                     Select::make('work_order_type')
                         ->label('Tipo')
                         ->options(WorkOrderType::options())
@@ -72,11 +75,49 @@ class ViewIssueReport extends ViewRecord
                         ->options(WorkOrderPriority::options())
                         ->required()
                         ->default(WorkOrderPriority::P3Medium->value),
+                    Select::make('process')
+                        ->label('Proceso')
+                        ->options(PlantProcess::options())
+                        ->native(false)
+                        ->searchable(),
+                    Select::make('maintenance_area')
+                        ->label('Clase de mantenimiento')
+                        ->options(MaintenanceArea::options())
+                        ->native(false),
+                    TextInput::make('executed_by')
+                        ->label('Responsable(s)')
+                        ->helperText('Quién hizo el trabajo — la cuadrilla (ej: «El mecánico y su auxiliar», «Fernando A.»).')
+                        ->maxLength(255),
+                    TextInput::make('meter_reading')
+                        ->label('Horómetro al hacer el trabajo')
+                        ->numeric()
+                        ->minValue(0)
+                        ->suffix('h'),
+                    TextInput::make('title')
+                        ->label('Título')
+                        ->required()
+                        ->maxLength(255)
+                        ->default(fn (): string => 'Mantenimiento — '.$this->record->equipment->code),
                     Textarea::make('description')
                         ->label('Descripción')
                         ->required()
                         ->rows(4)
                         ->default(fn (): string => $this->record->description),
+                    Textarea::make('instructions')
+                        ->label('Instrucciones de trabajo')
+                        ->rows(4),
+                    Toggle::make('equipment_stopped')
+                        ->label('Equipo detenido')
+                        ->default(false),
+                    FileUpload::make('before_photo_path')
+                        ->label('Foto del antes')
+                        ->helperText('Cómo se encontró el equipo. Sirve de referencia para comparar con la foto del después al cerrar la OT.')
+                        ->image()
+                        ->imageEditor()
+                        ->disk(persistent_disk())
+                        ->visibility(persistent_disk() === 'public' ? 'public' : 'private')
+                        ->directory('work-order-photos')
+                        ->maxSize(10240),
                 ])
                 ->action(function (array $data, WorkOrderService $service): void {
                     /** @var EquipmentIssueReport $report */
