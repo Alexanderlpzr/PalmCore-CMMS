@@ -24,7 +24,7 @@ class AnnouncementsTable
                     ->label('Título')
                     ->searchable()
                     ->sortable()
-                    ->limit(60),
+                    ->limitWithTooltip(60),
                 TextColumn::make('category')
                     ->label('Categoría')
                     ->badge()

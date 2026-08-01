@@ -52,11 +52,13 @@ class SignaturesRelationManager extends RelationManager
                     ->dateTime('d/m/Y H:i'),
                 TextColumn::make('notes')
                     ->label('Observaciones')
-                    ->limit(80)
+                    ->limitWithTooltip(80)
                     ->placeholder('—'),
             ])
             ->headerActions([])
             ->recordActions([])
-            ->toolbarActions([]);
+            ->toolbarActions([])
+            // Cronológico: el orden en que se firmó la OT es la propia historia.
+            ->defaultSort('created_at');
     }
 }

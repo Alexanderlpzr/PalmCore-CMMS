@@ -42,7 +42,7 @@ class CommentsRelationManager extends RelationManager
                     ->sortable(),
                 TextColumn::make('body')
                     ->label('Comentario')
-                    ->limit(120),
+                    ->limitWithTooltip(120),
                 IconColumn::make('is_internal')
                     ->label('Interno')
                     ->boolean()

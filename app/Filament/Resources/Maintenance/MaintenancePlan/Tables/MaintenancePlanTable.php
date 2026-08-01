@@ -44,21 +44,22 @@ class MaintenancePlanTable
                 TextColumn::make('name')
                     ->label('Nombre')
                     ->searchable()
-                    ->limit(40),
+                    ->limitWithTooltip(40),
+                // Disparador y Frecuencia describen cómo está configurado el plan,
+                // no su estado: la píldora se reserva a «Faltan», que es la cuenta
+                // atrás por la que se entra a esta pantalla.
                 TextColumn::make('trigger_source')
                     ->label('Disparador')
-                    ->badge()
-                    ->color(fn (MaintenanceTriggerSource $state): string => $state->color())
                     ->formatStateUsing(fn (MaintenanceTriggerSource $state): string => $state->label())
                     ->sortable(),
                 TextColumn::make('time_frequency')
                     ->label('Frecuencia')
-                    ->badge()
                     ->formatStateUsing(fn (?MaintenanceTimeFrequency $state): ?string => $state?->label())
                     ->placeholder('—')
                     ->sortable(),
                 TextColumn::make('meter_interval')
                     ->label('Horómetro')
+                    ->alignEnd()
                     ->suffix(' h')
                     ->placeholder('—')
                     ->sortable(),

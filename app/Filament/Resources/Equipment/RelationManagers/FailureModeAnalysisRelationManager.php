@@ -77,9 +77,11 @@ class FailureModeAnalysisRelationManager extends RelationManager
             ->recordTitleAttribute('failure_mode')
             ->modifyQueryUsing(fn (Builder $query): Builder => $query->with(['equipmentComponent', 'failureFindingPlan']))
             ->columns([
+                // Modo de falla es una etiqueta nominal (qué falla), no una escala.
+                // Las píldoras quedan para Consecuencia y para el aviso de tarea
+                // de búsqueda faltante, que son las que exigen decidir algo.
                 TextColumn::make('failure_mode')
                     ->label('Modo de falla')
-                    ->badge()
                     ->formatStateUsing(fn (FailureMode $state): string => $state->label()),
                 TextColumn::make('equipmentComponent.name')
                     ->label('Pieza')
@@ -92,7 +94,7 @@ class FailureModeAnalysisRelationManager extends RelationManager
                 TextColumn::make('effect_description')
                     ->label('Efecto')
                     ->placeholder('—')
-                    ->limit(40)
+                    ->limitWithTooltip(40)
                     ->toggleable(),
                 TextColumn::make('failure_finding_plan')
                     ->label('Tarea de búsqueda')
@@ -128,7 +130,9 @@ class FailureModeAnalysisRelationManager extends RelationManager
                 ]),
             ])
             ->emptyStateHeading('Sin modos de falla registrados')
-            ->emptyStateDescription('Cataloga los modos de falla de este equipo y su consecuencia para identificar cuáles necesitan una tarea de búsqueda.');
+            ->emptyStateDescription('Cataloga los modos de falla de este equipo y su consecuencia para identificar cuáles necesitan una tarea de búsqueda.')
+            // Lo último catalogado primero: es lo que se acaba de analizar.
+            ->defaultSort('created_at', 'desc');
     }
 
     /**

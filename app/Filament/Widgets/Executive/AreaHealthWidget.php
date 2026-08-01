@@ -37,6 +37,7 @@ class AreaHealthWidget extends BaseWidget
 
                 TextColumn::make('availability')
                     ->label('Disponibilidad')
+                    ->alignEnd()
                     ->formatStateUsing(fn ($state): string => $state > 0 ? number_format((float) $state, 1).'%' : 'Sin datos'),
 
                 TextColumn::make('failure_count')
@@ -44,10 +45,12 @@ class AreaHealthWidget extends BaseWidget
 
                 TextColumn::make('mttr_hours')
                     ->label('MTTR')
+                    ->alignEnd()
                     ->formatStateUsing(fn ($state): string => $state > 0 ? number_format((float) $state, 1).' h' : '—'),
 
                 TextColumn::make('monthly_cost')
                     ->label(fn (): string => 'Costo — '.DashboardPeriod::labelForSnapshot($this->pageFilters))
+                    ->alignEnd()
                     ->formatStateUsing(fn ($state): string => 'COP '.number_format((float) $state, 0, ',', '.')),
             ])
             ->paginated(false);

@@ -171,14 +171,15 @@ class PartsRelationManager extends RelationManager
                     ->placeholder('—'),
                 TextColumn::make('sparePart.name')
                     ->label('Repuesto')
-                    ->limit(35)
+                    ->limitWithTooltip(35)
                     ->placeholder('—'),
                 TextColumn::make('warehouse.name')
                     ->label('Almacén')
                     ->placeholder('—'),
                 TextColumn::make('quantity')
                     ->label('Cant. solicit.')
-                    ->numeric(decimalPlaces: 2),
+                    ->numeric(decimalPlaces: 2)
+                    ->alignEnd(),
                 TextColumn::make('status')
                     ->label('Estado')
                     ->badge()
@@ -187,25 +188,30 @@ class PartsRelationManager extends RelationManager
                 TextColumn::make('reserved_quantity')
                     ->label('Reservado')
                     ->numeric(decimalPlaces: 2)
+                    ->alignEnd()
                     ->placeholder('—')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('issued_quantity')
                     ->label('Emitido')
                     ->numeric(decimalPlaces: 2)
+                    ->alignEnd()
                     ->placeholder('—'),
                 TextColumn::make('returned_quantity')
                     ->label('Devuelto')
                     ->numeric(decimalPlaces: 2)
+                    ->alignEnd()
                     ->placeholder('—')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('unit_cost_snapshot')
                     ->label('Costo snap.')
                     ->money('COP')
+                    ->alignEnd()
                     ->placeholder('—')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('total_cost')
                     ->label('Total')
                     ->money('COP')
+                    ->alignEnd()
                     ->getStateUsing(fn (WorkOrderPart $record): float => $record->hasInventoryLink()
                         ? round((float) $record->issued_quantity * (float) $record->unit_cost_snapshot, 2)
                         : (float) ($record->total_cost ?? 0)
@@ -344,6 +350,8 @@ class PartsRelationManager extends RelationManager
                             $service->cancelPart($record, auth()->user());
                         }
                     }),
-            ]);
+            ])
+            // Orden estable: como se fueron agregando a la OT.
+            ->defaultSort('created_at');
     }
 }

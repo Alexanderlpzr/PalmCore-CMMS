@@ -47,7 +47,7 @@ class WorkOrdersRelationManager extends RelationManager
                     ->weight('bold'),
                 TextColumn::make('title')
                     ->label('Título')
-                    ->limit(35),
+                    ->limitWithTooltip(35),
                 TextColumn::make('work_order_type')
                     ->label('Tipo')
                     ->badge()
@@ -72,11 +72,13 @@ class WorkOrdersRelationManager extends RelationManager
                     ->sortable(),
                 TextColumn::make('actual_labor_hours')
                     ->label('Horas reales')
+                    ->alignEnd()
                     ->getStateUsing(fn (WorkOrder $record): ?string => format_hours_minutes($record->actualHours()))
                     ->placeholder('—'),
                 TextColumn::make('actual_cost_total')
                     ->label('Costo total')
                     ->money('COP')
+                    ->alignEnd()
                     ->placeholder('—'),
             ])
             ->filters([

@@ -48,13 +48,16 @@ class TransactionsRelationManager extends RelationManager
                 TextColumn::make('quantity')
                     ->label('Cantidad')
                     ->numeric(decimalPlaces: 4)
+                    ->alignEnd()
                     ->sortable(),
                 TextColumn::make('unit_cost')
                     ->label('Costo unit.')
-                    ->money('COP'),
+                    ->money('COP')
+                    ->alignEnd(),
                 TextColumn::make('new_stock')
                     ->label('Stock resultante')
-                    ->numeric(decimalPlaces: 4),
+                    ->numeric(decimalPlaces: 4)
+                    ->alignEnd(),
                 TextColumn::make('performedBy.name')
                     ->label('Realizado por')
                     ->placeholder('—')

@@ -131,9 +131,10 @@ class ComponentsRelationManager extends RelationManager
                     ->label('Fabricante')
                     ->placeholder('—')
                     ->toggleable(isToggledHiddenByDefault: true),
+                // La píldora queda para Estado y para la cuenta atrás «Faltan»,
+                // que es la que dispara una acción; Criticidad conserva el color.
                 TextColumn::make('criticality')
                     ->label('Criticidad')
-                    ->badge()
                     ->color(fn (EquipmentCriticality $state): string => $state->color())
                     ->formatStateUsing(fn (EquipmentCriticality $state): string => $state->label()),
                 TextColumn::make('status')
@@ -235,7 +236,9 @@ class ComponentsRelationManager extends RelationManager
             // bilingüe que tenía el botón de crear, solo que aquí nadie lo ve hasta
             // que la tabla está vacía.
             ->emptyStateHeading('Sin piezas registradas')
-            ->emptyStateDescription('Registra los componentes o repuestos de este equipo para llevarles la vida útil y programarles mantenimiento.');
+            ->emptyStateDescription('Registra los componentes o repuestos de este equipo para llevarles la vida útil y programarles mantenimiento.')
+            // Alfabético: una lista de piezas se recorre buscando un nombre.
+            ->defaultSort('name');
     }
 
     /**

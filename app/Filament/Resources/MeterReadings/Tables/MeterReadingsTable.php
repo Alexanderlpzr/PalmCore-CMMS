@@ -37,16 +37,19 @@ class MeterReadingsTable
                 TextColumn::make('reading_value')
                     ->label('Dial')
                     ->numeric(1)
+                    ->alignEnd()
                     ->sortable(),
                 TextColumn::make('delta')
                     ->label('Consumo')
                     ->numeric(1)
+                    ->alignEnd()
                     ->badge()
                     ->color(fn (float $state): string => $state > 0 ? 'success' : 'gray'),
                 // El número que manda: nunca retrocede, ni cuando cambian el dial.
                 TextColumn::make('accumulated_value')
                     ->label('Acumulado')
                     ->numeric(1)
+                    ->alignEnd()
                     ->sortable(),
                 IconColumn::make('is_reset')
                     ->label('Reset')

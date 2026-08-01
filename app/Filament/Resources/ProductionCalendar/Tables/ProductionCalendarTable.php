@@ -35,7 +35,7 @@ class ProductionCalendarTable
                     ->summarize(Sum::make()->label('Total del periodo')),
                 TextColumn::make('notes')
                     ->label('Notas')
-                    ->limit(40)
+                    ->limitWithTooltip(40)
                     ->placeholder('—')
                     ->toggleable(),
             ])

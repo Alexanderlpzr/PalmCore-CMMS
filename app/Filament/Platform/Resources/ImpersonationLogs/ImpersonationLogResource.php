@@ -88,7 +88,7 @@ class ImpersonationLogResource extends Resource
                 TextColumn::make('reason')
                     ->label('Motivo')
                     ->placeholder('—')
-                    ->limit(50)
+                    ->limitWithTooltip(50)
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('started_at', 'desc')

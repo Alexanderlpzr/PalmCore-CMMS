@@ -52,7 +52,7 @@ class HiddenFailuresWithoutFindingTaskWidget extends BaseWidget
 
                 TextColumn::make('effect_description')
                     ->label('Efecto')
-                    ->limit(60)
+                    ->limitWithTooltip(60)
                     ->placeholder('—'),
             ])
             ->emptyStateHeading('Sin fallas ocultas pendientes')

@@ -108,7 +108,7 @@ class DocumentsRelationManager extends RelationManager
                 TextColumn::make('file_name')
                     ->label('Archivo')
                     ->searchable()
-                    ->limit(40),
+                    ->limitWithTooltip(40),
                 TextColumn::make('document_type')
                     ->label('Tipo')
                     ->badge()
@@ -118,7 +118,7 @@ class DocumentsRelationManager extends RelationManager
                 TextColumn::make('title')
                     ->label('Título')
                     ->searchable()
-                    ->limit(40),
+                    ->limitWithTooltip(40),
                 TextColumn::make('version')
                     ->label('Versión')
                     ->placeholder('—'),

@@ -165,7 +165,8 @@ class PurchaseOrderResource extends Resource
                     ->color(fn (PurchaseOrderStatus $state): string => $state->color())
                     ->formatStateUsing(fn (PurchaseOrderStatus $state): string => $state->label()),
                 TextColumn::make('lines_count')->counts('lines')->label('Renglones'),
-                TextColumn::make('total')->label('Total')->money('COP')->sortable(),
+                TextColumn::make('total')->label('Total')->money('COP')
+                    ->alignEnd()->sortable(),
                 TextColumn::make('expected_at')->label('Esperada')->date('d/m/Y')->placeholder('—')->sortable(),
             ])
             ->defaultSort('created_at', 'desc');

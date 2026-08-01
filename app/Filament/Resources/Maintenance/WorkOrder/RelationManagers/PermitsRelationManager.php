@@ -141,6 +141,8 @@ class PermitsRelationManager extends RelationManager
                         strict: true,
                     ))
                     ->action(fn (WorkPermit $record, WorkPermitService $service) => $service->close($record, auth()->user())),
-            ]);
+            ])
+            // Orden estable: como se fueron agregando a la OT.
+            ->defaultSort('created_at');
     }
 }

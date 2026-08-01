@@ -29,7 +29,7 @@ class IssueReportTable
                 TextColumn::make('equipment.name')
                     ->label('Nombre del equipo')
                     ->searchable()
-                    ->limit(30),
+                    ->limitWithTooltip(30),
                 TextColumn::make('severity')
                     ->label('Criticidad')
                     ->badge()
@@ -48,7 +48,7 @@ class IssueReportTable
                     ->searchable(),
                 TextColumn::make('description')
                     ->label('Descripción')
-                    ->limit(60)
+                    ->limitWithTooltip(60)
                     ->wrap(),
                 TextColumn::make('created_at')
                     ->label('Fecha')

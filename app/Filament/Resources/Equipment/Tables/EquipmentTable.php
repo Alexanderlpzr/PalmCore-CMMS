@@ -53,7 +53,7 @@ class EquipmentTable
                     ->label('Nombre')
                     ->searchable()
                     ->sortable()
-                    ->limit(40),
+                    ->limitWithTooltip(40),
                 TextColumn::make('code')
                     ->label('Código')
                     ->searchable()
@@ -64,23 +64,24 @@ class EquipmentTable
                     ->color(fn (EquipmentStatus $state): string => $state->color())
                     ->formatStateUsing(fn (EquipmentStatus $state): string => $state->label())
                     ->sortable(),
+                // Criticidad y Prioridad son escalas ordinales: el color sigue
+                // informando, pero sin píldora. Con cuatro píldoras seguidas
+                // (Estado · Criticidad · Prioridad · Ronda) ninguna destacaba.
                 TextColumn::make('criticality')
                     ->label('Criticidad')
-                    ->badge()
                     ->color(fn (EquipmentCriticality $state): string => $state->color())
                     ->formatStateUsing(fn (EquipmentCriticality $state): string => $state->label())
                     ->sortable(),
                 TextColumn::make('priority')
                     ->label('Prioridad')
-                    ->badge()
                     ->color(fn (EquipmentPriority $state): string => $state->color())
                     ->formatStateUsing(fn (EquipmentPriority $state): string => $state->label())
                     ->sortable(),
+                // Ronda es una categoría nominal (Diaria, Semanal…): colorearla
+                // no aporta información, solo compite por la atención.
                 TextColumn::make('reading_frequency')
                     ->label('Ronda')
-                    ->badge()
                     ->placeholder('—')
-                    ->color(fn (?MeterReadingFrequency $state): string => $state?->color() ?? 'gray')
                     ->formatStateUsing(fn (?MeterReadingFrequency $state): string => $state?->label() ?? '—')
                     ->toggleable(),
                 TextColumn::make('category.name')

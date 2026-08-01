@@ -98,7 +98,7 @@ class TasksRelationManager extends RelationManager
                 TextColumn::make('title')
                     ->label('Tarea')
                     ->searchable()
-                    ->limit(50),
+                    ->limitWithTooltip(50),
                 TextColumn::make('checklistItems_count')
                     ->label('Ítems')
                     ->counts('checklistItems')

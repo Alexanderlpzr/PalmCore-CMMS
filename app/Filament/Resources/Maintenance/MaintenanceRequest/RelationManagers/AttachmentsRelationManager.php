@@ -71,17 +71,18 @@ class AttachmentsRelationManager extends RelationManager
                 TextColumn::make('file_name')
                     ->label('Archivo')
                     ->searchable()
-                    ->limit(40),
+                    ->limitWithTooltip(40),
                 TextColumn::make('mime_type')
                     ->label('Tipo')
                     ->badge(),
                 TextColumn::make('file_size')
                     ->label('Tamaño')
+                    ->alignEnd()
                     ->formatStateUsing(fn (int $state): string => number_format($state / 1024, 1).' KB'),
                 TextColumn::make('caption')
                     ->label('Descripción')
                     ->placeholder('—')
-                    ->limit(40),
+                    ->limitWithTooltip(40),
                 TextColumn::make('uploadedBy.name')
                     ->label('Subido por'),
                 TextColumn::make('created_at')

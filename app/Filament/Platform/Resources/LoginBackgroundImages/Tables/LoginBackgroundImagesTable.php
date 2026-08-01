@@ -27,7 +27,7 @@ class LoginBackgroundImagesTable
                 TextColumn::make('caption')
                     ->label('Descripción')
                     ->searchable()
-                    ->limit(50)
+                    ->limitWithTooltip(50)
                     ->placeholder('—'),
                 TextColumn::make('sort_order')
                     ->label('Orden')

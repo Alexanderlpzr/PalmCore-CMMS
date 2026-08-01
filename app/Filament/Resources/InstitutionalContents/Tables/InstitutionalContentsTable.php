@@ -36,7 +36,7 @@ class InstitutionalContentsTable
                     ->label('Título')
                     ->searchable()
                     ->sortable()
-                    ->limit(60),
+                    ->limitWithTooltip(60),
                 TextColumn::make('type')
                     ->label('Tipo')
                     ->badge()

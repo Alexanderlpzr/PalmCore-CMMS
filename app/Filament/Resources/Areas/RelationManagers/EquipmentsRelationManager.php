@@ -48,22 +48,22 @@ class EquipmentsRelationManager extends RelationManager
                     ->label('Nombre')
                     ->searchable()
                     ->sortable()
-                    ->limit(40),
+                    ->limitWithTooltip(40),
                 TextColumn::make('status')
                     ->label('Estado')
                     ->badge()
                     ->color(fn (EquipmentStatus $state): string => $state->color())
                     ->formatStateUsing(fn (EquipmentStatus $state): string => $state->label())
                     ->sortable(),
+                // Mismo criterio que la tabla principal de Equipos: la píldora se
+                // reserva a Estado; las escalas conservan el color como texto.
                 TextColumn::make('criticality')
                     ->label('Criticidad')
-                    ->badge()
                     ->color(fn (EquipmentCriticality $state): string => $state->color())
                     ->formatStateUsing(fn (EquipmentCriticality $state): string => $state->label())
                     ->sortable(),
                 TextColumn::make('priority')
                     ->label('Prioridad')
-                    ->badge()
                     ->color(fn (EquipmentPriority $state): string => $state->color())
                     ->formatStateUsing(fn (EquipmentPriority $state): string => $state->label())
                     ->sortable(),

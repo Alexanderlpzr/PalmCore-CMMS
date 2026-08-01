@@ -24,11 +24,12 @@ class AlertTable
                     ->color(fn (?AlertSeverity $state): string => $state?->color() ?? 'gray')
                     ->formatStateUsing(fn (?AlertSeverity $state): ?string => $state?->label()),
 
+                // Categoría es nominal (de qué trata la alerta), no una escala: el
+                // color se reserva para Criticidad y Estado, que son los que se
+                // escanean para decidir qué atender primero.
                 TextColumn::make('category')
                     ->label('Categoría')
-                    ->badge()
                     ->placeholder('Desconocida')
-                    ->color(fn (?AlertCategory $state): string => $state?->color() ?? 'gray')
                     ->formatStateUsing(fn (?AlertCategory $state): ?string => $state?->label()),
 
                 TextColumn::make('title')

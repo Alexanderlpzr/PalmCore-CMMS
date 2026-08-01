@@ -37,11 +37,13 @@ class WorstAvailabilityWidget extends BaseWidget
 
                 TextColumn::make('availability_percentage')
                     ->label('Disponibilidad')
+                    ->alignEnd()
                     ->formatStateUsing(fn ($state): string => number_format((float) $state, 2).'%')
                     ->sortable(),
 
                 TextColumn::make('mtbf_hours')
                     ->label('MTBF')
+                    ->alignEnd()
                     ->formatStateUsing(fn ($state): string => $state !== null
                         ? number_format((float) $state, 2).' h'
                         : 'Sin fallas registradas'

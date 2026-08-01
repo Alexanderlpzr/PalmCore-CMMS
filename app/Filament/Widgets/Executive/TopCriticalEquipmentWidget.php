@@ -50,10 +50,12 @@ class TopCriticalEquipmentWidget extends BaseWidget
 
                 TextColumn::make('downtime_hours')
                     ->label('Horas de parada')
+                    ->alignEnd()
                     ->formatStateUsing(fn ($state): string => number_format((float) $state, 1).' h'),
 
                 TextColumn::make('monthly_cost')
                     ->label(fn (): string => 'Costo — '.DashboardPeriod::labelForSnapshot($this->pageFilters))
+                    ->alignEnd()
                     ->formatStateUsing(fn ($state): string => 'COP '.number_format((float) $state, 0, ',', '.')),
             ])
             ->paginated(false);

@@ -35,11 +35,13 @@ class SparePartTable
                 TextColumn::make('name')
                     ->label('Nombre')
                     ->searchable()
-                    ->limit(35),
+                    ->limitWithTooltip(35),
+                // Este listado no tiene estado de ciclo de vida, así que la única
+                // píldora se reserva a Criticidad, que es lo que decide si un
+                // repuesto se repone con urgencia. Categoría y ABC son etiquetas
+                // nominales: como texto se leen igual y dejan de competir.
                 TextColumn::make('category_type')
                     ->label('Categoría')
-                    ->badge()
-                    ->color(fn (SparePartCategoryType $state): string => $state->color())
                     ->formatStateUsing(fn (SparePartCategoryType $state): string => $state->label())
                     ->sortable(),
                 TextColumn::make('criticality')
@@ -50,8 +52,6 @@ class SparePartTable
                     ->sortable(),
                 TextColumn::make('abc_classification')
                     ->label('ABC')
-                    ->badge()
-                    ->color(fn (SparePartAbcClassification $state): string => $state->color())
                     ->formatStateUsing(fn (SparePartAbcClassification $state): string => $state->label())
                     ->sortable(),
                 TextColumn::make('unit')
@@ -60,6 +60,7 @@ class SparePartTable
                 TextColumn::make('unit_cost')
                     ->label('Costo unit.')
                     ->money('COP')
+                    ->alignEnd()
                     ->sortable(),
                 IconColumn::make('is_active')
                     ->label('Activo')

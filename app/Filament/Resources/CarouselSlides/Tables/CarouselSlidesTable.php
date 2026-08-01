@@ -28,7 +28,7 @@ class CarouselSlidesTable
                     ->label('Título')
                     ->searchable()
                     ->sortable()
-                    ->limit(50),
+                    ->limitWithTooltip(50),
                 TextColumn::make('sort_order')
                     ->label('Orden')
                     ->sortable(),

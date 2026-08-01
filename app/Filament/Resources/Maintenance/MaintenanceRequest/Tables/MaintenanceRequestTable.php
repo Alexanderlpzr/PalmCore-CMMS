@@ -32,16 +32,15 @@ class MaintenanceRequestTable
                 TextColumn::make('title')
                     ->label('Título')
                     ->searchable()
-                    ->limit(40),
+                    ->limitWithTooltip(40),
+                // Tipo es nominal; Prioridad es una escala y conserva el color.
+                // La píldora se reserva a Estado, que es lo que se filtra a diario.
                 TextColumn::make('request_type')
                     ->label('Tipo')
-                    ->badge()
-                    ->color(fn (MaintenanceRequestType $state): string => $state->color())
                     ->formatStateUsing(fn (MaintenanceRequestType $state): string => $state->label())
                     ->sortable(),
                 TextColumn::make('priority')
                     ->label('Prioridad')
-                    ->badge()
                     ->color(fn (MaintenanceRequestPriority $state): string => $state->color())
                     ->formatStateUsing(fn (MaintenanceRequestPriority $state): string => $state->label())
                     ->sortable(),

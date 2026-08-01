@@ -60,15 +60,18 @@ class TechniciansRelationManager extends RelationManager
                     ->formatStateUsing(fn (TechnicianRole $state): string => $state->label()),
                 TextColumn::make('actualHours')
                     ->label('Horas reales')
+                    ->alignEnd()
                     ->getStateUsing(fn (WorkOrderTechnician $record): ?string => format_hours_minutes($record->actualHours()))
                     ->placeholder('—'),
                 TextColumn::make('hourly_rate')
                     ->label('Tarifa/h')
                     ->money('COP')
+                    ->alignEnd()
                     ->placeholder('—'),
                 TextColumn::make('laborCost')
                     ->label('Costo MO')
                     ->money('COP')
+                    ->alignEnd()
                     ->getStateUsing(fn ($record) => $record->laborCost())
                     ->placeholder('—'),
             ])
@@ -90,6 +93,8 @@ class TechniciansRelationManager extends RelationManager
                 DeleteAction::make()
                     ->label('Quitar')
                     ->tooltip('Quitar a este técnico de la OT'),
-            ]);
+            ])
+            // Orden estable: como se fueron agregando a la OT.
+            ->defaultSort('created_at');
     }
 }

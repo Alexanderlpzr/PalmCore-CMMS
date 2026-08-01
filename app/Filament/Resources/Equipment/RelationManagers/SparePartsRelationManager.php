@@ -100,10 +100,11 @@ class SparePartsRelationManager extends RelationManager
                 TextColumn::make('unit_cost')
                     ->label('Costo')
                     ->money(fn (): string => $this->getOwnerRecord()->currency_code ?? 'COP')
+                    ->alignEnd()
                     ->placeholder('—'),
                 TextColumn::make('notes')
                     ->label('Notas')
-                    ->limit(60)
+                    ->limitWithTooltip(60)
                     ->placeholder('—'),
             ])
             ->emptyStateHeading('Sin repuestos registrados')

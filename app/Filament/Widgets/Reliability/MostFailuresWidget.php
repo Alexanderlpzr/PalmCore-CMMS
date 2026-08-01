@@ -42,6 +42,7 @@ class MostFailuresWidget extends BaseWidget
 
                 TextColumn::make('mttr_hours')
                     ->label('MTTR')
+                    ->alignEnd()
                     ->formatStateUsing(fn ($state): string => $state !== null
                         ? number_format((float) $state, 2).' h'
                         : 'Sin fallas registradas'
@@ -50,6 +51,7 @@ class MostFailuresWidget extends BaseWidget
 
                 TextColumn::make('downtime_hours')
                     ->label('Horas de parada')
+                    ->alignEnd()
                     ->formatStateUsing(fn ($state): string => number_format((float) $state, 2).' h'),
             ])
             ->paginated(false);

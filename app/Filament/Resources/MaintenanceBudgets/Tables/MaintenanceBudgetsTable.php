@@ -34,6 +34,7 @@ class MaintenanceBudgetsTable
                 TextColumn::make('amount')
                     ->label('Monto asignado')
                     ->money('COP')
+                    ->alignEnd()
                     ->sortable(),
                 TextColumn::make('createdBy.name')
                     ->label('Registró')

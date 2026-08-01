@@ -57,7 +57,7 @@ class CommentsRelationManager extends RelationManager
                 TextColumn::make('body')
                     ->label('Comentario')
                     ->wrap()
-                    ->limit(120),
+                    ->limitWithTooltip(120),
                 IconColumn::make('is_internal')
                     ->label('Interno')
                     ->boolean(),

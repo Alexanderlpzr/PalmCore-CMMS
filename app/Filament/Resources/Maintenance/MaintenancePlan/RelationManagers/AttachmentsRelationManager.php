@@ -46,14 +46,14 @@ class AttachmentsRelationManager extends RelationManager
                 TextColumn::make('attachment_label')
                     ->label('Etiqueta')
                     ->searchable()
-                    ->limit(50),
+                    ->limitWithTooltip(50),
                 TextColumn::make('file_name')
                     ->label('Archivo')
-                    ->limit(40)
+                    ->limitWithTooltip(40)
                     ->placeholder('—'),
                 TextColumn::make('mime_type')
                     ->label('Tipo')
-                    ->limit(30)
+                    ->limitWithTooltip(30)
                     ->placeholder('—'),
                 TextColumn::make('uploadedBy.name')
                     ->label('Subido por'),

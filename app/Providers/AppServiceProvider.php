@@ -46,6 +46,8 @@ use App\Security\SsrfValidator;
 use Carbon\CarbonImmutable;
 use Filament\Facades\Filament;
 use Filament\Support\Facades\FilamentView;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Table;
 use Filament\Tables\View\TablesRenderHook;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\View\View;
@@ -85,6 +87,58 @@ class AppServiceProvider extends ServiceProvider
         $this->configureSentry();
         $this->configureLivewire();
         $this->configureFilamentRenderHooks();
+        $this->configureFilamentTables();
+    }
+
+    /**
+     * Presentación compartida por las 69 tablas del producto.
+     *
+     * Se registra globalmente en vez de repetirse tabla por tabla porque el
+     * problema que resuelve ES la inconsistencia: `striped()` estaba puesto en 3
+     * de 69, así que unas listas salían con filas rayadas y otras no sin ningún
+     * criterio. Puesto aquí, cualquier tabla nueva nace ya coherente.
+     */
+    private function configureFilamentTables(): void
+    {
+        Table::configureUsing(function (Table $table): void {
+            $table
+                ->striped()
+                /*
+                 * Estado vacío por defecto. El genérico de Filament no distingue
+                 * «esta empresa todavía no tiene datos» de «tus filtros no dejan
+                 * pasar nada», que es de lejos el caso más frecuente y el que hace
+                 * pensar que la pantalla se rompió. La redacción sirve para ambos
+                 * casos sin mentir en ninguno. Las tablas que definen el suyo lo
+                 * sobrescriben, porque su configuración se aplica después de esta.
+                 */
+                ->emptyStateHeading('Nada que mostrar')
+                ->emptyStateDescription('Si esperabas ver registros aquí, revisa los filtros y la búsqueda que tengas activos.');
+        });
+
+        /*
+         * `->limit()` recorta el texto y no deja forma de leer el resto: ni
+         * pasando el ratón. Había 43 columnas así (títulos de OT, nombres de
+         * equipo, descripciones de falla) donde el dato simplemente no era
+         * accesible. Este macro recorta Y muestra el valor completo al pasar el
+         * ratón, pero solo cuando de verdad se recortó — un tooltip que repite
+         * el texto ya visible es ruido.
+         */
+        TextColumn::macro('limitWithTooltip', function (int $length = 100): TextColumn {
+            /** @var TextColumn $this */
+            return $this
+                ->limit($length)
+                ->tooltip(function (TextColumn $column): ?string {
+                    $state = $column->getState();
+
+                    if (! is_string($state)) {
+                        return null;
+                    }
+
+                    return mb_strlen($state) > ($column->getCharacterLimit() ?? PHP_INT_MAX)
+                        ? $state
+                        : null;
+                });
+        });
     }
 
     /**

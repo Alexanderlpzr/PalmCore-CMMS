@@ -69,14 +69,15 @@ class MaintenancePlansRelationManager extends RelationManager
                 TextColumn::make('name')
                     ->label('Nombre')
                     ->searchable()
-                    ->limit(40),
+                    ->limitWithTooltip(40),
+                // Mismo criterio que la tabla principal de Planes: la píldora es
+                // para «Faltan», la cuenta atrás que exige actuar.
                 TextColumn::make('trigger_source')
                     ->label('Disparador')
-                    ->badge()
-                    ->color(fn (MaintenanceTriggerSource $state): string => $state->color())
                     ->formatStateUsing(fn (MaintenanceTriggerSource $state): string => $state->label()),
                 TextColumn::make('meter_interval')
                     ->label('Horómetro')
+                    ->alignEnd()
                     ->suffix(' h')
                     ->placeholder('—'),
                 TextColumn::make('hours_remaining')
@@ -88,7 +89,6 @@ class MaintenancePlansRelationManager extends RelationManager
                     ->placeholder('—'),
                 TextColumn::make('time_frequency')
                     ->label('Frecuencia')
-                    ->badge()
                     ->formatStateUsing(fn (?MaintenanceTimeFrequency $state): ?string => $state?->label())
                     ->placeholder('—')
                     ->toggleable(),

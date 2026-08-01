@@ -39,6 +39,7 @@ class AllEquipmentKpisWidget extends BaseWidget
 
                 TextColumn::make('availability_percentage')
                     ->label('Disponibilidad')
+                    ->alignEnd()
                     ->formatStateUsing(fn (?string $state): string => $state !== null
                         ? number_format((float) $state, 2).'%'
                         : '—'
@@ -47,6 +48,7 @@ class AllEquipmentKpisWidget extends BaseWidget
 
                 TextColumn::make('mtbf_hours')
                     ->label('MTBF')
+                    ->alignEnd()
                     ->formatStateUsing(fn (?string $state): string => $state !== null
                         ? number_format((float) $state, 2).' h'
                         : 'Sin fallas registradas'
@@ -55,6 +57,7 @@ class AllEquipmentKpisWidget extends BaseWidget
 
                 TextColumn::make('mttr_hours')
                     ->label('MTTR')
+                    ->alignEnd()
                     ->formatStateUsing(fn (?string $state): string => $state !== null
                         ? number_format((float) $state, 2).' h'
                         : 'Sin fallas registradas'
@@ -67,6 +70,7 @@ class AllEquipmentKpisWidget extends BaseWidget
 
                 TextColumn::make('downtime_hours')
                     ->label('Horas de parada')
+                    ->alignEnd()
                     ->formatStateUsing(fn ($state): string => number_format((float) $state, 2).' h')
                     ->sortable(),
             ])

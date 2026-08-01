@@ -37,7 +37,7 @@ class WarehouseTable
                     ->label('Ubicación')
                     ->searchable()
                     ->placeholder('—')
-                    ->limit(40),
+                    ->limitWithTooltip(40),
                 IconColumn::make('is_active')
                     ->label('Activo')
                     ->boolean(),

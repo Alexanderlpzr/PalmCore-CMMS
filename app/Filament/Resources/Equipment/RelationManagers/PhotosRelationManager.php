@@ -92,11 +92,11 @@ class PhotosRelationManager extends RelationManager
                 TextColumn::make('file_name')
                     ->label('Archivo')
                     ->searchable()
-                    ->limit(35),
+                    ->limitWithTooltip(35),
                 TextColumn::make('caption')
                     ->label('Leyenda')
                     ->searchable()
-                    ->limit(40)
+                    ->limitWithTooltip(40)
                     ->placeholder('Sin leyenda'),
                 IconColumn::make('is_primary')
                     ->label('Principal')

@@ -19,7 +19,7 @@ class WebhookSubscriptionsTable
             ->columns([
                 TextColumn::make('url')
                     ->label('URL')
-                    ->limit(50)
+                    ->limitWithTooltip(50)
                     ->copyable()
                     ->searchable(),
 
@@ -30,7 +30,7 @@ class WebhookSubscriptionsTable
                     // json_decode fails on non-JSON strings, so fall back to [$state] to display it.
                     ->formatStateUsing(fn ($state): string => implode(', ', is_array($state) ? $state : (json_decode($state, true) ?? [$state])))
                     ->wrap()
-                    ->limit(60),
+                    ->limitWithTooltip(60),
 
                 IconColumn::make('is_active')
                     ->label('Activo')

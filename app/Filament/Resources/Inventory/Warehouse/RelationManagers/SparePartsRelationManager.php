@@ -41,7 +41,7 @@ class SparePartsRelationManager extends RelationManager
                     ->label('Nombre')
                     ->sortable()
                     ->searchable()
-                    ->limit(35),
+                    ->limitWithTooltip(35),
                 TextColumn::make('sparePart.category_type')
                     ->label('Categoría')
                     ->badge()
@@ -50,18 +50,22 @@ class SparePartsRelationManager extends RelationManager
                 TextColumn::make('current_stock')
                     ->label('Stock actual')
                     ->numeric(decimalPlaces: 4)
+                    ->alignEnd()
                     ->sortable(),
                 TextColumn::make('reserved_stock')
                     ->label('Reservado')
                     ->numeric(decimalPlaces: 4)
+                    ->alignEnd()
                     ->sortable(),
                 TextColumn::make('available_stock')
                     ->label('Disponible')
                     ->getStateUsing(fn (WarehouseSparePart $record): float => $record->available_stock)
-                    ->numeric(decimalPlaces: 4),
+                    ->numeric(decimalPlaces: 4)
+                    ->alignEnd(),
                 TextColumn::make('average_unit_cost')
                     ->label('Costo prom.')
                     ->money('COP')
+                    ->alignEnd()
                     ->placeholder('—'),
                 TextColumn::make('bin_location')
                     ->label('Ubicación')

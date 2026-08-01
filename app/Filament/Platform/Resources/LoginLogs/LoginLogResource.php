@@ -90,7 +90,7 @@ class LoginLogResource extends Resource
                 TextColumn::make('user_agent')
                     ->label('Navegador / dispositivo')
                     ->placeholder('—')
-                    ->limit(60)
+                    ->limitWithTooltip(60)
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('occurred_at', 'desc')

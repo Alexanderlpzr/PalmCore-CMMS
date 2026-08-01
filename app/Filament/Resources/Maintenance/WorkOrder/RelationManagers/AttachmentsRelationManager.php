@@ -51,7 +51,7 @@ class AttachmentsRelationManager extends RelationManager
             ->columns([
                 TextColumn::make('file_name')
                     ->label('Archivo')
-                    ->limit(50),
+                    ->limitWithTooltip(50),
                 TextColumn::make('attachment_type')
                     ->label('Tipo')
                     ->badge()
@@ -59,11 +59,11 @@ class AttachmentsRelationManager extends RelationManager
                     ->formatStateUsing(fn (WorkOrderAttachmentType $state): string => $state->label()),
                 TextColumn::make('mime_type')
                     ->label('Formato')
-                    ->limit(30)
+                    ->limitWithTooltip(30)
                     ->placeholder('—'),
                 TextColumn::make('caption')
                     ->label('Descripción')
-                    ->limit(60)
+                    ->limitWithTooltip(60)
                     ->placeholder('—'),
                 TextColumn::make('uploadedBy.name')
                     ->label('Subido por'),

@@ -54,18 +54,16 @@ class WorkOrderTable
                 TextColumn::make('title')
                     ->label('Título')
                     ->searchable()
-                    ->limit(35),
+                    ->limitWithTooltip(35),
+                // Tipo y Clase son categorías nominales: se leen igual de bien como
+                // texto y liberan el color para Estado, que es lo que se escanea.
                 TextColumn::make('work_order_type')
                     ->label('Tipo')
-                    ->badge()
-                    ->color(fn (WorkOrderType $state): string => $state->color())
                     ->formatStateUsing(fn (WorkOrderType $state): string => $state->label())
                     ->sortable(),
                 TextColumn::make('maintenance_area')
                     ->label('Clase de mantenimiento')
-                    ->badge()
                     ->placeholder('—')
-                    ->color(fn (?MaintenanceArea $state): string => $state?->color() ?? 'gray')
                     ->formatStateUsing(fn (?MaintenanceArea $state): ?string => $state?->label())
                     ->sortable()
                     ->toggleable(),
@@ -81,7 +79,6 @@ class WorkOrderTable
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('priority')
                     ->label('Prioridad')
-                    ->badge()
                     ->color(fn (WorkOrderPriority $state): string => $state->color())
                     ->formatStateUsing(fn (WorkOrderPriority $state): string => $state->label())
                     ->sortable(),
@@ -110,6 +107,7 @@ class WorkOrderTable
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('actual_labor_hours')
                     ->label('Horas reales')
+                    ->alignEnd()
                     ->getStateUsing(fn (WorkOrder $record): ?string => format_hours_minutes($record->actualHours()))
                     ->placeholder('—')
                     ->sortable()
@@ -117,6 +115,7 @@ class WorkOrderTable
                 TextColumn::make('actual_cost_total')
                     ->label('Costo total')
                     ->money('COP')
+                    ->alignEnd()
                     ->placeholder('—')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),

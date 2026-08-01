@@ -36,7 +36,7 @@ class AuditLogTable
 
                 TextColumn::make('auditable_id')
                     ->label('ID Registro')
-                    ->limit(12)
+                    ->limitWithTooltip(12)
                     ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('user.name')

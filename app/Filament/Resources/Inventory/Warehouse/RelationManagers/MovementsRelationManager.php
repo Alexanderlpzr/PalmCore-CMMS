@@ -48,21 +48,25 @@ class MovementsRelationManager extends RelationManager
                 TextColumn::make('spare_part_name_snapshot')
                     ->label('Repuesto')
                     ->searchable()
-                    ->limit(30),
+                    ->limitWithTooltip(30),
                 TextColumn::make('quantity')
                     ->label('Cantidad')
                     ->numeric(decimalPlaces: 4)
+                    ->alignEnd()
                     ->sortable(),
                 TextColumn::make('unit_cost')
                     ->label('Costo unit.')
-                    ->money('COP'),
+                    ->money('COP')
+                    ->alignEnd(),
                 TextColumn::make('total_cost')
                     ->label('Total')
                     ->money('COP')
+                    ->alignEnd()
                     ->placeholder('—'),
                 TextColumn::make('new_stock')
                     ->label('Stock resultante')
-                    ->numeric(decimalPlaces: 4),
+                    ->numeric(decimalPlaces: 4)
+                    ->alignEnd(),
                 TextColumn::make('performedBy.name')
                     ->label('Realizado por')
                     ->placeholder('—')

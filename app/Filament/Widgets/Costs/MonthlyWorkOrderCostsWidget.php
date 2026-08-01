@@ -54,22 +54,27 @@ class MonthlyWorkOrderCostsWidget extends BaseWidget
                 TextColumn::make('actual_cost_labor')
                     ->label('Mano de obra')
                     ->money('COP')
+                    ->alignEnd()
                     ->placeholder('—'),
                 TextColumn::make('actual_cost_parts')
                     ->label('Repuestos')
                     ->money('COP')
+                    ->alignEnd()
                     ->placeholder('—'),
                 TextColumn::make('actual_cost_consumables')
                     ->label('Consumibles')
                     ->money('COP')
+                    ->alignEnd()
                     ->placeholder('—'),
                 TextColumn::make('actual_cost_external')
                     ->label('Terceros')
                     ->money('COP')
+                    ->alignEnd()
                     ->placeholder('—'),
                 TextColumn::make('actual_cost_total')
                     ->label('Total')
                     ->money('COP')
+                    ->alignEnd()
                     ->weight('bold')
                     ->placeholder('—')
                     ->sortable(),

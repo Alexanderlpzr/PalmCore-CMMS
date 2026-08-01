@@ -69,11 +69,12 @@ class ContractorsRelationManager extends RelationManager
                     ->placeholder('—'),
                 TextColumn::make('scope')
                     ->label('Alcance')
-                    ->limit(60)
+                    ->limitWithTooltip(60)
                     ->placeholder('—'),
                 TextColumn::make('agreed_cost')
                     ->label('Costo pactado')
                     ->money(fn (WorkOrderContractor $record): string => $record->currency_code ?? 'COP')
+                    ->alignEnd()
                     ->placeholder('Sin factura'),
                 TextColumn::make('invoice_number')
                     ->label('Factura')
@@ -95,6 +96,8 @@ class ContractorsRelationManager extends RelationManager
                     ->using(function (WorkOrderContractor $record, WorkOrderService $service): void {
                         $service->removeContractor($this->getOwnerRecord(), $record->contractor);
                     }),
-            ]);
+            ])
+            // Orden estable: como se fueron agregando a la OT.
+            ->defaultSort('created_at');
     }
 }

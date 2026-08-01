@@ -69,6 +69,7 @@ class TimeLogsRelationManager extends RelationManager
                     ->placeholder('En curso…'),
                 TextColumn::make('hours')
                     ->label('Horas')
+                    ->alignEnd()
                     ->getStateUsing(fn ($record): string => $record->isOpen()
                         ? (format_hours_minutes($record->computedHours()) ?? '0min').' (abierto)'
                         : (format_hours_minutes($record->hours) ?? '—'))
@@ -81,7 +82,7 @@ class TimeLogsRelationManager extends RelationManager
                     ->placeholder('Sin clasificar'),
                 TextColumn::make('description')
                     ->label('Descripción')
-                    ->limit(60)
+                    ->limitWithTooltip(60)
                     ->placeholder('—'),
             ])
             ->headerActions([

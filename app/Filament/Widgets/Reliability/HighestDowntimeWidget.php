@@ -38,6 +38,7 @@ class HighestDowntimeWidget extends BaseWidget
 
                 TextColumn::make('downtime_hours')
                     ->label('Horas de parada')
+                    ->alignEnd()
                     ->formatStateUsing(fn ($state): string => number_format((float) $state, 2).' h')
                     ->sortable(),
 
@@ -46,6 +47,7 @@ class HighestDowntimeWidget extends BaseWidget
 
                 TextColumn::make('availability_percentage')
                     ->label('Disponibilidad')
+                    ->alignEnd()
                     ->formatStateUsing(fn ($state): string => number_format((float) $state, 2).'%'),
             ])
             ->paginated(false);
