@@ -32,12 +32,12 @@ it('lets an administrador-general see and manage Carrusel and Contenido', functi
         ->and(CarouselSlideResource::canCreate())->toBeTrue();
 });
 
-it('hides Carrusel and Contenido from a non-admin role', function () {
+it('hides Carrusel and Contenido from a user without content permissions', function () {
     $user = User::factory()->create(['is_active' => true]);
     $user->tenants()->attach($this->tenant->id, ['joined_at' => now()]);
 
+    // No role at all — the only non-administrator state left in the tenant.
     setPermissionsTeamId($this->tenant->id);
-    $user->assignRole('gerencia'); // read-only executive — no content permissions
     app(PermissionRegistrar::class)->forgetCachedPermissions();
     $this->actingAs($user->fresh());
 

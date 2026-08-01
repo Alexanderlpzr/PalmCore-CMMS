@@ -33,6 +33,16 @@ class RoleResource extends Resource
 
     protected static bool $isScopedToTenant = false;
 
+    /**
+     * Hidden from the menu: a tenant has a single role (administrador-general),
+     * so there is nothing to choose between. The resource stays reachable by URL
+     * and fully functional in case the role matrix ever grows back.
+     */
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
+
     public static function form(Schema $schema): Schema
     {
         return RoleForm::configure($schema);

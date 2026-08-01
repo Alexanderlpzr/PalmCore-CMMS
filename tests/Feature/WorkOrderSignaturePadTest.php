@@ -42,7 +42,7 @@ function signaturePadUser(Tenant $tenant, string $role): User
 }
 
 it('stores a decoded PNG from a data URL as the signature image', function () {
-    $tech = signaturePadUser($this->tenant, 'tecnico');
+    $tech = signaturePadUser($this->tenant, 'administrador-general');
     $service = app(WorkOrderService::class);
 
     $wo = $service->create([

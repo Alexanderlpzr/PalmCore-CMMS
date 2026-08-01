@@ -19,12 +19,15 @@ beforeEach(function () {
     $this->equipment = Equipment::factory()->create(['tenant_id' => $this->tenant->id]);
 });
 
-function issueReportUser(Tenant $tenant, string $role): User
+function issueReportUser(Tenant $tenant, ?string $role = null): User
 {
     $user = User::factory()->create(['is_active' => true]);
     $user->tenants()->attach($tenant->id, ['joined_at' => now()]);
     setPermissionsTeamId($tenant->id);
-    $user->assignRole($role);
+
+    if ($role !== null) {
+        $user->assignRole($role);
+    }
 
     return $user;
 }
@@ -45,8 +48,13 @@ it('lets administrador-general archive an acknowledged report', function () {
         ->and(EquipmentIssueReport::withTrashed()->find($report->id))->not->toBeNull();
 });
 
-it('denies archiving to every role other than administrador-general', function (string $role) {
-    $user = issueReportUser($this->tenant, $role);
+/**
+ * With the role matrix collapsed to a single role, the only non-administrator
+ * state left is a user carrying no role at all — which is exactly what users of
+ * the retired roles became.
+ */
+it('denies archiving to a user without the administrator role', function () {
+    $user = issueReportUser($this->tenant);
     $report = EquipmentIssueReport::factory()->create([
         'tenant_id' => $this->tenant->id,
         'equipment_id' => $this->equipment->id,
@@ -54,7 +62,7 @@ it('denies archiving to every role other than administrador-general', function (
     ]);
 
     expect($user->can('delete', $report))->toBeFalse();
-})->with(['tecnico', 'supervisor', 'plant-manager', 'ingeniero-mantenimiento', 'operario', 'gerencia']);
+});
 
 it('lets administrador-general restore an archived report', function () {
     $user = issueReportUser($this->tenant, 'administrador-general');

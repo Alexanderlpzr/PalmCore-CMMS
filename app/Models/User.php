@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Infrastructure\Tenancy\CurrentTenant;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Models\Contracts\HasAvatar;
@@ -92,19 +93,25 @@ class User extends Authenticatable implements FilamentUser, HasAvatar, HasTenant
     // ─── Scopes ──────────────────────────────────────────────────────────────
 
     /**
-     * Users eligible for operational assignment (technician/supervisor pickers).
-     * Excludes Super Administrador and administrative-only roles (administrador-general,
-     * compras, almacenista, gerencia) so they never appear as assignable staff.
+     * Users eligible for operational assignment (technician/executor pickers).
+     *
+     * The role filter was dropped when the matrix collapsed to a single tenant
+     * role: anyone in the tenant can receive work. Tenant isolation is explicit
+     * here because it used to ride on the roles relation, which Spatie scopes by
+     * team_id — filtering without it would leak users from other tenants.
      */
     public function scopeOperationalStaff(Builder $query): Builder
     {
-        return $query
-            ->where('is_super_admin', false)
-            ->whereHas('roles', fn (Builder $q) => $q->whereIn('name', [
-                'tecnico',
-                'supervisor',
-                'ingeniero-mantenimiento',
-            ]));
+        $query->where('is_super_admin', false);
+
+        // Same contract as TenantScope: constrain when there is a tenant in
+        // context, no-op otherwise. Every caller is a panel page behind
+        // ResolveTenant, so in a real request the constraint always applies.
+        if (CurrentTenant::isSet()) {
+            $query->whereHas('tenants', fn (Builder $q) => $q->where('tenants.id', CurrentTenant::id()));
+        }
+
+        return $query;
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────

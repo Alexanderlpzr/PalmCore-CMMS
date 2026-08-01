@@ -1,5 +1,6 @@
 <?php
 
+use App\Infrastructure\Tenancy\CurrentTenant;
 use App\Models\Tenant;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
@@ -12,41 +13,54 @@ beforeEach(function () {
     app(TenantRolesSeeder::class)->run($this->tenant);
     setPermissionsTeamId($this->tenant->id);
     app(PermissionRegistrar::class)->forgetCachedPermissions();
+    CurrentTenant::set($this->tenant);
 });
 
-function operationalStaffUser(Tenant $tenant, string $role): User
+afterEach(function () {
+    CurrentTenant::clear();
+});
+
+function tenantMember(Tenant $tenant, ?string $role = null, bool $isSuperAdmin = false): User
 {
-    $user = User::factory()->create(['is_active' => true]);
+    $user = User::factory()->create([
+        'is_active' => true,
+        'is_super_admin' => $isSuperAdmin,
+    ]);
     $user->tenants()->attach($tenant->id, ['joined_at' => now()]);
-    setPermissionsTeamId($tenant->id);
-    $user->assignRole($role);
+
+    if ($role !== null) {
+        setPermissionsTeamId($tenant->id);
+        $user->assignRole($role);
+    }
 
     return $user;
 }
 
-it('includes tecnico, supervisor and ingeniero-mantenimiento', function () {
-    operationalStaffUser($this->tenant, 'tecnico');
-    operationalStaffUser($this->tenant, 'supervisor');
-    operationalStaffUser($this->tenant, 'ingeniero-mantenimiento');
+it('includes every tenant member regardless of role', function () {
+    tenantMember($this->tenant, 'administrador-general');
+    tenantMember($this->tenant);
+    tenantMember($this->tenant);
 
-    $names = User::query()->operationalStaff()->pluck('name')->all();
-
-    expect($names)->toHaveCount(3);
+    expect(User::query()->operationalStaff()->count())->toBe(3);
 });
 
-it('excludes super admin and administrative-only roles', function () {
-    operationalStaffUser($this->tenant, 'administrador-general');
-    operationalStaffUser($this->tenant, 'gerencia');
-    operationalStaffUser($this->tenant, 'compras');
-    operationalStaffUser($this->tenant, 'almacenista');
+it('excludes super admins even when they belong to the tenant', function () {
+    tenantMember($this->tenant, 'administrador-general', isSuperAdmin: true);
 
-    // Even a super admin holding an operational role must never appear as assignable staff.
-    $superAdmin = User::factory()->create(['is_super_admin' => true, 'is_active' => true]);
-    $superAdmin->tenants()->attach($this->tenant->id, ['joined_at' => now()]);
-    setPermissionsTeamId($this->tenant->id);
-    $superAdmin->assignRole('tecnico');
+    expect(User::query()->operationalStaff()->count())->toBe(0);
+});
 
-    $count = User::query()->operationalStaff()->count();
+/**
+ * Tenant isolation used to be a side effect of filtering on the (team-scoped)
+ * roles relation. Now that the role filter is gone it is enforced explicitly,
+ * so it needs its own test.
+ */
+it('excludes users belonging to another tenant', function () {
+    $otherTenant = Tenant::factory()->create();
+    tenantMember($otherTenant);
+    tenantMember($this->tenant);
 
-    expect($count)->toBe(0);
+    $ids = User::query()->operationalStaff()->pluck('id')->all();
+
+    expect($ids)->toHaveCount(1);
 });

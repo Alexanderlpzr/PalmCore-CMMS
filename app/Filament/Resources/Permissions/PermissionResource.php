@@ -28,6 +28,16 @@ class PermissionResource extends Resource
 
     protected static bool $isScopedToTenant = false;
 
+    /**
+     * Hidden from the menu alongside RoleResource: the 121 permissions are a
+     * fixed catalogue the tenant administrator never edits. Still reachable by
+     * URL for debugging.
+     */
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
+
     public static function form(Schema $schema): Schema
     {
         return $schema->components([]);

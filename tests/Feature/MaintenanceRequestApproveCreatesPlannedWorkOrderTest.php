@@ -29,7 +29,7 @@ beforeEach(function () {
     $this->technician = User::factory()->create(['is_active' => true]);
     $this->technician->tenants()->attach($this->tenant->id, ['joined_at' => now()]);
     setPermissionsTeamId($this->tenant->id);
-    $this->technician->assignRole('tecnico');
+    $this->technician->assignRole('administrador-general');
 
     $this->equipment = Equipment::factory()->create(['tenant_id' => $this->tenant->id]);
 

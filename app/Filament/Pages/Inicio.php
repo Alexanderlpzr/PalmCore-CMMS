@@ -23,8 +23,12 @@ class Inicio extends Page
      * Roles that consume the analytics Dashboard daily and should land there
      * after login instead of on the corporate portal. They can still open Inicio
      * from the navigation — only the initial post-login landing is redirected.
+     *
+     * The maintenance engineer now runs the tenant as administrador-general, so
+     * that role inherits the landing that ingeniero-mantenimiento and supervisor
+     * used to have.
      */
-    private const DASHBOARD_LANDING_ROLES = ['ingeniero-mantenimiento', 'supervisor'];
+    private const DASHBOARD_LANDING_ROLES = ['administrador-general'];
 
     /** Session flag so the landing redirect fires once per session, not on every visit to Inicio. */
     private const LANDING_REDIRECT_KEY = 'landing_redirect_done';

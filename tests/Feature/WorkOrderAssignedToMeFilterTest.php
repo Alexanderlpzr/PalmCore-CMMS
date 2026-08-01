@@ -24,10 +24,13 @@ beforeEach(function () {
     setPermissionsTeamId($this->tenant->id);
     $this->admin->assignRole('administrador-general');
 
+    // El filtro "Asignadas a mí" se enciende solo para quien NO puede planificar.
+    // Ese perfil ya no lo da ningún rol (el tenant tiene uno solo, que planifica),
+    // así que se arma con permisos directos: ve órdenes, no las planifica.
     $this->technician = User::factory()->create(['is_active' => true]);
     $this->technician->tenants()->attach($this->tenant->id, ['joined_at' => now()]);
     setPermissionsTeamId($this->tenant->id);
-    $this->technician->assignRole('tecnico');
+    $this->technician->givePermissionTo('work-orders.view', 'work-orders.execute');
 
     $this->otherTechnician = User::factory()->create(['is_active' => true]);
 

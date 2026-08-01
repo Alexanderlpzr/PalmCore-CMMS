@@ -41,17 +41,14 @@ it('provisions the seven process-flow areas for a new tenant', function () {
         ]);
 });
 
-it('provisions the full per-tenant role matrix', function () {
+it('provisions the single per-tenant administrator role', function () {
     $tenant = Tenant::factory()->create();
 
     app(ProvisionTenantBaseStructure::class)->handle($tenant);
 
     $roles = Role::where('team_id', $tenant->id)->pluck('name')->all();
 
-    expect($roles)->toEqualCanonicalizing([
-        'administrador-general', 'gerencia', 'plant-manager', 'ingeniero-mantenimiento',
-        'supervisor', 'tecnico', 'almacenista', 'compras', 'operario',
-    ]);
+    expect($roles)->toEqualCanonicalizing(['administrador-general']);
 });
 
 it('self-heals a missing permission catalogue instead of throwing', function () {
@@ -84,5 +81,5 @@ it('is idempotent — re-running does not duplicate structure', function () {
 
     expect(Plant::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count())->toBe(1)
         ->and(Area::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count())->toBe(7)
-        ->and(Role::where('team_id', $tenant->id)->count())->toBe(9);
+        ->and(Role::where('team_id', $tenant->id)->count())->toBe(1);
 });

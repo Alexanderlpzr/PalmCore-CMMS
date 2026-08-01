@@ -29,7 +29,7 @@ use Spatie\Permission\PermissionRegistrar;
  * Lo que se prueba aquí no es que las pantallas rendericen, sino que **no sean una
  * puerta trasera**: el paro se registra por el servicio (con sus reglas de solape),
  * la lectura de horómetro pasa por el cálculo del acumulado, y firmar las horas
- * exige la facultad de producción, que mantenimiento no tiene.
+ * exige el permiso downtime-events.confirm.
  */
 beforeEach(function (): void {
     $this->seed(PermissionSeeder::class);
@@ -57,13 +57,16 @@ beforeEach(function (): void {
     Filament::setTenant($this->tenant);
 });
 
-/** Un usuario del tenant con un rol concreto. */
-function userWithRole(string $role): User
+/** Un usuario del tenant, con rol o sin ninguno. */
+function userWithRole(?string $role = null): User
 {
     $user = User::factory()->create(['is_active' => true]);
     $user->tenants()->attach(test()->tenant->id, ['joined_at' => now()]);
     setPermissionsTeamId(test()->tenant->id);
-    $user->assignRole($role);
+
+    if ($role !== null) {
+        $user->assignRole($role);
+    }
 
     return $user;
 }
@@ -155,10 +158,12 @@ it('lets production sign the hours from the table', function (): void {
         ->and($paro->confirmed_by)->toBe($this->admin->id);
 });
 
-it('does not let maintenance sign its own hours', function (): void {
-    // El ingeniero de mantenimiento registra y clasifica el paro, pero no certifica
-    // las horas que su propia área hizo perder. Juez y parte, no.
-    $engineer = userWithRole('ingeniero-mantenimiento');
+it('requires the confirm permission to sign the hours of a paro', function (): void {
+    // Antes esto separaba funciones: mantenimiento registraba el paro y producción
+    // firmaba las horas, para que nadie fuera juez y parte. Al colapsar la matriz a
+    // un solo rol de tenant esa separación desaparece — el administrador registra y
+    // firma. Lo que sigue en pie es que sin el permiso no se firma.
+    $sinRol = userWithRole();
 
     $paro = EquipmentDowntimeEvent::factory()->create([
         'tenant_id' => $this->tenant->id,
@@ -167,11 +172,10 @@ it('does not let maintenance sign its own hours', function (): void {
         'affects_production' => true,
     ]);
 
-    expect($engineer->can('confirm', $paro))->toBeFalse()
-        ->and($engineer->can('update', $paro))->toBeTrue();
+    expect($sinRol->can('confirm', $paro))->toBeFalse()
+        ->and($sinRol->can('update', $paro))->toBeFalse();
 
-    // Y el jefe de turno sí puede.
-    expect(userWithRole('supervisor')->can('confirm', $paro))->toBeTrue();
+    expect(userWithRole('administrador-general')->can('confirm', $paro))->toBeTrue();
 });
 
 it('never lets anyone delete a paro', function (): void {

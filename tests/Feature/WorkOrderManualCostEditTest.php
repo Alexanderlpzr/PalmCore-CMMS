@@ -25,12 +25,15 @@ beforeEach(function () {
     $this->equipment = Equipment::factory()->create(['tenant_id' => $this->tenant->id]);
 });
 
-function costEditUser(Tenant $tenant, string $role): User
+function costEditUser(Tenant $tenant, ?string $role = null): User
 {
     $user = User::factory()->create(['is_active' => true]);
     $user->tenants()->attach($tenant->id, ['joined_at' => now()]);
     setPermissionsTeamId($tenant->id);
-    $user->assignRole($role);
+
+    if ($role !== null) {
+        $user->assignRole($role);
+    }
 
     return $user;
 }
@@ -103,8 +106,11 @@ it('closing via the real close action with los tres rubros creates the three bud
         ->and($expenses->firstWhere('category', ExpenseCategory::Lubricantes)?->amount)->toBe(80000.0);
 });
 
-it('hides the cost edit action from a técnico', function () {
-    $tech = costEditUser($this->tenant, 'tecnico');
+it('hides the cost edit action from a user who cannot update work orders', function () {
+    // Ve la OT pero no la edita: la acción de costos exige work-orders.update.
+    $tech = costEditUser($this->tenant);
+    $tech->givePermissionTo('work-orders.view');
+
     $wo = WorkOrder::factory()->create([
         'tenant_id' => $this->tenant->id,
         'equipment_id' => $this->equipment->id,

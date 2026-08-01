@@ -30,18 +30,30 @@ beforeEach(function () {
     Filament::setCurrentPanel(Filament::getPanel('admin'));
 });
 
-function maintenanceRequestUser(Tenant $tenant, string $role): User
+function maintenanceRequestUser(Tenant $tenant, ?string $role = null): User
 {
     $user = User::factory()->create(['is_active' => true]);
     $user->tenants()->attach($tenant->id, ['joined_at' => now()]);
     setPermissionsTeamId($tenant->id);
-    $user->assignRole($role);
+
+    if ($role !== null) {
+        $user->assignRole($role);
+    }
 
     return $user;
 }
 
-it('hides reject from a técnico', function () {
-    $user = maintenanceRequestUser($this->tenant, 'tecnico');
+/**
+ * Rejecting a request is gated on maintenance-requests.review. That used to
+ * separate a supervisor from a técnico; with a single tenant role it separates
+ * the administrator from a user carrying no role.
+ */
+it('hides reject from a user without the review permission', function () {
+    // Ve la solicitud pero no la revisa: sin al menos el permiso de lectura la
+    // página ni siquiera monta, así que no habría acción que ocultar.
+    $user = maintenanceRequestUser($this->tenant);
+    $user->givePermissionTo('maintenance-requests.view');
+
     $this->actingAs($user);
     Filament::setTenant($this->tenant);
 
@@ -49,8 +61,8 @@ it('hides reject from a técnico', function () {
         ->assertActionHidden('reject');
 });
 
-it('shows reject to a supervisor', function () {
-    $user = maintenanceRequestUser($this->tenant, 'supervisor');
+it('shows reject to the tenant administrator', function () {
+    $user = maintenanceRequestUser($this->tenant, 'administrador-general');
     $this->actingAs($user);
     Filament::setTenant($this->tenant);
 

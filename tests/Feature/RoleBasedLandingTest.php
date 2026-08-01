@@ -19,12 +19,15 @@ beforeEach(function () {
 });
 
 /** Create a user with the given role, sign them in, and resolve panel + tenant. */
-function actAsLanding(Tenant $tenant, string $role): User
+function actAsLanding(Tenant $tenant, ?string $role = null): User
 {
     $user = User::factory()->create(['is_active' => true]);
     $user->tenants()->attach($tenant->id, ['joined_at' => now()]);
     setPermissionsTeamId($tenant->id);
-    $user->assignRole($role);
+
+    if ($role !== null) {
+        $user->assignRole($role);
+    }
 
     test()->actingAs($user);
     Filament::setCurrentPanel(Filament::getPanel('admin'));
@@ -33,29 +36,27 @@ function actAsLanding(Tenant $tenant, string $role): User
     return $user;
 }
 
-it('redirects a maintenance engineer landing on Inicio to the Dashboard', function () {
-    actAsLanding($this->tenant, 'ingeniero-mantenimiento');
-
-    Livewire::test(Inicio::class)
-        ->assertRedirect(Dashboard::getUrl());
-});
-
-it('redirects a supervisor landing on Inicio to the Dashboard', function () {
-    actAsLanding($this->tenant, 'supervisor');
-
-    Livewire::test(Inicio::class)
-        ->assertRedirect(Dashboard::getUrl());
-});
-
-it('does NOT redirect an administrator — they keep the corporate portal as home', function () {
+/**
+ * The maintenance engineer now runs the tenant as administrador-general, so the
+ * Dashboard landing that used to belong to ingeniero-mantenimiento/supervisor
+ * follows him into that role.
+ */
+it('redirects the tenant administrator landing on Inicio to the Dashboard', function () {
     actAsLanding($this->tenant, 'administrador-general');
+
+    Livewire::test(Inicio::class)
+        ->assertRedirect(Dashboard::getUrl());
+});
+
+it('does NOT redirect a user without the administrator role', function () {
+    actAsLanding($this->tenant);
 
     Livewire::test(Inicio::class)
         ->assertNoRedirect();
 });
 
-it('redirects the engineer only once per session, honoring later visits to Inicio', function () {
-    actAsLanding($this->tenant, 'ingeniero-mantenimiento');
+it('redirects only once per session, honoring later visits to Inicio', function () {
+    actAsLanding($this->tenant, 'administrador-general');
 
     // First landing bounces to the Dashboard...
     Livewire::test(Inicio::class)->assertRedirect(Dashboard::getUrl());
