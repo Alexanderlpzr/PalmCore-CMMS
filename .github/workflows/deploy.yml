@@ -24,7 +24,12 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: production
-    timeout-minutes: 15
+    # 30 min, no 15. Con la caché de capas caliente el deploy tarda ~2 min, pero
+    # cuando la imagen base php:8.4-fpm-alpine se actualiza upstream la caché se
+    # invalida entera y el build recompila la extensión intl desde código fuente:
+    # unos 6 minutos solo de cc/g++, más composer install y npm ci. El 2026-08-01
+    # eso se pasó de los 12 min del SSH y cortó el deploy a media construcción.
+    timeout-minutes: 30
     steps:
       - name: Deploy to VPS
         uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
@@ -33,7 +38,10 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          command_timeout: 12m
+          # Tiene que quedar por debajo de timeout-minutes del job, para que el
+          # corte lo dé el SSH y el log llegue completo en vez de que GitHub mate
+          # el job entero sin diagnóstico.
+          command_timeout: 25m
           script: |
             cd /opt/palmcore
             bash deploy/scripts/deploy.sh
