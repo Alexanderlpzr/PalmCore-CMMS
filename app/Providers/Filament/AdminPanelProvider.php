@@ -8,6 +8,7 @@ use App\Http\Middleware\CheckTenantSubscription;
 use App\Http\Middleware\EnforceTwoFactor;
 use App\Http\Middleware\SyncSpatieTeamId;
 use App\Models\Tenant;
+use App\Support\FrondaPalette;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -54,12 +55,18 @@ class AdminPanelProvider extends PanelProvider
                 PanelsRenderHook::BODY_START,
                 fn (): View => view('filament.subscription-banner'),
             )
-            // Brand + semantic colors aligned with the shared Fronda tokens
-            // (resources/css/app.css · resources/js/shared/design.js) so Filament,
-            // Ops and Mobile read as one product. Fronda green = #059669.
+            // Paleta alineada con los tokens compartidos (app/Support/FrondaPalette.php
+            // · resources/css/fronda-tokens.css) para que Filament, Ops y Mobile se
+            // lean como un solo producto. El primario es el verde exacto del logo.
+            //
+            // Se pasa la rampa completa en vez de Color::hex(): ese helper solo toma
+            // el TONO del color y le impone la curva de luminosidad de Filament, así
+            // que el botón nunca habría sido el verde del logo. `success` comparte la
+            // rampa del primario a propósito — verde de marca y verde de éxito son el
+            // mismo color, y tener dos verdes distintos era parte del ruido visual.
             ->colors([
-                'primary' => Color::hex('#059669'),
-                'success' => Color::Emerald,
+                'primary' => FrondaPalette::Brand,
+                'success' => FrondaPalette::Brand,
                 'gray' => Color::Slate,
                 'info' => Color::Blue,
                 'warning' => Color::Amber,
@@ -86,8 +93,10 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->renderHook(
                 PanelsRenderHook::SIDEBAR_NAV_END,
+                // El enlace se pinta con el color del panel al que lleva (petróleo),
+                // no con un violeta que no está en el logo.
                 fn (): string => auth()->user()?->is_super_admin
-                    ? '<div class="p-2"><a href="/platform" class="block text-xs text-center text-violet-600 hover:text-violet-800 font-medium py-2 px-3 bg-violet-50 hover:bg-violet-100 rounded-lg transition-colors">→ Panel de Plataforma</a></div>'
+                    ? '<div class="p-2"><a href="/platform" class="block text-xs text-center text-petrol-700 hover:text-petrol-800 dark:text-petrol-200 dark:hover:text-white font-medium py-2 px-3 bg-petrol-50 hover:bg-petrol-100 dark:bg-white/5 dark:hover:bg-white/10 rounded-lg transition-colors">→ Panel de Plataforma</a></div>'
                     : '',
             )
             ->tenant(Tenant::class, slugAttribute: 'slug')

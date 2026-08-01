@@ -2,6 +2,7 @@
 
 namespace App\Filament\AvatarProviders;
 
+use App\Support\FrondaPalette;
 use Filament\AvatarProviders\Contracts\AvatarProvider;
 use Filament\Facades\Filament;
 use Illuminate\Contracts\Auth\Authenticatable;
@@ -9,16 +10,21 @@ use Illuminate\Database\Eloquent\Model;
 
 class InitialsAvatarProvider implements AvatarProvider
 {
-    /** Brand colors for avatar backgrounds — cycles by name hash */
+    /**
+     * Fondos de avatar, elegidos por hash del nombre. Se decía «brand colors»,
+     * pero la lista traía un morado, un marrón y tres azules que no salían de la
+     * marca. Ahora alterna tonos de las dos rampas del logotipo: distintos entre
+     * sí, y todos lo bastante oscuros para llevar las iniciales en blanco
+     * (el más flojo contrasta 5.11:1). Se intercalan verde y petróleo para que
+     * dos nombres consecutivos no caigan en tonos casi iguales.
+     */
     private const COLORS = [
-        '#0F4C5C',
-        '#2E8B57',
-        '#1a5276',
-        '#5b2c6f',
-        '#1e8449',
-        '#0e6655',
-        '#1a5276',
-        '#784212',
+        FrondaPalette::Brand[600],
+        FrondaPalette::Petrol[500],
+        FrondaPalette::Brand[800],
+        FrondaPalette::Petrol[700],
+        FrondaPalette::Brand[700],
+        FrondaPalette::Petrol[600],
     ];
 
     public function get(Model|Authenticatable $record): string

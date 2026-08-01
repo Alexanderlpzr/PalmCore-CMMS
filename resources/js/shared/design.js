@@ -9,27 +9,32 @@
 //   danger  → crítico / cancelado / fallido  info    → informativo / planificado
 //   neutral → inactivo / archivado
 // `brand` is the Fronda green used for primary actions (same family as success).
+//
+// `brand` y `success` usan la rampa brand-*, que es el verde exacto del logotipo
+// (#1A7E42 en el paso 600) y no el emerald genérico de Tailwind que había antes.
+// Las rampas se definen en resources/css/fronda-tokens.css, importado tanto por
+// ops.css como por mobile.css; el espejo en PHP es app/Support/FrondaPalette.php.
 
 export const TONES = ['success', 'warning', 'danger', 'info', 'neutral', 'brand']
 
 const TONE_CLASSES = {
     // Solid pills on light surfaces (Ops panel, Filament-adjacent web).
     light: {
-        success: 'bg-emerald-100 text-emerald-700',
+        success: 'bg-brand-50 text-brand-700',
         warning: 'bg-amber-100 text-amber-700',
         danger:  'bg-red-100 text-red-700',
         info:    'bg-blue-100 text-blue-700',
         neutral: 'bg-gray-100 text-gray-600',
-        brand:   'bg-emerald-100 text-emerald-700',
+        brand:   'bg-brand-50 text-brand-700',
     },
     // Translucent pills on the dark surfaces of the mobile PWA.
     dark: {
-        success: 'bg-emerald-500/15 text-emerald-400',
+        success: 'bg-brand-400/15 text-brand-300',
         warning: 'bg-amber-500/15 text-amber-400',
         danger:  'bg-red-500/15 text-red-400',
         info:    'bg-blue-500/15 text-blue-400',
         neutral: 'bg-zinc-700/40 text-zinc-400',
-        brand:   'bg-emerald-500/15 text-emerald-400',
+        brand:   'bg-brand-400/15 text-brand-300',
     },
 }
 
@@ -41,20 +46,20 @@ export function toneClasses(tone, theme = 'light') {
 // rounded icon tiles used on cards and list rows.
 const TONE_ICON = {
     light: {
-        success: 'bg-emerald-100 text-emerald-600',
+        success: 'bg-brand-50 text-brand-600',
         warning: 'bg-amber-100 text-amber-600',
         danger:  'bg-red-100 text-red-600',
         info:    'bg-blue-100 text-blue-600',
         neutral: 'bg-gray-100 text-gray-500',
-        brand:   'bg-emerald-100 text-emerald-600',
+        brand:   'bg-brand-50 text-brand-600',
     },
     dark: {
-        success: 'bg-emerald-500/15 text-emerald-400',
+        success: 'bg-brand-400/15 text-brand-300',
         warning: 'bg-amber-500/15 text-amber-400',
         danger:  'bg-red-500/15 text-red-400',
         info:    'bg-blue-500/15 text-blue-400',
         neutral: 'bg-zinc-700/40 text-zinc-400',
-        brand:   'bg-emerald-500/15 text-emerald-400',
+        brand:   'bg-brand-400/15 text-brand-300',
     },
 }
 

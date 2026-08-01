@@ -8,6 +8,12 @@
  * utility we author is generated. Registered on the panel via ->viteTheme().
  */
 @import '../../../../vendor/filament/filament/resources/css/theme.css';
+@import '../../fronda-tokens.css';
 
 @source '../../../../app/Filament/**/*.php';
 @source '../../../../resources/views/filament/**/*.blade.php';
+
+/* Los render hooks del panel escriben HTML con clases de Tailwind directamente
+   dentro del provider (el enlace «→ Panel de Plataforma»), y esta ruta no
+   estaba declarada: esas clases nunca se compilaban. */
+@source '../../../../app/Providers/Filament/*.php';

@@ -1,0 +1,94 @@
+/*
+ * ── Tokens de marca Fronda — fuente única de verdad del lado CSS ──────────────
+ *
+ * Antes había cuatro definiciones de marca que no coincidían entre sí
+ * (app.css #059669, mobile.css #059669, ops.css #0F4C5C + #2E8B57 y
+ * Login.php #2f6b46), y ninguna era el color del logotipo. Este archivo las
+ * reemplaza a todas: lo importan app.css, mobile.css, ops.css y los dos temas
+ * de Filament, así que Filament, Ops y Mobile leen la misma paleta.
+ *
+ * Los dos colores de marca son los que existen en el logo, muestreados de sus
+ * píxeles: verde #1A7E42 (la fronda + «CMMS») y petróleo #00384C (el engranaje
+ * + «FRONDA»). Cada rampa está anclada para que el paso 600 sea exactamente el
+ * color del logo. Espejo en PHP: app/Support/FrondaPalette.php.
+ *
+ * Roles de color — son cinco, y no se añaden más:
+ *   brand/success → verde   · warning → ámbar · danger → rojo
+ *   info          → azul    · neutral → gris
+ * `petrol` no es un sexto rol: es superficie estructural, no un estado.
+ */
+
+@theme {
+    /* Verde de la fronda — acciones primarias, enlaces, estado activo. */
+    --color-brand-50: #f0f9f2;
+    --color-brand-100: #dff1e2;
+    --color-brand-200: #c1e5c9;
+    --color-brand-300: #98d1a6;
+    --color-brand-400: #64b67b;
+    /* El 500 va más oscuro a propósito — ver la nota en FrondaPalette::Brand. */
+    --color-brand-500: #2e8c4f;
+    --color-brand-600: #1a7e42;
+    --color-brand-700: #046732;
+    --color-brand-800: #065428;
+    --color-brand-900: #0d4522;
+    --color-brand-950: #052811;
+
+    /* Petróleo del engranaje — barras laterales, encabezados, superficies oscuras. */
+    --color-petrol-50: #eef3f6;
+    --color-petrol-100: #dae5eb;
+    --color-petrol-200: #baced9;
+    --color-petrol-300: #8dadbd;
+    --color-petrol-400: #568297;
+    --color-petrol-500: #2f5f75;
+    --color-petrol-600: #00384c;
+    --color-petrol-700: #002c3e;
+    --color-petrol-800: #002331;
+    --color-petrol-900: #011c27;
+    --color-petrol-950: #000d14;
+}
+
+/*
+ * Roles semánticos resueltos por tema. Se usan donde el color tiene que cambiar
+ * entre claro y oscuro: en claro el verde se oscurece para contrastar contra
+ * blanco (brand-700, 7.02:1), en oscuro se aclara para contrastar contra las
+ * superficies petróleo (brand-400, 7.20:1). Escribir `text-brand-600` a pelo es
+ * lo que hacía que el modo oscuro se viera apagado.
+ */
+:root {
+    --fronda-primary: var(--color-brand-600);
+    --fronda-primary-hover: var(--color-brand-700);
+    --fronda-on-primary: #ffffff;
+    --fronda-link: var(--color-brand-700);
+
+    --fronda-surface: #ffffff;
+    --fronda-surface-sunken: var(--color-petrol-50);
+    --fronda-border: var(--color-petrol-100);
+    --fronda-text: var(--color-petrol-900);
+    --fronda-text-muted: var(--color-petrol-500);
+
+    /* Barra lateral: petróleo del logo, con el verde marcando el ítem activo. */
+    --fronda-sidebar: var(--color-petrol-800);
+    --fronda-sidebar-hover: rgba(255, 255, 255, 0.07);
+    --fronda-sidebar-active: rgba(26, 126, 66, 0.22);
+    --fronda-sidebar-active-border: var(--color-brand-400);
+
+    /* Alias conservados para el CSS de Ops que ya los usaba. */
+    --fronda-success: var(--color-brand-600);
+}
+
+.dark,
+:root[data-theme='dark'] {
+    --fronda-primary: var(--color-brand-500);
+    --fronda-primary-hover: var(--color-brand-400);
+    --fronda-on-primary: var(--color-petrol-950);
+    --fronda-link: var(--color-brand-400);
+
+    --fronda-surface: var(--color-petrol-900);
+    --fronda-surface-sunken: var(--color-petrol-950);
+    --fronda-border: rgba(255, 255, 255, 0.10);
+    --fronda-text: var(--color-petrol-50);
+    --fronda-text-muted: var(--color-petrol-300);
+
+    --fronda-sidebar: var(--color-petrol-950);
+    --fronda-success: var(--color-brand-500);
+}

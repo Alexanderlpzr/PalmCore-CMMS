@@ -8,7 +8,10 @@
 <div class="fi-simple-page w-full">
     {{ \Filament\Support\Facades\FilamentView::renderHook(\Filament\View\PanelsRenderHook::SIMPLE_PAGE_START, scopes: $this->getRenderHookScopes()) }}
 
-    <div class="relative min-h-screen w-full overflow-hidden bg-[linear-gradient(150deg,#264a35,#0d2016_70%)]">
+    {{-- Degradado entre los dos colores del logo: petróleo del engranaje →
+         verde de la fronda. Antes eran dos verdes inventados (#264a35 → #0d2016)
+         que no salían de ninguna parte de la marca. --}}
+    <div class="relative min-h-screen w-full overflow-hidden bg-[linear-gradient(150deg,#002331,#052811_70%)]">
         @if ($images->isNotEmpty())
             <div
                 @if ($images->count() > 1)
@@ -52,7 +55,7 @@
              siempre tengan contraste sin importar qué tan clara sea la foto. --}}
         <div
             class="pointer-events-none absolute inset-0"
-            style="background-image: linear-gradient(to top, rgba(10,20,14,.75), rgba(10,20,14,.15) 45%)"
+            style="background-image: linear-gradient(to top, rgba(0,13,20,.78), rgba(0,13,20,.15) 45%)"
         ></div>
 
         @if ($images->isNotEmpty())
@@ -71,21 +74,33 @@
         @endif
 
         <div class="relative z-10 flex min-h-screen items-center justify-center px-6 lg:justify-end lg:px-14">
-            <div class="w-full max-w-[360px] rounded-2xl bg-[rgba(251,250,246,0.94)] px-[34px] py-10 shadow-[0_20px_50px_rgba(0,0,0,0.35)] backdrop-blur-md">
+            {{-- La tarjeta tiene que seguir al tema. Cuando era crema fija, el modo
+                 oscuro de Filament seguía pintando los campos, etiquetas y mensajes
+                 de error de adentro con sus colores oscuros (texto claro), y quedaban
+                 blancos sobre crema: ilegibles. Ahora la superficie cambia con el
+                 tema igual que su contenido. --}}
+            <div class="w-full max-w-[360px] rounded-2xl bg-[rgba(251,250,246,0.94)] px-[34px] py-10 shadow-[0_20px_50px_rgba(0,0,0,0.35)] backdrop-blur-md dark:bg-[rgba(1,28,39,0.94)] dark:ring-1 dark:ring-white/10">
                 @if ($hasLogo)
-                    <img
-                        src="{{ filament()->getBrandLogo() }}"
-                        alt="{{ filament()->getBrandName() }}"
-                        class="mb-7 h-7 w-auto"
-                    />
+                    {{-- «FRONDA» está escrito en el petróleo del logo (#00384C), que
+                         sobre la tarjeta oscura sería prácticamente invisible. En vez
+                         de teñir el logo con un filtro —que le cambiaría los colores
+                         de marca— se le da una placa clara en modo oscuro, que es su
+                         fondo previsto. --}}
+                    <div class="mb-7 dark:-mx-2 dark:inline-block dark:rounded-lg dark:bg-white/95 dark:px-3 dark:py-2">
+                        <img
+                            src="{{ filament()->getBrandLogo() }}"
+                            alt="{{ filament()->getBrandName() }}"
+                            class="h-7 w-auto"
+                        />
+                    </div>
                 @endif
 
                 @if (filled($heading))
-                    <h1 class="mb-6 font-[Fraunces] text-2xl font-medium text-[#16241c]">{{ $heading }}</h1>
+                    <h1 class="mb-6 font-[Fraunces] text-2xl font-medium text-petrol-900 dark:text-white">{{ $heading }}</h1>
                 @endif
 
                 @if (filled($subheading))
-                    <p class="-mt-4 mb-6 text-sm text-[#5d7a68]">{{ $subheading }}</p>
+                    <p class="-mt-4 mb-6 text-sm text-petrol-500 dark:text-petrol-300">{{ $subheading }}</p>
                 @endif
 
                 {{ $this->content }}
@@ -107,15 +122,29 @@
      * Filament — no hay forma de lograrlos solo con ->color(). Se targetea la
      * clase marcador `fi-login-field` (añadida vía ->extraInputAttributes() en
      * Login.php) en vez de .fi-input directo, para no tocar el resto del panel.
+     *
+     * El borde y el foco se declaran con variables resueltas por tema: cuando
+     * eran hex fijos, ganaban por especificidad sobre el modo oscuro de Filament
+     * y los campos quedaban con borde claro sobre superficie oscura.
      */
     .fi-simple-page .fi-login-field {
-        border-color: #d8dcd4;
+        border-color: var(--login-field-border);
         border-radius: 7px;
         font-size: 13.5px;
     }
 
     .fi-simple-page .fi-login-field:focus {
-        border-color: #2f6b46;
-        box-shadow: 0 0 0 1px #2f6b46;
+        border-color: var(--login-field-focus);
+        box-shadow: 0 0 0 1px var(--login-field-focus);
+    }
+
+    .fi-simple-page {
+        --login-field-border: #d8dcd4;
+        --login-field-focus: #1a7e42; /* brand-600, el verde del logo */
+    }
+
+    .dark .fi-simple-page {
+        --login-field-border: rgba(255, 255, 255, 0.14);
+        --login-field-focus: #64b67b; /* brand-400: contrasta 7.2:1 en oscuro */
     }
 </style>

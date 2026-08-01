@@ -10,6 +10,7 @@
  * apuntaba a este archivo, que hasta ahora no existía.
  */
 @import '../../../../vendor/filament/filament/resources/css/theme.css';
+@import '../../fronda-tokens.css';
 
 @source '../../../../app/Filament/Platform/**/*.php';
 @source '../../../../app/Domain/Platform/**/*.php';
@@ -18,3 +19,7 @@
 /* Página de login personalizada (carrusel de imágenes) — compartida con el
  * panel admin, así que no vive bajo resources/views/filament/platform/. */
 @source '../../../../resources/views/filament/pages/**/*.blade.php';
+
+/* El render hook con el enlace «← Panel Admin» vive en el provider, no en una
+   vista: sin esta ruta sus clases de Tailwind no se compilan. */
+@source '../../../../app/Providers/Filament/*.php';

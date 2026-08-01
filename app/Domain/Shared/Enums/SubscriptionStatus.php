@@ -2,6 +2,8 @@
 
 namespace App\Domain\Shared\Enums;
 
+use App\Support\FrondaPalette;
+
 enum SubscriptionStatus: string
 {
     case Trial = 'trial';
@@ -52,7 +54,7 @@ enum SubscriptionStatus: string
             self::Trial => '#2563EB',
             self::ReadOnly => '#D97706',
             self::Suspended => '#DC2626',
-            self::Active => '#059669',
+            self::Active => FrondaPalette::Brand[600],
         };
     }
 

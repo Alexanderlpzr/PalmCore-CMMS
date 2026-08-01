@@ -3,10 +3,10 @@
 namespace App\Filament\Pages\Auth;
 
 use App\Models\LoginBackgroundImage;
+use App\Support\FrondaPalette;
 use Filament\Actions\Action;
 use Filament\Auth\Pages\Login as BaseLogin;
 use Filament\Schemas\Components\Component;
-use Filament\Support\Colors\Color;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -17,11 +17,11 @@ class Login extends BaseLogin
     protected static string $layout = 'filament.pages.auth.login-layout';
 
     /**
-     * El verde de este rediseño (handoff LOGIN-2): un tono propio de esta pantalla,
-     * no el Emerald que usa el resto del producto — es la primera impresión de marca,
-     * antes de que el visitante haya entrado a ningún panel.
+     * El login es la primera impresión de marca, así que usa el verde exacto del
+     * logotipo. Antes tenía un tono propio (#2f6b46) que no coincidía ni con el
+     * logo ni con el resto del producto: era el quinto verde distinto del proyecto.
      */
-    private const BRAND_GREEN = '#2f6b46';
+    private const BRAND_GREEN = FrondaPalette::LogoGreen;
 
     /**
      * @return Collection<int, LoginBackgroundImage>
@@ -54,8 +54,13 @@ class Login extends BaseLogin
             ->extraInputAttributes(['style' => 'accent-color: '.self::BRAND_GREEN]);
     }
 
+    /**
+     * Se pasa la rampa completa en vez de Color::hex(): ese helper conserva solo
+     * el tono del color y le aplica la curva de luminosidad de Filament, así que
+     * el botón salía de un verde más claro que el del logotipo.
+     */
     protected function getAuthenticateFormAction(): Action
     {
-        return parent::getAuthenticateFormAction()->color(Color::hex(self::BRAND_GREEN));
+        return parent::getAuthenticateFormAction()->color(FrondaPalette::Brand);
     }
 }

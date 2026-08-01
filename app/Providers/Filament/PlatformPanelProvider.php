@@ -5,6 +5,7 @@ namespace App\Providers\Filament;
 use App\Filament\AvatarProviders\InitialsAvatarProvider;
 use App\Filament\Pages\Auth\Login;
 use App\Http\Middleware\EnsureSuperAdmin;
+use App\Support\FrondaPalette;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -41,9 +42,12 @@ class PlatformPanelProvider extends PanelProvider
             // panel `admin` ya resolvió este mismo problema — ver su propio
             // ->viteTheme() en AdminPanelProvider.
             ->viteTheme('resources/css/filament/platform/theme.css')
+            // La plataforma sigue distinguiéndose a simple vista del panel admin,
+            // pero con el otro color del logo (el petróleo del engranaje) en vez de
+            // un violeta ajeno a la marca. Verde = operación, petróleo = plataforma.
             ->colors([
-                'primary' => Color::hex('#7c3aed'),
-                'success' => Color::Emerald,
+                'primary' => FrondaPalette::Petrol,
+                'success' => FrondaPalette::Brand,
                 'gray' => Color::Slate,
                 'info' => Color::Blue,
                 'warning' => Color::Amber,
@@ -62,7 +66,9 @@ class PlatformPanelProvider extends PanelProvider
             ])
             ->renderHook(
                 PanelsRenderHook::SIDEBAR_NAV_END,
-                fn (): string => '<div class="p-2"><a href="/admin" class="block text-xs text-center text-emerald-600 hover:text-emerald-800 font-medium py-2 px-3 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors">← Panel Admin</a></div>',
+                // Igual que el enlace inverso en AdminPanelProvider: se pinta con el
+                // color del panel de destino (el verde de operación).
+                fn (): string => '<div class="p-2"><a href="/admin" class="block text-xs text-center text-brand-700 hover:text-brand-800 dark:text-brand-300 dark:hover:text-brand-200 font-medium py-2 px-3 bg-brand-50 hover:bg-brand-100 dark:bg-brand-400/10 dark:hover:bg-brand-400/20 rounded-lg transition-colors">← Panel Admin</a></div>',
             )
             ->discoverResources(in: app_path('Filament/Platform/Resources'), for: 'App\Filament\Platform\Resources')
             ->discoverPages(in: app_path('Filament/Platform/Pages'), for: 'App\Filament\Platform\Pages')

@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @import '../../vendor/livewire/flux/dist/flux.css';
+@import './fronda-tokens.css';
 
 @source '../views';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
@@ -23,28 +24,19 @@
     --color-zinc-900: #171717;
     --color-zinc-950: #0a0a0a;
 
-    --color-accent: var(--color-neutral-800);
-    --color-accent-content: var(--color-neutral-800);
+    /* El acento de Flux sigue al verde de la marca, no al neutro por defecto:
+       así los anillos de foco y los controles activos son del color del logo
+       en vez de gris. Las rampas de marca viven en fronda-tokens.css. */
+    --color-accent: var(--color-brand-600);
+    --color-accent-content: var(--color-brand-700);
     --color-accent-foreground: var(--color-white);
-
-    /* ── Fronda design tokens (DS-1.4) ──────────────────────────────────────
-       Single source for brand + semantic roles shared across Filament, Ops and
-       Mobile. Status/priority colors map to these five roles via shared/design.js:
-         brand/success → emerald · warning → amber · danger → red
-         info → blue · neutral → gray
-       Mobile keeps amber as its dark-theme action accent (see mobile.css). */
-    --color-brand-50: #ecfdf5;
-    --color-brand-100: #d1fae5;
-    --color-brand-500: #059669;
-    --color-brand-600: #047857;
-    --color-brand-700: #065f46;
 }
 
 @layer theme {
     .dark {
-        --color-accent: var(--color-white);
-        --color-accent-content: var(--color-white);
-        --color-accent-foreground: var(--color-neutral-800);
+        --color-accent: var(--color-brand-400);
+        --color-accent-content: var(--color-brand-300);
+        --color-accent-foreground: var(--color-petrol-950);
     }
 }
 
