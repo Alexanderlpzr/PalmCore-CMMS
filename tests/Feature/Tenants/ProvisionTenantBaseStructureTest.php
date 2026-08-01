@@ -2,6 +2,8 @@
 
 use App\Actions\Tenants\ProvisionTenantBaseStructure;
 use App\Models\Area;
+use App\Models\Equipment;
+use App\Models\EquipmentComponent;
 use App\Models\Permission;
 use App\Models\Plant;
 use App\Models\Role;
@@ -28,17 +30,26 @@ it('provisions a default plant named after the tenant itself', function () {
         ->and($plant->is_active)->toBeTrue();
 });
 
-it('provisions the seven process-flow areas for a new tenant', function () {
+it('provisions the nine process-flow areas for a new tenant', function () {
     $tenant = Tenant::factory()->create();
 
     app(ProvisionTenantBaseStructure::class)->handle($tenant);
 
     $areas = Area::withoutGlobalScopes()->where('tenant_id', $tenant->id)->get();
 
-    expect($areas)->toHaveCount(7)
+    expect($areas)->toHaveCount(9)
         ->and($areas->pluck('code')->all())->toEqualCanonicalizing([
-            'REC-01', 'EST-01', 'DIG-01', 'PRE-01', 'CLA-01', 'PAL-01', 'TAL-01',
+            'REC-01', 'EST-01', 'DFR-01', 'RAQ-01', 'EXT-01', 'CLA-01', 'PAL-01', 'DFB-01', 'COG-01',
         ]);
+});
+
+it('provisions the base equipment inventory for a new tenant', function () {
+    $tenant = Tenant::factory()->create();
+
+    app(ProvisionTenantBaseStructure::class)->handle($tenant);
+
+    expect(Equipment::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count())->toBe(99)
+        ->and(EquipmentComponent::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count())->toBe(461);
 });
 
 it('provisions the single per-tenant administrator role', function () {
@@ -80,6 +91,8 @@ it('is idempotent — re-running does not duplicate structure', function () {
     $action->handle($tenant);
 
     expect(Plant::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count())->toBe(1)
-        ->and(Area::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count())->toBe(7)
+        ->and(Area::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count())->toBe(9)
+        ->and(Equipment::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count())->toBe(99)
+        ->and(EquipmentComponent::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count())->toBe(461)
         ->and(Role::where('team_id', $tenant->id)->count())->toBe(1);
 });

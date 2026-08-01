@@ -57,9 +57,12 @@ class E2EDataSeeder extends Seeder
             ->where('code', 'PLT-01')
             ->firstOrFail();
 
+        // Extracción: es donde vive la prensa desde que las áreas por defecto
+        // pasaron a ser las secciones reales de la planta («Prensado» era un
+        // área inventada; en planta la prensa es un equipo de Extracción).
         $area = Area::withoutGlobalScopes()
             ->where('plant_id', $plant->id)
-            ->where('code', 'PRE-01')
+            ->where('code', 'EXT-01')
             ->firstOrFail();
 
         // ── Equipment category ────────────────────────────────────────────────
