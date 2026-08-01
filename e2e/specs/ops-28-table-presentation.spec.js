@@ -39,11 +39,13 @@ for (const { name, path } of TABLES) {
     })
 }
 
-test('las filas alternan sombreado en todas las tablas', async ({ page }) => {
+test('las filas alternan sombreado sin declararlo tabla por tabla', async ({ page }) => {
     await page.goto(adminUrl(PATHS.equipment))
     await expect(page.locator('table').first()).toBeVisible()
 
     // ->striped() estaba puesto en 3 de 69 tablas; ahora es un valor por defecto
-    // global, así que la clase tiene que estar presente sin declararla por tabla.
-    await expect(page.locator('.fi-ta-row-striped, table.fi-ta-table').first()).toBeVisible()
+    // global de Table::configureUsing(). Se busca la clase `fi-striped` concreta
+    // que Filament emite: un selector más laxo (o un `.or()` con `table`) pasaría
+    // igual sin el cambio y no probaría nada.
+    await expect(page.locator('.fi-striped').first()).toBeAttached()
 })
