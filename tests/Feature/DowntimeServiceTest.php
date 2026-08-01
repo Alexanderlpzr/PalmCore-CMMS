@@ -12,8 +12,20 @@ use App\Models\EquipmentDowntimeEvent;
 use App\Models\Plant;
 use App\Models\Tenant;
 use App\Models\User;
+use Carbon\Carbon;
 
 beforeEach(function (): void {
+    /*
+     * El reloj se fija a mitad de mes. Varios tests sitúan paros «hace 1-3 días»
+     * y los consultan desde now()->startOfMonth(): corriendo los días 1, 2 o 3
+     * esos paros caen en el mes anterior, el filtro de la ventana los descarta
+     * con razón y el test falla sin que nada esté roto. Es lo que pasaba cada
+     * primero de mes. El servicio recorta a la ventana a propósito — ver
+     * DowntimeService::lostHoursByCategory —, así que lo que había que arreglar
+     * era el test, no el cálculo.
+     */
+    $this->travelTo(Carbon::create(2026, 6, 15, 8, 0, 0));
+
     $this->service = app(DowntimeService::class);
     $this->tenant = Tenant::factory()->create();
     $this->plant = Plant::factory()->create(['tenant_id' => $this->tenant->id]);

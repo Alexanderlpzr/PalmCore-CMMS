@@ -6,6 +6,7 @@ use App\Models\EquipmentDowntimeEvent;
 use App\Models\Plant;
 use App\Models\Tenant;
 use App\Models\User;
+use Carbon\Carbon;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -26,6 +27,15 @@ function downtimeHeaders(string $token): array
 }
 
 beforeEach(function (): void {
+    /*
+     * Reloj fijo a mitad de mes, por lo mismo que en DowntimeServiceTest: el
+     * test de horas perdidas sitúa los paros en startOfMonth()+2 días, que
+     * corriendo el día 1 cae en el FUTURO y queda fuera de la ventana
+     * consultada (que termina en now()). Los paros se creaban bien y el
+     * endpoint devolvía 0 con toda la razón.
+     */
+    $this->travelTo(Carbon::create(2026, 6, 15, 8, 0, 0));
+
     $this->tenant = Tenant::factory()->create();
     $this->plant = Plant::factory()->create(['tenant_id' => $this->tenant->id]);
     $this->equipment = Equipment::factory()->create([
