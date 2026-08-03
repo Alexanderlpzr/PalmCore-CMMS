@@ -69,7 +69,12 @@ function relativePath(string $path): string
 it('encuentra las tablas del proyecto', function (): void {
     // Si esto baja de golpe, el recorrido se rompió y los demás tests de este
     // archivo estarían pasando sobre una lista vacía.
-    expect(tableFiles())->toHaveCount(69);
+    //
+    // Bajó de 69 a 66 al retirar código inalcanzable: CriticalAlertsWidget, que
+    // no estaba en ningún getWidgets(), y los relation managers de Técnicos y
+    // Contratistas, que no estaban en ningún getRelations() desde que la OT se
+    // colapsó a «crear y cerrar».
+    expect(tableFiles())->toHaveCount(66);
 });
 
 it('alinea a la derecha toda columna de dinero o cantidad', function (): void {
