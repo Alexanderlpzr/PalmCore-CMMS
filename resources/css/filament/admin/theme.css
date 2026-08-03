@@ -17,3 +17,23 @@
    dentro del provider (el enlace «→ Panel de Plataforma»), y esta ruta no
    estaba declarada: esas clases nunca se compilaban. */
 @source '../../../../app/Providers/Filament/*.php';
+
+/*
+ * El desplegable de un <select> nativo lo pinta el sistema operativo, no el
+ * documento: las <option> no heredan el fondo del control, sólo su color de
+ * texto. Nuestros selectores llevan `dark:bg-white/5` —que es translúcido— y
+ * `dark:text-white`, así que en modo oscuro el desplegable salía con texto
+ * blanco sobre el blanco por defecto del popup y no se leía ninguna sección.
+ *
+ * Se les da superficie y texto sólidos, de los mismos tokens que usa el resto
+ * del panel. Va aquí y no en cada <select> porque son cinco repartidos en tres
+ * vistas (Equipos, Control de Mantenimiento, Horas Trabajadas) y el siguiente
+ * que alguien escriba heredaría el bug otra vez.
+ *
+ * Sólo afecta a los <select> nativos que escribimos a mano: los de Filament son
+ * desplegables de JavaScript, no elementos nativos, y ya siguen el tema.
+ */
+:where(.dark, [data-theme='dark']) select option {
+    background-color: var(--fronda-surface);
+    color: var(--fronda-text);
+}

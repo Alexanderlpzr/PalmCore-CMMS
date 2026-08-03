@@ -133,4 +133,9 @@ it('cumple WCAG AA en los pares de color que la interfaz usa de verdad', functio
     // La tarjeta del login en modo oscuro — el par que estaba roto.
     ['título del login en oscuro', '#ffffff', FrondaPalette::Petrol[900]],
     ['subtítulo del login en oscuro', FrondaPalette::Petrol[300], FrondaPalette::Petrol[900]],
+    // El desplegable de un <select> nativo en oscuro. Las <option> no heredan el
+    // fondo del control —lo pinta el sistema operativo— así que con
+    // `dark:bg-white/5`, que es translúcido, quedaba texto blanco sobre el blanco
+    // por defecto del popup. Este es el par que lo reemplaza en theme.css.
+    ['opción de select en oscuro', FrondaPalette::Petrol[50], FrondaPalette::Petrol[900]],
 ]);

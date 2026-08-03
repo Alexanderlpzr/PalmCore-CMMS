@@ -164,5 +164,29 @@ for (const scheme of ['light', 'dark']) {
 
             await page.screenshot({ path: `${SHOTS}/admin-${scheme}.png`, fullPage: false })
         })
+
+        /*
+         * El desplegable de un <select> nativo lo dibuja el sistema operativo y no
+         * sale en una captura de pantalla, así que la única forma de verlo es leer
+         * el color computado de las <option>. En oscuro heredaban `dark:text-white`
+         * sobre el fondo por defecto del popup —blanco sobre blanco— y la lista de
+         * secciones no se leía.
+         */
+        test(`las opciones del filtro de sección contrastan con su fondo (${scheme})`, async ({ page }) => {
+            await page.goto(adminUrl('/equipos'))
+            await page.waitForLoadState('networkidle')
+
+            const option = page.locator('select[aria-label="Filtrar por sección"] option').nth(1)
+            await expect(option).toHaveCount(1)
+
+            const color = await normalize(page, await option.evaluate((n) => getComputedStyle(n).color))
+            const background = await normalize(page, await option.evaluate((n) => getComputedStyle(n).backgroundColor))
+            const ratio = contrast(color, background)
+
+            expect(
+                ratio,
+                `opción de sección en modo ${scheme}: ${color} sobre ${background} = ${ratio.toFixed(2)}:1`,
+            ).toBeGreaterThanOrEqual(4.5)
+        })
     })
 }
