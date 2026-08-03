@@ -13,9 +13,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * A closed month, frozen.
  *
- * `efficiency_percentage` is deliberately absent from #[Fillable]: PostgreSQL
- * derives it from the hours, so the number management sees can never drift from
- * the numbers it was computed with.
+ * Los tres indicadores —`efficiency_percentage`, `productivity_tons_per_hour` y
+ * `availability_percentage`— están deliberadamente fuera de #[Fillable]:
+ * PostgreSQL los deriva de las horas y las toneladas, así que el número que ve
+ * gerencia nunca puede separarse de las cifras con las que se calculó.
+ *
+ * `processed_tons_is_manual` sí es escribible: marca el mes cuyas toneladas
+ * alguien corrigió a mano, y {@see PlantKpiService::snapshotMonth()} lo respeta
+ * al recalcular.
  */
 #[Fillable([
     'tenant_id',
@@ -26,6 +31,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'lost_hours',
     'effective_hours',
     'maintenance_lost_hours',
+    'cleaning_hours',
+    'processed_tons',
+    'processed_tons_is_manual',
     'failure_count',
     'mtbf_hours',
     'mttr_hours',
@@ -54,6 +62,19 @@ class PlantMonthlyKpi extends Model
         return sprintf('%04d-%02d', $this->year, $this->month);
     }
 
+    /**
+     * HMTTO — horas de paro por mantenimiento no programado.
+     *
+     * Se deriva por resta en vez de guardarse: `maintenance_lost_hours` es la
+     * unión de todos los paros de mantenimiento y `cleaning_hours` la de los
+     * programados, así que restarlas da las horas correctivas sin contar dos
+     * veces un solapamiento.
+     */
+    public function unplannedMaintenanceHours(): float
+    {
+        return max(0.0, round($this->maintenance_lost_hours - $this->cleaning_hours, 2));
+    }
+
     // ── Casts ─────────────────────────────────────────────────────────────────
 
     protected function casts(): array
@@ -65,7 +86,12 @@ class PlantMonthlyKpi extends Model
             'lost_hours' => 'float',
             'effective_hours' => 'float',
             'maintenance_lost_hours' => 'float',
+            'cleaning_hours' => 'float',
+            'processed_tons' => 'float',
+            'processed_tons_is_manual' => 'boolean',
             'efficiency_percentage' => 'float',
+            'productivity_tons_per_hour' => 'float',
+            'availability_percentage' => 'float',
             'failure_count' => 'integer',
             'mtbf_hours' => 'float',
             'mttr_hours' => 'float',

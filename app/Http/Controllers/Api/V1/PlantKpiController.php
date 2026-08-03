@@ -65,7 +65,12 @@ class PlantKpiController extends Controller
                 'lost_hours' => $kpi->lost_hours,
                 'effective_hours' => $kpi->effective_hours,
                 'maintenance_lost_hours' => $kpi->maintenance_lost_hours,
+                'cleaning_hours' => $kpi->cleaning_hours,
+                'unplanned_maintenance_hours' => $kpi->unplannedMaintenanceHours(),
+                'processed_tons' => $kpi->processed_tons,
                 'efficiency_percentage' => $kpi->efficiency_percentage,
+                'productivity_tons_per_hour' => $kpi->productivity_tons_per_hour,
+                'availability_percentage' => $kpi->availability_percentage,
                 'failure_count' => $kpi->failure_count,
                 'mtbf_hours' => $kpi->mtbf_hours,
                 'mttr_hours' => $kpi->mttr_hours,
@@ -97,11 +102,13 @@ class PlantKpiController extends Controller
                 'id' => $day->id,
                 'calendar_date' => $day->calendar_date->toDateString(),
                 'programmed_hours' => $day->programmed_hours,
+                'processed_tons' => $day->processed_tons,
                 'notes' => $day->notes,
             ])->values(),
             'meta' => [
                 'month' => $month->format('Y-m'),
                 'programmed_hours' => round((float) $days->sum('programmed_hours'), 2),
+                'processed_tons' => round((float) $days->sum('processed_tons'), 2),
             ],
         ]);
     }
@@ -117,16 +124,25 @@ class PlantKpiController extends Controller
         $plant = Plant::findOrFail($plant);
 
         foreach ($request->validated('days') as $day) {
+            $attributes = [
+                'tenant_id' => $plant->tenant_id,
+                'programmed_hours' => $day['programmed_hours'],
+                'notes' => $day['notes'] ?? null,
+            ];
+
+            // Solo se toca la tonelada si viene en la petición. Reprogramar un mes
+            // ya molido es normal, y omitir la clave no puede significar «cero
+            // toneladas»: eso borraría la producción que ya estaba capturada.
+            if (($day['processed_tons'] ?? null) !== null) {
+                $attributes['processed_tons'] = $day['processed_tons'];
+            }
+
             ProductionCalendarDay::updateOrCreate(
                 [
                     'plant_id' => $plant->id,
                     'calendar_date' => $day['calendar_date'],
                 ],
-                [
-                    'tenant_id' => $plant->tenant_id,
-                    'programmed_hours' => $day['programmed_hours'],
-                    'notes' => $day['notes'] ?? null,
-                ],
+                $attributes,
             );
         }
 

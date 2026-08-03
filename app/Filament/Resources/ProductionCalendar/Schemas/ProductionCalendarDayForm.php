@@ -23,11 +23,18 @@ class ProductionCalendarDayForm
                 ->label('Fecha')
                 ->required(),
             TextInput::make('programmed_hours')
-                ->label('Horas programadas')
+                ->label('Horas pagadas')
                 ->helperText('Cero es un dato legítimo: un domingo sin molienda no es un día malo, es un día que nunca debía producir.')
                 ->numeric()
                 ->minValue(0)
                 ->maxValue(24)
+                ->required(),
+            TextInput::make('processed_tons')
+                ->label('Fruta procesada (t)')
+                ->helperText('Toneladas de RFF que entraron ese día. Es el numerador de la productividad de planta.')
+                ->numeric()
+                ->minValue(0)
+                ->default(0)
                 ->required(),
             Textarea::make('notes')
                 ->label('Notas')

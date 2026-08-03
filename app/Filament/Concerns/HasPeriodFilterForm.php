@@ -17,49 +17,72 @@ trait HasPeriodFilterForm
 {
     public function periodFilterForm(Schema $schema): Schema
     {
-        return $schema
-            ->components([
-                Select::make('preset')
-                    ->label('Periodo')
-                    ->options([
-                        DashboardPeriod::DEFAULT_PRESET => 'Últimos 12 meses',
-                        'year' => 'Año completo',
-                        'month' => 'Un mes',
-                        'range' => 'Rango de meses',
-                    ])
-                    ->default(DashboardPeriod::DEFAULT_PRESET)
-                    ->live()
-                    ->selectablePlaceholder(false),
+        return $schema->components($this->periodFilterComponents());
+    }
 
-                Select::make('year')
-                    ->label('Año')
-                    ->options(DashboardPeriod::yearOptions())
-                    ->default(now()->year)
-                    ->visible(fn (Get $get): bool => in_array($get('preset'), ['year', 'month'], strict: true)),
+    /**
+     * Los seis campos sueltos, para poder anteponerles otros (un selector de
+     * planta, por ejemplo) sin volver a escribirlos.
+     *
+     * `$defaultPreset` existe porque no todas las pantallas quieren empezar
+     * igual: una serie histórica abre en «últimos 12 meses», mientras que los
+     * indicadores de planta abren en el mes en curso, que es el período en el
+     * que la extractora piensa.
+     *
+     * @return list<Select>
+     */
+    public function periodFilterComponents(string $defaultPreset = DashboardPeriod::DEFAULT_PRESET): array
+    {
+        return [
+            Select::make('preset')
+                ->label('Periodo')
+                ->options([
+                    DashboardPeriod::DEFAULT_PRESET => 'Últimos 12 meses',
+                    'year' => 'Año completo',
+                    'month' => 'Un mes',
+                    'range' => 'Rango de meses',
+                ])
+                ->default($defaultPreset)
+                ->live()
+                ->selectablePlaceholder(false),
 
-                Select::make('month')
-                    ->label('Mes')
-                    ->options(DashboardPeriod::monthOptions())
-                    ->default(now()->month)
-                    ->visible(fn (Get $get): bool => $get('preset') === 'month'),
+            ...$this->periodDetailComponents(),
+        ];
+    }
 
-                Select::make('range_year')
-                    ->label('Año')
-                    ->options(DashboardPeriod::yearOptions())
-                    ->default(now()->year)
-                    ->visible(fn (Get $get): bool => $get('preset') === 'range'),
+    /** @return list<Select> */
+    private function periodDetailComponents(): array
+    {
+        return [
+            Select::make('year')
+                ->label('Año')
+                ->options(DashboardPeriod::yearOptions())
+                ->default(now()->year)
+                ->visible(fn (Get $get): bool => in_array($get('preset'), ['year', 'month'], strict: true)),
 
-                Select::make('range_from_month')
-                    ->label('Desde')
-                    ->options(DashboardPeriod::monthOptions())
-                    ->default(1)
-                    ->visible(fn (Get $get): bool => $get('preset') === 'range'),
+            Select::make('month')
+                ->label('Mes')
+                ->options(DashboardPeriod::monthOptions())
+                ->default(now()->month)
+                ->visible(fn (Get $get): bool => $get('preset') === 'month'),
 
-                Select::make('range_to_month')
-                    ->label('Hasta')
-                    ->options(DashboardPeriod::monthOptions())
-                    ->default(now()->month)
-                    ->visible(fn (Get $get): bool => $get('preset') === 'range'),
-            ]);
+            Select::make('range_year')
+                ->label('Año')
+                ->options(DashboardPeriod::yearOptions())
+                ->default(now()->year)
+                ->visible(fn (Get $get): bool => $get('preset') === 'range'),
+
+            Select::make('range_from_month')
+                ->label('Desde')
+                ->options(DashboardPeriod::monthOptions())
+                ->default(1)
+                ->visible(fn (Get $get): bool => $get('preset') === 'range'),
+
+            Select::make('range_to_month')
+                ->label('Hasta')
+                ->options(DashboardPeriod::monthOptions())
+                ->default(now()->month)
+                ->visible(fn (Get $get): bool => $get('preset') === 'range'),
+        ];
     }
 }

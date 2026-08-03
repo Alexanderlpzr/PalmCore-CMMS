@@ -8,12 +8,23 @@ use App\Models\Plant;
 use Filament\Widgets\Concerns\InteractsWithPageFilters;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
-use Illuminate\Support\Carbon;
 
 /**
- * Eficiencia = horas efectivas / horas programadas, del mes en curso — la
- * misma cuenta de PlantKpiService::calculate() que ya usaba la API, ahora
- * leída directo por el widget en vez de duplicar la fórmula.
+ * El resultado: los tres indicadores de planta del período elegido, con la misma
+ * cuenta de PlantKpiService::calculate() que usa la API — el widget la lee, no la
+ * duplica.
+ *
+ *     Eficiencia     = HPREN / (HP − HASEO)
+ *     Productividad  = FP    / (HP − HASEO)
+ *     Disponibilidad = (HP − HASEO − HMTTO) / HP
+ *
+ * El desglose de horas que hay detrás vive en la página «Productividad y
+ * Eficiencia»: aquí sólo va el número que se mira de reojo, con el período al
+ * lado para que nadie lea el de un mes creyendo que es el del año.
+ *
+ * Productividad muestra «Sin fruta registrada» y no cero cuando no hay toneladas
+ * en el calendario: cero toneladas por hora es un mes catastrófico, y un mes sin
+ * capturar no es lo mismo que un mes sin producir.
  */
 class PlantEfficiencyStatsWidget extends BaseWidget
 {
@@ -33,34 +44,46 @@ class PlantEfficiencyStatsWidget extends BaseWidget
             return [Stat::make('Eficiencia de planta', 'Sin plantas registradas')];
         }
 
-        // Respeta el período elegido en el filtro; sin filtro (o «últimos 12 meses»,
-        // que no es una foto), cae al mes en curso.
-        [$from, $to] = DashboardPeriod::resolve($this->pageFilters);
-        $from = $from !== null ? Carbon::parse($from)->startOfMonth() : Carbon::now()->startOfMonth();
-        $to = $to !== null ? Carbon::parse($to)->endOfMonth() : Carbon::now()->endOfMonth();
+        // El período elegido manda, incluido «últimos 12 meses»: antes ese preset
+        // caía al mes en curso sin decirlo, y el número en pantalla no era el que
+        // el filtro prometía.
+        [$from, $to] = DashboardPeriod::snapshotWindow($this->pageFilters);
 
         $metrics = app(PlantKpiService::class)->calculate($plant, $from, $to);
+        $period = DashboardPeriod::label($this->pageFilters);
 
         $efficiency = $metrics['efficiency_percentage'];
+        $productivity = $metrics['productivity_tons_per_hour'];
+        $availability = $metrics['availability_percentage'];
+        $pressable = round($metrics['programmed_hours'] - $metrics['cleaning_hours'], 1);
+
+        $percentColor = fn (?float $value): string => match (true) {
+            $value === null => 'gray',
+            $value >= 90 => 'success',
+            $value >= 80 => 'warning',
+            default => 'danger',
+        };
 
         return [
-            Stat::make('Eficiencia', $efficiency !== null ? $efficiency.'%' : 'Sin horas programadas')
-                ->color(match (true) {
-                    $efficiency === null => 'gray',
-                    $efficiency >= 90 => 'success',
-                    $efficiency >= 80 => 'warning',
-                    default => 'danger',
-                }),
+            Stat::make('Eficiencia', $efficiency !== null ? $efficiency.'%' : 'Sin horas pagadas')
+                ->description($efficiency !== null
+                    ? number_format($metrics['effective_hours'], 1).' h prensadas de '.number_format($pressable, 1).' h prensables · '.$period
+                    : 'Falta el calendario de producción')
+                ->color($percentColor($efficiency)),
 
-            Stat::make('Horas Efectivas', number_format($metrics['effective_hours'], 1).' h')
-                ->description('de '.number_format($metrics['programmed_hours'], 1).' h programadas'),
+            Stat::make('Productividad', $productivity !== null ? number_format($productivity, 2).' t/h' : 'Sin fruta registrada')
+                ->description($productivity !== null
+                    ? number_format($metrics['processed_tons'], 0).' t sobre '.number_format($pressable, 1).' h prensables · '.$period
+                    : 'Captura las toneladas en el calendario de producción')
+                ->color($productivity !== null ? 'primary' : 'gray'),
 
-            Stat::make('Horas Perdidas', number_format($metrics['lost_hours'], 1).' h')
-                ->description(number_format($metrics['maintenance_lost_hours'], 1).' h de mantenimiento'),
+            Stat::make('Disponibilidad', $availability !== null ? $availability.'%' : 'Sin horas pagadas')
+                ->description(number_format($metrics['maintenance_lost_hours'], 1).' h que mantenimiento le quitó a la planta · '.$period)
+                ->color($percentColor($availability)),
 
             Stat::make('MTBF / MTTR Planta', ($metrics['mtbf_hours'] !== null ? number_format($metrics['mtbf_hours'], 1) : '—').
                 ' / '.($metrics['mttr_hours'] !== null ? number_format($metrics['mttr_hours'], 1) : '—').' h')
-                ->description($metrics['failure_count'].' falla(s) de mantenimiento'),
+                ->description($metrics['failure_count'].' falla(s) de mantenimiento · '.$period),
         ];
     }
 

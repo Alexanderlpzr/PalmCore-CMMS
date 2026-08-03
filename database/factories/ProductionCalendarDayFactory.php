@@ -21,6 +21,7 @@ class ProductionCalendarDayFactory extends Factory
             'plant_id' => Plant::factory()->create(['tenant_id' => $tenant->id])->id,
             'calendar_date' => now()->toDateString(),
             'programmed_hours' => 20,
+            'processed_tons' => 270,
             'notes' => null,
         ];
     }
@@ -28,6 +29,6 @@ class ProductionCalendarDayFactory extends Factory
     /** A day the plant was never meant to run. */
     public function idle(): static
     {
-        return $this->state(fn () => ['programmed_hours' => 0]);
+        return $this->state(fn () => ['programmed_hours' => 0, 'processed_tons' => 0]);
     }
 }

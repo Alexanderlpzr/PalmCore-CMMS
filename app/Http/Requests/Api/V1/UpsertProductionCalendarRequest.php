@@ -19,6 +19,9 @@ class UpsertProductionCalendarRequest extends FormRequest
             'days.*.calendar_date' => ['required', 'date_format:Y-m-d'],
             // Zero is legitimate: a día the plant was never meant to run.
             'days.*.programmed_hours' => ['required', 'numeric', 'min:0', 'max:24'],
+            // Opcional a propósito: el planificador programa el mes por adelantado,
+            // cuando todavía no hay fruta que declarar. La tonelada se llena después.
+            'days.*.processed_tons' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'days.*.notes' => ['sometimes', 'nullable', 'string', 'max:500'],
         ];
     }

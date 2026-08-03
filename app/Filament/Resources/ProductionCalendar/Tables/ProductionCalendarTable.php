@@ -29,9 +29,17 @@ class ProductionCalendarTable
                 // Editable en línea: programar una jornada es escribir un número, no
                 // abrir un formulario.
                 TextInputColumn::make('programmed_hours')
-                    ->label('Horas programadas')
+                    ->label('Horas pagadas')
                     ->type('number')
                     ->rules(['numeric', 'min:0', 'max:24'])
+                    ->summarize(Sum::make()->label('Total del periodo')),
+                // La tonelada se captura junto a la hora, no en otra pantalla: el
+                // día se cierra una vez, y separarlas garantizaba que una de las
+                // dos se quedara sin llenar.
+                TextInputColumn::make('processed_tons')
+                    ->label('Fruta procesada (t)')
+                    ->type('number')
+                    ->rules(['numeric', 'min:0'])
                     ->summarize(Sum::make()->label('Total del periodo')),
                 TextColumn::make('notes')
                     ->label('Notas')

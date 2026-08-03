@@ -2,7 +2,7 @@
 
 namespace App\Filament\Pages;
 
-use App\Domain\Analytics\Support\DashboardPeriod;
+use App\Filament\Concerns\HasPeriodFilterForm;
 use App\Filament\Widgets\Analytics\CostByEquipmentWidget;
 use App\Filament\Widgets\Analytics\DowntimeByEquipmentWidget;
 use App\Filament\Widgets\Analytics\DowntimeByReasonWidget;
@@ -19,23 +19,27 @@ use Filament\Facades\Filament;
 use Filament\Forms\Components\Select;
 use Filament\Pages\Dashboard as BaseDashboard;
 use Filament\Pages\Dashboard\Concerns\HasFiltersForm;
-use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use UnitEnum;
 
 /**
  * El tablero único de la planta: eficiencia, paros, confiabilidad y costos en una
- * sola pantalla, con un filtro de planta + mes/año arriba que manda sobre todo.
+ * sola pantalla, con un filtro de planta + período arriba que manda sobre todo.
  *
  * Antes esto vivía repartido en cuatro pantallas que se pisaban (Eficiencia de
  * Planta, Indicadores de Paros, Resumen Ejecutivo, Gastos). Se consolidó aquí y
  * aquéllas se sacaron del menú. Las gráficas se mantienen chicas y concisas: una
  * foto del mes, como la hoja de indicadores que maneja la extractora.
+ *
+ * Aquí va el resultado, no la auditoría: los tres indicadores de planta se leen
+ * de reojo y quien necesite ver las horas que hay detrás las tiene en
+ * «Productividad y Eficiencia», que sí volvió al menú.
  */
 class Dashboard extends BaseDashboard
 {
     use HasFiltersForm;
+    use HasPeriodFilterForm;
 
     protected static string $routePath = '/dashboard';
 
@@ -98,28 +102,11 @@ class Dashboard extends BaseDashboard
                 ->live()
                 ->selectablePlaceholder(false),
 
-            Select::make('preset')
-                ->label('Periodo')
-                ->options([
-                    'month' => 'Un mes',
-                    'year' => 'Año completo',
-                    DashboardPeriod::DEFAULT_PRESET => 'Últimos 12 meses',
-                ])
-                ->default('month')
-                ->live()
-                ->selectablePlaceholder(false),
-
-            Select::make('year')
-                ->label('Año')
-                ->options(DashboardPeriod::yearOptions())
-                ->default(now()->year)
-                ->visible(fn (Get $get): bool => in_array($get('preset'), ['year', 'month'], strict: true)),
-
-            Select::make('month')
-                ->label('Mes')
-                ->options(DashboardPeriod::monthOptions())
-                ->default(now()->month)
-                ->visible(fn (Get $get): bool => $get('preset') === 'month'),
+            // Sale del trait compartido para que el rango de meses —que
+            // DashboardPeriod siempre supo resolver— también esté aquí: antes
+            // este filtro sólo ofrecía mes, año y últimos 12, y el rango era una
+            // opción que existía en el código y en ninguna pantalla.
+            ...$this->periodFilterComponents(defaultPreset: 'month'),
         ]);
     }
 }

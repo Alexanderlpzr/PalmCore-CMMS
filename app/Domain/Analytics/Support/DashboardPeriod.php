@@ -37,6 +37,31 @@ class DashboardPeriod
         };
     }
 
+    /**
+     * El mismo período, pero como ventana concreta y siempre resuelta.
+     *
+     * `resolve()` devuelve [null, null] para «últimos 12 meses» porque
+     * AnalyticsService sabe caer solo a esa ventana. Un widget de foto no: cada
+     * uno terminaba inventándose su propio fallback, y el de planta caía al mes
+     * en curso mientras el filtro en pantalla decía «últimos 12 meses» — el
+     * número no era el que el usuario había pedido, sin avisar.
+     *
+     * @param  array<string, mixed>|null  $filters
+     * @return array{0: CarbonImmutable, 1: CarbonImmutable}
+     */
+    public static function snapshotWindow(?array $filters): array
+    {
+        [$from, $to] = self::resolve($filters);
+
+        if ($from === null || $to === null) {
+            $from = CarbonImmutable::now()->startOfMonth()->subMonths(11);
+            $to = CarbonImmutable::now()->startOfMonth();
+        }
+
+        // resolve() alinea al primer día del mes; una foto necesita el mes completo.
+        return [$from->startOfMonth(), $to->endOfMonth()];
+    }
+
     /** A short human label for the resolved period, for widget subtitles. */
     public static function label(?array $filters): string
     {

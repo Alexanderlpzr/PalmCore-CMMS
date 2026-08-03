@@ -16,14 +16,26 @@ use Illuminate\Support\Carbon;
 /**
  * KPIs de PLANTA — not of equipment.
  *
- * The plant reports one number every month:
+ * Los tres números que la planta reporta cada mes, con el vocabulario de su
+ * propia planilla:
  *
- *     Eficiencia = horas efectivas / horas programadas
- *     horas efectivas = horas programadas − horas perdidas por paros
+ *     HP    horas pagadas          → `programmed_hours`, del calendario de producción
+ *     HASEO horas de aseo          → paros de mantenimiento *programados*
+ *     HMTTO horas de paro por mtto → paros de mantenimiento *no* programados
+ *     HOPER otras paradas          → el resto de las horas perdidas
+ *     HPREN horas de prensado      → `effective_hours` = HP − todas las perdidas
+ *     FP    fruta procesada        → toneladas del calendario de producción
  *
- * Junio 2026: 413,4 h efectivas sobre 452 h programadas = 91,46 %.
+ *     Eficiencia     = HPREN / (HP − HASEO)
+ *     Productividad  = FP    / (HP − HASEO)
+ *     Disponibilidad = (HP − HASEO − HMTTO) / HP
  *
- * MTBF and MTTR are computed here on the same basis — over the plant's *effective*
+ * El denominador de las dos primeras excluye el aseo a propósito: son las horas
+ * en que la planta *podía* prensar. La disponibilidad sí lo incluye, porque
+ * responde otra pregunta —de las horas que pagué, cuántas tuve la planta
+ * disponible— y una parada de aseo también es planta parada.
+ *
+ * MTBF and MTTR are computed on the same basis — over the plant's *effective*
  * hours and over the failures maintenance actually owns, so a month lost to «falta
  * de fruta» does not read as a month of unreliable machines.
  */
@@ -39,7 +51,12 @@ class PlantKpiService
      *     lost_hours: float,
      *     effective_hours: float,
      *     maintenance_lost_hours: float,
+     *     cleaning_hours: float,
+     *     other_lost_hours: float,
+     *     processed_tons: float,
      *     efficiency_percentage: ?float,
+     *     productivity_tons_per_hour: ?float,
+     *     availability_percentage: ?float,
      *     failure_count: int,
      *     mtbf_hours: ?float,
      *     mttr_hours: ?float,
@@ -54,6 +71,13 @@ class PlantKpiService
         $programmed = $this->programmedHours($plant, $from, $to);
         $lost = $this->lostHours($plant, $from, $to);
         $maintenanceLost = $this->lostHours($plant, $from, $to, maintenanceOnly: true);
+        $cleaning = $this->cleaningHours($plant, $from, $to);
+        $tons = $this->processedTons($plant, $from, $to);
+
+        // El denominador de eficiencia y productividad: las horas en que la
+        // planta podía prensar. Con piso en cero — un mes en que el aseo se comió
+        // todas las horas pagadas no tiene indicador, no tiene uno negativo.
+        $pressable = max(0.0, round($programmed - $cleaning, 2));
         // Horas de paro por falla: a programmed intervention is maintenance time,
         // but it is not a failure, and counting it would flatter the number. It is
         // also the one figure measured per failure and not on the plant's clock —
@@ -75,8 +99,20 @@ class PlantKpiService
             'lost_hours' => $lost,
             'effective_hours' => $effective,
             'maintenance_lost_hours' => $maintenanceLost,
-            'efficiency_percentage' => $programmed > 0
-                ? round($effective / $programmed * 100, 2)
+            'cleaning_hours' => $cleaning,
+            // HOPER: lo que no fue aseo ni mantenimiento. Se deriva por resta
+            // sobre la unión, no sumando paros, para que dos paros solapados no
+            // se cuenten dos veces y el desglose siempre cierre contra `lost_hours`.
+            'other_lost_hours' => max(0.0, round($lost - $maintenanceLost, 2)),
+            'processed_tons' => $tons,
+            'efficiency_percentage' => $pressable > 0
+                ? round($effective / $pressable * 100, 2)
+                : null,
+            'productivity_tons_per_hour' => $pressable > 0
+                ? round($tons / $pressable, 2)
+                : null,
+            'availability_percentage' => $programmed > 0
+                ? round(($programmed - $maintenanceLost) / $programmed * 100, 2)
                 : null,
             'failure_count' => $failures,
             'mtbf_hours' => $failures > 0 ? round($effective / $failures, 2) : null,
@@ -140,6 +176,44 @@ class PlantKpiService
             ->where('plant_id', $plant->id)
             ->whereBetween('calendar_date', [$from->toDateString(), $to->toDateString()])
             ->sum('programmed_hours'), 2);
+    }
+
+    /**
+     * FP — la fruta que entró, del mismo calendario que declara las horas.
+     *
+     * Vive junto a `programmed_hours` porque el planificador cierra el día una
+     * sola vez: separarlo en otra pantalla garantizaba que una de las dos cifras
+     * se quedara sin llenar.
+     */
+    public function processedTons(Plant $plant, CarbonInterface $from, CarbonInterface $to): float
+    {
+        return round((float) ProductionCalendarDay::withoutGlobalScopes()
+            ->where('plant_id', $plant->id)
+            ->whereBetween('calendar_date', [$from->toDateString(), $to->toDateString()])
+            ->sum('processed_tons'), 2);
+    }
+
+    /**
+     * HASEO — aseo y mantenimiento preventivo.
+     *
+     * Es el paro de mantenimiento que estaba en el plan: `was_planned`. No se
+     * captura a mano en ningún lado, se lee de los paros que la planta ya
+     * registra, así que el indicador nunca puede desmentir a la planilla de paros.
+     *
+     * El corolario incómodo vale decirlo: un preventivo que nadie registró como
+     * paro no existe para este número, y la eficiencia del mes sale peor de lo
+     * que fue. El arreglo es registrar el paro, no capturar la hora aparte.
+     */
+    public function cleaningHours(Plant $plant, CarbonInterface $from, CarbonInterface $to): float
+    {
+        return $this->lostHours->unionHours(
+            $this->eventsFor($plant)
+                ->where('affects_production', true)
+                ->where('was_planned', true)
+                ->maintenanceOwned(),
+            $from,
+            $to,
+        );
     }
 
     /**
@@ -254,6 +328,11 @@ class PlantKpiService
     /**
      * Freeze a month. Re-running it recalculates the same row instead of adding a
      * second one, so a late-entered paro corrects the month rather than duplicating it.
+     *
+     * Con una excepción: si alguien corrigió las toneladas a mano, recalcular no
+     * se las lleva por delante. Báscula y laboratorio rara vez coinciden al cierre,
+     * y el mes se vuelve a calcular cada vez que entra un paro atrasado — sin esta
+     * guarda, la corrección duraría hasta el siguiente recálculo.
      */
     public function snapshotMonth(Plant $plant, int $year, int $month): PlantMonthlyKpi
     {
@@ -261,6 +340,14 @@ class PlantKpiService
         $to = $from->copy()->endOfMonth();
 
         $metrics = $this->calculate($plant, $from, $to);
+
+        $existing = PlantMonthlyKpi::withoutGlobalScopes()
+            ->where('plant_id', $plant->id)
+            ->where('year', $year)
+            ->where('month', $month)
+            ->first();
+
+        $keepsManualTons = $existing?->processed_tons_is_manual === true;
 
         return PlantMonthlyKpi::withoutGlobalScopes()->updateOrCreate(
             [
@@ -274,6 +361,10 @@ class PlantKpiService
                 'lost_hours' => $metrics['lost_hours'],
                 'effective_hours' => $metrics['effective_hours'],
                 'maintenance_lost_hours' => $metrics['maintenance_lost_hours'],
+                'cleaning_hours' => $metrics['cleaning_hours'],
+                'processed_tons' => $keepsManualTons
+                    ? $existing->processed_tons
+                    : $metrics['processed_tons'],
                 'failure_count' => $metrics['failure_count'],
                 'mtbf_hours' => $metrics['mtbf_hours'],
                 'mttr_hours' => $metrics['mttr_hours'],

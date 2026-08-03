@@ -181,6 +181,53 @@ it('corrects a day instead of duplicating it', function (): void {
         ->and(ProductionCalendarDay::withoutGlobalScopes()->first()->programmed_hours)->toBe(18.0);
 });
 
+it('saves the tonnage alongside the hours of the same day', function (): void {
+    $this->withHeaders(meterHeaders($this->token))
+        ->putJson("/api/v1/plants/{$this->plant->id}/production-calendar", [
+            'days' => [
+                ['calendar_date' => now()->startOfMonth()->toDateString(), 'programmed_hours' => 22.6, 'processed_tons' => 300],
+            ],
+        ])
+        ->assertOk();
+
+    $payload = $this->withHeaders(meterHeaders($this->token))
+        ->getJson("/api/v1/plants/{$this->plant->id}/production-calendar")
+        ->assertOk()
+        ->json();
+
+    expect((float) $payload['data'][0]['processed_tons'])->toBe(300.0)
+        ->and((float) $payload['meta']['processed_tons'])->toBe(300.0);
+});
+
+it('does not wipe a recorded tonnage when the month is reprogrammed', function (): void {
+    // Reprogramar un mes ya molido es normal; omitir la tonelada no puede
+    // significar «cero toneladas» o se borraría la producción ya capturada.
+    $date = now()->startOfMonth()->toDateString();
+
+    $this->withHeaders(meterHeaders($this->token))
+        ->putJson("/api/v1/plants/{$this->plant->id}/production-calendar", [
+            'days' => [['calendar_date' => $date, 'programmed_hours' => 20, 'processed_tons' => 280]],
+        ])->assertOk();
+
+    $this->withHeaders(meterHeaders($this->token))
+        ->putJson("/api/v1/plants/{$this->plant->id}/production-calendar", [
+            'days' => [['calendar_date' => $date, 'programmed_hours' => 18]],
+        ])->assertOk();
+
+    $day = ProductionCalendarDay::withoutGlobalScopes()->first();
+
+    expect($day->programmed_hours)->toBe(18.0)
+        ->and($day->processed_tons)->toBe(280.0);
+});
+
+it('rejects a negative tonnage', function (): void {
+    $this->withHeaders(meterHeaders($this->token))
+        ->putJson("/api/v1/plants/{$this->plant->id}/production-calendar", [
+            'days' => [['calendar_date' => now()->toDateString(), 'programmed_hours' => 20, 'processed_tons' => -5]],
+        ])
+        ->assertStatus(422);
+});
+
 it('rejects a day with more than 24 programmed hours', function (): void {
     $this->withHeaders(meterHeaders($this->token))
         ->putJson("/api/v1/plants/{$this->plant->id}/production-calendar", [
