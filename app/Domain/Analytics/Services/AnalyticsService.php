@@ -73,18 +73,58 @@ class AnalyticsService
         });
     }
 
+    /**
+     * Guarda filas primitivas y arma los TrendPoint al leerlas.
+     *
+     * `config/cache.php` fija `serializable_classes => false`: la caché no
+     * devuelve NINGÚN objeto PHP, para que una APP_KEY filtrada no se pueda
+     * convertir en una cadena de gadgets. Guardar los DTO ahí dentro los
+     * devolvía como `__PHP_Incomplete_Class`, y cada gráfica reventaba con un
+     * 500 al leer `->label`. El objeto se construye después de la caché, así que
+     * lo que cruza la frontera son sólo escalares.
+     *
+     * @param  callable():list<array{label: string, value: ?float, count?: int}>  $rows
+     * @return TrendPoint[]
+     */
+    private function rememberPoints(string $key, callable $rows): array
+    {
+        $cached = Cache::remember($key, now()->addMinutes(20), $rows);
+
+        return self::toPoints($cached);
+    }
+
+    /**
+     * @param  list<array{label: string, value: ?float, count?: int}>  $rows
+     * @return TrendPoint[]
+     */
+    private static function toPoints(array $rows): array
+    {
+        return array_map(
+            fn (array $row): TrendPoint => new TrendPoint(
+                label: $row['label'],
+                value: $row['value'],
+                count: $row['count'] ?? 0,
+            ),
+            $rows,
+        );
+    }
+
     private function monthlyEventStats(string $tenantId, ?CarbonInterface $from = null, ?CarbonInterface $to = null, ?string $equipmentId = null): Collection
     {
         $rangeKey = ($from ? CarbonImmutable::parse($from)->format('Y-m') : 'default')
             .':'.($to ? CarbonImmutable::parse($to)->format('Y-m') : 'default');
         $key = "analytics:monthly_events:{$tenantId}:".($equipmentId ?? 'all').":{$rangeKey}";
 
+        // Se guarda el array desnudo y se re-envuelve al leer: una Collection
+        // también es un objeto, y tampoco sobrevive a la caché.
         try {
-            return Cache::remember(
+            $rows = Cache::remember(
                 $key,
                 now()->addHour(),
-                fn () => $this->fetchRawMonthlyEventStats($tenantId, $from, $to, $equipmentId)
+                fn (): array => $this->fetchRawMonthlyEventStats($tenantId, $from, $to, $equipmentId)->all()
             );
+
+            return collect($rows);
         } catch (\Throwable) {
             Cache::forget($key);
 
@@ -173,9 +213,8 @@ class AnalyticsService
 
         $key = "analytics:downtime_by_{$column}:{$tenantId}:{$from->format('Y-m')}:{$to->format('Y-m')}";
 
-        return Cache::remember(
+        return $this->rememberPoints(
             $key,
-            now()->addMinutes(20),
             function () use ($tenantId, $column, $enumClass, $from, $to): array {
                 return DB::table('equipment_downtime_events')
                     ->where('tenant_id', $tenantId)
@@ -187,10 +226,10 @@ class AnalyticsService
                     ->groupBy($column)
                     ->orderByDesc('total_minutes')
                     ->get()
-                    ->map(fn ($row) => new TrendPoint(
-                        label: $enumClass::tryFrom((string) $row->bucket)?->label() ?? (string) $row->bucket,
-                        value: round(((float) $row->total_minutes) / 60, 2),
-                    ))
+                    ->map(fn ($row): array => [
+                        'label' => $enumClass::tryFrom((string) $row->bucket)?->label() ?? (string) $row->bucket,
+                        'value' => round(((float) $row->total_minutes) / 60, 2),
+                    ])
                     ->all();
             }
         );
@@ -258,9 +297,8 @@ class AnalyticsService
     /** @return TrendPoint[] — top 10 equipment by total work order cost (all time) */
     public function costByEquipment(string $tenantId): array
     {
-        return Cache::remember(
+        return $this->rememberPoints(
             "analytics:cost_by_equipment:{$tenantId}",
-            now()->addMinutes(20),
             function () use ($tenantId): array {
                 return DB::table('work_orders as wo')
                     ->join('equipment as e', 'wo.equipment_id', '=', 'e.id')
@@ -274,10 +312,10 @@ class AnalyticsService
                     ->orderByDesc('total_cost')
                     ->limit(10)
                     ->get()
-                    ->map(fn ($row) => new TrendPoint(
-                        label: $row->equipment_name,
-                        value: round((float) $row->total_cost, 2),
-                    ))
+                    ->map(fn ($row): array => [
+                        'label' => $row->equipment_name,
+                        'value' => round((float) $row->total_cost, 2),
+                    ])
                     ->all();
             }
         );
@@ -286,9 +324,8 @@ class AnalyticsService
     /** @return TrendPoint[] — top 10 equipment by unplanned failures, last 12 months */
     public function paretoFailures(string $tenantId): array
     {
-        return Cache::remember(
+        return $this->rememberPoints(
             "analytics:pareto_failures:{$tenantId}",
-            now()->addMinutes(20),
             function () use ($tenantId): array {
                 $since = now()->subMonths(12);
 
@@ -303,11 +340,11 @@ class AnalyticsService
                     ->orderByDesc('failure_count')
                     ->limit(10)
                     ->get()
-                    ->map(fn ($row) => new TrendPoint(
-                        label: $row->equipment_name,
-                        value: (float) $row->failure_count,
-                        count: (int) $row->failure_count,
-                    ))
+                    ->map(fn ($row): array => [
+                        'label' => $row->equipment_name,
+                        'value' => (float) $row->failure_count,
+                        'count' => (int) $row->failure_count,
+                    ])
                     ->all();
             }
         );
@@ -321,9 +358,8 @@ class AnalyticsService
      */
     public function paretoFailuresByMode(string $tenantId): array
     {
-        return Cache::remember(
+        return $this->rememberPoints(
             "analytics:pareto_failure_modes:{$tenantId}",
-            now()->addMinutes(20),
             function () use ($tenantId): array {
                 $since = now()->subMonths(12);
 
@@ -337,11 +373,11 @@ class AnalyticsService
                     ->orderByDesc('failure_count')
                     ->limit(15)
                     ->get()
-                    ->map(fn ($row) => new TrendPoint(
-                        label: FailureMode::tryFrom((string) $row->failure_mode)?->label() ?? (string) $row->failure_mode,
-                        value: (float) $row->failure_count,
-                        count: (int) $row->failure_count,
-                    ))
+                    ->map(fn ($row): array => [
+                        'label' => FailureMode::tryFrom((string) $row->failure_mode)?->label() ?? (string) $row->failure_mode,
+                        'value' => (float) $row->failure_count,
+                        'count' => (int) $row->failure_count,
+                    ])
                     ->all();
             }
         );
@@ -354,7 +390,7 @@ class AnalyticsService
      */
     public function reliabilityRanking(string $tenantId): array
     {
-        return Cache::remember(
+        $cached = Cache::remember(
             "analytics:reliability_ranking:{$tenantId}",
             now()->addMinutes(20),
             function () use ($tenantId): array {
@@ -363,28 +399,33 @@ class AnalyticsService
                     ->whereNotNull('availability_percentage')
                     ->with('equipment');
 
-                $toPoint = fn ($kpi) => new TrendPoint(
-                    label: $kpi->equipment?->name ?? '—',
-                    value: round((float) $kpi->availability_percentage, 2),
-                );
+                $toRow = fn ($kpi): array => [
+                    'label' => $kpi->equipment?->name ?? '—',
+                    'value' => round((float) $kpi->availability_percentage, 2),
+                ];
 
                 $best = $baseQuery()
                     ->orderByDesc('availability_percentage')
                     ->limit(5)
                     ->get()
-                    ->map($toPoint)
+                    ->map($toRow)
                     ->all();
 
                 $worst = $baseQuery()
                     ->orderBy('availability_percentage')
                     ->limit(5)
                     ->get()
-                    ->map($toPoint)
+                    ->map($toRow)
                     ->all();
 
                 return compact('best', 'worst');
             }
         );
+
+        return [
+            'best' => self::toPoints($cached['best']),
+            'worst' => self::toPoints($cached['worst']),
+        ];
     }
 
     /**
