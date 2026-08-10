@@ -28,8 +28,8 @@ it('gives every equipment a unique code in the A##XXX.##.## format', function ()
         ->where('tenant_id', $this->tenant->id)
         ->pluck('code');
 
-    expect($codes)->toHaveCount(99)
-        ->and($codes->unique())->toHaveCount(99)
+    expect($codes)->toHaveCount(106)
+        ->and($codes->unique())->toHaveCount(106)
         ->and($codes->filter(fn (string $code) => preg_match('/^A\d{2}[A-Z]{3}\.\d{2}\.\d{2}$/', $code) !== 1))
         ->toBeEmpty();
 });
@@ -135,8 +135,8 @@ it('is additive — re-running never duplicates equipment or components', functi
 
     (new TenantInventorySeeder)->run($this->tenant, $plant);
 
-    expect(Equipment::withoutGlobalScopes()->where('tenant_id', $this->tenant->id)->count())->toBe(99)
-        ->and(EquipmentComponent::withoutGlobalScopes()->where('tenant_id', $this->tenant->id)->count())->toBe(461);
+    expect(Equipment::withoutGlobalScopes()->where('tenant_id', $this->tenant->id)->count())->toBe(106)
+        ->and(EquipmentComponent::withoutGlobalScopes()->where('tenant_id', $this->tenant->id)->count())->toBe(496);
 });
 
 it('leaves a manually edited equipment untouched when re-run', function () {

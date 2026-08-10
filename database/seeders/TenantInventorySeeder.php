@@ -46,6 +46,13 @@ class TenantInventorySeeder extends Seeder
      */
     public const UNVERIFIED_COMPONENTS_NOTE = 'Componentes propuestos a partir de la plantilla de su tipo: el inventario original no los desglosaba. Pendiente de validar en campo.';
 
+    /**
+     * Marca los equipos que no venían en el inventario de campo y aparecieron
+     * registrando paros en la planilla «REGISTROS DE PAROS». Existen y fallan;
+     * lo que falta es la ficha (marca, modelo, serie), no la máquina.
+     */
+    public const FROM_DOWNTIME_LOG_NOTE = 'Equipo identificado en el registro de paros de la planta: no figuraba en el levantamiento de inventario. Pendiente de completar ficha técnica en campo.';
+
     private const CATEGORIES = [
         ['BOM', 'Bomba'],
         ['SNF', 'Sinfín'],
@@ -73,6 +80,7 @@ class TenantInventorySeeder extends Seeder
         ['DSF', 'Desfrutador'],
         ['TLV', 'Tolva'],
         ['REF', 'Sistema de refrigeración'],
+        ['TEL', 'Tablero eléctrico'],
     ];
 
     private const COMPONENT_TEMPLATES = [
@@ -209,14 +217,18 @@ class TenantInventorySeeder extends Seeder
         // ── CLA-01 ──
         ['code' => 'A06CLA.03.01', 'name' => 'Bomba para Aceite del Preclarificador', 'area' => 'CLA-01', 'category' => 'BOM', 'components' => 'bomba_con_tanque'],
         ['code' => 'A06CLA.03.02', 'name' => 'Tanque Pulmón del Tricanter (Agitador)', 'area' => 'CLA-01', 'category' => 'TNQ', 'components' => ['Sistema de agitación', 'Cuerpo cilíndrico', 'Sistema de calentamiento', 'Deflectores', 'Ciclones de entrada']],
+        ['code' => 'A06CLA.03.03', 'name' => 'Bomba de Lodos del Preclarificador', 'area' => 'CLA-01', 'category' => 'BOM', 'components' => 'bomba_con_tanque', 'notes' => self::FROM_DOWNTIME_LOG_NOTE],
         ['code' => 'A06CLA.05.01', 'name' => 'Bomba para Lodos Aceitosos', 'area' => 'CLA-01', 'category' => 'BOM', 'components' => 'bomba_con_tanque'],
+        ['code' => 'A06CLA.07.01', 'name' => 'Desarenador #1', 'area' => 'CLA-01', 'category' => 'TNQ', 'components' => ['Cuerpo del desarenador', 'Electroválvula de purga', 'Manguera y línea de aire', 'Cono de sedimentación', 'Salida de rebose'], 'notes' => self::FROM_DOWNTIME_LOG_NOTE],
         ['code' => 'A06CLA.08.01', 'name' => 'Bomba Tanque de Lodos Desarenados Segunda Etapa', 'area' => 'CLA-01', 'category' => 'BOM', 'components' => 'bomba_con_tanque'],
+        ['code' => 'A06CLA.08.02', 'name' => 'Tanque de Lodos Desarenados', 'area' => 'CLA-01', 'category' => 'TNQ', 'components' => ['Cuerpo cilíndrico', 'Piso y fondo del tanque', 'Línea de rebose', 'Válvula de purga', 'Indicador de nivel'], 'notes' => self::FROM_DOWNTIME_LOG_NOTE],
         ['code' => 'A06CLA.12.01', 'name' => 'Tricanter', 'area' => 'CLA-01', 'category' => 'CTF', 'components' => ['Tambor giratorio', 'Tornillo sinfín', 'Caja de engranajes', 'Puerto de descarga de líquidos', 'Sistema de accionamiento', 'Chasis y carcasa de protección']],
         ['code' => 'A06CLA.14.01', 'name' => 'Sinfín de Sólidos Paleables del Tricanter', 'area' => 'CLA-01', 'category' => 'SNF', 'components' => 'sinfin'],
         ['code' => 'A06CLA.22.01', 'name' => 'Bomba de Aceite a Sistema de Secado', 'area' => 'CLA-01', 'category' => 'BOM', 'components' => 'bomba_con_tanque'],
         ['code' => 'A06CLA.23.02', 'name' => 'Bomba de Vacío SIHI Halberg', 'model' => 'SIHI LPHX 55312 AB', 'area' => 'CLA-01', 'category' => 'BOM', 'components' => 'bomba_con_tanque'],
         ['code' => 'A06CLA.26.01', 'name' => 'Bomba de Aceite Terminado Seco a Almacenamiento', 'area' => 'CLA-01', 'category' => 'BOM', 'components' => 'bomba_con_tanque'],
         ['code' => 'A06CLA.30.01', 'name' => 'Bomba para Aceite Recuperado del Florentino', 'area' => 'CLA-01', 'category' => 'BOM', 'components' => 'bomba_con_tanque'],
+        ['code' => 'A06CLA.30.02', 'name' => 'Tanque de Aceite Recuperado del Florentino', 'area' => 'CLA-01', 'category' => 'TNQ', 'components' => ['Cuerpo del tanque', 'Tapa del cebadero', 'Línea de efluentes', 'Válvula de purga', 'Indicador de nivel'], 'notes' => self::FROM_DOWNTIME_LOG_NOTE],
         ['code' => 'A06CLA.32.01', 'name' => 'Bomba para Efluentes del Florentino', 'model' => '2x1 1/4', 'area' => 'CLA-01', 'category' => 'BOM', 'components' => 'bomba_con_tanque'],
         ['code' => 'A06CLA.33.01', 'name' => 'Bomba para Purgas del Foso de la Clarificación', 'area' => 'CLA-01', 'category' => 'BOM', 'components' => 'bomba_con_tanque'],
         ['code' => 'A06CLA.33.02', 'name' => 'Bomba para el Despacho de Aceite Crudo', 'area' => 'CLA-01', 'category' => 'BOM', 'components' => 'bomba_con_tanque'],
@@ -267,7 +279,10 @@ class TenantInventorySeeder extends Seeder
         ['code' => 'A10SPG.20.06', 'name' => 'Sinfín N° 8 de Cenizas', 'area' => 'COG-01', 'category' => 'SNF', 'components' => 'sinfin'],
         ['code' => 'A10SPG.26.01', 'name' => 'Planta Eléctrica de 1250 kVA', 'area' => 'COG-01', 'category' => 'GEN', 'components' => 'planta_electrica'],
         ['code' => 'A10SPG.26.02', 'name' => 'Planta Eléctrica de 72 kVA', 'area' => 'COG-01', 'category' => 'GEN', 'components' => 'planta_electrica'],
+        ['code' => 'A10SPG.26.03', 'name' => 'Turbina Shinko RB-4 950 KVA', 'model' => 'Shinko RB-4', 'area' => 'COG-01', 'category' => 'GEN', 'components' => ['Rotor y álabes', 'Carcasa y estator', 'Válvula de alivio', 'Cojinetes y sistema de lubricación', 'Regulador de velocidad', 'Generador acoplado'], 'notes' => self::FROM_DOWNTIME_LOG_NOTE],
+        ['code' => 'A10SPG.26.04', 'name' => 'Tablero CCM', 'area' => 'COG-01', 'category' => 'TEL', 'components' => ['Interruptor general', 'Arrancadores y contactores', 'Relés térmicos', 'PLC y módulos de E/S', 'Variadores de velocidad', 'Barraje y cableado de potencia'], 'notes' => self::FROM_DOWNTIME_LOG_NOTE],
         ['code' => 'A10SPG.27.01', 'name' => 'Compresor de Aire', 'model' => 'FSN', 'area' => 'COG-01', 'category' => 'CMP', 'components' => 'compresor'],
+        ['code' => 'A10SPG.28.01', 'name' => 'Bomba de Saturación de Agua del Distribuidor de Vapor', 'area' => 'COG-01', 'category' => 'BOM', 'components' => 'bomba_con_tanque', 'notes' => self::FROM_DOWNTIME_LOG_NOTE],
         ['code' => 'A19CMP.01.01', 'name' => 'Banda #3 Raquis Prensado / Sinfín Lodos Tricanter', 'area' => 'COG-01', 'category' => 'BND', 'components' => 'banda'],
         ['code' => 'A19CMP.06.01', 'name' => 'Banda #5 Subproductos a Tolva / Bomba Distribuidor de Vapor', 'area' => 'COG-01', 'category' => 'BND', 'components' => 'banda'],
         ['code' => 'A10SPG.13.02', 'name' => 'Caldera Inducido #1', 'area' => 'COG-01', 'category' => 'VNT', 'components' => 'ventilador_caldera'],

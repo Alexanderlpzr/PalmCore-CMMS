@@ -624,7 +624,11 @@ class DowntimeService
                 : ($reason?->reportedType()->value ?? ReportedStoppageType::inferredFrom($category)->value),
             'was_planned' => $category->isPlanned(),
             'affects_production' => $data['affects_production'] ?? true,
-            'source' => 'manual',
+            // Quién creó el paro. «manual» es alguien tecleando en la pantalla;
+            // «work_order» lo pone la OT; «import» la carga del histórico de la
+            // planta. Sirve para poder deshacer una carga sin tocar lo que la
+            // gente registró a mano.
+            'source' => $data['source'] ?? 'manual',
             'notes' => $data['notes'] ?? null,
             'reported_by' => $data['reported_by'] ?? null,
             'registered_by' => $registeredBy->id,

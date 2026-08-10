@@ -7,24 +7,38 @@ namespace App\Domain\Assets\Enums;
  * planilla «REGISTROS DE PAROS». Es la etapa del proceso, no el equipo: un paro de
  * planta (sin equipo) igual tiene sección (ej. «Planta general», «Generación
  * eléctrica»).
+ *
+ * Los casos van en orden de proceso —de la tolva de recepción al despacho— porque
+ * `options()` respeta el orden de declaración y el desplegable se lee como se
+ * recorre la planta, no como un alfabeto.
  */
 enum PlantSection: string
 {
-    case GeneracionElectrica = 'generacion_electrica';
-    case Extraccion = 'extraccion';
-    case Palmisteria = 'palmisteria';
+    case RecepcionFruta = 'recepcion_fruta';
     case Esterilizacion = 'esterilizacion';
+    case Desfrutado = 'desfrutado';
+    case Desfibrado = 'desfibrado';
+    case Raquis = 'raquis';
+    case Extraccion = 'extraccion';
     case Clarificacion = 'clarificacion';
+    case Palmisteria = 'palmisteria';
+    case GeneracionDeVapor = 'generacion_de_vapor';
+    case GeneracionElectrica = 'generacion_electrica';
     case PlantaGeneral = 'planta_general';
 
     public function label(): string
     {
         return match ($this) {
-            self::GeneracionElectrica => 'Generación eléctrica',
-            self::Extraccion => 'Extracción',
-            self::Palmisteria => 'Palmistería',
+            self::RecepcionFruta => 'Recepción de fruta',
             self::Esterilizacion => 'Esterilización',
+            self::Desfrutado => 'Desfrutado',
+            self::Desfibrado => 'Desfibrado',
+            self::Raquis => 'Raquis',
+            self::Extraccion => 'Extracción',
             self::Clarificacion => 'Clarificación',
+            self::Palmisteria => 'Palmistería',
+            self::GeneracionDeVapor => 'Generación de vapor',
+            self::GeneracionElectrica => 'Generación eléctrica',
             self::PlantaGeneral => 'Planta general',
         };
     }

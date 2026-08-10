@@ -48,8 +48,10 @@ it('provisions the base equipment inventory for a new tenant', function () {
 
     app(ProvisionTenantBaseStructure::class)->handle($tenant);
 
-    expect(Equipment::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count())->toBe(99)
-        ->and(EquipmentComponent::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count())->toBe(461);
+    // 99 del levantamiento de inventario más siete que aparecieron registrando
+    // paros en la planilla de la planta y no figuraban en él.
+    expect(Equipment::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count())->toBe(106)
+        ->and(EquipmentComponent::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count())->toBe(496);
 });
 
 it('provisions the single per-tenant administrator role', function () {
@@ -92,7 +94,7 @@ it('is idempotent — re-running does not duplicate structure', function () {
 
     expect(Plant::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count())->toBe(1)
         ->and(Area::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count())->toBe(9)
-        ->and(Equipment::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count())->toBe(99)
-        ->and(EquipmentComponent::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count())->toBe(461)
+        ->and(Equipment::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count())->toBe(106)
+        ->and(EquipmentComponent::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count())->toBe(496)
         ->and(Role::where('team_id', $tenant->id)->count())->toBe(1);
 });
