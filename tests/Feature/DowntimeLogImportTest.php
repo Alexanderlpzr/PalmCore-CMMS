@@ -287,3 +287,43 @@ it('skips a row with no date or no duration', function (): void {
         ->and($result['skipped'])->toBe(2)
         ->and($result['errors'])->toBe([]);
 });
+
+// ── El comando ───────────────────────────────────────────────────────────────
+
+it('finds the organisation by its slug', function (): void {
+    // `--tenant=ELPAJUIL` reventaba con un error de SQL: se comparaba el texto
+    // contra la columna uuid `id`, y Postgres no lo permite. La prueba existe
+    // porque el comando es la única puerta de entrada que usa la planta.
+    $this->tenant->update(['slug' => 'ELPAJUIL']);
+    $this->actor->tenants()->syncWithoutDetaching([
+        $this->tenant->id => ['joined_at' => now(), 'is_primary_tenant' => true],
+    ]);
+
+    $this->artisan('downtime:import', [
+        'file' => planilla([fila()]),
+        '--tenant' => 'ELPAJUIL',
+        '--dry-run' => true,
+    ])->assertSuccessful();
+});
+
+it('says which organisation it cannot find instead of failing with SQL', function (): void {
+    $this->artisan('downtime:import', [
+        'file' => planilla([fila()]),
+        '--tenant' => 'NO-EXISTE',
+    ])->expectsOutputToContain('NO-EXISTE')->assertFailed();
+});
+
+it('actually writes the stoppages the command is pointed at', function (): void {
+    $this->tenant->update(['slug' => 'ELPAJUIL']);
+    $this->actor->tenants()->syncWithoutDetaching([
+        $this->tenant->id => ['joined_at' => now(), 'is_primary_tenant' => true],
+    ]);
+
+    $this->artisan('downtime:import', [
+        'file' => planilla([fila(), fila(['inicio' => '14:00'])]),
+        '--tenant' => 'ELPAJUIL',
+        '--until' => '2026-07-31',
+    ])->assertSuccessful();
+
+    expect(EquipmentDowntimeEvent::withoutGlobalScopes()->count())->toBe(2);
+});

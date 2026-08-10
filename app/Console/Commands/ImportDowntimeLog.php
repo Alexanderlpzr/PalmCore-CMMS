@@ -7,7 +7,9 @@ use App\Models\Plant;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Console\Command;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 
 /**
  * Carga en el módulo de paros la planilla «REGISTROS DE PAROS» que la planta
@@ -120,9 +122,15 @@ class ImportDowntimeLog extends Command
         $option = $this->option('tenant');
 
         if ($option !== null) {
+            // El id se compara solo si parece un UUID: Postgres no compara una
+            // columna uuid contra un texto cualquiera, y `--tenant=ELPAJUIL`
+            // reventaba con un error de SQL en vez de buscar por slug.
             $tenant = Tenant::withoutGlobalScopes()
                 ->where('slug', $option)
-                ->orWhere('id', $option)
+                ->when(
+                    Str::isUuid($option),
+                    fn (Builder $q) => $q->orWhere('id', $option),
+                )
                 ->first();
 
             if ($tenant === null) {
