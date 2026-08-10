@@ -59,7 +59,10 @@ class DowntimeByEquipmentWidget extends ChartWidget
                     'backgroundColor' => 'rgba(59, 130, 246, 0.8)',
                 ],
             ],
-            'labels' => array_map(fn (array $r): string => $r['code'] ?? $r['name'], $rows),
+            // El nombre y no el código: «Tricanter» se identifica de un vistazo y
+            // «A06CLA.12.01» hay que descifrarlo. El código sigue siendo la clave
+            // para buscar en campo, pero una gráfica se lee, no se consulta.
+            'labels' => array_map(fn (array $r): string => $r['name'] ?? $r['code'], $rows),
         ];
     }
 

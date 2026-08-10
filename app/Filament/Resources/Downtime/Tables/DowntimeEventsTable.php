@@ -11,12 +11,14 @@ use App\Domain\Assets\Services\DowntimeService;
 use App\Models\EquipmentDowntimeEvent;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
+use Filament\Actions\EditAction;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\IconColumn;
+use Filament\Tables\Columns\Summarizers\Sum;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
@@ -45,6 +47,14 @@ class DowntimeEventsTable
                     ->formatStateUsing(fn (?int $state): string => $state === null
                         ? 'En curso'
                         : number_format($state / 60, 2))
+                    // El total de lo que se está mirando, filtros incluidos: es la
+                    // cifra que el supervisor busca al final del turno y que hasta
+                    // ahora tenía que sumar a mano de la pantalla.
+                    ->summarize(
+                        Sum::make()
+                            ->label('Total horas')
+                            ->formatStateUsing(fn (?float $state): string => number_format(((float) $state) / 60, 2).' h')
+                    )
                     ->alignEnd()
                     ->sortable(),
                 TextColumn::make('reported_type')
@@ -61,8 +71,9 @@ class DowntimeEventsTable
                     ->formatStateUsing(fn (?PlantSection $state): string => $state?->label() ?? '—')
                     ->placeholder('—')
                     ->toggleable(),
-                TextColumn::make('equipment.code')
+                TextColumn::make('equipment.name')
                     ->label('Equipo')
+                    ->description(fn (EquipmentDowntimeEvent $record): ?string => $record->equipment?->code)
                     ->searchable()
                     ->placeholder('Paro de planta'),
                 TextColumn::make('stoppage_cause')
@@ -121,6 +132,7 @@ class DowntimeEventsTable
             ])
             ->recordActions([
                 ActionGroup::make([
+                    EditAction::make(),
                     self::endAction(),
                     self::classifyAction(),
                     self::confirmAction(),

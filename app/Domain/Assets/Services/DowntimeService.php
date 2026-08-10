@@ -156,6 +156,53 @@ class DowntimeService
     }
 
     /**
+     * Corregir un paro ya registrado — un error de dedo en la hora, un Tipo II
+     * mal elegido, el equipo equivocado.
+     *
+     * Pasa por las mismas reglas que `register()` y no por `Model::update()`: si
+     * se cambian las horas hay que volver a comprobar que el paro no se cruce
+     * con otro del mismo equipo, o dos registros acabarían cobrando la misma
+     * hora perdida dos veces. `assertNoOverlap()` recibe el id del propio evento
+     * para que no choque consigo mismo.
+     *
+     * La duración no se acepta del formulario: se recalcula de las fechas.
+     * Guardar unas horas que no correspondan dejaría los indicadores mintiendo
+     * sin que nadie pudiera notarlo en pantalla.
+     *
+     * @param  array<string, mixed>  $data
+     *
+     * @throws BusinessRuleException
+     */
+    public function update(EquipmentDowntimeEvent $event, array $data, User $updatedBy): EquipmentDowntimeEvent
+    {
+        $attributes = $this->normalize($data, $updatedBy);
+
+        $endedAt = isset($data['ended_at']) && $data['ended_at'] !== null
+            ? Carbon::parse($data['ended_at'])
+            : null;
+
+        if ($endedAt !== null && $endedAt->lt($attributes['started_at'])) {
+            throw new BusinessRuleException('Un paro no puede terminar antes de haber empezado.');
+        }
+
+        return DB::transaction(function () use ($event, $attributes, $endedAt): EquipmentDowntimeEvent {
+            $this->assertNoOverlap($attributes, $endedAt, ignoreId: $event->getKey());
+
+            $event->update([
+                ...$attributes,
+                'ended_at' => $endedAt,
+                'duration_minutes' => $endedAt !== null
+                    ? (int) round($attributes['started_at']->diffInMinutes($endedAt))
+                    : null,
+            ]);
+
+            $this->touchLastFailure($event);
+
+            return $event->refresh();
+        });
+    }
+
+    /**
      * A4 — afinar el Tipo I cuando por fin se sabe qué se rompió.
      *
      * Una OT correctiva abre su paro en «otro»: al arrancar, nadie sabe todavía si

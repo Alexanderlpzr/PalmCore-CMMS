@@ -21,6 +21,37 @@ class DowntimeEventForm
     public static function configure(Schema $schema): Schema
     {
         return $schema->components([
+            // La duración va primero porque es lo primero que el supervisor tiene
+            // delante cuando se sienta a pasar la planilla del turno: la hora a la
+            // que paró y la hora a la que arrancó. Lo demás lo reconstruye después.
+            Section::make('Duración')
+                ->columns(2)
+                ->schema([
+                    DateTimePicker::make('started_at')
+                        ->label('Inicio')
+                        ->seconds(false)
+                        // native(false) + displayFormat: el selector del navegador
+                        // pinta «06:00 a. m.» en español, y la planta trabaja en
+                        // horario de 24 horas. Con el propio de Filament el formato
+                        // lo fijamos nosotros y no depende del equipo del usuario.
+                        ->native(false)
+                        ->displayFormat('d/m/Y H:i')
+                        ->default(now())
+                        ->required(),
+                    DateTimePicker::make('ended_at')
+                        ->label('Fin')
+                        ->helperText('Vacío = el paro sigue en curso.')
+                        ->seconds(false)
+                        ->native(false)
+                        ->displayFormat('d/m/Y H:i')
+                        ->after('started_at'),
+                    Toggle::make('affects_production')
+                        ->label('Restó horas de producción')
+                        ->helperText('Una falla con la línea andando no le quita horas a la planta.')
+                        ->default(true)
+                        ->columnSpanFull(),
+                ]),
+
             Section::make('¿Qué paró?')
                 ->description('Un paro de planta —falta de fruta, corte de energía— no es de ningún equipo. Déjalo sin equipo y elige la planta.')
                 ->columns(2)
@@ -28,6 +59,11 @@ class DowntimeEventForm
                     Select::make('plant_id')
                         ->label('Planta')
                         ->options(fn (): array => Plant::orderBy('name')->pluck('name', 'id')->all())
+                        // Una extractora tiene una planta: obligar a elegirla de una
+                        // lista de un solo elemento es un clic que no decide nada. Se
+                        // preselecciona sola, y el selector sigue ahí para el día que
+                        // la empresa tenga dos.
+                        ->default(fn (): ?string => Plant::count() === 1 ? Plant::value('id') : null)
                         ->searchable()
                         ->required()
                         ->native(false),
@@ -75,26 +111,6 @@ class DowntimeEventForm
                         ->placeholder('Ej.: se rompió la cadena de transmisión del elevador de fruto')
                         ->rows(2)
                         ->maxLength(500)
-                        ->columnSpanFull(),
-                ]),
-
-            Section::make('Duración')
-                ->columns(2)
-                ->schema([
-                    DateTimePicker::make('started_at')
-                        ->label('Inicio')
-                        ->seconds(false)
-                        ->default(now())
-                        ->required(),
-                    DateTimePicker::make('ended_at')
-                        ->label('Fin')
-                        ->helperText('Vacío = el paro sigue en curso.')
-                        ->seconds(false)
-                        ->after('started_at'),
-                    Toggle::make('affects_production')
-                        ->label('Restó horas de producción')
-                        ->helperText('Una falla con la línea andando no le quita horas a la planta.')
-                        ->default(true)
                         ->columnSpanFull(),
                 ]),
         ]);

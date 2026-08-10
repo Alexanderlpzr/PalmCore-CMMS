@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Downtime;
 
 use App\Filament\Resources\Downtime\Pages\CreateDowntimeEvent;
+use App\Filament\Resources\Downtime\Pages\EditDowntimeEvent;
 use App\Filament\Resources\Downtime\Pages\ListDowntimeEvents;
 use App\Filament\Resources\Downtime\Schemas\DowntimeEventForm;
 use App\Filament\Resources\Downtime\Tables\DowntimeEventsTable;
@@ -55,6 +56,7 @@ class DowntimeEventResource extends Resource
         return [
             'index' => ListDowntimeEvents::route('/'),
             'create' => CreateDowntimeEvent::route('/create'),
+            'edit' => EditDowntimeEvent::route('/{record}/edit'),
         ];
     }
 }

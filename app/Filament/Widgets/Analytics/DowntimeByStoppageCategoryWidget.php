@@ -40,11 +40,20 @@ class DowntimeByStoppageCategoryWidget extends ChartWidget
 
     protected ?string $maxHeight = '260px';
 
+    /**
+     * El subtítulo dice «causa física» y no «qué se rompió» porque esta gráfica
+     * agrupa por la naturaleza del paro, no por el Tipo I que se registra.
+     *
+     * Un arranque de planta se reporta como «Programada» y aquí sale como
+     * «Operacional»: no es un error, es que no fue una avería de mantenimiento.
+     * Con el rótulo anterior la pantalla parecía contradecir lo que el
+     * supervisor acababa de teclear.
+     */
     public function getDescription(): ?string
     {
         $period = DashboardPeriod::label($this->pageFilters);
 
-        return "Qué se rompió — {$period}.";
+        return "Causa física del paro, no el Tipo I registrado — {$period}.";
     }
 
     protected function getData(): array
