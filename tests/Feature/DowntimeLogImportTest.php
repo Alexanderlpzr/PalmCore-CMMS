@@ -5,6 +5,7 @@ use App\Domain\Assets\Enums\ReportedStoppageType;
 use App\Domain\Assets\Enums\StoppageCategory;
 use App\Domain\Assets\Enums\StoppageReason;
 use App\Domain\Assets\Services\DowntimeLogImporter;
+use App\Domain\Assets\Services\DowntimeService;
 use App\Models\Equipment;
 use App\Models\EquipmentDowntimeEvent;
 use App\Models\Plant;
@@ -138,6 +139,30 @@ it('loads rows in clock order even when the sheet is not sorted', function (): v
     ]);
 
     expect($result['imported'])->toBe(3)
+        ->and($result['errors'])->toBe([]);
+});
+
+it('loads history behind stoppages the plant already registered by hand', function (): void {
+    // El caso real: la planta ya tenía cargados los paros de este mes a mano y se
+    // le suben diez meses de histórico anteriores. Si el importador abriera el
+    // paro antes de cerrarlo, mientras está abierto se consideraría vigente hasta
+    // el infinito y chocaría con el paro de agosto aunque no se crucen — la
+    // turbina perdía así sus ciento cincuenta y seis filas.
+    app(DowntimeService::class)->register([
+        'tenant_id' => $this->tenant->id,
+        'plant_id' => $this->plant->id,
+        'equipment_id' => $this->turbina->id,
+        'stoppage_reason' => StoppageReason::ArranqueDePlanta->value,
+        'started_at' => '2026-08-03 10:55',
+        'ended_at' => '2026-08-03 11:00',
+    ], $this->actor);
+
+    $result = importar([
+        fila(['fecha' => '2026-03-04', 'equipo' => 'Turbina']),
+        fila(['fecha' => '2026-07-15', 'equipo' => 'Turbina']),
+    ]);
+
+    expect($result['imported'])->toBe(2)
         ->and($result['errors'])->toBe([]);
 });
 

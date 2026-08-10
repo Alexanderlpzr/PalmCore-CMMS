@@ -173,9 +173,10 @@ class DowntimeLogImporter
         }
 
         // La planilla se llena a mano y no siempre en orden: dentro de un mismo día
-        // aparece un paro de las 20:54 antes que uno de las 07:04. Como cada paro se
-        // abre y se cierra en el acto, uno posterior ya guardado haría rechazar al
-        // anterior por solaparse. Cargarlos en orden de reloj lo evita.
+        // aparece un paro de las 20:54 antes que uno de las 07:04. Cargarlos en
+        // orden de reloj hace que dos paros que sí se cruzan en el origen se
+        // rechacen siempre en el mismo sentido, y que reejecutar la carga dé el
+        // mismo resultado en vez de depender del orden del archivo.
         uasort($paros, fn (array $a, array $b): int => $a['started_at'] <=> $b['started_at']);
 
         foreach ($paros as $line => $paro) {
@@ -213,14 +214,20 @@ class DowntimeLogImporter
     }
 
     /**
-     * Registra el paro ya cerrado. Se abre y se cierra en el mismo paso porque
-     * `register()` solo sabe abrir: es un histórico, no un paro en curso.
+     * Registra el paro ya cerrado, con su hora de fin desde el principio.
+     *
+     * Importa que sea en un solo paso y no abrir-y-cerrar: un paro abierto se
+     * considera vigente hasta el infinito, así que mientras lo estuviera chocaría
+     * con cualquier paro posterior del mismo equipo. Al cargar diez meses de
+     * histórico sobre una planta que ya tiene paros de este mes, eso rechaza todo
+     * lo anterior a ellos —la turbina perdía sus ciento cincuenta y seis filas—
+     * aunque ninguna se cruce de verdad con nada.
      *
      * @param  array<string, mixed>  $paro
      */
     private function register(array $paro, Plant $plant, User $registeredBy): void
     {
-        $event = $this->downtime->register([
+        $this->downtime->register([
             'tenant_id' => $plant->tenant_id,
             'plant_id' => $plant->id,
             'equipment_id' => $paro['equipment_id'],
@@ -229,11 +236,10 @@ class DowntimeLogImporter
             'reported_type' => $paro['reported_type'],
             'stoppage_cause' => $paro['cause'],
             'started_at' => $paro['started_at'],
+            'ended_at' => $paro['ended_at'],
             'affects_production' => true,
             'source' => 'import',
         ], $registeredBy);
-
-        $this->downtime->end($event, $paro['ended_at']);
     }
 
     /**
