@@ -159,6 +159,20 @@ fi
 log "Pruning dangling images"
 docker image prune -f
 
+# La caché de BuildKit es la que llena el disco de verdad, no las imágenes.
+# Cada `compose up --build` deja las capas intermedias de esa compilación y nadie
+# las recoge: el 2026-08-10 el servidor estaba al 81% con 35,9 GB de caché —1.176
+# capas— contra 1,6 GB de imágenes y 102 MB de base de datos. `image prune` no la
+# toca, así que crecía sin techo mientras el log decía que estaba limpiando.
+#
+# Se conservan 7 días para que un despliegue normal siga reutilizando capas y no
+# recompile la extensión intl desde cero cada vez.
+log "Pruning build cache older than 7 days"
+docker builder prune -f --filter until=168h || log "WARNING: build cache prune failed"
+
+log "Disk usage after cleanup"
+df -h / | tail -1
+
 # ─── Healthcheck ────────────────────────────────────────────────────────────────
 log "Waiting ${HEALTHCHECK_INITIAL_WAIT}s before healthcheck"
 sleep "$HEALTHCHECK_INITIAL_WAIT"
