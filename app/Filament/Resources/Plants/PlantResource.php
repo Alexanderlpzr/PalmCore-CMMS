@@ -28,7 +28,7 @@ class PlantResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Plantas';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Estructura Operativa';
+    protected static string|UnitEnum|null $navigationGroup = 'Gestión de Activos';
 
     protected static ?int $navigationSort = 1;
 

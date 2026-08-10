@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Automation\AutomationRule;
 
+use App\Filament\Concerns\OnlyForSuperAdmins;
 use App\Filament\Resources\Automation\AutomationRule\Pages\EditAutomationRule;
 use App\Filament\Resources\Automation\AutomationRule\Pages\ListAutomationRules;
 use App\Filament\Resources\Automation\AutomationRule\Schemas\AutomationRuleForm;
@@ -16,6 +17,8 @@ use UnitEnum;
 
 class AutomationRuleResource extends Resource
 {
+    use OnlyForSuperAdmins;
+
     protected static ?string $model = AutomationRule::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBolt;

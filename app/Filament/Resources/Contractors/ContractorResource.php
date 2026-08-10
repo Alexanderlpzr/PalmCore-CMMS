@@ -29,7 +29,7 @@ class ContractorResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = 'Gestión de Activos';
 
-    protected static ?int $navigationSort = 4;
+    protected static ?int $navigationSort = 8;
 
     protected static bool $isScopedToTenant = true;
 

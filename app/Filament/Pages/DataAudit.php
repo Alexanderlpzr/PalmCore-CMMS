@@ -28,11 +28,15 @@ class DataAudit extends Page
 
     protected string $view = 'filament.pages.data-audit';
 
+    /**
+     * Sólo el super administrador. Antes bastaba con `maintenance-plans.view`,
+     * que el rol de la planta tiene: la pantalla es de diagnóstico —dice qué
+     * datos están incompletos o incoherentes— y quien la lee sin contexto saca
+     * conclusiones equivocadas sobre su propia operación.
+     */
     public static function canAccess(): bool
     {
-        $user = auth()->user();
-
-        return (bool) ($user?->is_super_admin || $user?->can('maintenance-plans.view'));
+        return (bool) auth()->user()?->is_super_admin;
     }
 
     /**

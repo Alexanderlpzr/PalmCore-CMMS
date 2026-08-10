@@ -31,7 +31,7 @@ class ManufacturerResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = 'Gestión de Activos';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 6;
 
     protected static bool $isScopedToTenant = true;
 

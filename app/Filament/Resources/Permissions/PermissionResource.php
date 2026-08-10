@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Permissions;
 
+use App\Filament\Concerns\OnlyForSuperAdmins;
 use App\Filament\Resources\Permissions\Pages\ListPermissions;
 use App\Filament\Resources\Permissions\Tables\PermissionsTable;
 use App\Models\Permission;
@@ -14,6 +15,8 @@ use UnitEnum;
 
 class PermissionResource extends Resource
 {
+    use OnlyForSuperAdmins;
+
     protected static ?string $model = Permission::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedKey;

@@ -31,7 +31,7 @@ class EquipmentCategoryResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = 'Gestión de Activos';
 
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 5;
 
     protected static bool $isScopedToTenant = true;
 
