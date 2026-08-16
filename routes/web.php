@@ -7,6 +7,7 @@ use App\Http\Controllers\HealthCheckController;
 use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\PlatformHealthController;
 use App\Http\Controllers\ReportDownloadController;
+use App\Http\Controllers\WorkOrderAttachmentDownloadController;
 use Illuminate\Support\Facades\Route;
 
 // Send the root URL straight to the admin panel. Filament's auth middleware
@@ -46,6 +47,14 @@ Route::middleware('auth')->group(function () {
 Route::middleware(['auth', 'signed'])->group(function () {
     Route::get('/reports/download', [ReportDownloadController::class, 'download'])
         ->name('reports.download');
+});
+
+// Sin firmar, a diferencia de los reportes: el adjunto es un registro con dueño, así
+// que la autorización se resuelve contra el tenant del usuario y no contra la caducidad
+// de un enlace.
+Route::middleware('auth')->group(function () {
+    Route::get('/work-order-attachments/{attachment}/download', WorkOrderAttachmentDownloadController::class)
+        ->name('work-order-attachments.download');
 });
 
 Route::middleware(['auth', 'super-admin'])->group(function () {

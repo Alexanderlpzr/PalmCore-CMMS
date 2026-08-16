@@ -158,6 +158,19 @@ class WorkOrderInfolist
                             ->placeholder('—')
                             ->weight('bold')
                             ->helperText('Alimenta los gastos del presupuesto al cerrar la OT.'),
+
+                        // Al lado del costo, que es contra lo que se lee: qué se cotizó
+                        // frente a qué terminó costando.
+                        TextEntry::make('quoteAttachment.file_name')
+                            ->label('Soporte de cotización')
+                            ->columnSpanFull()
+                            ->icon('heroicon-o-document-arrow-down')
+                            ->color('info')
+                            ->url(fn (WorkOrder $record): ?string => $record->quoteAttachment !== null
+                                ? route('work-order-attachments.download', $record->quoteAttachment)
+                                : null)
+                            ->openUrlInNewTab()
+                            ->visible(fn (WorkOrder $record): bool => $record->quoteAttachment !== null),
                     ]),
 
                 Section::make('Seguimiento')

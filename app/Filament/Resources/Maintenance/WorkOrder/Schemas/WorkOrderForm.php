@@ -129,6 +129,29 @@ class WorkOrderForm
                             ->columnSpanFull(),
                     ]),
 
+                // Opcional a propósito: buena parte de los trabajos no se cotizan, y
+                // exigir el soporte obligaría a inventarlo. Va al disco privado —una
+                // cotización lleva precios— y queda como adjunto de la OT, no como
+                // columna suelta, para que se abra desde la misma pestaña que el resto.
+                Section::make('Soporte de cotización')
+                    ->description('Cuando el trabajo se cotizó con un contratista, aquí queda el PDF que lo respalda. Si el trabajo no se cotizó, se deja en blanco.')
+                    ->collapsed()
+                    ->schema([
+                        FileUpload::make('quote_document')
+                            ->label('Cotización (PDF)')
+                            ->helperText('Un solo archivo PDF, máximo 20 MB. Después de crear la OT queda en la pestaña «Adjuntos», marcado como Cotización.')
+                            ->acceptedFileTypes(['application/pdf'])
+                            ->disk(private_files_disk())
+                            ->visibility('private')
+                            ->directory(fn (): string => 'work-order-attachments/'.(Filament::getTenant()?->id ?? 'sin-tenant'))
+                            // El archivo se guarda con nombre aleatorio, pero se descarga
+                            // con el suyo: «COT-0891 Disam.pdf» dice a qué cotización
+                            // corresponde, y un ULID no dice nada.
+                            ->storeFileNamesIn('quote_document_name')
+                            ->maxSize(20480)
+                            ->columnSpanFull(),
+                    ]),
+
                 Section::make('Impacto en Equipo')
                     ->columns(2)
                     ->schema([

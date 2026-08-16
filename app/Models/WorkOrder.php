@@ -6,6 +6,7 @@ use App\Domain\Assets\Enums\StoppageCategory;
 use App\Domain\Maintenance\Enums\FailureMode;
 use App\Domain\Maintenance\Enums\MaintenanceArea;
 use App\Domain\Maintenance\Enums\PlantProcess;
+use App\Domain\Maintenance\Enums\WorkOrderAttachmentType;
 use App\Domain\Maintenance\Enums\WorkOrderPriority;
 use App\Domain\Maintenance\Enums\WorkOrderStatus;
 use App\Domain\Maintenance\Enums\WorkOrderType;
@@ -196,6 +197,24 @@ class WorkOrder extends BaseModel
     public function attachments(): HasMany
     {
         return $this->hasMany(WorkOrderAttachment::class);
+    }
+
+    /**
+     * El soporte de la cotización del trabajo, si lo hubo.
+     *
+     * Vive como adjunto y no como columna porque no todo trabajo se cotiza: la mayoría
+     * de las OT nace de una falla, sin cotización que adjuntar, y una columna vacía en
+     * casi todas las filas miente sobre cómo trabaja la planta.
+     *
+     * Filtrado por tipo y sin agregación, igual que las firmas: `latestOfMany()` haría
+     * `MAX(id)` sobre una PK uuid —que Postgres no sabe agregar— y además calcularía el
+     * máximo sobre *todos* los adjuntos, así que una foto subida después de la
+     * cotización dejaría esto en null.
+     */
+    public function quoteAttachment(): HasOne
+    {
+        return $this->hasOne(WorkOrderAttachment::class)
+            ->where('attachment_type', WorkOrderAttachmentType::Quote->value);
     }
 
     public function signatures(): HasMany
