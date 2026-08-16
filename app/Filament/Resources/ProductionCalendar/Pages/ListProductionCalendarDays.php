@@ -22,6 +22,10 @@ class ListProductionCalendarDays extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('capturaSemanal')
+                ->label('Cargar semana')
+                ->icon('heroicon-o-table-cells')
+                ->url(fn (): string => ProductionCalendarResource::getUrl('semanal')),
             $this->programMonthAction(),
             CreateAction::make()->label('Agregar día'),
         ];
@@ -63,6 +67,7 @@ class ListProductionCalendarDays extends ListRecords
                     ->required(),
                 TextInput::make('hours_per_day')
                     ->label('Horas de molienda por día')
+                    ->helperText('Siembra la jornada prevista. La fruta procesada se carga después, en «Cargar semana», cuando ya se sabe cuánta entró.')
                     ->numeric()
                     ->minValue(0)
                     ->maxValue(24)

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\ProductionCalendar;
 
+use App\Filament\Resources\ProductionCalendar\Pages\CapturaSemanal;
 use App\Filament\Resources\ProductionCalendar\Pages\ListProductionCalendarDays;
 use App\Filament\Resources\ProductionCalendar\Schemas\ProductionCalendarDayForm;
 use App\Filament\Resources\ProductionCalendar\Tables\ProductionCalendarTable;
@@ -18,8 +19,13 @@ use UnitEnum;
  *
  * Sin estas filas la planta no tiene eficiencia: tiene disponibilidad de máquinas,
  * que es otra cosa y más pobre. Se edita en línea desde la tabla —una jornada es un
- * número, no un formulario— y se carga por mes desde la acción de cabecera, porque
- * nadie va a teclear 31 filas cada mes y un CMMS que lo exige se abandona.
+ * número, no un formulario— y se carga por período, porque nadie va a teclear 31
+ * filas cada mes y un CMMS que lo exige se abandona.
+ *
+ * Dos puertas, y no se pisan: «Programar mes» siembra la jornada por adelantado,
+ * cuando todavía no hay fruta que anotar, y {@see CapturaSemanal} cierra la semana
+ * vencida con las horas y las toneladas reales. Esta tabla queda para la corrección
+ * puntual del día que salió mal.
  */
 class ProductionCalendarResource extends Resource
 {
@@ -39,8 +45,10 @@ class ProductionCalendarResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        // Oculto para los roles de tenant; solo el superadministrador de plataforma lo ve.
-        return auth()->user()?->is_super_admin ?? false;
+        // La planta escribe su propio denominador. Estuvo reservado al superadmin
+        // mientras no hubo forma cómoda de cargarlo; con la captura semanal la sí
+        // hay, y quien conoce las horas y la fruta es el planificador, no el proveedor.
+        return auth()->user()?->can('viewAny', ProductionCalendarDay::class) ?? false;
     }
 
     public static function form(Schema $schema): Schema
@@ -57,6 +65,7 @@ class ProductionCalendarResource extends Resource
     {
         return [
             'index' => ListProductionCalendarDays::route('/'),
+            'semanal' => CapturaSemanal::route('/semanal'),
         ];
     }
 }
