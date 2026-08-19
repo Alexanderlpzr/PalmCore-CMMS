@@ -33,21 +33,21 @@ class ProductionCalendarResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendarDays;
 
-    protected static ?string $modelLabel = 'Día programado';
+    protected static ?string $modelLabel = 'Día de producción';
 
-    protected static ?string $pluralModelLabel = 'Calendario de producción';
+    protected static ?string $pluralModelLabel = 'Producción';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Gestión de Activos';
+    protected static string|UnitEnum|null $navigationGroup = 'Mantenimiento';
 
-    protected static ?int $navigationSort = 4;
+    protected static ?int $navigationSort = 7;
 
     protected static bool $isScopedToTenant = true;
 
     public static function shouldRegisterNavigation(): bool
     {
         // La planta escribe su propio denominador. Estuvo reservado al superadmin
-        // mientras no hubo forma cómoda de cargarlo; con la captura semanal la sí
-        // hay, y quien conoce las horas y la fruta es el planificador, no el proveedor.
+        // mientras no hubo forma cómoda de cargarlo; con la captura semanal ya la hay,
+        // y quien conoce las horas y la fruta es el planificador, no el proveedor.
         return auth()->user()?->can('viewAny', ProductionCalendarDay::class) ?? false;
     }
 

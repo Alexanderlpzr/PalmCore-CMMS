@@ -4,7 +4,9 @@ namespace App\Filament\Widgets\Executive;
 
 use App\Domain\Analytics\Services\PlantKpiService;
 use App\Domain\Analytics\Support\DashboardPeriod;
+use App\Filament\Resources\ProductionCalendar\ProductionCalendarResource;
 use App\Models\Plant;
+use App\Models\ProductionCalendarDay;
 use Filament\Widgets\Concerns\InteractsWithPageFilters;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
@@ -57,6 +59,13 @@ class PlantEfficiencyStatsWidget extends BaseWidget
         $availability = $metrics['availability_percentage'];
         $pressable = round($metrics['programmed_hours'] - $metrics['cleaning_hours'], 1);
 
+        // Una tarjeta que dice «falta el dato» y no lleva a cargarlo obliga a salir a
+        // buscar el menú donde se captura. Solo se enlaza cuando falta: con el número
+        // puesto, el enlace sería ruido.
+        $captureUrl = (auth()->user()?->can('create', ProductionCalendarDay::class) ?? false)
+            ? ProductionCalendarResource::getUrl('semanal')
+            : null;
+
         $percentColor = fn (?float $value): string => match (true) {
             $value === null => 'gray',
             $value >= 90 => 'success',
@@ -68,13 +77,15 @@ class PlantEfficiencyStatsWidget extends BaseWidget
             Stat::make('Eficiencia', $efficiency !== null ? $efficiency.'%' : 'Sin horas pagadas')
                 ->description($efficiency !== null
                     ? number_format($metrics['effective_hours'], 1).' h prensadas de '.number_format($pressable, 1).' h prensables · '.$period
-                    : 'Falta el calendario de producción')
+                    : 'Falta el calendario de producción — cárgalo aquí')
+                ->url($efficiency === null ? $captureUrl : null)
                 ->color($percentColor($efficiency)),
 
             Stat::make('Productividad', $productivity !== null ? number_format($productivity, 2).' t/h' : 'Sin fruta registrada')
                 ->description($productivity !== null
                     ? number_format($metrics['processed_tons'], 0).' t sobre '.number_format($pressable, 1).' h prensables · '.$period
-                    : 'Captura las toneladas en el calendario de producción')
+                    : 'Captura las toneladas de la semana — hazlo aquí')
+                ->url($productivity === null ? $captureUrl : null)
                 ->color($productivity !== null ? 'primary' : 'gray'),
 
             Stat::make('Disponibilidad', $availability !== null ? $availability.'%' : 'Sin horas pagadas')

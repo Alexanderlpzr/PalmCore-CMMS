@@ -3,12 +3,15 @@
 namespace App\Filament\Pages;
 
 use App\Filament\Concerns\HasPeriodFilterForm;
+use App\Filament\Resources\ProductionCalendar\ProductionCalendarResource;
 use App\Filament\Widgets\Executive\PlantEfficiencyStatsWidget;
 use App\Filament\Widgets\Executive\PlantHoursBreakdownWidget;
 use App\Filament\Widgets\Executive\PlantMonthlyEfficiencyHistoryWidget;
 use App\Filament\Widgets\Executive\PlantMonthlyProductivityHistoryWidget;
 use App\Models\Plant;
+use App\Models\ProductionCalendarDay;
 use BackedEnum;
+use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Select;
 use Filament\Pages\Dashboard as BaseDashboard;
@@ -66,6 +69,26 @@ class ProductividadYEficiencia extends BaseDashboard
             PlantHoursBreakdownWidget::class,
             PlantMonthlyEfficiencyHistoryWidget::class,
             PlantMonthlyProductivityHistoryWidget::class,
+        ];
+    }
+
+    /**
+     * El atajo a la captura, desde el indicador que la necesita.
+     *
+     * Esta página sigue sin escribir —lee y audita—, pero quien descubre aquí que le
+     * falta la fruta de la semana no tiene por qué salir a buscar en qué menú se
+     * carga. El enlace no rompe la separación: la lleva al sitio donde sí se escribe.
+     *
+     * @return array<Action>
+     */
+    protected function getHeaderActions(): array
+    {
+        return [
+            Action::make('cargarProduccion')
+                ->label('Cargar producción')
+                ->icon(Heroicon::OutlinedTableCells)
+                ->url(fn (): string => ProductionCalendarResource::getUrl('semanal'))
+                ->visible(fn (): bool => auth()->user()?->can('create', ProductionCalendarDay::class) ?? false),
         ];
     }
 

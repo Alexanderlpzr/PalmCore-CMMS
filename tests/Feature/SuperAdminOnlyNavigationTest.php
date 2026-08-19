@@ -5,9 +5,11 @@ use App\Filament\Pages\DataAudit;
 use App\Filament\Resources\Areas\AreaResource;
 use App\Filament\Resources\Automation\AutomationRule\AutomationRuleResource;
 use App\Filament\Resources\Contractors\ContractorResource;
+use App\Filament\Resources\Downtime\DowntimeEventResource;
 use App\Filament\Resources\Equipment\EquipmentResource;
 use App\Filament\Resources\EquipmentCategories\EquipmentCategoryResource;
 use App\Filament\Resources\Manufacturers\ManufacturerResource;
+use App\Filament\Resources\MeterReadings\MeterReadingResource;
 use App\Filament\Resources\Permissions\PermissionResource;
 use App\Filament\Resources\Plants\PlantResource;
 use App\Filament\Resources\ProductionCalendar\ProductionCalendarResource;
@@ -110,8 +112,24 @@ it('gathers the plant structure in the same group as Equipos', function (): void
 
     expect($grupo)->toBe('Gestión de Activos')
         ->and(PlantResource::getNavigationGroup())->toBe($grupo)
-        ->and(AreaResource::getNavigationGroup())->toBe($grupo)
-        ->and(ProductionCalendarResource::getNavigationGroup())->toBe($grupo);
+        ->and(AreaResource::getNavigationGroup())->toBe($grupo);
+});
+
+// La producción salió de aquí: no es estructura. Plantas, Secciones y Equipos se
+// definen una vez; la producción se captura cada semana, como los paros y los
+// horómetros. Archivarla entre los catálogos era la razón de que nadie la
+// encontrara al buscar dónde registrar el dato.
+it('files production capture with the other periodic captures', function (): void {
+    $grupo = ProductionCalendarResource::getNavigationGroup();
+
+    expect($grupo)->toBe('Mantenimiento')
+        ->and(DowntimeEventResource::getNavigationGroup())->toBe($grupo)
+        ->and(MeterReadingResource::getNavigationGroup())->toBe($grupo);
+
+    // Detrás de sus dos hermanas, que es el orden en que la planta las usa.
+    expect(ProductionCalendarResource::getNavigationSort())
+        ->toBeGreaterThan(DowntimeEventResource::getNavigationSort())
+        ->toBeGreaterThan(MeterReadingResource::getNavigationSort());
 });
 
 it('orders that group by the real hierarchy, with no ties', function (): void {
@@ -119,7 +137,6 @@ it('orders that group by the real hierarchy, with no ties', function (): void {
         PlantResource::class => 1,
         AreaResource::class => 2,
         EquipmentResource::class => 3,
-        ProductionCalendarResource::class => 4,
     ];
 
     foreach ($orden as $resource => $sort) {
