@@ -6,6 +6,7 @@ use App\Models\Area;
 use App\Models\Plant;
 use App\Models\Tenant;
 use Database\Seeders\PermissionSeeder;
+use Database\Seeders\TenantEnergyMetersSeeder;
 use Database\Seeders\TenantInventorySeeder;
 use Database\Seeders\TenantRolesSeeder;
 use Illuminate\Support\Facades\DB;
@@ -71,6 +72,10 @@ class ProvisionTenantBaseStructure
 
             // Depende de las áreas de arriba: cada equipo se cuelga de la suya.
             (new TenantInventorySeeder)->run($tenant, $plant);
+
+            // Después del inventario: dos de los tres contadores se enlazan al equipo
+            // que los genera, y ese equipo tiene que existir ya.
+            (new TenantEnergyMetersSeeder)->run($tenant, $plant);
 
             // Guarantee the full permission catalogue exists before roles are
             // synced: TenantRolesSeeder::syncPermissions() throws if any matrix

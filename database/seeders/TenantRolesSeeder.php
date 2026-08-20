@@ -55,6 +55,7 @@ class TenantRolesSeeder extends Seeder
             'equipment-meter-readings.view', 'equipment-meter-readings.create',
             'downtime-events.view', 'downtime-events.create', 'downtime-events.update', 'downtime-events.confirm',
             'production-calendar.view', 'production-calendar.manage',
+            'energy.view', 'energy.manage',
             'maintenance-budgets.view', 'maintenance-budgets.manage',
             'spare-parts.view', 'spare-parts.create', 'spare-parts.update', 'spare-parts.delete',
             'warehouses.view', 'warehouses.create', 'warehouses.update', 'warehouses.delete',

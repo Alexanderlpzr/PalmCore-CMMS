@@ -4,6 +4,9 @@ namespace App\Domain\Analytics\Services;
 
 use App\Domain\Assets\Enums\ReportedStoppageType;
 use App\Domain\Assets\Services\LostHoursCalculator;
+use App\Domain\Energy\Enums\EnergySource;
+use App\Models\EnergyMeter;
+use App\Models\EnergyMeterReading;
 use App\Models\EquipmentDowntimeEvent;
 use App\Models\Plant;
 use App\Models\PlantMonthlyKpi;
@@ -349,6 +352,19 @@ class PlantKpiService
 
         $keepsManualTons = $existing?->processed_tons_is_manual === true;
 
+        // Los meses que vinieron de la hoja histórica no se recalculan: sus lecturas
+        // diarias nunca existieron, así que recalcular los pondría en cero. Misma guarda
+        // que la de las toneladas corregidas a mano, y por el mismo motivo.
+        $keepsImportedEnergy = $existing?->energy_is_imported === true;
+
+        $energy = $keepsImportedEnergy
+            ? [
+                'kwh_grid' => $existing->kwh_grid,
+                'kwh_genset' => $existing->kwh_genset,
+                'kwh_turbine' => $existing->kwh_turbine,
+            ]
+            : $this->energyBySource($plant, $from, $to);
+
         return PlantMonthlyKpi::withoutGlobalScopes()->updateOrCreate(
             [
                 'plant_id' => $plant->id,
@@ -365,11 +381,130 @@ class PlantKpiService
                 'processed_tons' => $keepsManualTons
                     ? $existing->processed_tons
                     : $metrics['processed_tons'],
+                ...$energy,
+                'energy_is_imported' => $keepsImportedEnergy,
                 'failure_count' => $metrics['failure_count'],
                 'mtbf_hours' => $metrics['mtbf_hours'],
                 'mttr_hours' => $metrics['mttr_hours'],
                 'calculated_at' => now(),
             ],
         )->refresh();
+    }
+
+    /**
+     * El consumo eléctrico de un período, mes a mes, venga de donde venga el dato.
+     *
+     * Hay dos orígenes y hay que servir a los dos: los meses de 2024 y 2025 se cargaron
+     * del Excel como total mensual y no tienen ni una lectura diaria detrás, mientras que
+     * el mes en curso solo existe como lecturas. Por cada mes se prefiere la fila del
+     * cierre cuando trae energía, y si no, se suman las lecturas.
+     *
+     * Las toneladas salen de la misma fila del cierre, y si no hay, del calendario de
+     * producción — el mismo denominador que la productividad en t/h, sin capturarlo dos
+     * veces.
+     *
+     * @return array{
+     *     kwh_grid: ?float, kwh_genset: ?float, kwh_turbine: ?float,
+     *     kwh_total: ?float, processed_tons: float,
+     *     kwh_per_ton: ?float, clean_energy_percentage: ?float,
+     * }
+     */
+    public function energySummary(Plant $plant, CarbonInterface $from, CarbonInterface $to): array
+    {
+        $rows = PlantMonthlyKpi::withoutGlobalScopes()
+            ->where('plant_id', $plant->id)
+            ->get()
+            ->keyBy(fn (PlantMonthlyKpi $kpi): string => $kpi->year.'-'.$kpi->month);
+
+        $totals = ['kwh_grid' => null, 'kwh_genset' => null, 'kwh_turbine' => null];
+        $tons = 0.0;
+
+        $cursor = Carbon::parse($from)->startOfMonth();
+        $last = Carbon::parse($to)->startOfMonth();
+
+        while ($cursor->lte($last)) {
+            $monthStart = $cursor->copy()->startOfMonth();
+            $monthEnd = $cursor->copy()->endOfMonth();
+            $row = $rows->get($cursor->year.'-'.$cursor->month);
+
+            $hasStoredEnergy = $row !== null
+                && ($row->kwh_grid !== null || $row->kwh_genset !== null || $row->kwh_turbine !== null);
+
+            $energy = $hasStoredEnergy
+                ? ['kwh_grid' => $row->kwh_grid, 'kwh_genset' => $row->kwh_genset, 'kwh_turbine' => $row->kwh_turbine]
+                : $this->energyBySource($plant, $monthStart, $monthEnd);
+
+            foreach ($totals as $key => $value) {
+                if ($energy[$key] !== null) {
+                    $totals[$key] = round((float) ($value ?? 0) + (float) $energy[$key], 1);
+                }
+            }
+
+            $tons += $row?->processed_tons !== null
+                ? (float) $row->processed_tons
+                : $this->processedTons($plant, $monthStart, $monthEnd);
+
+            $cursor->addMonth();
+        }
+
+        $known = array_filter($totals, fn (?float $v): bool => $v !== null);
+        $total = $known === [] ? null : round(array_sum($known), 1);
+        $tons = round($tons, 2);
+
+        return [
+            ...$totals,
+            'kwh_total' => $total,
+            'processed_tons' => $tons,
+            'kwh_per_ton' => ($total !== null && $tons > 0) ? round($total / $tons, 2) : null,
+            // Sin dato de turbina no hay porcentaje: decir 0 % afirmaría que no generó
+            // nada, que es justo lo que no sabemos de cinco meses de 2025.
+            'clean_energy_percentage' => ($totals['kwh_turbine'] !== null && $total > 0)
+                ? round($totals['kwh_turbine'] / $total * 100, 2)
+                : null,
+        ];
+    }
+
+    /**
+     * Los kWh del período, separados por fuente.
+     *
+     * `null` —no cero— cuando un contador no tiene ni una lectura en el rango: cero kWh
+     * de turbina dice que la planta funcionó a diésel, y no saberlo dice que nadie lo
+     * anotó. La hoja histórica trae cinco meses de 2025 exactamente en ese caso.
+     *
+     * Se suman los deltas y no se restan los extremos: si cambiaron el contador dentro
+     * del mes, la resta daría un número absurdo y el delta ya trae resuelto ese caso.
+     *
+     * @return array{kwh_grid: ?float, kwh_genset: ?float, kwh_turbine: ?float}
+     */
+    public function energyBySource(Plant $plant, CarbonInterface $from, CarbonInterface $to): array
+    {
+        $meters = EnergyMeter::withoutGlobalScopes()
+            ->where('plant_id', $plant->id)
+            ->get();
+
+        $totals = [
+            EnergySource::Grid->value => null,
+            EnergySource::Genset->value => null,
+            EnergySource::Turbine->value => null,
+        ];
+
+        foreach ($meters as $meter) {
+            $readings = EnergyMeterReading::withoutGlobalScopes()
+                ->where('energy_meter_id', $meter->id)
+                ->whereBetween('reading_date', [$from->toDateString(), $to->toDateString()]);
+
+            if (! $readings->exists()) {
+                continue;
+            }
+
+            $source = $meter->source->value;
+            $totals[$source] = round((float) ($totals[$source] ?? 0) + (float) $readings->sum('delta'), 1);
+        }
+
+        return [
+            'kwh_grid' => $totals[EnergySource::Grid->value],
+            'kwh_genset' => $totals[EnergySource::Genset->value],
+            'kwh_turbine' => $totals[EnergySource::Turbine->value],
+        ];
     }
 }

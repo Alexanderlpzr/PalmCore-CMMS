@@ -166,6 +166,10 @@ class PermissionSeeder extends Seeder
         'production-calendar.view',
         'production-calendar.manage',
 
+        // Consumo de energía — los kWh de red, planta eléctrica y turbina.
+        'energy.view',
+        'energy.manage',
+
         // Presupuesto de mantenimiento — el denominador del control de gastos.
         'maintenance-budgets.view',
         'maintenance-budgets.manage',

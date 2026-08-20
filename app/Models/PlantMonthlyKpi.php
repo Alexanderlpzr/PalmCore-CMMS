@@ -21,6 +21,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * `processed_tons_is_manual` sí es escribible: marca el mes cuyas toneladas
  * alguien corrigió a mano, y {@see PlantKpiService::snapshotMonth()} lo respeta
  * al recalcular.
+ *
+ * Lo mismo vale para la energía: `kwh_total`, `kwh_per_ton` y
+ * `clean_energy_percentage` son columnas generadas, y `energy_is_imported` marca los
+ * meses que vinieron de la hoja histórica para que el cierre no los pise recalculando
+ * sobre lecturas diarias que nunca existieron.
  */
 #[Fillable([
     'tenant_id',
@@ -34,6 +39,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'cleaning_hours',
     'processed_tons',
     'processed_tons_is_manual',
+    'kwh_grid',
+    'kwh_genset',
+    'kwh_turbine',
+    'energy_is_imported',
     'failure_count',
     'mtbf_hours',
     'mttr_hours',
@@ -92,6 +101,13 @@ class PlantMonthlyKpi extends Model
             'efficiency_percentage' => 'float',
             'productivity_tons_per_hour' => 'float',
             'availability_percentage' => 'float',
+            'kwh_grid' => 'float',
+            'kwh_genset' => 'float',
+            'kwh_turbine' => 'float',
+            'energy_is_imported' => 'boolean',
+            'kwh_total' => 'float',
+            'kwh_per_ton' => 'float',
+            'clean_energy_percentage' => 'float',
             'failure_count' => 'integer',
             'mtbf_hours' => 'float',
             'mttr_hours' => 'float',
