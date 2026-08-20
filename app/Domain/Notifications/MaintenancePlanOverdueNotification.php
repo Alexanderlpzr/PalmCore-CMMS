@@ -40,8 +40,8 @@ class MaintenancePlanOverdueNotification extends Notification implements ShouldQ
             'tenant_id' => $this->plan->tenant_id,
             'title' => 'Mantenimiento vencido',
             'body' => $this->plan->plan_number.': '.Str::limit($this->plan->name, 100),
-            'icon' => '/icons/icon-192.svg',
-            'badge' => '/icons/icon-192.svg',
+            'icon' => '/icons/icon-192.png',
+            'badge' => '/icons/icon-192.png',
             'url' => '/mobile/dashboard',
             'tag' => 'maintenance-overdue-'.$this->plan->id,
         ];

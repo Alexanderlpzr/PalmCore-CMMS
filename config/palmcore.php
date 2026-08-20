@@ -4,7 +4,7 @@ use App\Models\Tenant;
 
 return [
 
-    'name' => 'Fronda CMMS',
+    'name' => 'PAJUIL CMMS',
 
     'version' => '0.1.0',
 

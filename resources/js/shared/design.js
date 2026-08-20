@@ -1,4 +1,4 @@
-// Fronda CMMS — shared design vocabulary (single source of truth).
+// PAJUIL CMMS — shared design vocabulary (single source of truth).
 //
 // Both the Ops panel (light theme) and the Mobile PWA (dark theme) import from
 // here so a given status/priority always shows the SAME label and the SAME

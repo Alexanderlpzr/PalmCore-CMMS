@@ -173,7 +173,7 @@ it('the PDF footer shows the document number and page numbering', function () {
 
     expect($html)
         ->toContain('OT-2026-0001')
-        ->toContain('Generado con Fronda CMMS');
+        ->toContain('Generado con PAJUIL CMMS');
 });
 
 it('WorkOrderPdfService generates a real, non-empty PDF with the new branding wired in', function () {

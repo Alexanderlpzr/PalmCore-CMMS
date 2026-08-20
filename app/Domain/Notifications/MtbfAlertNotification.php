@@ -44,8 +44,8 @@ class MtbfAlertNotification extends Notification implements ShouldQueue
             'tenant_id' => $this->equipment->tenant_id,
             'title' => 'MTBF crítico',
             'body' => sprintf('%s — %.1f h (umbral %.1f h)', $this->equipment->code, $this->mtbfHours, $this->thresholdHours),
-            'icon' => '/icons/icon-192.svg',
-            'badge' => '/icons/icon-192.svg',
+            'icon' => '/icons/icon-192.png',
+            'badge' => '/icons/icon-192.png',
             'url' => '/reliability/equipment/'.$this->equipment->id,
             'tag' => 'mtbf-alert-'.$this->equipment->id,
         ];

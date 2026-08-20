@@ -7,10 +7,10 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Fronda CMMS">
+    <meta name="apple-mobile-web-app-title" content="PAJUIL CMMS">
     <link rel="manifest" href="/mobile-manifest.json">
-    <link rel="apple-touch-icon" href="/icons/icon-192.svg">
-    <title>Fronda CMMS</title>
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+    <title>PAJUIL CMMS</title>
     @vite(['resources/css/mobile.css', 'resources/js/mobile/main.js'])
 </head>
 <body class="bg-zinc-950 text-zinc-100 antialiased overflow-hidden">

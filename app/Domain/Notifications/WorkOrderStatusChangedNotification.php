@@ -45,8 +45,8 @@ class WorkOrderStatusChangedNotification extends Notification implements ShouldQ
             'tenant_id' => $this->workOrder->tenant_id,
             'title' => $this->title(),
             'body' => $this->workOrder->work_order_number.': '.Str::limit($this->workOrder->title, 100),
-            'icon' => '/icons/icon-192.svg',
-            'badge' => '/icons/icon-192.svg',
+            'icon' => '/icons/icon-192.png',
+            'badge' => '/icons/icon-192.png',
             'url' => '/mobile/work-orders/'.$this->workOrder->id,
             'tag' => 'wo-status-'.$this->workOrder->id,
         ];

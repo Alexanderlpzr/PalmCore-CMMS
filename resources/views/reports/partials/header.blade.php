@@ -5,7 +5,7 @@
                 @if($logoBase64)
                     <img src="{{ $logoBase64 }}" style="max-height:36px; max-width:150px;" alt="Logo">
                 @else
-                    <span style="font-size:15px; font-weight:bold; color:#047857;">{{ $tenant?->name ?? 'Fronda CMMS' }}</span>
+                    <span style="font-size:15px; font-weight:bold; color:#047857;">{{ $tenant?->name ?? 'PAJUIL CMMS' }}</span>
                 @endif
             </td>
             <td style="width:33%; text-align:right; vertical-align:middle; color:#64748b; font-size:8px; line-height:1.5;">

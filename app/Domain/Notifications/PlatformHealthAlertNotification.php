@@ -38,14 +38,14 @@ class PlatformHealthAlertNotification extends Notification implements ShouldQueu
     {
         if ($this->recovered) {
             return (new MailMessage)
-                ->subject('Fronda · la plataforma volvió a la normalidad')
+                ->subject('PAJUIL · la plataforma volvió a la normalidad')
                 ->greeting('Todo en orden')
                 ->line('Los problemas que se avisaron antes ya no están.')
                 ->action('Ver el panel', url('/platform'));
         }
 
         $mail = (new MailMessage)
-            ->subject('Fronda · '.$this->summary())
+            ->subject('PAJUIL · '.$this->summary())
             ->greeting('Hay algo que revisar')
             ->line('Los siguientes chequeos de la plataforma no están bien:');
 

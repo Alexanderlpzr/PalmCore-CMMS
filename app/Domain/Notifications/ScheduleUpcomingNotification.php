@@ -44,8 +44,8 @@ class ScheduleUpcomingNotification extends Notification implements ShouldQueue
             'tenant_id' => $this->plan->tenant_id,
             'title' => 'Mantenimiento próximo',
             'body' => $this->plan->plan_number.' vence en '.$this->daysAhead.' días',
-            'icon' => '/icons/icon-192.svg',
-            'badge' => '/icons/icon-192.svg',
+            'icon' => '/icons/icon-192.png',
+            'badge' => '/icons/icon-192.png',
             'url' => '/maintenance/plans/'.$this->plan->id,
             'tag' => 'schedule-upcoming-'.$this->plan->id,
         ];

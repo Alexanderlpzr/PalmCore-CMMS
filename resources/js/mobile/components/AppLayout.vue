@@ -54,7 +54,7 @@ import { usePushNotifications } from '../composables/usePushNotifications.js'
 import { useAuthStore } from '../stores/auth.js'
 
 defineProps({
-    title: { type: String, default: 'Fronda' },
+    title: { type: String, default: 'PAJUIL' },
     showBack: { type: Boolean, default: false },
 })
 

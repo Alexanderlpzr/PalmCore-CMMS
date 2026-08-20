@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#0F4C5C">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <title>Fronda CMMS</title>
+    <title>PAJUIL CMMS</title>
     @vite(['resources/css/ops.css', 'resources/js/ops/main.js'])
 </head>
 <body class="h-full antialiased">

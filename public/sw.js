@@ -1,4 +1,4 @@
-// PalmCore Mobile — Service Worker v3
+// PAJUIL Mobile — Service Worker v3
 // Sprint 10.1: asset caching + navigation fallback
 // Sprint 10.3: Background Sync signal to Vue app
 // Sprint 10.4: Web Push notifications + notificationclick deeplink
@@ -75,10 +75,10 @@ self.addEventListener('push', event => {
     const data = event.data.json()
 
     event.waitUntil(
-        self.registration.showNotification(data.title ?? 'Fronda', {
+        self.registration.showNotification(data.title ?? 'PAJUIL', {
             body: data.body ?? '',
-            icon: data.icon ?? '/icons/icon-192.svg',
-            badge: data.badge ?? '/icons/icon-192.svg',
+            icon: data.icon ?? '/icons/icon-192.png',
+            badge: data.badge ?? '/icons/icon-192.png',
             data: { url: data.url ?? '/mobile/dashboard' },
             tag: data.tag,
             vibrate: [200, 100, 200],

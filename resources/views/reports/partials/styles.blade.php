@@ -1,4 +1,4 @@
-{{-- Shared stylesheet for every Fronda CMMS PDF report. Import once per document
+{{-- Shared stylesheet for every PAJUIL CMMS PDF report. Import once per document
      via @include('reports.partials.styles') inside <style>; do not redefine these
      rules locally — that duplication is exactly what let the five templates drift. --}}
 {{-- DomPDF's fixed header/footer only draws correctly with "top: 0" / "bottom:

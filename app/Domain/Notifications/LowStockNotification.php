@@ -38,8 +38,8 @@ class LowStockNotification extends Notification implements ShouldQueue
             'tenant_id' => $this->sparePart->tenant_id,
             'title' => 'Stock crítico',
             'body' => $this->sparePart->code.': '.$this->sparePart->name,
-            'icon' => '/icons/icon-192.svg',
-            'badge' => '/icons/icon-192.svg',
+            'icon' => '/icons/icon-192.png',
+            'badge' => '/icons/icon-192.png',
             'url' => '/mobile/dashboard',
             'tag' => 'low-stock-'.$this->sparePart->id,
         ];

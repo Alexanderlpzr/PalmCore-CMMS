@@ -20,7 +20,7 @@ return [
          * El nombre con el que se identifican los respaldos. Es también el nombre de la
          * CARPETA donde se guardan, así que tiene que ser un nombre de ruta válido.
          *
-         * Se sanea a propósito: con APP_NAME="Fronda CMMS" —un nombre perfectamente
+         * Se sanea a propósito: con APP_NAME="PAJUIL CMMS" —un nombre perfectamente
          * razonable para mostrar en pantalla— el respaldo moría con un críptico
          * «ZipArchive::close(): Invalid argument», y el sistema se quedaba sin copia de
          * seguridad sin que nadie entendiera por qué. El nombre visible de la aplicación

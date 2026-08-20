@@ -31,7 +31,7 @@ class ReportBrandingService
                     return "data:{$mime};base64,".base64_encode($content);
                 }
             } catch (\Throwable) {
-                // Fall through to the Fronda CMMS default below.
+                // Fall through to the PAJUIL CMMS default below.
             }
         }
 
@@ -39,7 +39,7 @@ class ReportBrandingService
     }
 
     /**
-     * Every report carries Fronda CMMS's own brand identity by default —
+     * Every report carries PAJUIL CMMS's own brand identity by default —
      * tenants without a custom logo still get a properly branded document
      * instead of a bare text fallback.
      */
@@ -75,7 +75,7 @@ class ReportBrandingService
     public function documentIdentityPayload(string $documentNumber, ?Tenant $tenant): string
     {
         return implode("\n", array_filter([
-            'Fronda CMMS',
+            'PAJUIL CMMS',
             $tenant?->name,
             "Doc: {$documentNumber}",
             'Emitido: '.now()->format('d/m/Y H:i'),

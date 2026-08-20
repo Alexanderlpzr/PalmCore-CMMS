@@ -1,4 +1,4 @@
-// Fronda CMMS — central icon registry.
+// PAJUIL CMMS — central icon registry.
 //
 // One place for the inline SVG paths that were previously duplicated across many
 // components. Each entry is the inner markup of a 24x24 stroke icon (Lucide /

@@ -5,7 +5,7 @@
         <div style="background: linear-gradient(135deg, #0F4C5C 0%, #0a3545 60%, #062535 100%); padding: 1.5rem 2rem; display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;">
 
             <img src="{{ asset('images/logo.png') }}"
-                 alt="Fronda CMMS"
+                 alt="PAJUIL CMMS"
                  style="height: 3.5rem; width: auto; max-width: 200px; object-fit: contain; flex-shrink: 0; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.3));">
 
             <div style="flex: 1; min-width: 180px;">

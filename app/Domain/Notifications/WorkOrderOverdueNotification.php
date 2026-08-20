@@ -40,8 +40,8 @@ class WorkOrderOverdueNotification extends Notification implements ShouldQueue
             'tenant_id' => $this->workOrder->tenant_id,
             'title' => 'OT vencida',
             'body' => $this->workOrder->work_order_number.': '.Str::limit($this->workOrder->title, 100),
-            'icon' => '/icons/icon-192.svg',
-            'badge' => '/icons/icon-192.svg',
+            'icon' => '/icons/icon-192.png',
+            'badge' => '/icons/icon-192.png',
             'url' => '/maintenance/work-orders/'.$this->workOrder->id,
             'tag' => 'wo-overdue-'.$this->workOrder->id,
         ];

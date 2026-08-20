@@ -30,7 +30,7 @@ class PlatformPanelProvider extends PanelProvider
             ->id('platform')
             ->path('platform')
             ->login(Login::class)
-            ->brandName('Fronda · Plataforma')
+            ->brandName('PAJUIL · Plataforma')
             ->brandLogo(secure_asset('images/logo.png'))
             ->brandLogoHeight('4rem')
             ->favicon(secure_asset('images/isotipo.png'))

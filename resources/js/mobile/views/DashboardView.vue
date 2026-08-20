@@ -6,7 +6,7 @@
             <div>
                 <p class="text-sm text-zinc-400">Bienvenido</p>
                 <h2 class="text-xl font-semibold text-zinc-100 truncate">
-                    {{ auth.tenantName ?? 'Fronda' }}
+                    {{ auth.tenantName ?? 'PAJUIL' }}
                 </h2>
                 <p class="text-xs text-zinc-400 mt-0.5">{{ auth.userEmail }}</p>
             </div>

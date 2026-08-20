@@ -35,7 +35,7 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login(Login::class)
-            ->brandName('Fronda CMMS')
+            ->brandName('PAJUIL CMMS')
             ->brandLogo(secure_asset('images/logo.png'))
             ->brandLogoHeight('4rem')
             ->favicon(secure_asset('images/isotipo.png'))

@@ -2,7 +2,7 @@
     <table style="width:100%; border-top:1px solid #a7f3d0; padding-top:4px;">
         <tr>
             <td style="font-size:7px; color:#94a3b8;">
-                {{ $tenant?->name ?? 'Fronda CMMS' }} &middot; Generado con Fronda CMMS
+                {{ $tenant?->name ?? 'PAJUIL CMMS' }} &middot; Generado con PAJUIL CMMS
             </td>
             <td style="font-size:7px; color:#94a3b8; text-align:right;">
                 @if($documentNumber ?? null)

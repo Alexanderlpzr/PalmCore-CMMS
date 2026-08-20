@@ -44,8 +44,8 @@ class AlertNotification extends Notification implements ShouldQueue
             'tenant_id' => $this->alert->tenant_id,
             'title' => $this->prefixedTitle(),
             'body' => Str::limit($this->alert->message ?? $this->alert->title, 120),
-            'icon' => '/icons/icon-192.svg',
-            'badge' => '/icons/icon-192.svg',
+            'icon' => '/icons/icon-192.png',
+            'badge' => '/icons/icon-192.png',
             'url' => '/mobile/alerts',
             'tag' => 'alert-'.$this->alert->id,
         ];
