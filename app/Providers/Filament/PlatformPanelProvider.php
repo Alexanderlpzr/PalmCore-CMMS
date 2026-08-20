@@ -31,9 +31,9 @@ class PlatformPanelProvider extends PanelProvider
             ->path('platform')
             ->login(Login::class)
             ->brandName('PAJUIL · Plataforma')
-            ->brandLogo(secure_asset('images/logo.png'))
+            ->brandLogo(branding_asset('images/logo.png'))
             ->brandLogoHeight('4rem')
-            ->favicon(secure_asset('images/isotipo.png'))
+            ->favicon(branding_asset('images/isotipo.png'))
             // Sin esto, las clases de Tailwind escritas a mano en las páginas de
             // plataforma (dashboard, respaldos, colas, logs) nunca se compilaban: la
             // hoja de estilos por defecto de Filament solo incluye las utilidades que

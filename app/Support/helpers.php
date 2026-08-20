@@ -87,3 +87,24 @@ if (! function_exists('file_signed_url')) {
         return Storage::disk($disk)->url($path);
     }
 }
+
+if (! function_exists('branding_asset')) {
+    /**
+     * URL de un asset de marca, versionada con la fecha del archivo.
+     *
+     * El logo, el isotipo y los favicon conservan su nombre entre versiones, así que
+     * un navegador que ya los tenía en caché sigue mostrando el anterior aunque el
+     * servidor sirva el nuevo. Eso convirtió el cambio de marca en algo que solo veía
+     * quien forzara una recarga.
+     *
+     * La versión es el `filemtime` del archivo dentro de la imagen de Docker: cambia
+     * en cada despliegue que toque el asset, y solo entonces.
+     */
+    function branding_asset(string $path): string
+    {
+        $url = secure_asset($path);
+        $file = public_path($path);
+
+        return is_file($file) ? $url.'?v='.filemtime($file) : $url;
+    }
+}

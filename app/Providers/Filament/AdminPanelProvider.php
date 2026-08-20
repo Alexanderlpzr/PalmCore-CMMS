@@ -36,9 +36,9 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login(Login::class)
             ->brandName('PAJUIL CMMS')
-            ->brandLogo(secure_asset('images/logo.png'))
+            ->brandLogo(branding_asset('images/logo.png'))
             ->brandLogoHeight('4rem')
-            ->favicon(secure_asset('images/isotipo.png'))
+            ->favicon(branding_asset('images/isotipo.png'))
             // Custom theme (HOME-2.1) — compiles the bespoke Tailwind utilities
             // used by the Inicio portal and custom resource views, which the
             // default Filament stylesheet does not ship.
