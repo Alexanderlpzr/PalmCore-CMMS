@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Filament\Concerns\HasPeriodFilterForm;
 use App\Filament\Widgets\Executive\PlantEnergyStatsWidget;
+use App\Filament\Widgets\Executive\PlantEnergyYearTableWidget;
 use App\Models\EnergyMeter;
 use App\Models\Plant;
 use BackedEnum;
@@ -68,6 +69,7 @@ class ConsumoDeEnergia extends BaseDashboard
     {
         return [
             PlantEnergyStatsWidget::class,
+            PlantEnergyYearTableWidget::class,
         ];
     }
 

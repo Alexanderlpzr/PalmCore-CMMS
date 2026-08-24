@@ -3,6 +3,7 @@
 use App\Domain\Analytics\Services\PlantKpiService;
 use App\Domain\Energy\Services\EnergyMeterReadingService;
 use App\Filament\Pages\ConsumoDeEnergia;
+use App\Filament\Widgets\Executive\PlantEnergyYearTableWidget;
 use App\Models\EnergyMeter;
 use App\Models\Plant;
 use App\Models\PlantMonthlyKpi;
@@ -12,6 +13,7 @@ use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Filament\Facades\Filament;
 use Illuminate\Support\Carbon;
+use Livewire\Livewire;
 use Spatie\Permission\PermissionRegistrar;
 
 beforeEach(function (): void {
@@ -162,4 +164,53 @@ it('se la esconde a quien no tiene el permiso', function (): void {
     $this->actingAs($ajeno);
 
     expect(ConsumoDeEnergia::canAccess())->toBeFalse();
+});
+
+// ── La tabla anual ───────────────────────────────────────────────────────────
+
+it('arma la tabla del año con las cifras de la planilla', function (): void {
+    // Los tres primeros meses de 2026, tal como están en la hoja.
+    $meses = [
+        1 => ['tons' => 5320, 'red' => 13828, 'planta' => 31115, 'turbina' => 118117],
+        2 => ['tons' => 5010, 'red' => 8002, 'planta' => 46351, 'turbina' => 71970],
+        3 => ['tons' => 6394, 'red' => 6930, 'planta' => 26864, 'turbina' => 156265],
+    ];
+
+    foreach ($meses as $mes => $d) {
+        PlantMonthlyKpi::withoutGlobalScopes()->create([
+            'tenant_id' => $this->tenant->id,
+            'plant_id' => $this->plant->id,
+            'year' => 2026, 'month' => $mes,
+            'processed_tons' => $d['tons'],
+            'kwh_grid' => $d['red'], 'kwh_genset' => $d['planta'], 'kwh_turbine' => $d['turbina'],
+            'energy_is_imported' => true,
+            'calculated_at' => now(),
+        ]);
+    }
+
+    Livewire::test(PlantEnergyYearTableWidget::class, [
+        'pageFilters' => ['plant_id' => $this->plant->id, 'preset' => 'year', 'year' => 2026],
+    ])
+        ->assertSee('Energía · 2026')
+        // Las etiquetas son las de la planilla que la planta ya lee.
+        ->assertSee('RFF/MES (t)')
+        ->assertSee('KWh/RFF')
+        ->assertSee('KWh TOTAL')
+        ->assertSee('KWh RED PÚBLICA')
+        ->assertSee('KWh PLANTA ELÉCTRICA')
+        ->assertSee('KWh TURBINA')
+        ->assertSee('ENERGÍA LIMPIA (%)')
+        // Enero: 163.060 kWh y 30,65 kWh por tonelada, igual que la hoja.
+        ->assertSee('163.060')
+        ->assertSee('30,65')
+        // Marzo, para que no pase por casualidad con un solo mes.
+        ->assertSee('190.059')
+        // El KWh/RFF del año NO es el promedio de los meses: es el total de kWh partido
+        // por el total de fruta, 479.442 / 16.724 = 28,67. El promedio de los tres
+        // ratios daría 28,53, dándole el mismo peso a un mes flojo que a uno de plena
+        // cosecha.
+        ->assertSee('479.442')
+        ->assertSee('28,67')
+        // Los nueve meses sin cargar se pintan con un guion, no con un cero.
+        ->assertSee('—');
 });
