@@ -1,5 +1,6 @@
 <?php
 
+use App\Domain\Analytics\Services\PlantKpiService;
 use App\Models\Plant;
 use App\Models\PlantMonthlyKpi;
 use App\Models\Tenant;
@@ -19,11 +20,11 @@ afterEach(function (): void {
 
 function escribirCsv(string $ruta, string $contenido): void
 {
-    file_put_contents($ruta, "anio,mes,kwh_red,kwh_planta,kwh_turbina,nota\n".$contenido);
+    file_put_contents($ruta, "anio,mes,kwh_red,kwh_planta,kwh_turbina,rff_toneladas,nota\n".$contenido);
 }
 
 it('carga los meses y los marca como importados', function (): void {
-    escribirCsv($this->csv, "2026,1,13828,31115,118117,\n2026,2,8002,46351,71970,\n");
+    escribirCsv($this->csv, "2026,1,13828,31115,118117,,\n2026,2,8002,46351,71970,,\n");
 
     $this->artisan('energy:import-history', ['file' => $this->csv])
         ->assertSuccessful();
@@ -42,7 +43,7 @@ it('carga los meses y los marca como importados', function (): void {
 it('deja en NULL la turbina que la hoja no trae, en vez de ponerla en cero', function (): void {
     // Enero de 2025: la hoja trae un guion en turbina. Cero afirmaría que la planta
     // funcionó a diésel; NULL dice que no lo sabemos, que es la verdad.
-    escribirCsv($this->csv, "2025,1,9240,117981,,\n");
+    escribirCsv($this->csv, "2025,1,9240,117981,,,\n");
 
     $this->artisan('energy:import-history', ['file' => $this->csv])->assertSuccessful();
 
@@ -56,7 +57,7 @@ it('deja en NULL la turbina que la hoja no trae, en vez de ponerla en cero', fun
 });
 
 it('no carga los meses sin ninguna cifra', function (): void {
-    escribirCsv($this->csv, "2026,8,1277,12363,63454,\n2026,9,,,,\n2026,10,,,,\n");
+    escribirCsv($this->csv, "2026,8,1277,12363,63454,,\n2026,9,,,,,\n2026,10,,,,,\n");
 
     $this->artisan('energy:import-history', ['file' => $this->csv])->assertSuccessful();
 
@@ -65,7 +66,7 @@ it('no carga los meses sin ninguna cifra', function (): void {
 });
 
 it('es idempotente: reexportar y volver a correr no duplica', function (): void {
-    escribirCsv($this->csv, "2026,1,13828,31115,118117,\n");
+    escribirCsv($this->csv, "2026,1,13828,31115,118117,,\n");
 
     $this->artisan('energy:import-history', ['file' => $this->csv])->assertSuccessful();
     $this->artisan('energy:import-history', ['file' => $this->csv])->assertSuccessful();
@@ -85,7 +86,7 @@ it('calcula el KWh/RFF contra las toneladas que ya tiene el mes', function (): v
         'calculated_at' => now(),
     ]);
 
-    escribirCsv($this->csv, "2026,1,13828,31115,118117,\n");
+    escribirCsv($this->csv, "2026,1,13828,31115,118117,,\n");
     $this->artisan('energy:import-history', ['file' => $this->csv])->assertSuccessful();
 
     $mes = PlantMonthlyKpi::withoutGlobalScopes()->where('year', 2026)->where('month', 1)->first();
@@ -104,9 +105,64 @@ it('rechaza un CSV sin las columnas que necesita', function (): void {
 });
 
 it('avisa y sigue cuando una fila trae un período imposible', function (): void {
-    escribirCsv($this->csv, "2026,13,100,200,300,\n2026,1,13828,31115,118117,\n");
+    escribirCsv($this->csv, "2026,13,100,200,300,,\n2026,1,13828,31115,118117,,\n");
 
     $this->artisan('energy:import-history', ['file' => $this->csv])->assertSuccessful();
 
     expect(PlantMonthlyKpi::withoutGlobalScopes()->count())->toBe(1);
+});
+
+// ── La fruta, que es el denominador ──────────────────────────────────────────
+
+it('carga las toneladas y con ellas aparece el KWh/RFF', function (): void {
+    escribirCsv($this->csv, '2026,1,13828,31115,118117,5320,
+');
+
+    $this->artisan('energy:import-history', ['file' => $this->csv])->assertSuccessful();
+
+    $mes = PlantMonthlyKpi::withoutGlobalScopes()->where('year', 2026)->where('month', 1)->first();
+
+    expect($mes->processed_tons)->toBe(5320.0)
+        // 163.060 / 5.320 = 30,65 kWh por tonelada, la cifra de la hoja.
+        ->and($mes->kwh_per_ton)->toBe(30.65)
+        // Marcada como manual: son totales del mes, sin los días detrás.
+        ->and($mes->processed_tons_is_manual)->toBeTrue();
+});
+
+it('deja el mes sin fruta sin denominador, en vez de inventarlo', function (): void {
+    // Agosto de 2026 no trae RFF en la hoja: por eso ahí el Excel muestra #DIV/0!.
+    escribirCsv($this->csv, '2026,8,1277,12363,63454,,
+');
+
+    $this->artisan('energy:import-history', ['file' => $this->csv])->assertSuccessful();
+
+    $mes = PlantMonthlyKpi::withoutGlobalScopes()->where('year', 2026)->where('month', 8)->first();
+
+    expect($mes->kwh_total)->toBe(77094.0)
+        ->and($mes->kwh_per_ton)->toBeNull()
+        ->and($mes->processed_tons_is_manual)->toBeFalse();
+});
+
+it('el cierre mensual no pisa la fruta importada', function (): void {
+    escribirCsv($this->csv, '2026,1,13828,31115,118117,5320,
+');
+    $this->artisan('energy:import-history', ['file' => $this->csv])->assertSuccessful();
+
+    // Sin la marca de manual, recalcular el mes buscaría los días en el calendario de
+    // producción, no encontraría ninguno, y dejaría la fruta en cero.
+    app(PlantKpiService::class)->snapshotMonth($this->plant, 2026, 1);
+
+    $mes = PlantMonthlyKpi::withoutGlobalScopes()->where('year', 2026)->where('month', 1)->first();
+
+    expect($mes->processed_tons)->toBe(5320.0)
+        ->and($mes->kwh_per_ton)->toBe(30.65);
+});
+
+it('sigue aceptando un CSV sin la columna de fruta', function (): void {
+    file_put_contents($this->csv, "anio,mes,kwh_red,kwh_planta,kwh_turbina\n2026,1,13828,31115,118117\n");
+
+    $this->artisan('energy:import-history', ['file' => $this->csv])->assertSuccessful();
+
+    expect(PlantMonthlyKpi::withoutGlobalScopes()->where('year', 2026)->first()->kwh_total)
+        ->toBe(163060.0);
 });

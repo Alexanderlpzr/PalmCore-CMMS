@@ -19,6 +19,15 @@ use Illuminate\Support\Facades\DB;
  * los respeta. Sin esa marca, el primer recálculo los pondría en cero: sus lecturas
  * diarias nunca existieron, viven solo como total del mes.
  *
+ * La columna `rff_toneladas` es opcional y trae la fila RFF/MES de la misma hoja. Es el
+ * denominador de KWh/RFF, y sin ella el indicador principal no existe. Se guarda marcada
+ * como manual, por la misma razón: son totales del mes, sin los días detrás.
+ *
+ * El corolario hay que tenerlo presente: un mes con la fruta importada ya no la
+ * recalcula desde el calendario de producción. Si más adelante se carga la producción
+ * diaria de esos meses y se quiere que mande, hay que limpiarles
+ * `processed_tons_is_manual`.
+ *
  * Tres reglas que el CSV ya trae aplicadas y conviene no deshacer:
  *
  *   - Una celda vacía entra como NULL, no como cero. En 2025 hay cinco meses sin dato
@@ -33,7 +42,7 @@ use Illuminate\Support\Facades\DB;
 class ImportEnergyHistory extends Command
 {
     protected $signature = 'energy:import-history
-        {file : Ruta al CSV con las columnas anio,mes,kwh_red,kwh_planta,kwh_turbina}
+        {file : Ruta al CSV con las columnas anio,mes,kwh_red,kwh_planta,kwh_turbina y, opcional, rff_toneladas}
         {--tenant= : Slug o ID de la organización}
         {--plant= : Código o ID de la planta (por defecto, la única que haya)}
         {--dry-run : Muestra lo que se cargaría sin escribir nada}';
@@ -80,19 +89,30 @@ class ImportEnergyHistory extends Command
                     ->where('month', $row['mes'])
                     ->first();
 
+                $payload = [
+                    'tenant_id' => $plant->tenant_id,
+                    'kwh_grid' => $row['red'],
+                    'kwh_genset' => $row['planta'],
+                    'kwh_turbine' => $row['turbina'],
+                    'energy_is_imported' => true,
+                    // Un mes importado no se «calculó» nunca: se cargó. Pero la
+                    // columna es obligatoria y la fecha de carga es la respuesta
+                    // honesta a «desde cuándo está este número aquí».
+                    'calculated_at' => $existing?->calculated_at ?? now(),
+                ];
+
+                // La fruta del mes viene de la misma hoja, y es el denominador sin el
+                // cual KWh/RFF no existe. Va marcada como manual porque lo es: son
+                // totales mensuales, sin los días detrás que el cierre suele sumar. Sin
+                // esa marca, el primer recálculo los pondría en cero.
+                if ($row['rff'] !== null) {
+                    $payload['processed_tons'] = $row['rff'];
+                    $payload['processed_tons_is_manual'] = true;
+                }
+
                 PlantMonthlyKpi::withoutGlobalScopes()->updateOrCreate(
                     ['plant_id' => $plant->id, 'year' => $row['anio'], 'month' => $row['mes']],
-                    [
-                        'tenant_id' => $plant->tenant_id,
-                        'kwh_grid' => $row['red'],
-                        'kwh_genset' => $row['planta'],
-                        'kwh_turbine' => $row['turbina'],
-                        'energy_is_imported' => true,
-                        // Un mes importado no se «calculó» nunca: se cargó. Pero la
-                        // columna es obligatoria y la fecha de carga es la respuesta
-                        // honesta a «desde cuándo está este número aquí».
-                        'calculated_at' => $existing?->calculated_at ?? now(),
-                    ],
+                    $payload,
                 );
 
                 $existing === null ? $created++ : $updated++;
@@ -101,10 +121,10 @@ class ImportEnergyHistory extends Command
 
         if ($dryRun) {
             $this->table(
-                ['Año', 'Mes', 'Red', 'Planta', 'Turbina'],
+                ['Año', 'Mes', 'Red', 'Planta', 'Turbina', 'RFF (t)'],
                 array_map(fn (array $r): array => [
                     $r['anio'], $r['mes'],
-                    $r['red'] ?? '—', $r['planta'] ?? '—', $r['turbina'] ?? '—',
+                    $r['red'] ?? '—', $r['planta'] ?? '—', $r['turbina'] ?? '—', $r['rff'] ?? '—',
                 ], $rows),
             );
             $this->info(count($rows).' meses se cargarían. Nada se escribió (--dry-run).');
@@ -120,7 +140,7 @@ class ImportEnergyHistory extends Command
     }
 
     /**
-     * @return list<array{anio: int, mes: int, red: ?float, planta: ?float, turbina: ?float}>|null
+     * @return list<array{anio: int, mes: int, red: ?float, planta: ?float, turbina: ?float, rff: ?float}>|null
      */
     private function readCsv(string $file): ?array
     {
@@ -178,13 +198,18 @@ class ImportEnergyHistory extends Command
             $red = $value('kwh_red');
             $planta = $value('kwh_planta');
             $turbina = $value('kwh_turbina');
+            // Opcional: la hoja de energía la trae, pero un CSV solo de kWh sigue siendo
+            // válido. `array_key_exists` y no `??`, para no confundir «columna ausente»
+            // con «celda vacía».
+            $rff = array_key_exists('rff_toneladas', $index) ? $value('rff_toneladas') : null;
 
-            // Un mes sin ninguna de las tres cifras no es un mes de cero consumo.
-            if ($red === null && $planta === null && $turbina === null) {
+            // Un mes sin ninguna cifra no es un mes de cero consumo: es un mes que
+            // nadie cargó.
+            if ($red === null && $planta === null && $turbina === null && $rff === null) {
                 continue;
             }
 
-            $rows[] = ['anio' => $anio, 'mes' => $mes, 'red' => $red, 'planta' => $planta, 'turbina' => $turbina];
+            $rows[] = ['anio' => $anio, 'mes' => $mes, 'red' => $red, 'planta' => $planta, 'turbina' => $turbina, 'rff' => $rff];
         }
 
         fclose($handle);
