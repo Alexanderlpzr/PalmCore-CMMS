@@ -30,10 +30,12 @@ class ProductionCalendarDayForm
                 ->maxValue(24)
                 ->required(),
             TextInput::make('processed_tons')
-                ->label('Fruta procesada (t)')
-                ->helperText('Toneladas de RFF que entraron ese día. Es el numerador de la productividad de planta.')
+                ->label('Fruta procesada (toneladas)')
+                ->helperText('Toneladas de RFF que entraron ese día, no kilos. Un día bueno son unas 250 t. Es el numerador de la productividad de planta.')
                 ->numeric()
                 ->minValue(0)
+                // Un mes entero se cargó una vez en kilogramos y entró sin protestar.
+                ->maxValue(2000)
                 ->default(0)
                 ->required(),
             Textarea::make('notes')

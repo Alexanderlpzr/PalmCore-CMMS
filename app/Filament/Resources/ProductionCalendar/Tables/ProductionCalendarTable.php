@@ -39,7 +39,8 @@ class ProductionCalendarTable
                 TextInputColumn::make('processed_tons')
                     ->label('Fruta procesada (t)')
                     ->type('number')
-                    ->rules(['numeric', 'min:0'])
+                    // El techo de cordura: en toneladas, no en kilos.
+                    ->rules(['numeric', 'min:0', 'max:2000'])
                     ->summarize(Sum::make()->label('Total del periodo')),
                 TextColumn::make('notes')
                     ->label('Notas')

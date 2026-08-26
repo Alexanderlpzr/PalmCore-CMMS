@@ -21,7 +21,7 @@ class UpsertProductionCalendarRequest extends FormRequest
             'days.*.programmed_hours' => ['required', 'numeric', 'min:0', 'max:24'],
             // Opcional a propósito: el planificador programa el mes por adelantado,
             // cuando todavía no hay fruta que declarar. La tonelada se llena después.
-            'days.*.processed_tons' => ['sometimes', 'nullable', 'numeric', 'min:0'],
+            'days.*.processed_tons' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:2000'],
             'days.*.notes' => ['sometimes', 'nullable', 'string', 'max:500'],
         ];
     }
@@ -31,6 +31,7 @@ class UpsertProductionCalendarRequest extends FormRequest
     {
         return [
             'days.*.programmed_hours.max' => 'Un día no puede tener más de 24 horas programadas.',
+            'days.*.processed_tons.max' => 'Esa cifra está muy por encima de lo que una planta prensa en un día. ¿Están en kilogramos?',
         ];
     }
 }
