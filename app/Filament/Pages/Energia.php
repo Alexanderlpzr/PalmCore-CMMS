@@ -3,11 +3,13 @@
 namespace App\Filament\Pages;
 
 use App\Domain\Energy\Services\EnergyMeterReadingService;
+use App\Exceptions\BusinessRuleException;
 use App\Models\EnergyMeter;
 use App\Models\Plant;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -189,6 +191,16 @@ class Energia extends Page
                         ->placeholder('Sin leer'),
 
                     Text::make(fn (): string => $this->consumptionLabel($meter)),
+
+                    // Solo aparece cuando el consumo del día se sale de lo habitual. Un
+                    // contador acumulado no tiene techo, así que la única forma de
+                    // atrapar un dígito de más es compararlo con lo que ese aparato
+                    // acostumbra. Se puede confirmar: el guardia se equivoca a veces, y
+                    // un sistema que no deja registrar lo que pasó no se usa.
+                    Checkbox::make("readings.{$meter->id}.force")
+                        ->label('La lectura es correcta, guárdala igual')
+                        ->columnSpanFull()
+                        ->visible(fn (): bool => $this->warningFor($meter) !== null),
                 ]);
         }
 
@@ -220,7 +232,26 @@ class Energia extends Page
                 .number_format((float) $typed, 0, ',', '.').' kWh contarán como consumo.';
         }
 
+        $aviso = $this->warningFor($meter);
+
+        if ($aviso !== null) {
+            return '⚠ '.$aviso;
+        }
+
         return 'Consumo del día: '.number_format($delta, 0, ',', '.').' kWh';
+    }
+
+    /** El aviso de plausibilidad para lo que se está tecleando ahora mismo, si lo hay. */
+    private function warningFor(EnergyMeter $meter): ?string
+    {
+        $typed = $this->data['readings'][$meter->id]['reading_value'] ?? null;
+
+        if ($typed === null || $typed === '') {
+            return null;
+        }
+
+        return app(EnergyMeterReadingService::class)
+            ->implausibilityWarning($meter, (float) $typed, $this->readingDate());
     }
 
     // ── Guardado ──────────────────────────────────────────────────────────────
@@ -249,8 +280,25 @@ class Energia extends Page
             }
 
             try {
-                $service->record($meter, (float) $value, auth()->user(), $date);
+                $service->record(
+                    meter: $meter,
+                    readingValue: (float) $value,
+                    recordedBy: auth()->user(),
+                    readingDate: $date,
+                    force: (bool) ($state['readings'][$meter->id]['force'] ?? false),
+                );
                 $saved++;
+            } catch (BusinessRuleException $e) {
+                // El aviso de plausibilidad: no se guarda nada hasta que se confirme, y la
+                // casilla ya está a la vista junto al contador que lo disparó.
+                Notification::make()
+                    ->title('Revisa esa lectura')
+                    ->body($e->getMessage())
+                    ->warning()
+                    ->persistent()
+                    ->send();
+
+                return;
             } catch (\InvalidArgumentException $e) {
                 Notification::make()
                     ->title($meter->name.': '.$e->getMessage())
@@ -298,7 +346,12 @@ class Energia extends Page
         foreach ($this->meters() as $meter) {
             $existing = $meter->readings()->where('reading_date', $date)->first();
 
-            $readings[$meter->id] = ['reading_value' => $existing?->reading_value];
+            $readings[$meter->id] = [
+                'reading_value' => $existing?->reading_value,
+                // La confirmación no se hereda: vale para la lectura que se acaba de
+                // teclear, no para la siguiente.
+                'force' => false,
+            ];
         }
 
         $this->data['readings'] = $readings;

@@ -3,6 +3,7 @@
 namespace App\Domain\Energy\Services;
 
 use App\Domain\Maintenance\Services\EquipmentMeterReadingService;
+use App\Exceptions\BusinessRuleException;
 use App\Models\EnergyMeter;
 use App\Models\EnergyMeterReading;
 use App\Models\User;
@@ -25,11 +26,35 @@ use Illuminate\Support\Facades\DB;
 class EnergyMeterReadingService
 {
     /**
+     * Cuántas veces la mediana histórica puede crecer el consumo de un día antes de que
+     * deje de parecer un día raro y empiece a parecer un dedo.
+     *
+     * Medido contra los datos reales de la planta: la turbina y el generador varían 1,5×
+     * entre su día flojo y su día fuerte, pero la red pública llega a 6,6× porque es la
+     * fuente de respaldo y se usa a saltos. Quince deja esa variación real muy holgada, y
+     * sigue atrapando un dígito de más, que multiplica el consumo por miles.
+     */
+    private const IMPLAUSIBLE_DELTA_FACTOR = 15;
+
+    /**
+     * Cuántas lecturas hacen falta antes de opinar sobre lo que es normal.
+     *
+     * Con dos días no hay «lo habitual» de nada, y rechazar la tercera lectura de un
+     * contador recién puesto en servicio sería un guardia que estorba sin proteger.
+     */
+    private const MIN_HISTORY_FOR_PLAUSIBILITY = 4;
+
+    /**
      * Registra la lectura de un día. Si ese día ya tenía lectura, la corrige.
      *
      * La cadena posterior se recalcula solo cuando hace falta: rellenar un día olvidado
      * mueve el delta de todos los días siguientes, y dejarlos como estaban sería
      * exactamente el error que traía la hoja de cálculo.
+     *
+     * `$force` salta la comprobación de plausibilidad. Existe porque el guardia se puede
+     * equivocar —un mes de parada seguido de un arranque puede dar un salto legítimo— y
+     * un sistema que no deja registrar lo que de verdad pasó acaba siendo el sistema que
+     * nadie usa. Pero por defecto protege, y saltárselo es un acto deliberado.
      */
     public function record(
         EnergyMeter $meter,
@@ -37,9 +62,14 @@ class EnergyMeterReadingService
         User $recordedBy,
         Carbon $readingDate,
         ?string $notes = null,
+        bool $force = false,
     ): EnergyMeterReading {
         if ($readingValue < 0) {
             throw new \InvalidArgumentException('La lectura de un contador no puede ser negativa.');
+        }
+
+        if (! $force && ($aviso = $this->implausibilityWarning($meter, $readingValue, $readingDate)) !== null) {
+            throw new BusinessRuleException($aviso);
         }
 
         return DB::transaction(function () use ($meter, $readingValue, $recordedBy, $readingDate, $notes): EnergyMeterReading {
@@ -157,6 +187,81 @@ class EnergyMeterReadingService
             ->where('energy_meter_id', $meter->id)
             ->whereBetween('reading_date', [$from->toDateString(), $to->toDateString()])
             ->sum('delta'), 1);
+    }
+
+    /**
+     * El aviso cuando el consumo de un día se sale de lo que ese contador acostumbra, o
+     * `null` si la lectura es creíble.
+     *
+     * Existe por un modo de fallo concreto que el tope absoluto no cubre: un contador
+     * acumulado crece sin límite, así que no hay número máximo que ponerle. Pero un
+     * dígito de más —24.637.790 en vez de 2.463.979— convierte un día de 5.000 kWh en uno
+     * de 22 millones, y al día siguiente la lectura correcta se lee como contador
+     * reemplazado y vuelve a contar entera. Dos meses arruinados por una tecla.
+     *
+     * Se mide contra la mediana y no contra el promedio a propósito: si una lectura mala
+     * ya entró, el promedio se va con ella y el guardia deja de avisar justo cuando más
+     * falta hace. La mediana aguanta.
+     *
+     * Solo mira hacia arriba. Un consumo anormalmente bajo es un día de planta parada,
+     * que es información legítima y frecuente.
+     */
+    public function implausibilityWarning(EnergyMeter $meter, float $readingValue, Carbon $readingDate): ?string
+    {
+        $date = $readingDate->toDateString();
+        $previousRow = $this->readingBefore($meter, $date);
+
+        // Sin lectura previa no hay consumo que juzgar, y un contador que bajó es un
+        // reemplazo: ese caso ya lo resuelve el reset.
+        if ($previousRow === null || $readingValue < (float) $previousRow->reading_value) {
+            return null;
+        }
+
+        $delta = $readingValue - (float) $previousRow->reading_value;
+        $tipico = $this->typicalDelta($meter, $date);
+
+        if ($tipico === null || $delta <= $tipico * self::IMPLAUSIBLE_DELTA_FACTOR) {
+            return null;
+        }
+
+        return sprintf(
+            '%s: %s kWh en un día, cuando lo habitual en este contador son unos %s. '
+            .'Revisa que no sobre un dígito. Si la lectura es correcta, confírmala.',
+            $meter->name,
+            number_format($delta, 0, ',', '.'),
+            number_format($tipico, 0, ',', '.'),
+        );
+    }
+
+    /**
+     * La mediana de los consumos con movimiento de este contador.
+     *
+     * Los días en cero se descartan: un domingo parado no dice nada sobre cuánto consume
+     * la planta cuando trabaja, y dejarlos dentro hundiría la mediana hasta hacer
+     * sospechoso cualquier día normal.
+     */
+    private function typicalDelta(EnergyMeter $meter, string $date): ?float
+    {
+        $deltas = EnergyMeterReading::withoutGlobalScopes()
+            ->where('energy_meter_id', $meter->id)
+            ->where('reading_date', '<', $date)
+            ->where('delta', '>', 0)
+            ->orderByDesc('reading_date')
+            ->limit(60)
+            ->pluck('delta')
+            ->map(fn ($v): float => (float) $v)
+            ->sort()
+            ->values();
+
+        if ($deltas->count() < self::MIN_HISTORY_FOR_PLAUSIBILITY) {
+            return null;
+        }
+
+        $medio = intdiv($deltas->count(), 2);
+
+        return $deltas->count() % 2 === 1
+            ? $deltas[$medio]
+            : round(($deltas[$medio - 1] + $deltas[$medio]) / 2, 1);
     }
 
     private function readingBefore(EnergyMeter $meter, string $date): ?EnergyMeterReading
