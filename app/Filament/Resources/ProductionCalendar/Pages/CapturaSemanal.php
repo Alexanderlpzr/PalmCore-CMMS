@@ -187,9 +187,16 @@ class CapturaSemanal extends Page
                         ->placeholder($isFuture ? 'Aún no ocurre' : 'Sin cargar'),
 
                     TextInput::make("days.{$key}.processed_tons")
-                        ->label('Fruta procesada (t)')
+                        ->label('Fruta procesada (toneladas)')
+                        // El tope existe porque ya pasó: un mes entero se cargó en
+                        // kilogramos y entró sin protestar, inflando la productividad y
+                        // el kWh por tonelada mil veces. Dos mil toneladas en un día está
+                        // muy por encima de lo que la planta puede prensar, así que no
+                        // estorba a nadie y ataja el error de unidad.
+                        ->helperText('En toneladas, no en kilos. Un día bueno son unas 250 t.')
                         ->numeric()
                         ->minValue(0)
+                        ->maxValue(2000)
                         ->disabled($isFuture)
                         ->placeholder($isFuture ? '—' : '0'),
                 ]);

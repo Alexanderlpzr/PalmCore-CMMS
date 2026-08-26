@@ -27,6 +27,14 @@ use Illuminate\Support\Facades\DB;
 class ProductionCalendarService
 {
     /**
+     * Techo de cordura para la fruta de un día, en toneladas.
+     *
+     * No es la capacidad de ninguna planta concreta: es el orden de magnitud a partir del
+     * cual la cifra ya no puede ser toneladas. El Pajuil hace unas 250 t en un buen día.
+     */
+    private const MAX_DAILY_TONS = 2000;
+
+    /**
      * Programa un mes completo con una jornada fija por día.
      *
      * Los días que ya tienen horas registradas **no se tocan** salvo que se pida
@@ -156,6 +164,18 @@ class ProductionCalendarService
 
             if ($tons < 0) {
                 throw new BusinessRuleException('La fruta procesada no puede ser negativa.');
+            }
+
+            // El tope de unidad. Un mes entero se cargó una vez en kilogramos y entró sin
+            // protestar: la productividad y el kWh por tonelada salieron mil veces
+            // inflados y nadie lo notó hasta cruzarlos contra el consumo eléctrico. Dos
+            // mil toneladas en un día están muy por encima de la capacidad de la planta,
+            // así que el límite no estorba a un dato legítimo y ataja el error.
+            if ($tons > self::MAX_DAILY_TONS) {
+                throw new BusinessRuleException(
+                    "El día {$day->toDateString()} trae {$tons} t, muy por encima de lo que "
+                    .'una planta puede prensar en un día. ¿Están en kilogramos?'
+                );
             }
 
             $writable[$day->toDateString()] = [

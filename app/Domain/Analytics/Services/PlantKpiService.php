@@ -399,9 +399,15 @@ class PlantKpiService
      * el mes en curso solo existe como lecturas. Por cada mes se prefiere la fila del
      * cierre cuando trae energía, y si no, se suman las lecturas.
      *
-     * Las toneladas salen de la misma fila del cierre, y si no hay, del calendario de
-     * producción — el mismo denominador que la productividad en t/h, sin capturarlo dos
-     * veces.
+     * Las toneladas salen de la fila del cierre **solo si trae alguna**, y si no, del
+     * calendario de producción — el mismo denominador que la productividad en t/h, sin
+     * capturarlo dos veces.
+     *
+     * Esa condición no es cosmética. `processed_tons` tiene DEFAULT 0, así que un mes con
+     * la energía importada del Excel nace con la fruta en cero, no en nulo. Preferir la
+     * fila sin mirar el valor dejaba el indicador en «sin dato» aunque el planificador ya
+     * hubiera cargado la producción del mes en la pantalla semanal. Un mes que de verdad
+     * no produjo da cero por los dos caminos, así que la preferencia no pierde nada.
      *
      * @return array{
      *     kwh_grid: ?float, kwh_genset: ?float, kwh_turbine: ?float,
@@ -440,7 +446,7 @@ class PlantKpiService
                 }
             }
 
-            $tons += $row?->processed_tons !== null
+            $tons += ((float) ($row?->processed_tons ?? 0)) > 0
                 ? (float) $row->processed_tons
                 : $this->processedTons($plant, $monthStart, $monthEnd);
 

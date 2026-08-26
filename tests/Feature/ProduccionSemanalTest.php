@@ -177,3 +177,27 @@ it('la planta guarda su semana desde la pantalla', function (): void {
     expect(ProductionCalendarDay::withoutGlobalScopes()
         ->where('plant_id', $this->plant->id)->count())->toBe(7);
 });
+
+// ── El tope de unidad ────────────────────────────────────────────────────────
+
+it('rechaza una jornada con toneladas en kilogramos', function (): void {
+    // Pasó de verdad: un mes entero se cargó en kilos y entró sin protestar, inflando
+    // mil veces la productividad y el kWh por tonelada.
+    expect(fn () => app(ProductionCalendarService::class)->upsertWeek(
+        plant: $this->plant,
+        weekStart: Carbon::parse('2026-08-17'),
+        days: ['2026-08-19' => ['programmed_hours' => 22, 'processed_tons' => 336040]],
+    ))->toThrow(BusinessRuleException::class);
+});
+
+it('acepta una jornada de producción normal', function (): void {
+    app(ProductionCalendarService::class)->upsertWeek(
+        plant: $this->plant,
+        weekStart: Carbon::parse('2026-08-17'),
+        days: ['2026-08-19' => ['programmed_hours' => 22, 'processed_tons' => 336.04]],
+    );
+
+    expect(ProductionCalendarDay::withoutGlobalScopes()
+        ->where('calendar_date', '2026-08-19')->first()->processed_tons)
+        ->toBe(336.04);
+});

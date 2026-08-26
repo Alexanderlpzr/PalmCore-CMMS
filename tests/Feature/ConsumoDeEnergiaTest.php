@@ -214,3 +214,70 @@ it('arma la tabla del año con las cifras de la planilla', function (): void {
         // Los nueve meses sin cargar se pintan con un guion, no con un cero.
         ->assertSee('—');
 });
+
+// ── El denominador que venía del calendario ──────────────────────────────────
+
+it('toma la fruta del calendario cuando el cierre no la trae', function (): void {
+    // El caso real que lo destapó: agosto de 2026 tenía la energía importada del Excel
+    // —lo que crea la fila del cierre con processed_tons en su DEFAULT de cero— y la
+    // producción cargada día a día en la pantalla semanal. El indicador decía «sin dato»
+    // porque prefería la fila sin mirar si traía algo.
+    PlantMonthlyKpi::withoutGlobalScopes()->create([
+        'tenant_id' => $this->tenant->id,
+        'plant_id' => $this->plant->id,
+        'year' => 2026, 'month' => 8,
+        'kwh_grid' => 1277, 'kwh_genset' => 12363, 'kwh_turbine' => 63454,
+        'energy_is_imported' => true,
+        'calculated_at' => now(),
+    ]);
+
+    foreach (['2026-08-03' => 196.35, '2026-08-04' => 223.75, '2026-08-05' => 246.00] as $dia => $t) {
+        ProductionCalendarDay::withoutGlobalScopes()->create([
+            'tenant_id' => $this->tenant->id,
+            'plant_id' => $this->plant->id,
+            'calendar_date' => $dia,
+            'programmed_hours' => 16,
+            'processed_tons' => $t,
+        ]);
+    }
+
+    $energia = $this->service->energySummary(
+        $this->plant,
+        Carbon::parse('2026-08-01'),
+        Carbon::parse('2026-08-31'),
+    );
+
+    // 666,10 t del calendario, y con ellas el indicador ya existe.
+    expect($energia['processed_tons'])->toBe(666.1)
+        ->and($energia['kwh_per_ton'])->toBe(115.74);
+});
+
+it('sigue prefiriendo la fruta del cierre cuando la trae', function (): void {
+    PlantMonthlyKpi::withoutGlobalScopes()->create([
+        'tenant_id' => $this->tenant->id,
+        'plant_id' => $this->plant->id,
+        'year' => 2026, 'month' => 1,
+        'processed_tons' => 5320,
+        'kwh_grid' => 13828, 'kwh_genset' => 31115, 'kwh_turbine' => 118117,
+        'energy_is_imported' => true,
+        'calculated_at' => now(),
+    ]);
+
+    // Un día suelto en el calendario no debe desplazar al total del mes ya cerrado.
+    ProductionCalendarDay::withoutGlobalScopes()->create([
+        'tenant_id' => $this->tenant->id,
+        'plant_id' => $this->plant->id,
+        'calendar_date' => '2026-01-15',
+        'programmed_hours' => 20,
+        'processed_tons' => 250,
+    ]);
+
+    $energia = $this->service->energySummary(
+        $this->plant,
+        Carbon::parse('2026-01-01'),
+        Carbon::parse('2026-01-31'),
+    );
+
+    expect($energia['processed_tons'])->toBe(5320.0)
+        ->and($energia['kwh_per_ton'])->toBe(30.65);
+});
