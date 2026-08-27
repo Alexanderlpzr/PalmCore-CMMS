@@ -12,9 +12,12 @@ use App\Models\ProductionCalendarDay;
 use Filament\Actions\Action;
 use Filament\Actions\Concerns\InteractsWithActions;
 use Filament\Actions\Contracts\HasActions;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Text;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Concerns\InteractsWithSchemas;
 use Filament\Schemas\Contracts\HasSchemas;
 use Filament\Widgets\Concerns\InteractsWithPageFilters;
@@ -89,12 +92,8 @@ class PlantEnergyYearTableWidget extends Widget implements HasActions, HasSchema
             'rows' => $this->buildRows($kpis),
             'empty' => false,
             'canEdit' => $this->canEditEnergy(),
-            // La vuelta atrás solo tiene sentido donde hay a qué volver: un mes fijado a
-            // mano que además tiene lecturas diarias detrás.
-            'manualMonths' => $kpis
-                ->filter(fn (PlantMonthlyKpi $k): bool => $k->energy_is_imported || $k->processed_tons_is_manual)
-                ->keys()
-                ->all(),
+            'manualMonths' => $this->manualMonths(),
+            'recalculableMonths' => $this->recalculableMonths(),
         ];
     }
 
@@ -202,13 +201,31 @@ class PlantEnergyYearTableWidget extends Widget implements HasActions, HasSchema
     public function editMonthAction(): Action
     {
         return Action::make('editMonth')
-            ->label('Corregir mes')
+            ->label('Corregir un mes')
             ->icon('heroicon-o-pencil-square')
-            ->modalHeading(fn (array $arguments): string => 'Corregir '.$this->monthName((int) ($arguments['month'] ?? 1)))
-            ->modalDescription(fn (array $arguments): ?string => $this->editWarning((int) ($arguments['month'] ?? 1)))
+            ->modalHeading('Corregir un mes de '.$this->selectedYear())
+            ->modalDescription('Se eligen el mes y sus cuatro cifras. Los tres indicadores derivados se recalculan solos al guardar.')
             ->modalSubmitActionLabel('Guardar la corrección')
-            ->fillForm(fn (array $arguments): array => $this->currentValues((int) ($arguments['month'] ?? 1)))
             ->schema([
+                // El mes se elige aquí y no en la tabla: doce botones repartidos por la
+                // cabecera reventaban el ancho de las columnas y escondían el resto del
+                // año detrás de un scroll horizontal.
+                Select::make('month')
+                    ->label('Mes')
+                    ->options(fn (): array => $this->monthOptions())
+                    ->default((int) now()->month)
+                    ->required()
+                    ->native(false)
+                    ->live()
+                    ->afterStateUpdated(function (?string $state, Set $set): void {
+                        foreach ($this->currentValues((int) $state) as $campo => $valor) {
+                            $set($campo, $valor);
+                        }
+                    }),
+
+                Text::make(fn (Get $get): string => $this->editWarning((int) $get('month'))
+                    ?? 'Este mes no tiene lecturas diarias detrás: corregirlo aquí es la única forma de arreglarlo.'),
+
                 TextInput::make('processed_tons')
                     ->label('RFF/MES — fruta procesada (toneladas)')
                     ->helperText('En toneladas, no en kilos. Un mes de esta planta son unas 5.000–6.800 t.')
@@ -228,18 +245,22 @@ class PlantEnergyYearTableWidget extends Widget implements HasActions, HasSchema
                     ->helperText('Déjalo vacío si no se sabe. Vacío y cero no son lo mismo: cero afirma que la turbina no generó nada.')
                     ->numeric()
                     ->minValue(0),
-                Text::make('KWh TOTAL, KWh/RFF y ENERGÍA LIMPIA no se teclean: el sistema los recalcula con estas cuatro cifras al guardar.'),
+
+                Text::make('KWh TOTAL, KWh/RFF y ENERGÍA LIMPIA no se teclean: el sistema los calcula con estas cuatro cifras.'),
             ])
-            ->action(function (array $arguments, array $data): void {
+            ->fillForm(fn (): array => ['month' => (int) now()->month] + $this->currentValues((int) now()->month))
+            ->action(function (array $data): void {
                 $plant = $this->selectedPlant();
 
                 if ($plant === null) {
                     return;
                 }
 
+                $month = (int) $data['month'];
+
                 try {
                     app(MonthlyEnergyCorrectionService::class)
-                        ->apply($plant, $this->selectedYear(), (int) $arguments['month'], $data);
+                        ->apply($plant, $this->selectedYear(), $month, $data);
                 } catch (BusinessRuleException $e) {
                     Notification::make()->title($e->getMessage())->danger()->persistent()->send();
 
@@ -247,7 +268,7 @@ class PlantEnergyYearTableWidget extends Widget implements HasActions, HasSchema
                 }
 
                 Notification::make()
-                    ->title($this->monthName((int) $arguments['month']).' corregido')
+                    ->title($this->monthName($month).' corregido')
                     ->body('Los indicadores derivados se recalcularon solos.')
                     ->success()
                     ->send();
@@ -265,28 +286,64 @@ class PlantEnergyYearTableWidget extends Widget implements HasActions, HasSchema
     public function recalculateMonthAction(): Action
     {
         return Action::make('recalculateMonth')
-            ->label('Recalcular desde las lecturas')
-            ->icon('heroicon-o-arrow-path')
+            ->label('Deshacer una corrección')
+            ->icon('heroicon-o-arrow-uturn-left')
             ->color('gray')
-            ->requiresConfirmation()
-            ->modalHeading(fn (array $arguments): string => 'Recalcular '.$this->monthName((int) ($arguments['month'] ?? 1)))
-            ->modalDescription('Se descarta la corrección manual y el mes vuelve a lo que suman las lecturas diarias de los contadores.')
-            ->action(function (array $arguments): void {
+            ->modalHeading('Volver a lo que dicen los contadores')
+            ->modalDescription('Se descarta la corrección manual y el mes vuelve a lo que suman sus lecturas diarias.')
+            ->modalSubmitActionLabel('Deshacer')
+            ->schema([
+                Select::make('month')
+                    ->label('Mes corregido a mano')
+                    ->options(fn (): array => $this->recalculableMonthOptions())
+                    ->required()
+                    ->native(false),
+            ])
+            ->action(function (array $data): void {
                 $plant = $this->selectedPlant();
 
                 if ($plant === null) {
                     return;
                 }
 
+                $month = (int) $data['month'];
+
                 app(MonthlyEnergyCorrectionService::class)
-                    ->recalculateFromReadings($plant, $this->selectedYear(), (int) $arguments['month']);
+                    ->recalculateFromReadings($plant, $this->selectedYear(), $month);
 
                 Notification::make()
-                    ->title($this->monthName((int) $arguments['month']).' recalculado')
+                    ->title($this->monthName($month).' recalculado')
+                    ->body('Vuelve a seguir las lecturas diarias de los contadores.')
                     ->success()
                     ->send();
             })
-            ->visible(fn (): bool => $this->canEditEnergy());
+            // Solo cuando hay algo que deshacer: un mes fijado a mano que además tiene
+            // lecturas diarias a las que volver.
+            ->visible(fn (): bool => $this->canEditEnergy() && $this->recalculableMonths() !== []);
+    }
+
+    /** @return array<int, string> */
+    private function monthOptions(): array
+    {
+        $opciones = [];
+
+        for ($m = 1; $m <= 12; $m++) {
+            $opciones[$m] = ucfirst(Carbon::create($this->selectedYear(), $m, 1)->translatedFormat('F'));
+        }
+
+        return $opciones;
+    }
+
+    /** @return array<int, string> */
+    private function recalculableMonthOptions(): array
+    {
+        $nombres = $this->monthOptions();
+
+        return array_reduce(
+            $this->recalculableMonths(),
+            fn (array $carry, int $m): array => $carry + [$m => $nombres[$m]],
+            [],
+        );
     }
 
     /** @return array<string, float|null> */
@@ -330,6 +387,49 @@ class PlantEnergyYearTableWidget extends Widget implements HasActions, HasSchema
     private function monthName(int $month): string
     {
         return Carbon::create($this->selectedYear(), $month, 1)->translatedFormat('F Y');
+    }
+
+    /** Los meses que alguien fijó a mano, para marcarlos en la tabla. */
+    private function manualMonths(): array
+    {
+        $plant = $this->selectedPlant();
+
+        if ($plant === null) {
+            return [];
+        }
+
+        return PlantMonthlyKpi::withoutGlobalScopes()
+            ->where('plant_id', $plant->id)
+            ->where('year', $this->selectedYear())
+            ->where(fn ($q) => $q->where('energy_is_imported', true)->orWhere('processed_tons_is_manual', true))
+            ->pluck('month')
+            ->all();
+    }
+
+    /**
+     * Los meses a los que de verdad se puede volver.
+     *
+     * Exige las dos condiciones, y la segunda es la que faltaba: estar fijado a mano **y**
+     * tener lecturas diarias detrás. Ofrecerlo sobre un mes importado del Excel —que no
+     * tiene ninguna— era un botón que borraba el mes: limpiaba las marcas y recalculaba
+     * sobre cero lecturas, dejando en nulo unas cifras que solo existen ahí.
+     *
+     * @return list<int>
+     */
+    private function recalculableMonths(): array
+    {
+        $plant = $this->selectedPlant();
+
+        if ($plant === null) {
+            return [];
+        }
+
+        $service = app(MonthlyEnergyCorrectionService::class);
+
+        return array_values(array_filter(
+            $this->manualMonths(),
+            fn (int $month): bool => $service->hasDailyReadings($plant, $this->selectedYear(), $month),
+        ));
     }
 
     private function canEditEnergy(): bool

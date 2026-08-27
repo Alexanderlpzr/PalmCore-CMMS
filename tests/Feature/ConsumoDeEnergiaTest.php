@@ -284,7 +284,7 @@ it('sigue prefiriendo la fruta del cierre cuando la trae', function (): void {
 
 // ── Corregir desde la planilla ───────────────────────────────────────────────
 
-it('ofrece corregir cada mes a quien tiene permiso', function (): void {
+it('ofrece corregir a quien tiene permiso', function (): void {
     PlantMonthlyKpi::withoutGlobalScopes()->create([
         'tenant_id' => $this->tenant->id,
         'plant_id' => $this->plant->id,
@@ -297,9 +297,11 @@ it('ofrece corregir cada mes a quien tiene permiso', function (): void {
     Livewire::test(PlantEnergyYearTableWidget::class, [
         'pageFilters' => ['plant_id' => $this->plant->id, 'preset' => 'year', 'year' => 2026],
     ])
-        ->assertSee('Corregir mes')
-        // El mes está fijado a mano, así que también se ofrece la vuelta atrás.
-        ->assertSee('Recalcular desde las lecturas');
+        ->assertSee('Corregir un mes')
+        // Enero vino del Excel y no tiene lecturas diarias detrás. Ofrecer «deshacer»
+        // ahí era un boton que borraba el mes: limpiaba las marcas y recalculaba sobre
+        // cero lecturas, dejando en nulo unas cifras que solo existen en esa fila.
+        ->assertDontSee('Deshacer una correccion');
 });
 
 it('corrige el mes desde la propia tabla', function (): void {
@@ -315,7 +317,8 @@ it('corrige el mes desde la propia tabla', function (): void {
 
     Livewire::test(PlantEnergyYearTableWidget::class, [
         'pageFilters' => ['plant_id' => $this->plant->id, 'preset' => 'year', 'year' => 2026],
-    ])->callAction('editMonth', arguments: ['month' => 8], data: [
+    ])->callAction('editMonth', data: [
+        'month' => 8,
         'processed_tons' => 3751.46,
         'kwh_grid' => 1277,
         'kwh_genset' => 12363,
@@ -335,5 +338,27 @@ it('no ofrece corregir a quien solo puede mirar', function (): void {
 
     Livewire::test(PlantEnergyYearTableWidget::class, [
         'pageFilters' => ['plant_id' => $this->plant->id, 'preset' => 'year', 'year' => 2026],
-    ])->assertDontSee('Corregir mes');
+    ])->assertDontSee('Corregir un mes');
+});
+
+it('solo ofrece deshacer donde hay lecturas a las que volver', function (): void {
+    // Agosto con lecturas diarias y fijado a mano: aqui si hay vuelta atras.
+    $turbina = EnergyMeter::factory()->turbine()->create([
+        'tenant_id' => $this->tenant->id, 'plant_id' => $this->plant->id,
+    ]);
+    app(EnergyMeterReadingService::class)
+        ->record($turbina, 2_463_979, $this->user, Carbon::parse('2026-08-19'));
+
+    PlantMonthlyKpi::withoutGlobalScopes()->create([
+        'tenant_id' => $this->tenant->id,
+        'plant_id' => $this->plant->id,
+        'year' => 2026, 'month' => 8,
+        'kwh_turbine' => 999,
+        'energy_is_imported' => true,
+        'calculated_at' => now(),
+    ]);
+
+    Livewire::test(PlantEnergyYearTableWidget::class, [
+        'pageFilters' => ['plant_id' => $this->plant->id, 'preset' => 'year', 'year' => 2026],
+    ])->assertSee('Deshacer una correcci');
 });
