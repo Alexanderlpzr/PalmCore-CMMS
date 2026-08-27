@@ -281,3 +281,59 @@ it('sigue prefiriendo la fruta del cierre cuando la trae', function (): void {
     expect($energia['processed_tons'])->toBe(5320.0)
         ->and($energia['kwh_per_ton'])->toBe(30.65);
 });
+
+// ── Corregir desde la planilla ───────────────────────────────────────────────
+
+it('ofrece corregir cada mes a quien tiene permiso', function (): void {
+    PlantMonthlyKpi::withoutGlobalScopes()->create([
+        'tenant_id' => $this->tenant->id,
+        'plant_id' => $this->plant->id,
+        'year' => 2026, 'month' => 8,
+        'kwh_grid' => 1277, 'kwh_genset' => 12363, 'kwh_turbine' => 67160,
+        'energy_is_imported' => true,
+        'calculated_at' => now(),
+    ]);
+
+    Livewire::test(PlantEnergyYearTableWidget::class, [
+        'pageFilters' => ['plant_id' => $this->plant->id, 'preset' => 'year', 'year' => 2026],
+    ])
+        ->assertSee('Corregir mes')
+        // El mes está fijado a mano, así que también se ofrece la vuelta atrás.
+        ->assertSee('Recalcular desde las lecturas');
+});
+
+it('corrige el mes desde la propia tabla', function (): void {
+    PlantMonthlyKpi::withoutGlobalScopes()->create([
+        'tenant_id' => $this->tenant->id,
+        'plant_id' => $this->plant->id,
+        'year' => 2026, 'month' => 8,
+        'processed_tons' => 3751.46,
+        'kwh_grid' => 1277, 'kwh_genset' => 12363, 'kwh_turbine' => 67160,
+        'energy_is_imported' => true,
+        'calculated_at' => now(),
+    ]);
+
+    Livewire::test(PlantEnergyYearTableWidget::class, [
+        'pageFilters' => ['plant_id' => $this->plant->id, 'preset' => 'year', 'year' => 2026],
+    ])->callAction('editMonth', arguments: ['month' => 8], data: [
+        'processed_tons' => 3751.46,
+        'kwh_grid' => 1277,
+        'kwh_genset' => 12363,
+        'kwh_turbine' => 63454,
+    ]);
+
+    $mes = PlantMonthlyKpi::withoutGlobalScopes()->where('month', 8)->first();
+
+    expect($mes->kwh_turbine)->toBe(63454.0)
+        ->and($mes->clean_energy_percentage)->toBe(82.31);
+});
+
+it('no ofrece corregir a quien solo puede mirar', function (): void {
+    $ajeno = User::factory()->create(['is_active' => true, 'is_super_admin' => false]);
+    $ajeno->tenants()->attach($this->tenant->id, ['joined_at' => now()]);
+    $this->actingAs($ajeno);
+
+    Livewire::test(PlantEnergyYearTableWidget::class, [
+        'pageFilters' => ['plant_id' => $this->plant->id, 'preset' => 'year', 'year' => 2026],
+    ])->assertDontSee('Corregir mes');
+});

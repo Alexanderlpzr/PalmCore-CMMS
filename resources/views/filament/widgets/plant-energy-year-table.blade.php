@@ -27,9 +27,27 @@
                             <th class="sticky left-0 z-10 bg-white dark:bg-gray-900 text-left font-semibold px-3 py-2 border-b border-gray-200 dark:border-white/10 whitespace-nowrap">
                                 PARÁMETROS
                             </th>
-                            @foreach ($months as $label)
+                            @foreach ($months as $numero => $label)
                                 <th class="text-right font-semibold px-3 py-2 border-b border-gray-200 dark:border-white/10 whitespace-nowrap text-gray-600 dark:text-gray-300">
-                                    {{ $label }}
+                                    <div class="flex items-center justify-end gap-1">
+                                        <span>{{ $label }}</span>
+
+                                        {{-- El lápiz vive en la cabecera del mes porque lo que se
+                                             corrige es la columna entera, no una celda: las cuatro
+                                             cifras del mes se editan juntas y las otras tres se
+                                             recalculan solas. --}}
+                                        @if ($canEdit)
+                                            <span class="shrink-0">
+                                                {{ ($this->editMonthAction)(['month' => $numero]) }}
+                                            </span>
+
+                                            @if (in_array($numero, $manualMonths, true))
+                                                <span class="shrink-0" title="Mes fijado a mano">
+                                                    {{ ($this->recalculateMonthAction)(['month' => $numero]) }}
+                                                </span>
+                                            @endif
+                                        @endif
+                                    </div>
                                 </th>
                             @endforeach
                             <th class="text-right font-bold px-3 py-2 border-b border-l border-gray-200 dark:border-white/10 whitespace-nowrap">
@@ -67,5 +85,9 @@
                 </table>
             </div>
         @endif
+
+        {{-- Sin esto los modales de las acciones no se renderizan: el widget no es una
+             página de recurso, así que tiene que montarlos él. --}}
+        <x-filament-actions::modals />
     </x-filament::section>
 </x-filament-widgets::widget>

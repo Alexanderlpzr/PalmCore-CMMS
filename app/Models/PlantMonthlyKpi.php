@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Domain\Shared\Concerns\Auditable;
 use App\Domain\Shared\Concerns\BelongsToTenant;
 use Database\Factories\PlantMonthlyKpiFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -50,6 +51,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 ])]
 class PlantMonthlyKpi extends Model
 {
+    /**
+     * Estas cifras se pueden corregir a mano desde la planilla, y son las que van a
+     * gerencia. Sin rastro de quién cambió qué y desde qué valor, una corrección
+     * legítima y un número inventado se ven exactamente igual.
+     *
+     * El modelo no hereda de BaseModel —no tiene borrado lógico ni lo necesita, es un
+     * cierre— así que el trait se pone aquí explícitamente.
+     */
+    use Auditable;
+
     use BelongsToTenant;
 
     /** @use HasFactory<PlantMonthlyKpiFactory> */
