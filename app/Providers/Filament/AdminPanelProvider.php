@@ -82,14 +82,25 @@ class AdminPanelProvider extends PanelProvider
             // Orden maestro del menú (UX-3). Ordenado por frecuencia de uso
             // operativo real: el ciclo de mantenimiento diario primero, la
             // administración esporádica al final.
+            //
+            // La lista tiene que nombrar **todos** los grupos que use algún recurso.
+            // Filament pinta los no declarados *antes* de los declarados, así que un
+            // grupo olvidado no cae al final: se cuela arriba del todo y deshace este
+            // orden. Es lo que pasó con «Gestión de Activos», que quedó por delante de
+            // Mantenimiento porque aquí figuraba «Estructura Operativa», un nombre que
+            // ningún recurso usaba ya. Hay un test que vigila que no vuelva a pasar.
             ->navigationGroups([
                 NavigationGroup::make('Portal de Inicio'),
                 NavigationGroup::make('Mantenimiento'),
                 NavigationGroup::make('Centro de Alertas'),
                 NavigationGroup::make('Indicadores'),
-                NavigationGroup::make('Estructura Operativa'),
+                NavigationGroup::make('Gestión de Activos'),
+                NavigationGroup::make('Inventario'),
                 NavigationGroup::make('Usuarios & Acceso'),
                 NavigationGroup::make('Automatizaciones'),
+                NavigationGroup::make('Integraciones'),
+                NavigationGroup::make('Configuración'),
+                NavigationGroup::make('Sistema'),
             ])
             ->renderHook(
                 PanelsRenderHook::SIDEBAR_NAV_END,
