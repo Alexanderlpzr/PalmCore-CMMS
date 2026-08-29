@@ -1,4 +1,7 @@
 @php($tabla = $this->monthTable())
+@php($hayLecturas = collect($tabla['days'])->contains(
+    fn (array $day): bool => collect($day['cells'])->contains(fn (array $c): bool => $c['accumulated'] !== null)
+))
 
 {{--
     La mitad de abajo de la hoja que este módulo reemplazó: una fila por día con el
@@ -20,9 +23,12 @@
         <p class="text-sm text-gray-500 dark:text-gray-400">
             Esta planta no tiene contadores configurados.
         </p>
-    @elseif (empty($tabla['days']))
+    {{-- El mes en curso genera sus días hasta hoy aunque ninguno tenga lectura, así que
+         mirar solo si la lista está vacía dejaba la tabla pintando treinta filas de
+         guiones. Lo que importa es si hay alguna lectura, no si hay días. --}}
+    @elseif (! $hayLecturas)
         <p class="text-sm text-gray-500 dark:text-gray-400">
-            Todavía no hay ningún día de este mes.
+            {{ $tabla['monthLabel'] }} todavía no tiene ninguna lectura anotada.
         </p>
     @else
         <div class="overflow-x-auto -mx-2 px-2">

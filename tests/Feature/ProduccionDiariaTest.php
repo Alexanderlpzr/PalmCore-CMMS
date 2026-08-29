@@ -192,3 +192,99 @@ it('se la esconde a quien no tiene el permiso', function (): void {
 
     Livewire::test(CapturaDiaria::class)->assertForbidden();
 });
+
+// ── El calendario del mes ────────────────────────────────────────────────────
+
+it('trae el mes entero, con el día 1 bajo su día de la semana', function (): void {
+    $cal = Livewire::test(CapturaDiaria::class)
+        ->set('data.calendar_date', '2026-08-19')
+        ->instance()
+        ->monthCalendar();
+
+    // Agosto de 2026 empieza en sábado: cinco casillas en blanco antes del 1.
+    expect($cal['days'])->toHaveCount(31)
+        ->and($cal['offset'])->toBe(5)
+        ->and($cal['days'][0]['date'])->toBe('2026-08-01')
+        ->and($cal['monthLabel'])->toContain('Agosto');
+});
+
+it('marca el día que tiene jornada y deja el hueco a la vista', function (): void {
+    $this->service->upsertDay($this->plant, Carbon::parse('2026-08-10'), 16, 196.35);
+
+    $cal = Livewire::test(CapturaDiaria::class)
+        ->set('data.calendar_date', '2026-08-19')
+        ->instance()
+        ->monthCalendar();
+
+    $porFecha = collect($cal['days'])->keyBy('date');
+
+    expect($porFecha['2026-08-10']['has_data'])->toBeTrue()
+        ->and($porFecha['2026-08-11']['has_data'])->toBeFalse();
+});
+
+it('cuenta como anotado el día de aseo, aunque no haya producido fruta', function (): void {
+    // Cero es un dato: un domingo con la planta parada es un día cerrado, no un olvido.
+    $this->service->upsertDay($this->plant, Carbon::parse('2026-08-09'), 0, 0);
+
+    $cal = Livewire::test(CapturaDiaria::class)
+        ->set('data.calendar_date', '2026-08-19')
+        ->instance()
+        ->monthCalendar();
+
+    expect(collect($cal['days'])->keyBy('date')['2026-08-09']['has_data'])->toBeTrue();
+});
+
+it('apaga los días que todavía no han ocurrido', function (): void {
+    $siguiente = Carbon::today()->addMonthNoOverflow()->startOfMonth();
+
+    $cal = Livewire::test(CapturaDiaria::class)
+        ->set('data.calendar_date', $siguiente->toDateString())
+        ->instance()
+        ->monthCalendar();
+
+    // Una jornada que no ha ocurrido no tiene fruta que anotar.
+    expect(collect($cal['days'])->every(fn (array $d): bool => $d['is_future']))->toBeTrue()
+        ->and($cal['legend'])->toContain('Todos los días');
+});
+
+it('resalta el día que está cargado en el formulario', function (): void {
+    $cal = Livewire::test(CapturaDiaria::class)
+        ->set('data.calendar_date', '2026-08-19')
+        ->instance()
+        ->monthCalendar();
+
+    expect(collect($cal['days'])->firstWhere('is_selected', true)['date'])->toBe('2026-08-19');
+});
+
+it('el calendario sigue a la fecha elegida, no al mes actual', function (): void {
+    $cal = Livewire::test(CapturaDiaria::class)
+        ->set('data.calendar_date', '2026-07-15')
+        ->instance()
+        ->monthCalendar();
+
+    // Julio de 2026 empieza en miércoles.
+    expect($cal['monthLabel'])->toContain('Julio')
+        ->and($cal['offset'])->toBe(2)
+        ->and($cal['days'])->toHaveCount(31);
+});
+
+it('no pinta treinta filas de guiones cuando el mes no tiene ninguna jornada', function (): void {
+    Livewire::test(CapturaDiaria::class)
+        ->set('data.calendar_date', '2026-08-19')
+        ->assertSee('todavía no tiene ninguna jornada anotada')
+        ->assertDontSee('RFF ACUMULADO');
+});
+
+it('el calendario refleja la jornada recién guardada', function (): void {
+    // El cache del mes se llama con planta y mes, que guardar no cambia: sin invalidarlo,
+    // el día que se acaba de anotar seguiría saliendo como hueco.
+    $cal = Livewire::test(CapturaDiaria::class)
+        ->set('data.calendar_date', '2026-08-19')
+        ->set('data.programmed_hours', 22)
+        ->set('data.processed_tons', 336.04)
+        ->call('save')
+        ->instance()
+        ->monthCalendar();
+
+    expect(collect($cal['days'])->keyBy('date')['2026-08-19']['has_data'])->toBeTrue();
+});

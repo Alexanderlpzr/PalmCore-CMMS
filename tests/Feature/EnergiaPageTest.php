@@ -238,3 +238,90 @@ it('no pinta días que todavía no han ocurrido', function (): void {
 
     expect(collect($datos['days'])->last()['date'])->toBe(now()->toDateString());
 });
+
+// ── El calendario del mes ────────────────────────────────────────────────────
+
+it('trae el mes entero, con el día 1 bajo su día de la semana', function (): void {
+    $cal = Livewire::test(Energia::class)
+        ->set('data.reading_date', '2026-08-19')
+        ->instance()
+        ->monthCalendar();
+
+    // Agosto de 2026 empieza en sábado: cinco casillas en blanco antes del 1.
+    expect($cal['days'])->toHaveCount(31)
+        ->and($cal['offset'])->toBe(5)
+        ->and($cal['days'][0]['date'])->toBe('2026-08-01')
+        ->and($cal['monthLabel'])->toContain('Agosto');
+});
+
+it('marca el día que tiene lectura y deja el hueco a la vista', function (): void {
+    app(EnergyMeterReadingService::class)
+        ->record($this->red, 388_349, $this->user, Carbon::parse('2026-08-10'));
+
+    $cal = Livewire::test(Energia::class)
+        ->set('data.reading_date', '2026-08-19')
+        ->instance()
+        ->monthCalendar();
+
+    $porFecha = collect($cal['days'])->keyBy('date');
+
+    // El hueco es lo que se busca al volver de unos días fuera: sin él, ponerse al día
+    // obliga a bajar a la tabla y leer treinta filas buscando guiones.
+    expect($porFecha['2026-08-10']['has_data'])->toBeTrue()
+        ->and($porFecha['2026-08-11']['has_data'])->toBeFalse();
+});
+
+it('cuenta cuántos días quedan por anotar', function (): void {
+    $cal = Livewire::test(Energia::class)
+        ->set('data.reading_date', '2026-08-19')
+        ->instance()
+        ->monthCalendar();
+
+    // Ni una sola lectura: faltan todos los días que ya ocurrieron.
+    $ocurridos = collect($cal['days'])->reject(fn (array $d): bool => $d['is_future'])->count();
+
+    expect($cal['legend'])->toContain((string) $ocurridos);
+});
+
+it('apaga los días que todavía no han ocurrido', function (): void {
+    $siguiente = Carbon::today()->addMonthNoOverflow()->startOfMonth();
+
+    $cal = Livewire::test(Energia::class)
+        ->set('data.reading_date', $siguiente->toDateString())
+        ->instance()
+        ->monthCalendar();
+
+    // Un contador no se lee por adelantado: el mes que viene está entero apagado.
+    expect(collect($cal['days'])->every(fn (array $d): bool => $d['is_future']))->toBeTrue()
+        ->and($cal['legend'])->toContain('Todos los días');
+});
+
+it('resalta el día que está cargado en la ronda', function (): void {
+    $cal = Livewire::test(Energia::class)
+        ->set('data.reading_date', '2026-08-19')
+        ->instance()
+        ->monthCalendar();
+
+    expect(collect($cal['days'])->firstWhere('is_selected', true)['date'])->toBe('2026-08-19');
+});
+
+it('el calendario sigue a la fecha elegida, no al mes actual', function (): void {
+    $cal = Livewire::test(Energia::class)
+        ->set('data.reading_date', '2026-07-15')
+        ->instance()
+        ->monthCalendar();
+
+    // Julio de 2026 empieza en miércoles.
+    expect($cal['monthLabel'])->toContain('Julio')
+        ->and($cal['offset'])->toBe(2)
+        ->and($cal['days'])->toHaveCount(31);
+});
+
+it('no pinta treinta filas de guiones cuando el mes no tiene ninguna lectura', function (): void {
+    // El mes genera sus días aunque nadie haya leído nada, y la tabla los pintaba todos
+    // vacíos: treinta filas que no dicen más que la frase que ahora las reemplaza.
+    Livewire::test(Energia::class)
+        ->set('data.reading_date', '2026-08-19')
+        ->assertSee('todavía no tiene ninguna lectura anotada')
+        ->assertDontSee('TOTAL DEL MES');
+});

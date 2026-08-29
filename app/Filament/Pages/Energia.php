@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Domain\Energy\Services\EnergyMeterReadingService;
 use App\Exceptions\BusinessRuleException;
+use App\Filament\Concerns\MesEnCalendario;
 use App\Models\EnergyMeter;
 use App\Models\Plant;
 use BackedEnum;
@@ -45,6 +46,8 @@ use UnitEnum;
  */
 class Energia extends Page
 {
+    use MesEnCalendario;
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBolt;
 
     protected static string|UnitEnum|null $navigationGroup = 'Mantenimiento';
@@ -61,6 +64,17 @@ class Energia extends Page
      * @var array<string, mixed>|null
      */
     public ?array $data = [];
+
+    /**
+     * El mes ya resuelto, para no consultarlo dos veces por pintada.
+     *
+     * El calendario de arriba y la tabla de abajo miran exactamente los mismos días. Se
+     * guarda con la clave de lo que lo determina —planta y fecha— para que cambiar
+     * cualquiera de las dos lo invalide solo.
+     *
+     * @var array{key: string, table: array<string, mixed>}|null
+     */
+    private ?array $monthCache = null;
 
     public static function canAccess(): bool
     {
@@ -322,6 +336,10 @@ class Energia extends Page
     public function content(Schema $schema): Schema
     {
         return $schema->components([
+            // El calendario primero: la pregunta al abrir la pantalla es «¿qué me falta?»,
+            // y responderla obligaba a bajar hasta la tabla del mes y buscar guiones.
+            View::make('filament.components.mes-calendario'),
+
             Form::make([EmbeddedSchema::make('form')])
                 ->id('form')
                 ->livewireSubmitHandler('save')
@@ -349,13 +367,50 @@ class Energia extends Page
      */
     public function monthTable(): array
     {
+        $key = ($this->data['plant_id'] ?? '-').'|'.$this->readingDate()->format('Y-m');
+
+        if (($this->monthCache['key'] ?? null) === $key) {
+            return $this->monthCache['table'];
+        }
+
         $meters = $this->meters();
 
-        return [
+        $table = [
             'meters' => $meters,
             'monthLabel' => ucfirst($this->readingDate()->translatedFormat('F \d\e Y')),
             ...app(EnergyMeterReadingService::class)->monthReadings($meters, $this->readingDate()),
         ];
+
+        $this->monthCache = ['key' => $key, 'table' => $table];
+
+        return $table;
+    }
+
+    /**
+     * El mes en calendario, encima de la ronda.
+     *
+     * Sale de los mismos días que la tabla de abajo, sin consultar nada nuevo. Un día
+     * cuenta como anotado en cuanto **cualquiera** de los contadores tiene lectura: una
+     * ronda a medias sigue siendo una ronda hecha, y marcarla como hueco mandaría a
+     * releerlo todo.
+     *
+     * @return array<string, mixed>
+     */
+    public function monthCalendar(): array
+    {
+        $conDato = [];
+
+        foreach ($this->monthTable()['days'] as $day) {
+            foreach ($day['cells'] as $celda) {
+                if ($celda['accumulated'] !== null) {
+                    $conDato[$day['date']] = true;
+
+                    break;
+                }
+            }
+        }
+
+        return $this->calendarioDelMes($this->readingDate(), $conDato);
     }
 
     /** Lleva la ronda de arriba al día que se pulsó en la tabla. */
@@ -370,6 +425,10 @@ class Energia extends Page
 
     private function loadDay(): void
     {
+        // Guardar no cambia ni la planta ni el mes, así que la clave del cache seguiría
+        // siendo la misma y la pantalla mostraría el mes de antes de escribir.
+        $this->monthCache = null;
+
         $date = $this->readingDate()->toDateString();
         $readings = [];
 

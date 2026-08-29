@@ -4,6 +4,7 @@ namespace App\Filament\Resources\ProductionCalendar\Pages;
 
 use App\Domain\Analytics\Services\ProductionCalendarService;
 use App\Exceptions\BusinessRuleException;
+use App\Filament\Concerns\MesEnCalendario;
 use App\Filament\Resources\ProductionCalendar\ProductionCalendarResource;
 use App\Models\Plant;
 use App\Models\ProductionCalendarDay;
@@ -43,6 +44,8 @@ use Illuminate\Support\Carbon;
  */
 class CapturaDiaria extends Page
 {
+    use MesEnCalendario;
+
     protected static string $resource = ProductionCalendarResource::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendarDays;
@@ -53,6 +56,17 @@ class CapturaDiaria extends Page
      * @var array<string, mixed>|null
      */
     public ?array $data = [];
+
+    /**
+     * El mes ya resuelto, para no consultarlo dos veces por pintada.
+     *
+     * El calendario de arriba y la tabla de abajo miran exactamente los mismos días. Se
+     * guarda con la clave de lo que lo determina —planta y fecha— para que cambiar
+     * cualquiera de las dos lo invalide solo.
+     *
+     * @var array{key: string, table: array<string, mixed>}|null
+     */
+    private ?array $monthCache = null;
 
     public function mount(): void
     {
@@ -222,6 +236,10 @@ class CapturaDiaria extends Page
     public function content(Schema $schema): Schema
     {
         return $schema->components([
+            // El calendario primero: la pregunta al abrir la pantalla es «¿qué me falta?»,
+            // y responderla obligaba a bajar hasta la tabla del mes y buscar guiones.
+            View::make('filament.components.mes-calendario'),
+
             Form::make([EmbeddedSchema::make('form')])
                 ->id('form')
                 ->livewireSubmitHandler('save')
@@ -248,16 +266,46 @@ class CapturaDiaria extends Page
      */
     public function monthTable(): array
     {
-        $plant = $this->currentPlant();
+        $key = ($this->data['plant_id'] ?? '-').'|'.$this->currentDate()->format('Y-m');
 
-        if ($plant === null) {
-            return ['days' => [], 'total_hours' => 0.0, 'total_tons' => 0.0, 'monthLabel' => ''];
+        if (($this->monthCache['key'] ?? null) === $key) {
+            return $this->monthCache['table'];
         }
 
-        return [
-            'monthLabel' => ucfirst($this->currentDate()->translatedFormat('F \d\e Y')),
-            ...app(ProductionCalendarService::class)->month($plant, $this->currentDate()),
-        ];
+        $plant = $this->currentPlant();
+
+        $table = $plant === null
+            ? ['days' => [], 'total_hours' => 0.0, 'total_tons' => 0.0, 'monthLabel' => '']
+            : [
+                'monthLabel' => ucfirst($this->currentDate()->translatedFormat('F \d\e Y')),
+                ...app(ProductionCalendarService::class)->month($plant, $this->currentDate()),
+            ];
+
+        $this->monthCache = ['key' => $key, 'table' => $table];
+
+        return $table;
+    }
+
+    /**
+     * El mes en calendario, encima del formulario.
+     *
+     * Sale de los mismos días que la tabla de abajo, sin consultar nada nuevo. Un día
+     * cuenta como anotado cuando tiene jornada escrita, aunque la fruta sea cero: un
+     * domingo de aseo es un día cerrado, no un olvido.
+     *
+     * @return array<string, mixed>
+     */
+    public function monthCalendar(): array
+    {
+        $conDato = [];
+
+        foreach ($this->monthTable()['days'] as $day) {
+            if ($day['accumulated_tons'] !== null) {
+                $conDato[$day['date']] = true;
+            }
+        }
+
+        return $this->calendarioDelMes($this->currentDate(), $conDato);
     }
 
     /** Lleva el formulario de arriba al día que se pulsó en la tabla. */
@@ -272,6 +320,10 @@ class CapturaDiaria extends Page
 
     private function loadDay(): void
     {
+        // Guardar no cambia ni la planta ni el mes, así que la clave del cache seguiría
+        // siendo la misma y la pantalla mostraría el mes de antes de escribir.
+        $this->monthCache = null;
+
         $plant = $this->currentPlant();
 
         $row = $plant === null ? null : ProductionCalendarDay::withoutGlobalScopes()

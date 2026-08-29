@@ -1,4 +1,5 @@
 @php($tabla = $this->monthTable())
+@php($hayJornadas = collect($tabla['days'])->contains(fn (array $day): bool => $day['accumulated_tons'] !== null))
 
 {{--
     El mes con el RFF acumulándose.
@@ -15,9 +16,12 @@
         Un día sin cargar muestra «—», no cero. Pulsa una fila para llevar el formulario de arriba a ese día.
     </x-slot>
 
-    @if (empty($tabla['days']))
+    {{-- El mes genera sus días aunque ninguno tenga jornada escrita, así que mirar solo
+         si la lista está vacía dejaba la tabla pintando treinta filas de guiones. Lo que
+         importa es si hay alguna jornada, no si hay días. --}}
+    @if (! $hayJornadas)
         <p class="text-sm text-gray-500 dark:text-gray-400">
-            Todavía no hay ningún día de este mes.
+            {{ $tabla['monthLabel'] ?: 'Este mes' }} todavía no tiene ninguna jornada anotada.
         </p>
     @else
         <div class="overflow-x-auto -mx-2 px-2">
