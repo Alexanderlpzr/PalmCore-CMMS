@@ -66,13 +66,21 @@
                         @foreach ($rows as $numero => $fila)
                             @php($abierto = in_array($numero, $openMonths, true))
 
-                            {{-- La fila del mes es la banda gris de un grupo, como
-                                 «Sección: Clarificación» en Equipos: sus días cuelgan
-                                 debajo sobre fondo blanco. Conserva sus ocho columnas de
-                                 números, que es lo que se viene a leer. --}}
+                            {{-- La fila del mes es la cabecera de un grupo, como
+                                 «Sección: Clarificación» en Equipos, y conserva sus ocho
+                                 columnas de números, que es lo que se viene a leer.
+
+                                 El gris solo cuando está desplegado: pintarlo siempre
+                                 dejaba doce bandas seguidas y la tabla entera se volvía un
+                                 bloque gris. Así el fondo dice algo — marca qué mes se
+                                 está mirando en vez de decorar los doce. --}}
                             <tr wire:key="mes-{{ $numero }}"
                                 wire:click="toggleMonth({{ $numero }})"
-                                class="cursor-pointer bg-gray-50 hover:bg-gray-100 dark:bg-white/5 dark:hover:bg-white/10"
+                                @class([
+                                    'cursor-pointer',
+                                    'bg-gray-50 hover:bg-gray-100 dark:bg-white/5 dark:hover:bg-white/10' => $abierto,
+                                    'hover:bg-gray-50 dark:hover:bg-white/5' => ! $abierto,
+                                ])
                             >
                                 <th class="text-left px-3 py-2 border-b border-gray-100 dark:border-white/5 whitespace-nowrap font-medium">
                                     <span @class([
