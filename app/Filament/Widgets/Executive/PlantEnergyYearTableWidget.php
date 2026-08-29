@@ -3,7 +3,9 @@
 namespace App\Filament\Widgets\Executive;
 
 use App\Domain\Analytics\Services\MonthlyEnergyCorrectionService;
+use App\Domain\Analytics\Services\PlantKpiService;
 use App\Domain\Analytics\Support\DashboardPeriod;
+use App\Domain\Energy\Services\EnergyMeterReadingService;
 use App\Exceptions\BusinessRuleException;
 use App\Models\EnergyMeter;
 use App\Models\Plant;
@@ -23,23 +25,22 @@ use Filament\Schemas\Contracts\HasSchemas;
 use Filament\Widgets\Concerns\InteractsWithPageFilters;
 use Filament\Widgets\Widget;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
 
 /**
- * El año entero en una tabla: parámetros en filas, meses en columnas.
+ * El año en una tabla: un mes por fila.
  *
- * Es la forma en que la planta lee sus indicadores desde antes de que existiera el
- * sistema, y por eso la tabla se conserva con las mismas etiquetas de su planilla —
- * RFF/MES, KWh/RFF, KWh TOTAL, ENERGÍA LIMPIA—. Cambiarlas obligaría a traducir mentalmente
- * cada vez.
+ * Antes iba al revés —parámetros en filas y los doce meses en columnas, como la hoja de
+ * cálculo de la planta— y esa forma se conservó a propósito. Dejó de servir en cuanto la
+ * pantalla no la pudo mostrar entera: doce columnas obligaban a desplazarse a lo ancho y
+ * para leer octubre había que arrastrar la tabla a ciegas. Doce filas por ocho columnas
+ * caben, y se lee como un libro de cuentas.
  *
- * Con dos diferencias deliberadas respecto de la hoja:
+ * Un mes sin dato muestra «—», no cero ni `#DIV/0!`. La hoja ponía cero en los meses que
+ * aún no habían ocurrido, y un cero es una afirmación: dice que la planta no consumió.
  *
- *   - Un mes sin dato muestra «—», no `#DIV/0!` ni un cero. La hoja pone cero en los
- *     meses que aún no han ocurrido, y un cero es una afirmación: dice que la planta no
- *     consumió. El guion no afirma nada, que es la verdad.
- *   - El total de la fila no suma los meses vacíos, así que la columna «Año» es el
- *     acumulado real de lo que se sabe, no de lo que se dejó en blanco.
+ * Y la fila del año no promedia ratios: el KWh/RFF anual es el total de kWh partido por el
+ * total de fruta. Promediar doce ratios daría el mismo peso a un mes flojo que a uno de
+ * plena cosecha.
  */
 class PlantEnergyYearTableWidget extends Widget implements HasActions, HasSchemas
 {
@@ -61,6 +62,9 @@ class PlantEnergyYearTableWidget extends Widget implements HasActions, HasSchema
 
     protected int|string|array $columnSpan = 'full';
 
+    /** El mes cuyo detalle diario está abierto, o `null`. Solo uno a la vez. */
+    public ?int $openMonth = null;
+
     /**
      * @return array<string, mixed>
      */
@@ -70,123 +74,98 @@ class PlantEnergyYearTableWidget extends Widget implements HasActions, HasSchema
         $year = $this->selectedYear();
 
         if ($plant === null) {
-            return ['year' => $year, 'months' => [], 'rows' => [], 'empty' => true];
+            return ['year' => $year, 'rows' => [], 'totals' => [], 'empty' => true, 'canEdit' => false, 'openMonth' => null, 'dailyDetail' => null];
         }
 
-        $kpis = PlantMonthlyKpi::withoutGlobalScopes()
-            ->where('plant_id', $plant->id)
-            ->where('year', $year)
-            ->get()
-            ->keyBy('month');
-
-        $months = [];
-        for ($m = 1; $m <= 12; $m++) {
-            $months[$m] = mb_strtoupper(
-                Carbon::create($year, $m, 1)->translatedFormat('F')
-            );
-        }
+        $rows = app(PlantKpiService::class)->monthlyEnergyRows($plant, $year);
 
         return [
             'year' => $year,
-            'months' => $months,
-            'rows' => $this->buildRows($kpis),
+            'months' => $this->monthOptions(),
+            'rows' => $rows,
+            'totals' => $this->yearTotals($rows),
             'empty' => false,
             'canEdit' => $this->canEditEnergy(),
-            'manualMonths' => $this->manualMonths(),
-            'recalculableMonths' => $this->recalculableMonths(),
+            'openMonth' => $this->openMonth,
+            'dailyDetail' => $this->openMonth === null ? null : $this->dailyDetail($plant, $this->openMonth),
         ];
     }
 
     /**
-     * @param  Collection<int, PlantMonthlyKpi>  $kpis
-     * @return list<array{label: string, values: array<int, ?string>, total: ?string, strong: bool}>
+     * El total del año.
+     *
+     * Los ratios se recalculan sobre los totales, no se promedian: es la misma regla que
+     * la fila del año tenía antes de dar la vuelta a la tabla, y sigue siendo la correcta.
+     *
+     * @param  array<int, array<string, mixed>>  $rows
+     * @return array<string, ?float>
      */
-    private function buildRows($kpis): array
+    private function yearTotals(array $rows): array
     {
-        // Cada fila declara de dónde sale su número y cómo se totaliza el año. Los
-        // promedios y los ratios NO se suman: el KWh/RFF del año es el total de kWh
-        // partido por el total de fruta, no la media de doce ratios mensuales — que
-        // daría más peso a un mes flojo que a uno de plena cosecha.
-        $sum = fn (string $field): ?float => $this->sumOf($kpis, $field);
+        $sum = function (string $field) use ($rows): ?float {
+            $known = array_filter(array_column($rows, $field), fn (?float $v): bool => $v !== null);
+
+            return $known === [] ? null : round(array_sum($known), 2);
+        };
 
         $tons = $sum('processed_tons');
         $total = $sum('kwh_total');
         $turbine = $sum('kwh_turbine');
 
         return [
-            $this->row('RFF/MES (t)', $kpis, 'processed_tons', 0, $tons),
-            $this->row('KWh/RFF', $kpis, 'kwh_per_ton', 2,
-                ($total !== null && $tons > 0) ? round($total / $tons, 2) : null, strong: true),
-            $this->row('KWh TOTAL', $kpis, 'kwh_total', 0, $total, strong: true),
-            $this->row('KWh RED PÚBLICA', $kpis, 'kwh_grid', 0, $sum('kwh_grid')),
-            $this->row('KWh PLANTA ELÉCTRICA', $kpis, 'kwh_genset', 0, $sum('kwh_genset')),
-            $this->row('KWh TURBINA', $kpis, 'kwh_turbine', 0, $turbine),
-            $this->row('ENERGÍA LIMPIA (%)', $kpis, 'clean_energy_percentage', 2,
-                ($turbine !== null && $total > 0) ? round($turbine / $total * 100, 2) : null),
+            'processed_tons' => $tons,
+            'kwh_total' => $total,
+            'kwh_grid' => $sum('kwh_grid'),
+            'kwh_genset' => $sum('kwh_genset'),
+            'kwh_turbine' => $turbine,
+            'kwh_per_ton' => ($total !== null && $tons > 0) ? round($total / $tons, 2) : null,
+            'clean_energy_percentage' => ($turbine !== null && $total > 0)
+                ? round($turbine / $total * 100, 2)
+                : null,
         ];
+    }
+
+    // ── El detalle diario ─────────────────────────────────────────────────────
+
+    /** Abre o cierra el detalle de un mes. Solo uno abierto a la vez. */
+    public function toggleMonth(int $month): void
+    {
+        $this->openMonth = $this->openMonth === $month ? null : $month;
     }
 
     /**
-     * @param  Collection<int, PlantMonthlyKpi>  $kpis
-     * @return array{label: string, values: array<int, ?string>, total: ?string, strong: bool}
+     * Los días del mes abierto, de solo lectura.
+     *
+     * Reutiliza tal cual la serie que ya alimenta la pantalla de Energía. Aquí no se
+     * corrige: escribir sigue siendo un único camino, la ronda, que es donde vive el aviso
+     * del dígito de más. Un segundo camino de escritura fue exactamente lo que dejó tres
+     * puertas abiertas en el tope de toneladas.
+     *
+     * @return array<string, mixed>
      */
-    private function row(string $label, $kpis, string $field, int $decimals, ?float $total, bool $strong = false): array
+    private function dailyDetail(Plant $plant, int $month): array
     {
-        $values = [];
+        $meters = EnergyMeter::query()
+            ->where('plant_id', $plant->id)
+            ->active()
+            ->orderBy('sort_order')
+            ->get();
 
-        for ($m = 1; $m <= 12; $m++) {
-            $raw = $kpis->get($m)?->{$field};
+        $serie = app(EnergyMeterReadingService::class)->monthReadings(
+            $meters,
+            Carbon::create($this->selectedYear(), $month, 1),
+        );
 
-            $values[$m] = $raw === null ? null : $this->format((float) $raw, $decimals);
-        }
+        // Un mes pasado siempre trae sus treinta y un días, tenga lecturas o no. Sin esta
+        // comprobación, abrir un mes vacío pintaba treinta y una filas de guiones en vez
+        // de decir que no hay nada que ver.
+        $hayLecturas = collect($serie['days'])->contains(
+            fn (array $day): bool => collect($day['cells'])->contains(
+                fn (array $cell): bool => $cell['accumulated'] !== null,
+            ),
+        );
 
-        return [
-            'label' => $label,
-            'values' => $values,
-            'total' => $total === null ? null : $this->format($total, $decimals),
-            'strong' => $strong,
-        ];
-    }
-
-    /** @param Collection<int, PlantMonthlyKpi> $kpis */
-    private function sumOf($kpis, string $field): ?float
-    {
-        $known = $kpis->pluck($field)->filter(fn ($v): bool => $v !== null);
-
-        return $known->isEmpty() ? null : round((float) $known->sum(), 2);
-    }
-
-    private function format(float $value, int $decimals): string
-    {
-        return number_format($value, $decimals, ',', '.');
-    }
-
-    private function selectedYear(): int
-    {
-        $filters = $this->pageFilters;
-
-        if (($filters['preset'] ?? null) === 'range') {
-            return (int) ($filters['range_year'] ?? now()->year);
-        }
-
-        if (isset($filters['year']) && $filters['year'] !== null) {
-            return (int) $filters['year'];
-        }
-
-        // «Últimos 12 meses» no tiene año propio: se muestra el del final de la ventana,
-        // que es el año en el que la planta está trabajando.
-        [, $to] = DashboardPeriod::snapshotWindow($filters);
-
-        return (int) $to->year;
-    }
-
-    private function selectedPlant(): ?Plant
-    {
-        $plantId = $this->pageFilters['plant_id'] ?? null;
-
-        return $plantId !== null
-            ? Plant::find($plantId)
-            : Plant::orderBy('name')->first();
+        return ['meters' => $meters, 'has_readings' => $hayLecturas, ...$serie];
     }
 
     // ── Corregir un mes ───────────────────────────────────────────────────────
@@ -194,7 +173,7 @@ class PlantEnergyYearTableWidget extends Widget implements HasActions, HasSchema
     /**
      * Corrige a mano el total de un mes.
      *
-     * Ofrece solo las cuatro cifras que se escriben. Las otras tres las calcula Postgres
+     * Ofrece solo las cuatro cifras que se escriben. Las otras tres las calcula el sistema
      * y se mueven solas al guardar: ofrecerlas como campos permitiría que el total dejara
      * de cuadrar con sus partes, que es justo lo que esta planilla existe para impedir.
      */
@@ -207,9 +186,6 @@ class PlantEnergyYearTableWidget extends Widget implements HasActions, HasSchema
             ->modalDescription('Se eligen el mes y sus cuatro cifras. Los tres indicadores derivados se recalculan solos al guardar.')
             ->modalSubmitActionLabel('Guardar la corrección')
             ->schema([
-                // El mes se elige aquí y no en la tabla: doce botones repartidos por la
-                // cabecera reventaban el ancho de las columnas y escondían el resto del
-                // año detrás de un scroll horizontal.
                 Select::make('month')
                     ->label('Mes')
                     ->options(fn (): array => $this->monthOptions())
@@ -389,30 +365,12 @@ class PlantEnergyYearTableWidget extends Widget implements HasActions, HasSchema
         return Carbon::create($this->selectedYear(), $month, 1)->translatedFormat('F Y');
     }
 
-    /** Los meses que alguien fijó a mano, para marcarlos en la tabla. */
-    private function manualMonths(): array
-    {
-        $plant = $this->selectedPlant();
-
-        if ($plant === null) {
-            return [];
-        }
-
-        return PlantMonthlyKpi::withoutGlobalScopes()
-            ->where('plant_id', $plant->id)
-            ->where('year', $this->selectedYear())
-            ->where(fn ($q) => $q->where('energy_is_imported', true)->orWhere('processed_tons_is_manual', true))
-            ->pluck('month')
-            ->all();
-    }
-
     /**
      * Los meses a los que de verdad se puede volver.
      *
-     * Exige las dos condiciones, y la segunda es la que faltaba: estar fijado a mano **y**
-     * tener lecturas diarias detrás. Ofrecerlo sobre un mes importado del Excel —que no
-     * tiene ninguna— era un botón que borraba el mes: limpiaba las marcas y recalculaba
-     * sobre cero lecturas, dejando en nulo unas cifras que solo existen ahí.
+     * Exige las dos condiciones: estar fijado a mano **y** tener lecturas diarias detrás.
+     * Ofrecerlo sobre un mes importado del Excel —que no tiene ninguna— era un botón que
+     * borraba el mes: limpiaba las marcas y recalculaba sobre cero lecturas.
      *
      * @return list<int>
      */
@@ -426,10 +384,45 @@ class PlantEnergyYearTableWidget extends Widget implements HasActions, HasSchema
 
         $service = app(MonthlyEnergyCorrectionService::class);
 
+        $manuales = PlantMonthlyKpi::withoutGlobalScopes()
+            ->where('plant_id', $plant->id)
+            ->where('year', $this->selectedYear())
+            ->where(fn ($q) => $q->where('energy_is_imported', true)->orWhere('processed_tons_is_manual', true))
+            ->pluck('month')
+            ->all();
+
         return array_values(array_filter(
-            $this->manualMonths(),
+            $manuales,
             fn (int $month): bool => $service->hasDailyReadings($plant, $this->selectedYear(), $month),
         ));
+    }
+
+    private function selectedYear(): int
+    {
+        $filters = $this->pageFilters;
+
+        if (($filters['preset'] ?? null) === 'range') {
+            return (int) ($filters['range_year'] ?? now()->year);
+        }
+
+        if (isset($filters['year']) && $filters['year'] !== null) {
+            return (int) $filters['year'];
+        }
+
+        // «Últimos 12 meses» no tiene año propio: se muestra el del final de la ventana,
+        // que es el año en el que la planta está trabajando.
+        [, $to] = DashboardPeriod::snapshotWindow($filters);
+
+        return (int) $to->year;
+    }
+
+    private function selectedPlant(): ?Plant
+    {
+        $plantId = $this->pageFilters['plant_id'] ?? null;
+
+        return $plantId !== null
+            ? Plant::find($plantId)
+            : Plant::orderBy('name')->first();
     }
 
     private function canEditEnergy(): bool

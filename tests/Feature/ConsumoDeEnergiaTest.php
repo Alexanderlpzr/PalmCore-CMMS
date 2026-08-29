@@ -192,14 +192,15 @@ it('arma la tabla del año con las cifras de la planilla', function (): void {
         'pageFilters' => ['plant_id' => $this->plant->id, 'preset' => 'year', 'year' => 2026],
     ])
         ->assertSee('Energía · 2026')
-        // Las etiquetas son las de la planilla que la planta ya lee.
-        ->assertSee('RFF/MES (t)')
+        // Un mes por fila, con los parámetros en columnas.
+        ->assertSee('Enero')
+        ->assertSee('RFF (t)')
         ->assertSee('KWh/RFF')
         ->assertSee('KWh TOTAL')
-        ->assertSee('KWh RED PÚBLICA')
-        ->assertSee('KWh PLANTA ELÉCTRICA')
-        ->assertSee('KWh TURBINA')
-        ->assertSee('ENERGÍA LIMPIA (%)')
+        ->assertSee('RED')
+        ->assertSee('PLANTA')
+        ->assertSee('TURBINA')
+        ->assertSee('LIMPIA')
         // Enero: 163.060 kWh y 30,65 kWh por tonelada, igual que la hoja.
         ->assertSee('163.060')
         ->assertSee('30,65')
@@ -361,4 +362,99 @@ it('solo ofrece deshacer donde hay lecturas a las que volver', function (): void
     Livewire::test(PlantEnergyYearTableWidget::class, [
         'pageFilters' => ['plant_id' => $this->plant->id, 'preset' => 'year', 'year' => 2026],
     ])->assertSee('Deshacer una correcci');
+});
+
+// ── La tabla y las tarjetas, del mismo sitio ─────────────────────────────────
+
+it('toma la fruta del calendario cuando el cierre la trae en cero', function (): void {
+    // El caso real que lo destapó: agosto de 2026 importado del Excel —lo que crea la
+    // fila con processed_tons en su DEFAULT de cero— y la producción cargada día a día.
+    // La tabla mostraba «0 t» y «—» junto a unas tarjetas que decían 3.751 t y 20,55.
+    PlantMonthlyKpi::withoutGlobalScopes()->create([
+        'tenant_id' => $this->tenant->id,
+        'plant_id' => $this->plant->id,
+        'year' => 2026, 'month' => 8,
+        'kwh_grid' => 1277, 'kwh_genset' => 12363, 'kwh_turbine' => 63454,
+        'energy_is_imported' => true,
+        'calculated_at' => now(),
+    ]);
+
+    foreach (['2026-08-03' => 196.35, '2026-08-04' => 223.75, '2026-08-05' => 246.00] as $f => $t) {
+        ProductionCalendarDay::withoutGlobalScopes()->create([
+            'tenant_id' => $this->tenant->id,
+            'plant_id' => $this->plant->id,
+            'calendar_date' => $f,
+            'programmed_hours' => 16,
+            'processed_tons' => $t,
+        ]);
+    }
+
+    $filas = $this->service->monthlyEnergyRows($this->plant, 2026);
+
+    // 666,10 t del calendario, y con ellas el indicador existe: 77.094 / 666,10.
+    expect($filas[8]['processed_tons'])->toBe(666.1)
+        ->and($filas[8]['kwh_total'])->toBe(77094.0)
+        ->and($filas[8]['kwh_per_ton'])->toBe(115.74);
+});
+
+it('deja en null el mes sin fruta por ningún lado, no en cero', function (): void {
+    PlantMonthlyKpi::withoutGlobalScopes()->create([
+        'tenant_id' => $this->tenant->id,
+        'plant_id' => $this->plant->id,
+        'year' => 2026, 'month' => 8,
+        'kwh_grid' => 1277, 'kwh_genset' => 12363, 'kwh_turbine' => 63454,
+        'energy_is_imported' => true,
+        'calculated_at' => now(),
+    ]);
+
+    $filas = $this->service->monthlyEnergyRows($this->plant, 2026);
+
+    // Un cero afirmaría que no se procesó fruta; el guion dice que no se sabe.
+    expect($filas[8]['processed_tons'])->toBeNull()
+        ->and($filas[8]['kwh_per_ton'])->toBeNull()
+        // El consumo sí se conoce, y se muestra.
+        ->and($filas[8]['kwh_total'])->toBe(77094.0);
+});
+
+// ── El día, dentro del mes ───────────────────────────────────────────────────
+
+it('despliega los días del mes que se pulsa', function (): void {
+    $turbina = EnergyMeter::factory()->turbine()->create([
+        'tenant_id' => $this->tenant->id, 'plant_id' => $this->plant->id,
+    ]);
+    $lecturas = app(EnergyMeterReadingService::class);
+    $lecturas->record($turbina, 2_519_653, $this->user, Carbon::parse('2026-08-18'));
+    $lecturas->record($turbina, 2_527_433, $this->user, Carbon::parse('2026-08-19'));
+
+    Livewire::test(PlantEnergyYearTableWidget::class, [
+        'pageFilters' => ['plant_id' => $this->plant->id, 'preset' => 'year', 'year' => 2026],
+    ])
+        ->assertDontSee('consumo')
+        ->call('toggleMonth', 8)
+        ->assertSet('openMonth', 8)
+        ->assertSee('consumo')
+        // 2.527.433 − 2.519.653
+        ->assertSee('7.780');
+});
+
+it('cierra el mes al volver a pulsarlo, y solo abre uno a la vez', function (): void {
+    $componente = Livewire::test(PlantEnergyYearTableWidget::class, [
+        'pageFilters' => ['plant_id' => $this->plant->id, 'preset' => 'year', 'year' => 2026],
+    ]);
+
+    $componente->call('toggleMonth', 8)->assertSet('openMonth', 8)
+        ->call('toggleMonth', 3)->assertSet('openMonth', 3)
+        ->call('toggleMonth', 3)->assertSet('openMonth', null);
+});
+
+it('dice que el mes no tiene días en vez de abrir una tabla vacía', function (): void {
+    EnergyMeter::factory()->turbine()->create([
+        'tenant_id' => $this->tenant->id, 'plant_id' => $this->plant->id,
+    ]);
+
+    Livewire::test(PlantEnergyYearTableWidget::class, [
+        'pageFilters' => ['plant_id' => $this->plant->id, 'preset' => 'year', 'year' => 2026],
+    ])
+        ->call('toggleMonth', 3)
+        ->assertSee('no tiene ningún día registrado');
 });

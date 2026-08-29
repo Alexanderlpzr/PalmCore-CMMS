@@ -471,6 +471,77 @@ class PlantKpiService
     }
 
     /**
+     * Los doce meses de un año, resueltos con la misma regla que las tarjetas.
+     *
+     * Existe porque la tabla y las tarjetas de la misma pantalla se contradecían. Las
+     * tarjetas pasan por {@see energySummary()}, que cae al calendario de producción
+     * cuando el cierre no trae fruta; la tabla leía `processed_tons` a secas. Como esa
+     * columna tiene `DEFAULT 0`, un mes importado nace con la fruta en cero, y con ella la
+     * columna generada `kwh_per_ton` sale nula. Agosto de 2026 mostraba «0 t» y «—» junto
+     * a unas tarjetas que decían 3.751 t y 20,55 kWh/t.
+     *
+     * Los tres derivados se recalculan aquí sobre la fruta resuelta y no se leen de las
+     * columnas generadas, precisamente porque esas se calcularon con el cero.
+     *
+     * Dos consultas para el año, no doce llamadas a `energySummary()`.
+     *
+     * @return array<int, array{
+     *     processed_tons: ?float, kwh_grid: ?float, kwh_genset: ?float, kwh_turbine: ?float,
+     *     kwh_total: ?float, kwh_per_ton: ?float, clean_energy_percentage: ?float,
+     *     is_manual: bool,
+     * }>
+     */
+    public function monthlyEnergyRows(Plant $plant, int $year): array
+    {
+        $kpis = PlantMonthlyKpi::withoutGlobalScopes()
+            ->where('plant_id', $plant->id)
+            ->where('year', $year)
+            ->get()
+            ->keyBy('month');
+
+        // La fruta del calendario, por mes, para los que el cierre no trae.
+        $tonsFromCalendar = ProductionCalendarDay::withoutGlobalScopes()
+            ->where('plant_id', $plant->id)
+            ->whereYear('calendar_date', $year)
+            ->get()
+            ->groupBy(fn (ProductionCalendarDay $d): int => (int) $d->calendar_date->month)
+            ->map(fn ($días): float => round((float) $días->sum('processed_tons'), 2));
+
+        $rows = [];
+
+        for ($month = 1; $month <= 12; $month++) {
+            $kpi = $kpis->get($month);
+
+            $stored = (float) ($kpi?->processed_tons ?? 0);
+            $tons = $stored > 0 ? $stored : ($tonsFromCalendar[$month] ?? 0.0);
+
+            $grid = $kpi?->kwh_grid;
+            $genset = $kpi?->kwh_genset;
+            $turbine = $kpi?->kwh_turbine;
+
+            $known = array_filter([$grid, $genset, $turbine], fn (?float $v): bool => $v !== null);
+            $total = $known === [] ? null : round(array_sum($known), 1);
+
+            $rows[$month] = [
+                // Cero no es un dato aquí: es la marca de que nadie cargó la fruta.
+                'processed_tons' => $tons > 0 ? $tons : null,
+                'kwh_grid' => $grid,
+                'kwh_genset' => $genset,
+                'kwh_turbine' => $turbine,
+                'kwh_total' => $total,
+                'kwh_per_ton' => ($total !== null && $tons > 0) ? round($total / $tons, 2) : null,
+                // Sin dato de turbina no hay porcentaje: cero afirmaría que no generó nada.
+                'clean_energy_percentage' => ($turbine !== null && $total > 0)
+                    ? round($turbine / $total * 100, 2)
+                    : null,
+                'is_manual' => (bool) ($kpi?->energy_is_imported || $kpi?->processed_tons_is_manual),
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
      * Los kWh del período, separados por fuente.
      *
      * `null` —no cero— cuando un contador no tiene ni una lectura en el rango: cero kWh
