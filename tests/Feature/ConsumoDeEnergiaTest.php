@@ -431,20 +431,37 @@ it('despliega los días del mes que se pulsa', function (): void {
     ])
         ->assertDontSee('consumo')
         ->call('toggleMonth', 8)
-        ->assertSet('openMonth', 8)
+        ->assertSet('openMonths', [8])
         ->assertSee('consumo')
         // 2.527.433 − 2.519.653
         ->assertSee('7.780');
 });
 
-it('cierra el mes al volver a pulsarlo, y solo abre uno a la vez', function (): void {
+it('deja varios meses abiertos a la vez, y cierra solo el que se pulsa', function (): void {
+    // Antes se cerraba el anterior al abrir otro, y comparar dos meses obligaba a ir y
+    // volver. Es la diferencia real con la agrupación de Equipos.
     $componente = Livewire::test(PlantEnergyYearTableWidget::class, [
         'pageFilters' => ['plant_id' => $this->plant->id, 'preset' => 'year', 'year' => 2026],
     ]);
 
-    $componente->call('toggleMonth', 8)->assertSet('openMonth', 8)
-        ->call('toggleMonth', 3)->assertSet('openMonth', 3)
-        ->call('toggleMonth', 3)->assertSet('openMonth', null);
+    $componente->call('toggleMonth', 8)->assertSet('openMonths', [8])
+        ->call('toggleMonth', 3)->assertSet('openMonths', [8, 3])
+        ->call('toggleMonth', 8)->assertSet('openMonths', [3]);
+});
+
+it('pliega todos los meses de una vez', function (): void {
+    $componente = Livewire::test(PlantEnergyYearTableWidget::class, [
+        'pageFilters' => ['plant_id' => $this->plant->id, 'preset' => 'year', 'year' => 2026],
+    ]);
+
+    // El botón solo tiene sentido cuando hay algo que plegar.
+    $componente->assertDontSee('Plegar todo')
+        ->call('toggleMonth', 8)
+        ->call('toggleMonth', 3)
+        ->assertSee('Plegar todo')
+        ->call('collapseAllMonths')
+        ->assertSet('openMonths', [])
+        ->assertDontSee('Plegar todo');
 });
 
 it('dice que el mes no tiene días en vez de abrir una tabla vacía', function (): void {

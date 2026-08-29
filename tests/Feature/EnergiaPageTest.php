@@ -167,7 +167,8 @@ it('muestra el mes de lecturas debajo de la ronda', function (): void {
 
     Livewire::test(Energia::class)
         ->set('data.reading_date', '2026-08-19')
-        ->assertSee('Lecturas de Agosto de 2026')
+        // El mes ya no titula la sección: va en la cabecera del grupo que lo pliega.
+        ->assertSee('Agosto de 2026')
         ->assertSee('TOTAL DEL MES')
         // El consumo del 19: 2.527.433 − 2.519.653.
         ->assertSee('7.780')
@@ -324,4 +325,30 @@ it('no pinta treinta filas de guiones cuando el mes no tiene ninguna lectura', f
         ->set('data.reading_date', '2026-08-19')
         ->assertSee('todavía no tiene ninguna lectura anotada')
         ->assertDontSee('TOTAL DEL MES');
+});
+
+// ── La cabecera que pliega el mes ────────────────────────────────────────────
+
+it('pliega el mes y deja su cabecera, como la agrupación de Equipos', function (): void {
+    app(EnergyMeterReadingService::class)
+        ->record($this->turbina, 2_463_979, $this->user, Carbon::parse('2026-08-19'));
+
+    Livewire::test(Energia::class)
+        ->set('data.reading_date', '2026-08-19')
+        // Empieza desplegado: la tabla es la razón por la que el mes está bajo la ronda.
+        ->assertSee('TOTAL DEL MES')
+        ->call('toggleMes')
+        ->assertSet('mesPlegado', true)
+        // La cabecera se queda: sigue diciendo de qué mes se habla y cuánto lleva.
+        ->assertSee('Agosto de 2026')
+        ->assertSee('1 día con lectura')
+        ->assertDontSee('TOTAL DEL MES')
+        ->call('toggleMes')
+        ->assertSee('TOTAL DEL MES');
+});
+
+it('la cabecera dice cuando el mes no tiene ninguna lectura', function (): void {
+    Livewire::test(Energia::class)
+        ->set('data.reading_date', '2026-08-19')
+        ->assertSee('Sin lecturas todavía');
 });

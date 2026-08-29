@@ -1,5 +1,5 @@
 @php($tabla = $this->monthTable())
-@php($hayJornadas = collect($tabla['days'])->contains(fn (array $day): bool => $day['accumulated_tons'] !== null))
+@php($diasAnotados = collect($tabla['days'])->filter(fn (array $day): bool => $day['accumulated_tons'] !== null)->count())
 
 {{--
     El mes con el RFF acumulándose.
@@ -9,22 +9,38 @@
 --}}
 <x-filament::section>
     <x-slot name="heading">
-        {{ $tabla['monthLabel'] }}
+        Jornadas por día
     </x-slot>
 
     <x-slot name="description">
         Un día sin cargar muestra «—», no cero. Pulsa una fila para llevar el formulario de arriba a ese día.
     </x-slot>
 
+    {{-- El mes bajo su propia cabecera, con la flecha que lo pliega: el mismo gesto que
+         agrupa los equipos por sección. Aquí solo hay un mes, y aun así vale la pena
+         poder plegarlo — treinta filas empujan la jornada fuera de la pantalla. --}}
+    @include('filament.components.cabecera-grupo', [
+        'titulo' => $tabla['monthLabel'] ?: 'Este mes',
+        'descripcion' => match ($diasAnotados) {
+            0 => 'Sin jornadas todavía',
+            1 => '1 día anotado · '.number_format($tabla['total_tons'], 2, ',', '.').' t',
+            default => $diasAnotados.' días anotados · '.number_format($tabla['total_tons'], 2, ',', '.').' t',
+        },
+        'plegada' => $this->mesPlegado,
+        'accion' => 'toggleMes',
+    ])
+
+    @if ($this->mesPlegado)
+        {{-- Plegado: la cabecera de arriba ya dice cuántos días llevan jornada. --}}
     {{-- El mes genera sus días aunque ninguno tenga jornada escrita, así que mirar solo
          si la lista está vacía dejaba la tabla pintando treinta filas de guiones. Lo que
          importa es si hay alguna jornada, no si hay días. --}}
-    @if (! $hayJornadas)
+    @elseif ($diasAnotados === 0)
         <p class="text-sm text-gray-500 dark:text-gray-400">
             {{ $tabla['monthLabel'] ?: 'Este mes' }} todavía no tiene ninguna jornada anotada.
         </p>
     @else
-        <div class="overflow-x-auto -mx-2 px-2">
+        <div class="overflow-x-auto -mx-2 mt-3 px-2">
             <table class="w-full text-sm border-separate border-spacing-0">
                 <thead>
                     <tr>

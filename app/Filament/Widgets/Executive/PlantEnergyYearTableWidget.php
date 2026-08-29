@@ -62,8 +62,16 @@ class PlantEnergyYearTableWidget extends Widget implements HasActions, HasSchema
 
     protected int|string|array $columnSpan = 'full';
 
-    /** El mes cuyo detalle diario está abierto, o `null`. Solo uno a la vez. */
-    public ?int $openMonth = null;
+    /**
+     * Los meses cuyo detalle diario está desplegado.
+     *
+     * Antes era uno solo: abrir marzo cerraba agosto, y comparar dos meses obligaba a ir
+     * y volver. Es la diferencia real con la agrupación de Equipos, donde varias secciones
+     * pueden estar abiertas a la vez.
+     *
+     * @var list<int>
+     */
+    public array $openMonths = [];
 
     /**
      * @return array<string, mixed>
@@ -74,10 +82,18 @@ class PlantEnergyYearTableWidget extends Widget implements HasActions, HasSchema
         $year = $this->selectedYear();
 
         if ($plant === null) {
-            return ['year' => $year, 'rows' => [], 'totals' => [], 'empty' => true, 'canEdit' => false, 'openMonth' => null, 'dailyDetail' => null];
+            return ['year' => $year, 'rows' => [], 'totals' => [], 'empty' => true, 'canEdit' => false, 'openMonths' => [], 'dailyDetails' => []];
         }
 
         $rows = app(PlantKpiService::class)->monthlyEnergyRows($plant, $year);
+
+        // El detalle solo de los meses desplegados: se sigue consultando un mes por mes
+        // abierto, no los doce.
+        $detalles = [];
+
+        foreach ($this->openMonths as $month) {
+            $detalles[$month] = $this->dailyDetail($plant, $month);
+        }
 
         return [
             'year' => $year,
@@ -86,8 +102,8 @@ class PlantEnergyYearTableWidget extends Widget implements HasActions, HasSchema
             'totals' => $this->yearTotals($rows),
             'empty' => false,
             'canEdit' => $this->canEditEnergy(),
-            'openMonth' => $this->openMonth,
-            'dailyDetail' => $this->openMonth === null ? null : $this->dailyDetail($plant, $this->openMonth),
+            'openMonths' => $this->openMonths,
+            'dailyDetails' => $detalles,
         ];
     }
 
@@ -127,10 +143,18 @@ class PlantEnergyYearTableWidget extends Widget implements HasActions, HasSchema
 
     // ── El detalle diario ─────────────────────────────────────────────────────
 
-    /** Abre o cierra el detalle de un mes. Solo uno abierto a la vez. */
+    /** Despliega o pliega el detalle de un mes, sin tocar los demás. */
     public function toggleMonth(int $month): void
     {
-        $this->openMonth = $this->openMonth === $month ? null : $month;
+        $this->openMonths = in_array($month, $this->openMonths, strict: true)
+            ? array_values(array_diff($this->openMonths, [$month]))
+            : [...$this->openMonths, $month];
+    }
+
+    /** Pliega los meses desplegados de una vez, para volver a ver el año entero. */
+    public function collapseAllMonths(): void
+    {
+        $this->openMonths = [];
     }
 
     /**

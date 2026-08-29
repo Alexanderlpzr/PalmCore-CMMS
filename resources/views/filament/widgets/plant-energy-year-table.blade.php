@@ -17,14 +17,29 @@
         </x-slot>
 
         <x-slot name="description">
-            Un mes sin dato muestra «—». Pulsa un mes para ver sus días.
+            Un mes sin dato muestra «—». Pulsa un mes para desplegar sus días; puedes tener varios abiertos a la vez.
         </x-slot>
 
-        @if ($canEdit)
+        @if ($canEdit || filled($openMonths))
             <x-slot name="afterHeader">
                 <div class="flex flex-wrap items-center gap-2">
-                    {{ $this->editMonthAction }}
-                    {{ $this->recalculateMonthAction }}
+                    {{-- Volver a ver el año entero sin plegar mes por mes. Solo aparece
+                         cuando hay algo que plegar. --}}
+                    @if (filled($openMonths))
+                        <x-filament::button
+                            size="sm"
+                            color="gray"
+                            icon="heroicon-m-chevron-up"
+                            wire:click="collapseAllMonths"
+                        >
+                            Plegar todo
+                        </x-filament::button>
+                    @endif
+
+                    @if ($canEdit)
+                        {{ $this->editMonthAction }}
+                        {{ $this->recalculateMonthAction }}
+                    @endif
                 </div>
             </x-slot>
         @endif
@@ -49,15 +64,23 @@
 
                     <tbody>
                         @foreach ($rows as $numero => $fila)
+                            @php($abierto = in_array($numero, $openMonths, true))
+
+                            {{-- La fila del mes es la banda gris de un grupo, como
+                                 «Sección: Clarificación» en Equipos: sus días cuelgan
+                                 debajo sobre fondo blanco. Conserva sus ocho columnas de
+                                 números, que es lo que se viene a leer. --}}
                             <tr wire:key="mes-{{ $numero }}"
                                 wire:click="toggleMonth({{ $numero }})"
-                                @class([
-                                    'cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5',
-                                    'bg-gray-50 dark:bg-white/5' => $openMonth === $numero,
-                                ])
+                                class="cursor-pointer bg-gray-50 hover:bg-gray-100 dark:bg-white/5 dark:hover:bg-white/10"
                             >
                                 <th class="text-left px-3 py-2 border-b border-gray-100 dark:border-white/5 whitespace-nowrap font-medium">
-                                    <span class="inline-block w-3 text-gray-400">{{ $openMonth === $numero ? '▾' : '▸' }}</span>
+                                    <span @class([
+                                        'inline-block align-middle text-gray-400 transition-transform dark:text-gray-500',
+                                        '-rotate-180' => ! $abierto,
+                                    ])>
+                                        <x-filament::icon icon="heroicon-m-chevron-up" class="h-4 w-4" />
+                                    </span>
                                     {{ $months[$numero] }}
                                     @if ($fila['is_manual'])
                                         <span class="text-primary-600 dark:text-primary-400" title="Corregido a mano">•</span>
@@ -90,9 +113,11 @@
                             {{-- El detalle del mes, dentro de su propia fila. De solo
                                  lectura: corregir sigue siendo un único camino, la ronda
                                  de «Energía», que es donde vive el aviso del dígito de más. --}}
-                            @if ($openMonth === $numero)
+                            @if ($abierto)
+                                @php($dailyDetail = $dailyDetails[$numero] ?? null)
+
                                 <tr wire:key="detalle-{{ $numero }}">
-                                    <td colspan="8" class="px-3 py-3 border-b border-gray-100 dark:border-white/5 bg-gray-50/60 dark:bg-white/[0.03]">
+                                    <td colspan="8" class="px-3 py-3 border-b border-gray-100 dark:border-white/5">
                                         @if ($dailyDetail === null || $dailyDetail['meters']->isEmpty())
                                             <p class="text-sm text-gray-500 dark:text-gray-400">Esta planta no tiene contadores configurados.</p>
                                         @elseif (! $dailyDetail['has_readings'])

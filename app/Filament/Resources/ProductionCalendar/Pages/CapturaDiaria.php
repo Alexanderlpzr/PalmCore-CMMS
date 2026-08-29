@@ -68,6 +68,9 @@ class CapturaDiaria extends Page
      */
     private ?array $monthCache = null;
 
+    /** Si la tabla del mes está plegada bajo su cabecera. */
+    public bool $mesPlegado = false;
+
     public function mount(): void
     {
         abort_unless(auth()->user()?->can('viewAny', ProductionCalendarDay::class) ?? false, 403);
@@ -306,6 +309,18 @@ class CapturaDiaria extends Page
         }
 
         return $this->calendarioDelMes($this->currentDate(), $conDato);
+    }
+
+    /**
+     * Pliega o despliega el mes de abajo.
+     *
+     * Empieza desplegado: el RFF acumulándose es la razón por la que el mes está bajo el
+     * formulario. Pero treinta filas empujan la jornada fuera de la pantalla, y lo que se
+     * hace aquí a diario es cerrar el día, no leer el mes entero.
+     */
+    public function toggleMes(): void
+    {
+        $this->mesPlegado = ! $this->mesPlegado;
     }
 
     /** Lleva el formulario de arriba al día que se pulsó en la tabla. */

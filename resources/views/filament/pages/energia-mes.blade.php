@@ -1,7 +1,7 @@
 @php($tabla = $this->monthTable())
-@php($hayLecturas = collect($tabla['days'])->contains(
+@php($diasConLectura = collect($tabla['days'])->filter(
     fn (array $day): bool => collect($day['cells'])->contains(fn (array $c): bool => $c['accumulated'] !== null)
-))
+)->count())
 
 {{--
     La mitad de abajo de la hoja que este módulo reemplazó: una fila por día con el
@@ -12,26 +12,42 @@
 --}}
 <x-filament::section>
     <x-slot name="heading">
-        Lecturas de {{ $tabla['monthLabel'] }}
+        Lecturas por día
     </x-slot>
 
     <x-slot name="description">
         Un día sin leer muestra «—», no cero. Pulsa una fila para llevar la ronda de arriba a ese día.
     </x-slot>
 
-    @if ($tabla['meters']->isEmpty())
+    {{-- El mes bajo su propia cabecera, con la flecha que lo pliega: el mismo gesto que
+         agrupa los equipos por sección. Aquí solo hay un mes, y aun así vale la pena
+         poder plegarlo — treinta filas empujan la ronda fuera de la pantalla. --}}
+    @include('filament.components.cabecera-grupo', [
+        'titulo' => $tabla['monthLabel'],
+        'descripcion' => match ($diasConLectura) {
+            0 => 'Sin lecturas todavía',
+            1 => '1 día con lectura',
+            default => $diasConLectura.' días con lectura',
+        },
+        'plegada' => $this->mesPlegado,
+        'accion' => 'toggleMes',
+    ])
+
+    @if ($this->mesPlegado)
+        {{-- Plegado: la cabecera de arriba ya dice cuántos días llevan lectura. --}}
+    @elseif ($tabla['meters']->isEmpty())
         <p class="text-sm text-gray-500 dark:text-gray-400">
             Esta planta no tiene contadores configurados.
         </p>
     {{-- El mes en curso genera sus días hasta hoy aunque ninguno tenga lectura, así que
          mirar solo si la lista está vacía dejaba la tabla pintando treinta filas de
          guiones. Lo que importa es si hay alguna lectura, no si hay días. --}}
-    @elseif (! $hayLecturas)
+    @elseif ($diasConLectura === 0)
         <p class="text-sm text-gray-500 dark:text-gray-400">
             {{ $tabla['monthLabel'] }} todavía no tiene ninguna lectura anotada.
         </p>
     @else
-        <div class="overflow-x-auto -mx-2 px-2">
+        <div class="overflow-x-auto -mx-2 mt-3 px-2">
             <table class="w-full text-sm border-separate border-spacing-0">
                 <thead>
                     <tr>

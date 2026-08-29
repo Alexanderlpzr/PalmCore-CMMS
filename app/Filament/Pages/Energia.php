@@ -76,6 +76,9 @@ class Energia extends Page
      */
     private ?array $monthCache = null;
 
+    /** Si la tabla del mes está plegada bajo su cabecera. */
+    public bool $mesPlegado = false;
+
     public static function canAccess(): bool
     {
         return auth()->user()?->can('viewAny', EnergyMeter::class) ?? false;
@@ -411,6 +414,18 @@ class Energia extends Page
         }
 
         return $this->calendarioDelMes($this->readingDate(), $conDato);
+    }
+
+    /**
+     * Pliega o despliega el mes de abajo.
+     *
+     * Empieza desplegado: la tabla es la razón por la que el mes está bajo el formulario.
+     * Pero treinta filas empujan la ronda fuera de la pantalla, y en una jornada normal
+     * lo que se hace aquí es anotar hoy, no leer el mes entero.
+     */
+    public function toggleMes(): void
+    {
+        $this->mesPlegado = ! $this->mesPlegado;
     }
 
     /** Lleva la ronda de arriba al día que se pulsó en la tabla. */

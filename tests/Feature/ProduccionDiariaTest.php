@@ -288,3 +288,28 @@ it('el calendario refleja la jornada recién guardada', function (): void {
 
     expect(collect($cal['days'])->keyBy('date')['2026-08-19']['has_data'])->toBeTrue();
 });
+
+// ── La cabecera que pliega el mes ────────────────────────────────────────────
+
+it('pliega el mes y deja su cabecera, como la agrupación de Equipos', function (): void {
+    $this->service->upsertDay($this->plant, Carbon::parse('2026-08-03'), 16, 196.35);
+
+    Livewire::test(CapturaDiaria::class)
+        ->set('data.calendar_date', '2026-08-19')
+        // Empieza desplegado: el RFF acumulándose es la razón de que el mes esté abajo.
+        ->assertSee('RFF ACUMULADO')
+        ->call('toggleMes')
+        ->assertSet('mesPlegado', true)
+        // La cabecera se queda, con el total que se venía a mirar.
+        ->assertSee('Agosto de 2026')
+        ->assertSee('1 día anotado · 196,35 t')
+        ->assertDontSee('RFF ACUMULADO')
+        ->call('toggleMes')
+        ->assertSee('RFF ACUMULADO');
+});
+
+it('la cabecera dice cuando el mes no tiene ninguna jornada', function (): void {
+    Livewire::test(CapturaDiaria::class)
+        ->set('data.calendar_date', '2026-08-19')
+        ->assertSee('Sin jornadas todavía');
+});
