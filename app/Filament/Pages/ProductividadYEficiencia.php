@@ -87,7 +87,7 @@ class ProductividadYEficiencia extends BaseDashboard
             Action::make('cargarProduccion')
                 ->label('Cargar producción')
                 ->icon(Heroicon::OutlinedTableCells)
-                ->url(fn (): string => ProductionCalendarResource::getUrl('semanal'))
+                ->url(fn (): string => ProductionCalendarResource::getUrl('diaria'))
                 ->visible(fn (): bool => auth()->user()?->can('create', ProductionCalendarDay::class) ?? false),
         ];
     }

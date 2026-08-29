@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\ProductionCalendar;
 
-use App\Filament\Resources\ProductionCalendar\Pages\CapturaSemanal;
+use App\Filament\Resources\ProductionCalendar\Pages\CapturaDiaria;
 use App\Filament\Resources\ProductionCalendar\Pages\ListProductionCalendarDays;
 use App\Filament\Resources\ProductionCalendar\Schemas\ProductionCalendarDayForm;
 use App\Filament\Resources\ProductionCalendar\Tables\ProductionCalendarTable;
@@ -23,9 +23,9 @@ use UnitEnum;
  * filas cada mes y un CMMS que lo exige se abandona.
  *
  * Dos puertas, y no se pisan: «Programar mes» siembra la jornada por adelantado,
- * cuando todavía no hay fruta que anotar, y {@see CapturaSemanal} cierra la semana
- * vencida con las horas y las toneladas reales. Esta tabla queda para la corrección
- * puntual del día que salió mal.
+ * cuando todavía no hay fruta que anotar, y {@see CapturaDiaria} cierra el día con las
+ * horas y las toneladas reales, enseñando el RFF del mes acumulándose. Esta tabla queda
+ * para la corrección puntual del día que salió mal.
  */
 class ProductionCalendarResource extends Resource
 {
@@ -65,7 +65,7 @@ class ProductionCalendarResource extends Resource
     {
         return [
             'index' => ListProductionCalendarDays::route('/'),
-            'semanal' => CapturaSemanal::route('/semanal'),
+            'diaria' => CapturaDiaria::route('/diaria'),
         ];
     }
 }

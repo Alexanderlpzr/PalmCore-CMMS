@@ -17,12 +17,14 @@ use Illuminate\Support\Facades\DB;
  *
  * Cargarlo día por día a mano es lo que hace que un CMMS se abandone: nadie va a
  * teclear 31 filas cada mes. Por eso no se entra por el día, sino por el período:
- * {@see programMonth()} siembra la jornada del mes entero, y {@see upsertWeek()} es
- * la puerta que usa la planta cada semana, cuando ya sabe cuánta fruta entró.
+ * {@see programMonth()} siembra la jornada del mes entero, y {@see upsertDay()} es la
+ * puerta que usa la planta cada día, cuando ya sabe cuánta fruta entró. Se pasó de la
+ * semana al día porque esperar al domingo dejaba a la planta sin saber por dónde iba su
+ * RFF a mitad de mes.
  *
  * Las dos escriben lo mismo —una fila por día— porque el día es la unidad de la que
- * cuelgan la eficiencia, el MTBF y el cierre mensual. La semana y el mes son formas
- * de teclear, no entidades de este dominio.
+ * cuelgan la eficiencia, el MTBF y el cierre mensual. El mes es una forma de teclear,
+ * no una entidad de este dominio.
  */
 class ProductionCalendarService
 {
@@ -110,151 +112,130 @@ class ProductionCalendarService
     }
 
     /**
-     * Escribe una semana entera, día por día, de una sola vez.
+     * Escribe la jornada de un día.
      *
-     * La semana no es una entidad de este dominio: es la forma en que el planificador
-     * teclea. Por dentro sigue siendo una fila por día —la misma que alimenta la
-     * eficiencia, el MTBF y el cierre mensual— y por eso una semana a caballo entre
-     * dos meses reparte sus días en el mes que a cada uno le toca, sin que el cierre
-     * mensual tenga que enterarse de que existen las semanas.
+     * Es la puerta que usa la planta: se cierra el día cuando se cierra, y el RFF del mes
+     * se ve crecer en la tabla de abajo. Antes se tecleaba la semana entera de una vez, y
+     * eso obligaba a esperar al domingo para saber por dónde iba la fruta.
      *
-     * Las horas y las toneladas se escriben juntas, por el mismo motivo que en la
-     * tabla: la planta cierra el día una sola vez, y separarlas garantizaba que una de
-     * las dos se quedara sin llenar.
-     *
-     * Un día con horas en `null` **no se escribe**. Cero y «no sé» no son lo mismo: un
-     * domingo programado en cero es un dato legítimo que baja el denominador, y un día
-     * sin fila es un día del que no sabemos nada — {@see programmedHours()} depende de
-     * esa distinción para decidir si el mes tiene indicador.
-     *
-     * @param  array<string, array{programmed_hours?: float|string|null, processed_tons?: float|string|null}>  $days
-     * @return array{created: int, updated: int, skipped: int}
+     * Horas en `null` no escribe nada. Cero y «no sé» no son lo mismo: un domingo
+     * programado en cero baja el denominador de la eficiencia, y un día sin fila es un día
+     * del que no sabemos nada.
      *
      * @throws BusinessRuleException
      */
-    public function upsertWeek(Plant $plant, Carbon $weekStart, array $days): array
+    public function upsertDay(Plant $plant, Carbon $date, float|string|null $hours, float|string|null $tons): ?ProductionCalendarDay
     {
-        $start = $weekStart->copy()->startOfWeek(Carbon::MONDAY);
-        $end = $start->copy()->endOfWeek(Carbon::SUNDAY);
-
-        $writable = [];
-
-        foreach ($days as $date => $values) {
-            $day = Carbon::parse($date)->startOfDay();
-
-            if ($day->lt($start) || $day->gt($end)) {
-                throw new BusinessRuleException(
-                    "El día {$day->toDateString()} no pertenece a la semana del {$start->toDateString()}."
-                );
-            }
-
-            $hours = $values['programmed_hours'] ?? null;
-
-            if ($hours === null || $hours === '') {
-                continue;
-            }
-
-            $hours = (float) $hours;
-
-            if ($hours < 0 || $hours > 24) {
-                throw new BusinessRuleException('Un día no tiene más de 24 horas de molienda.');
-            }
-
-            $tons = (float) ($values['processed_tons'] ?? 0);
-
-            if ($tons < 0) {
-                throw new BusinessRuleException('La fruta procesada no puede ser negativa.');
-            }
-
-            // El tope de unidad. Un mes entero se cargó una vez en kilogramos y entró sin
-            // protestar: la productividad y el kWh por tonelada salieron mil veces
-            // inflados y nadie lo notó hasta cruzarlos contra el consumo eléctrico. Dos
-            // mil toneladas en un día están muy por encima de la capacidad de la planta,
-            // así que el límite no estorba a un dato legítimo y ataja el error.
-            if ($tons > self::MAX_DAILY_TONS) {
-                throw new BusinessRuleException(
-                    "El día {$day->toDateString()} trae {$tons} t, muy por encima de lo que "
-                    .'una planta puede prensar en un día. ¿Están en kilogramos?'
-                );
-            }
-
-            $writable[$day->toDateString()] = [
-                'programmed_hours' => $hours,
-                'processed_tons' => $tons,
-            ];
+        if ($hours === null || $hours === '') {
+            return null;
         }
 
-        $existing = ProductionCalendarDay::withoutGlobalScopes()
-            ->where('plant_id', $plant->id)
-            ->whereBetween('calendar_date', [$start->toDateString(), $end->toDateString()])
-            ->get()
-            ->keyBy(fn (ProductionCalendarDay $day): string => $day->calendar_date->toDateString());
+        [$hours, $tons] = $this->validated($date, $hours, $tons);
 
-        $created = 0;
-        $updated = 0;
-
-        DB::transaction(function () use ($plant, $writable, $existing, &$created, &$updated): void {
-            foreach ($writable as $date => $values) {
-                $row = $existing->get($date);
-
-                if ($row !== null) {
-                    $row->update($values);
-                    $updated++;
-
-                    continue;
-                }
-
-                ProductionCalendarDay::withoutGlobalScopes()->create([
+        return DB::transaction(fn (): ProductionCalendarDay => ProductionCalendarDay::withoutGlobalScopes()
+            ->updateOrCreate(
+                ['plant_id' => $plant->id, 'calendar_date' => $date->toDateString()],
+                [
                     'tenant_id' => $plant->tenant_id,
-                    'plant_id' => $plant->id,
-                    'calendar_date' => $date,
-                    ...$values,
-                ]);
-                $created++;
-            }
-        });
-
-        return [
-            'created' => $created,
-            'updated' => $updated,
-            'skipped' => count($days) - count($writable),
-        ];
+                    'programmed_hours' => $hours,
+                    'processed_tons' => $tons,
+                ],
+            ));
     }
 
     /**
-     * Los siete días de una semana, con lo que ya esté escrito.
+     * El mes día a día, con el RFF acumulándose.
      *
-     * Devuelve siempre las siete claves, exista o no la fila: la pantalla de captura
-     * tiene que pintar el lunes vacío igual que el martes lleno, y el `null` es lo que
-     * la deja distinguir un día sin cargar de un día cargado en cero.
+     * La columna del acumulado es la razón de ser de esta tabla: la planta necesita saber
+     * por dónde va la fruta del mes sin esperar al cierre ni sumar a mano. Se acumula solo
+     * sobre los días que tienen fila — un día sin cargar no arrastra el total ni lo
+     * congela, simplemente no aporta.
      *
-     * @return array<string, array{programmed_hours: float|null, processed_tons: float|null, notes: string|null}>
+     * Los días futuros no se pintan: una jornada que no ha ocurrido no tiene nada que
+     * mostrar y solo alarga la tabla.
+     *
+     * @return array{
+     *     days: list<array{date: string, label: string, hours: ?float, tons: ?float, accumulated_tons: ?float, notes: ?string}>,
+     *     total_hours: float,
+     *     total_tons: float,
+     * }
      */
-    public function week(Plant $plant, Carbon $weekStart): array
+    public function month(Plant $plant, Carbon $anyDayOfMonth): array
     {
-        $start = $weekStart->copy()->startOfWeek(Carbon::MONDAY);
-        $end = $start->copy()->endOfWeek(Carbon::SUNDAY);
+        $start = $anyDayOfMonth->copy()->startOfMonth();
+        $end = $start->copy()->endOfMonth();
+        $last = $end->isFuture() ? Carbon::today() : $end;
 
         $existing = ProductionCalendarDay::withoutGlobalScopes()
             ->where('plant_id', $plant->id)
             ->whereBetween('calendar_date', [$start->toDateString(), $end->toDateString()])
             ->get()
-            ->keyBy(fn (ProductionCalendarDay $day): string => $day->calendar_date->toDateString());
+            ->keyBy(fn (ProductionCalendarDay $d): string => $d->calendar_date->toDateString());
 
-        $week = [];
+        $days = [];
+        $acumulado = 0.0;
+        $totalHoras = 0.0;
 
-        for ($date = $start->copy(); $date->lte($end); $date->addDay()) {
+        for ($date = $start->copy(); $date->lte($last); $date->addDay()) {
             $key = $date->toDateString();
             $row = $existing->get($key);
 
-            $week[$key] = [
-                'programmed_hours' => $row?->programmed_hours,
-                'processed_tons' => $row?->processed_tons,
+            if ($row !== null) {
+                $acumulado += (float) $row->processed_tons;
+                $totalHoras += (float) $row->programmed_hours;
+            }
+
+            $days[] = [
+                'date' => $key,
+                'label' => $date->translatedFormat('D d'),
+                'hours' => $row?->programmed_hours,
+                'tons' => $row?->processed_tons,
+                // El acumulado solo tiene sentido donde hay dato: en un día sin cargar
+                // repetiría el número anterior y parecería que ese día produjo cero.
+                'accumulated_tons' => $row === null ? null : round($acumulado, 2),
                 'notes' => $row?->notes,
             ];
         }
 
-        return $week;
+        return [
+            'days' => $days,
+            'total_hours' => round($totalHoras, 2),
+            'total_tons' => round($acumulado, 2),
+        ];
+    }
+
+    /**
+     * Las dos cifras de una jornada, validadas.
+     *
+     * @return array{0: float, 1: float}
+     *
+     * @throws BusinessRuleException
+     */
+    private function validated(Carbon $day, float|string $hours, float|string|null $tons): array
+    {
+        $hours = (float) $hours;
+
+        if ($hours < 0 || $hours > 24) {
+            throw new BusinessRuleException('Un día no tiene más de 24 horas de molienda.');
+        }
+
+        $tons = (float) ($tons ?? 0);
+
+        if ($tons < 0) {
+            throw new BusinessRuleException('La fruta procesada no puede ser negativa.');
+        }
+
+        // El tope de unidad. Un mes entero se cargó una vez en kilogramos y entró sin
+        // protestar: la productividad y el kWh por tonelada salieron mil veces inflados y
+        // nadie lo notó hasta cruzarlos contra el consumo eléctrico.
+        if ($tons > self::MAX_DAILY_TONS) {
+            throw new BusinessRuleException(
+                "El día {$day->toDateString()} trae {$tons} t, muy por encima de lo que "
+                .'una planta puede prensar en un día. ¿Están en kilogramos?'
+            );
+        }
+
+        return [$hours, $tons];
     }
 
     /**

@@ -63,7 +63,7 @@ class PlantEfficiencyStatsWidget extends BaseWidget
         // buscar el menú donde se captura. Solo se enlaza cuando falta: con el número
         // puesto, el enlace sería ruido.
         $captureUrl = (auth()->user()?->can('create', ProductionCalendarDay::class) ?? false)
-            ? ProductionCalendarResource::getUrl('semanal')
+            ? ProductionCalendarResource::getUrl('diaria')
             : null;
 
         $percentColor = fn (?float $value): string => match (true) {

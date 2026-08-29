@@ -22,6 +22,7 @@ use Filament\Schemas\Components\Fieldset;
 use Filament\Schemas\Components\Form;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Text;
+use Filament\Schemas\Components\View;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Carbon;
@@ -333,7 +334,36 @@ class Energia extends Page
                             ->visible(fn (): bool => auth()->user()?->can('create', EnergyMeter::class) ?? false),
                     ])->key('form-actions'),
                 ]),
+
+            // El mes debajo de la ronda, no en otra pantalla: el operario anota el día y
+            // ve la serie en la que acaba de escribir. Un número raro salta a la vista al
+            // lado de los de los días anteriores, no en un informe que se mira aparte.
+            View::make('filament.pages.energia-mes'),
         ]);
+    }
+
+    /**
+     * El mes de la fecha elegida, para la tabla de abajo.
+     *
+     * @return array<string, mixed>
+     */
+    public function monthTable(): array
+    {
+        $meters = $this->meters();
+
+        return [
+            'meters' => $meters,
+            'monthLabel' => ucfirst($this->readingDate()->translatedFormat('F \d\e Y')),
+            ...app(EnergyMeterReadingService::class)->monthReadings($meters, $this->readingDate()),
+        ];
+    }
+
+    /** Lleva la ronda de arriba al día que se pulsó en la tabla. */
+    public function goToDay(string $date): void
+    {
+        $this->data['reading_date'] = Carbon::parse($date)->toDateString();
+
+        $this->loadDay();
     }
 
     // ── Estado ────────────────────────────────────────────────────────────────

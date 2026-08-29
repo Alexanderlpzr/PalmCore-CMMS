@@ -13,19 +13,20 @@ use Illuminate\Support\Carbon;
  *
  * Un mes entero se cargó así —196.350 en un día que la planta prensa en unas 250— y la
  * productividad quedó mil veces inflada durante semanas sin que nada chirriara. El
- * primer arreglo puso el límite en el servicio de la rejilla semanal, y eso resultó
- * insuficiente: otras tres vías escriben la misma columna sin pasar por ahí.
+ * primer arreglo puso el límite en el servicio de captura, y eso resultó insuficiente:
+ * otras tres vías escriben la misma columna sin pasar por ahí.
  */
 beforeEach(function (): void {
     $this->tenant = Tenant::factory()->create();
     $this->plant = Plant::factory()->create(['tenant_id' => $this->tenant->id]);
 });
 
-it('la rejilla semanal rechaza kilogramos', function (): void {
-    expect(fn () => app(ProductionCalendarService::class)->upsertWeek(
+it('la captura diaria rechaza kilogramos', function (): void {
+    expect(fn () => app(ProductionCalendarService::class)->upsertDay(
         plant: $this->plant,
-        weekStart: Carbon::parse('2026-08-17'),
-        days: ['2026-08-19' => ['programmed_hours' => 22, 'processed_tons' => 336040]],
+        date: Carbon::parse('2026-08-19'),
+        hours: 22,
+        tons: 336040,
     ))->toThrow(BusinessRuleException::class);
 });
 

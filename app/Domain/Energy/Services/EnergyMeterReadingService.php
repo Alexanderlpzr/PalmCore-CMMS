@@ -8,6 +8,7 @@ use App\Models\EnergyMeter;
 use App\Models\EnergyMeterReading;
 use App\Models\User;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -187,6 +188,78 @@ class EnergyMeterReadingService
             ->where('energy_meter_id', $meter->id)
             ->whereBetween('reading_date', [$from->toDateString(), $to->toDateString()])
             ->sum('delta'), 1);
+    }
+
+    /**
+     * El mes entero, día a día y contador a contador, listo para pintar.
+     *
+     * Es la mitad de abajo de la hoja que este módulo reemplazó: una fila por día con el
+     * acumulado y el consumo de cada contador. Al pasar al sistema se quedó sin
+     * equivalente —la pantalla mostraba un solo día— y para revisar el mes había que
+     * navegar de uno en uno.
+     *
+     * Un día sin lectura entra como `null`, no como cero. La hoja rellenaba ceros y por
+     * eso sus días futuros parecían días de consumo nulo; aquí el guion no afirma nada.
+     *
+     * Una sola consulta para el mes y el resto en memoria: una por celda serían más de
+     * noventa en una pantalla que se recarga a cada tecla.
+     *
+     * @param  Collection<int, EnergyMeter>  $meters
+     * @return array{
+     *     days: list<array{date: string, label: string, cells: array<string, array{accumulated: ?float, delta: ?float, is_reset: bool}>}>,
+     *     totals: array<string, float>,
+     * }
+     */
+    public function monthReadings($meters, Carbon $anyDayOfMonth): array
+    {
+        $start = $anyDayOfMonth->copy()->startOfMonth();
+        $end = $start->copy()->endOfMonth();
+
+        // Sin días futuros: un contador no se lee por adelantado, y pintarlos vacíos
+        // alarga la tabla con filas que nunca van a tener nada.
+        $last = $end->isFuture() ? Carbon::today() : $end;
+
+        $ids = $meters->pluck('id')->all();
+
+        $porDiaYContador = $ids === [] ? collect() : EnergyMeterReading::withoutGlobalScopes()
+            ->whereIn('energy_meter_id', $ids)
+            ->whereBetween('reading_date', [$start->toDateString(), $end->toDateString()])
+            ->get()
+            ->groupBy([
+                fn (EnergyMeterReading $r): string => $r->reading_date->toDateString(),
+                fn (EnergyMeterReading $r): string => $r->energy_meter_id,
+            ]);
+
+        $days = [];
+        $totals = array_fill_keys($ids, 0.0);
+
+        for ($date = $start->copy(); $date->lte($last); $date->addDay()) {
+            $key = $date->toDateString();
+            $cells = [];
+
+            foreach ($meters as $meter) {
+                $reading = $porDiaYContador->get($key)?->get($meter->id)?->first();
+
+                $cells[$meter->id] = [
+                    'accumulated' => $reading?->reading_value,
+                    'delta' => $reading?->delta,
+                    'is_reset' => (bool) $reading?->is_reset,
+                ];
+
+                $totals[$meter->id] += (float) ($reading?->delta ?? 0);
+            }
+
+            $days[] = [
+                'date' => $key,
+                'label' => $date->translatedFormat('D d'),
+                'cells' => $cells,
+            ];
+        }
+
+        return [
+            'days' => $days,
+            'totals' => array_map(fn (float $v): float => round($v, 1), $totals),
+        ];
     }
 
     /**

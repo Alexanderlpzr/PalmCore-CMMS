@@ -153,3 +153,88 @@ it('guarda la lectura rara cuando el operario la confirma', function (): void {
 
     expect(EnergyMeterReading::where('reading_date', '2026-08-16')->exists())->toBeTrue();
 });
+
+// ── La tabla del mes ─────────────────────────────────────────────────────────
+
+it('muestra el mes de lecturas debajo de la ronda', function (): void {
+    $service = app(EnergyMeterReadingService::class);
+    // La serie real de la turbina en agosto.
+    foreach ([
+        '2026-07-31' => 2_463_979, '2026-08-18' => 2_519_653, '2026-08-19' => 2_527_433,
+    ] as $f => $v) {
+        $service->record($this->turbina, $v, $this->user, Carbon::parse($f));
+    }
+
+    Livewire::test(Energia::class)
+        ->set('data.reading_date', '2026-08-19')
+        ->assertSee('Lecturas de Agosto de 2026')
+        ->assertSee('TOTAL DEL MES')
+        // El consumo del 19: 2.527.433 − 2.519.653.
+        ->assertSee('7.780')
+        // Y el total del mes es la suma de los deltas, no la resta de los extremos.
+        ->assertSee('63.454');
+});
+
+it('deja los días sin leer en guion, no en cero', function (): void {
+    app(EnergyMeterReadingService::class)
+        ->record($this->turbina, 2_463_979, $this->user, Carbon::parse('2026-08-19'));
+
+    $datos = Livewire::test(Energia::class)
+        ->set('data.reading_date', '2026-08-19')
+        ->instance()
+        ->monthTable();
+
+    $dia18 = collect($datos['days'])->firstWhere('date', '2026-08-18');
+
+    // Nadie pasó a leer el 18. Cero afirmaría que el contador no se movió.
+    expect($dia18['cells'][$this->turbina->id]['delta'])->toBeNull()
+        ->and($dia18['cells'][$this->turbina->id]['accumulated'])->toBeNull();
+});
+
+it('marca el día en que se reemplazó el contador', function (): void {
+    $service = app(EnergyMeterReadingService::class);
+    $service->record($this->red, 388_349, $this->user, Carbon::parse('2026-08-18'));
+    $service->record($this->red, 120, $this->user, Carbon::parse('2026-08-19'));
+
+    $datos = Livewire::test(Energia::class)
+        ->set('data.reading_date', '2026-08-19')
+        ->instance()
+        ->monthTable();
+
+    $dia19 = collect($datos['days'])->firstWhere('date', '2026-08-19');
+
+    expect($dia19['cells'][$this->red->id]['is_reset'])->toBeTrue();
+});
+
+it('lleva la ronda al día que se pulsa en la tabla', function (): void {
+    app(EnergyMeterReadingService::class)
+        ->record($this->red, 388_349, $this->user, Carbon::parse('2026-08-10'));
+
+    Livewire::test(Energia::class)
+        ->set('data.reading_date', '2026-08-19')
+        ->call('goToDay', '2026-08-10')
+        ->assertSet('data.reading_date', '2026-08-10')
+        // Y precarga lo que ya estaba anotado ese día.
+        ->assertSet("data.readings.{$this->red->id}.reading_value", 388_349.0);
+});
+
+it('muestra el mes de la fecha elegida, no siempre el actual', function (): void {
+    $datos = Livewire::test(Energia::class)
+        ->set('data.reading_date', '2026-07-15')
+        ->instance()
+        ->monthTable();
+
+    expect($datos['monthLabel'])->toContain('Julio')
+        ->and(collect($datos['days'])->first()['date'])->toBe('2026-07-01')
+        ->and(collect($datos['days'])->last()['date'])->toBe('2026-07-31');
+});
+
+it('no pinta días que todavía no han ocurrido', function (): void {
+    // Un contador no se lee por adelantado: las filas futuras solo alargan la tabla.
+    $datos = Livewire::test(Energia::class)
+        ->set('data.reading_date', now()->startOfMonth()->toDateString())
+        ->instance()
+        ->monthTable();
+
+    expect(collect($datos['days'])->last()['date'])->toBe(now()->toDateString());
+});
