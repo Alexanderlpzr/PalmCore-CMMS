@@ -1,5 +1,6 @@
 <?php
 
+use App\Domain\Analytics\Services\ProductionCalendarService;
 use App\Domain\Assets\Enums\PlantSection;
 use App\Domain\Assets\Enums\ReportedStoppageType;
 use App\Domain\Assets\Enums\StoppageConfirmationStatus;
@@ -14,6 +15,7 @@ use App\Models\Plant;
 use App\Models\ProductionCalendarDay;
 use App\Models\Tenant;
 use App\Models\User;
+use Carbon\CarbonInterface;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\TenantRolesSeeder;
 use Filament\Actions\Testing\TestAction;
@@ -220,4 +222,54 @@ it('programs a whole month from the calendar screen', function (): void {
         // nunca debía producir no es un día perdido.
         ->and($days->where('programmed_hours', 0.0))->toHaveCount(4)
         ->and($days->sum('programmed_hours'))->toEqual(26 * 22.0);
+});
+
+it('agrupa el listado por mes, y el total de un mes solo suma sus días', function (): void {
+    $servicio = app(ProductionCalendarService::class);
+    $servicio->upsertDay($this->plant, Carbon::parse('2026-08-03'), 16, 196.35);
+    $servicio->upsertDay($this->plant, Carbon::parse('2026-08-04'), 16, 223.75);
+    // El vecino: si el alcance del grupo discrepara de su clave, este se colaría.
+    $servicio->upsertDay($this->plant, Carbon::parse('2026-07-31'), 20, 999.0);
+
+    $grupo = Livewire::test(ListProductionCalendarDays::class)
+        ->assertOk()
+        ->instance()
+        ->getTable()
+        ->getDefaultGroup();
+
+    expect($grupo?->getId())->toBe('calendar_date');
+
+    $dia = ProductionCalendarDay::withoutGlobalScopes()
+        ->where('calendar_date', '2026-08-03')
+        ->first();
+
+    // La clave y el título salen del mismo día: agosto no puede ser dos grupos.
+    expect($grupo->getKey($dia))->toBe('2026-08')
+        ->and((string) $grupo->getTitle($dia))->toContain('Agosto');
+
+    $suma = $grupo->scopeQueryByKey(
+        ProductionCalendarDay::withoutGlobalScopes()->where('plant_id', $this->plant->id),
+        '2026-08',
+    )->sum('processed_tons');
+
+    // 196,35 + 223,75, sin el 31 de julio.
+    expect((float) $suma)->toBe(420.10);
+});
+
+it('ordena los meses con el más reciente arriba, como las filas', function (): void {
+    // Con el orden por defecto los meses subirían de enero a diciembre mientras los días
+    // de dentro bajan, y la tabla se leería en dos direcciones a la vez.
+    $servicio = app(ProductionCalendarService::class);
+    $servicio->upsertDay($this->plant, Carbon::parse('2026-07-15'), 16, 100.0);
+    $servicio->upsertDay($this->plant, Carbon::parse('2026-08-15'), 16, 200.0);
+
+    $fechas = Livewire::test(ListProductionCalendarDays::class)
+        ->assertOk()
+        ->instance()
+        ->getTableRecords()
+        ->pluck('calendar_date')
+        ->map(fn (CarbonInterface $f): string => $f->toDateString())
+        ->all();
+
+    expect($fechas[0])->toBe('2026-08-15');
 });
