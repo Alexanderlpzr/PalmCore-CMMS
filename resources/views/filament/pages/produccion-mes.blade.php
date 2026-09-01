@@ -13,7 +13,7 @@
     </x-slot>
 
     <x-slot name="description">
-        Un día sin cargar muestra «—», no cero. Pulsa una fila para llevar el formulario de arriba a ese día.
+        Las horas y la fruta se corrigen aquí mismo; el RFF acumulado es una suma y no se teclea. Pulsa una fila para llevar el formulario de arriba a ese día.
     </x-slot>
 
     {{-- El mes bajo su propia cabecera, con la flecha que lo pliega: el mismo gesto que
@@ -76,7 +76,21 @@
                             </th>
 
                             <td class="text-right px-3 py-2 border-b border-gray-100 dark:border-white/5 tabular-nums whitespace-nowrap">
-                                @if ($day['hours'] === null)
+                                @if ($this->puedeEscribir())
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        min="0"
+                                        max="24"
+                                        inputmode="decimal"
+                                        wire:key="horas-{{ $day['date'] }}"
+                                        value="{{ $day['hours'] }}"
+                                        placeholder="Sin cargar"
+                                        x-on:click.stop
+                                        wire:change="setJornada('{{ $day['date'] }}', 'programmed_hours', $event.target.value)"
+                                        class="w-24 rounded-lg border-gray-300 bg-white/0 px-2 py-1 text-right text-sm tabular-nums shadow-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 dark:border-white/10 dark:text-gray-200"
+                                    />
+                                @elseif ($day['hours'] === null)
                                     <span class="text-gray-300 dark:text-gray-600">—</span>
                                 @else
                                     {{ number_format($day['hours'], 2, ',', '.') }}
@@ -84,7 +98,21 @@
                             </td>
 
                             <td class="text-right px-3 py-2 border-b border-gray-100 dark:border-white/5 tabular-nums whitespace-nowrap">
-                                @if ($day['tons'] === null)
+                                @if ($this->puedeEscribir())
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        min="0"
+                                        max="2000"
+                                        inputmode="decimal"
+                                        wire:key="fruta-{{ $day['date'] }}"
+                                        value="{{ $day['tons'] }}"
+                                        placeholder="0"
+                                        x-on:click.stop
+                                        wire:change="setJornada('{{ $day['date'] }}', 'processed_tons', $event.target.value)"
+                                        class="w-24 rounded-lg border-gray-300 bg-white/0 px-2 py-1 text-right text-sm tabular-nums shadow-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 dark:border-white/10 dark:text-gray-200"
+                                    />
+                                @elseif ($day['tons'] === null)
                                     <span class="text-gray-300 dark:text-gray-600">—</span>
                                 @else
                                     {{ number_format($day['tons'], 2, ',', '.') }}

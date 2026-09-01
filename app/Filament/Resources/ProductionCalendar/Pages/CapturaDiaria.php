@@ -331,6 +331,85 @@ class CapturaDiaria extends Page
         $this->loadDay();
     }
 
+    /** Si esta persona puede escribir jornadas: decide si la tabla pinta celdas o números. */
+    public function puedeEscribir(): bool
+    {
+        return auth()->user()?->can('create', ProductionCalendarDay::class) ?? false;
+    }
+
+    /**
+     * Corrige las horas o la fruta de un día desde la propia tabla.
+     *
+     * Pasa por el servicio, que es donde viven el tope de 24 horas y el de 2.000
+     * toneladas. La restricción de la base defiende ese techo venga el número por donde
+     * venga, pero solo el servicio sabe decir por qué se rechaza — y un número rechazado
+     * sin explicación se vuelve a teclear igual.
+     *
+     * `upsertDay()` exige las horas, así que corregir solo la fruta le pasa las que el día
+     * ya tenía. En un día sin fila, escribir fruta sin horas se rechaza: cero y «no sé» no
+     * son lo mismo, y una jornada sin horas no es una jornada.
+     */
+    public function setJornada(string $date, string $campo, ?string $valor): void
+    {
+        abort_unless(auth()->user()?->can('create', ProductionCalendarDay::class) ?? false, 403);
+        abort_unless(in_array($campo, ['programmed_hours', 'processed_tons'], strict: true), 400);
+
+        $plant = $this->currentPlant();
+
+        if ($plant === null) {
+            return;
+        }
+
+        $dia = Carbon::parse($date)->startOfDay();
+
+        $fila = ProductionCalendarDay::withoutGlobalScopes()
+            ->where('plant_id', $plant->id)
+            ->where('calendar_date', $dia->toDateString())
+            ->first();
+
+        $limpio = ($valor === null || trim($valor) === '') ? null : trim($valor);
+
+        // Sin esto, `(float)` convertiría cualquier texto en un número sin decir nada:
+        // «1.250,5» tecleado a la española entra como un 1. Un dato falso que nadie ve es
+        // peor que un rechazo.
+        if ($limpio !== null && ! is_numeric($limpio)) {
+            Notification::make()
+                ->title('Eso no es un número')
+                ->body('Se escribe con punto decimal y sin separador de miles: 1250.5')
+                ->warning()
+                ->send();
+
+            $this->loadDay();
+
+            return;
+        }
+
+        $horas = $campo === 'programmed_hours' ? $limpio : $fila?->programmed_hours;
+        $toneladas = $campo === 'processed_tons' ? $limpio : $fila?->processed_tons;
+
+        try {
+            $guardado = app(ProductionCalendarService::class)
+                ->upsertDay(plant: $plant, date: $dia, hours: $horas, tons: $toneladas);
+        } catch (BusinessRuleException $e) {
+            Notification::make()->title($e->getMessage())->danger()->persistent()->send();
+            $this->loadDay();
+
+            return;
+        }
+
+        if ($guardado === null) {
+            Notification::make()
+                ->title('Sin horas, no hay jornada que guardar')
+                ->body('Un día en blanco no se escribe: vacío y cero no son lo mismo.')
+                ->warning()
+                ->send();
+        }
+
+        // Recargar aunque no se haya escrito: devuelve la celda a lo que hay en la base y
+        // deshace lo que el usuario tecleó y fue rechazado.
+        $this->loadDay();
+    }
+
     // ── Estado ────────────────────────────────────────────────────────────────
 
     private function loadDay(): void

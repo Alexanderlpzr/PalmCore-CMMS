@@ -16,7 +16,7 @@
     </x-slot>
 
     <x-slot name="description">
-        Un día sin leer muestra «—», no cero. Pulsa una fila para llevar la ronda de arriba a ese día.
+        El acumulado se corrige aquí mismo; el consumo lo calcula el sistema y no se teclea. Pulsa una fila para llevar la ronda de arriba a ese día.
     </x-slot>
 
     {{-- El mes bajo su propia cabecera, con la flecha que lo pliega: el mismo gesto que
@@ -88,8 +88,27 @@
                             @foreach ($tabla['meters'] as $meter)
                                 @php($celda = $day['cells'][$meter->id])
 
+                                {{-- El acumulado se teclea: es lo único de esta tabla que
+                                     sale del aparato. Guardar pasa por el servicio, que
+                                     recalcula el consumo de este día y el de todos los
+                                     siguientes; vaciarlo borra la lectura, porque vacío
+                                     dice que nadie pasó a leerlo y cero afirmaría que el
+                                     contador no se movió. --}}
                                 <td class="text-right px-3 py-2 border-b border-l border-gray-100 dark:border-white/5 tabular-nums whitespace-nowrap text-gray-500 dark:text-gray-400">
-                                    @if ($celda['accumulated'] === null)
+                                    @if ($this->puedeEscribir())
+                                        <input
+                                            type="number"
+                                            step="any"
+                                            min="0"
+                                            inputmode="numeric"
+                                            wire:key="lectura-{{ $meter->id }}-{{ $day['date'] }}"
+                                            value="{{ $celda['accumulated'] }}"
+                                            placeholder="Sin leer"
+                                            x-on:click.stop
+                                            wire:change="setLectura('{{ $meter->id }}', '{{ $day['date'] }}', $event.target.value)"
+                                            class="w-28 rounded-lg border-gray-300 bg-white/0 px-2 py-1 text-right text-sm tabular-nums shadow-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 dark:border-white/10 dark:text-gray-200"
+                                        />
+                                    @elseif ($celda['accumulated'] === null)
                                         <span class="text-gray-300 dark:text-gray-600">—</span>
                                     @else
                                         {{ number_format($celda['accumulated'], 0, ',', '.') }}

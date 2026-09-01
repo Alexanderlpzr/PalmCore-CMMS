@@ -313,3 +313,99 @@ it('la cabecera dice cuando el mes no tiene ninguna jornada', function (): void 
         ->set('data.calendar_date', '2026-08-19')
         ->assertSee('Sin jornadas todavía');
 });
+
+// ── Corregir desde la tabla ──────────────────────────────────────────────────
+
+it('corrige las horas de un día desde la tabla', function (): void {
+    $this->service->upsertDay($this->plant, Carbon::parse('2026-08-19'), 22, 336.04);
+
+    Livewire::test(CapturaDiaria::class)
+        ->set('data.plant_id', $this->plant->id)
+        ->set('data.calendar_date', '2026-08-19')
+        ->call('setJornada', '2026-08-19', 'programmed_hours', '18.5');
+
+    $dia = ProductionCalendarDay::withoutGlobalScopes()->where('calendar_date', '2026-08-19')->first();
+
+    expect($dia->programmed_hours)->toBe(18.5)
+        // Y no se lleva por delante la fruta, que no se estaba tocando.
+        ->and($dia->processed_tons)->toBe(336.04);
+});
+
+it('corregir la fruta conserva las horas que el día ya tenía', function (): void {
+    // `upsertDay()` exige las horas, así que la celda de fruta tiene que pasarle las que
+    // ya había. Sin eso, corregir la fruta borraría la jornada.
+    $this->service->upsertDay($this->plant, Carbon::parse('2026-08-19'), 22, 336.04);
+
+    Livewire::test(CapturaDiaria::class)
+        ->set('data.plant_id', $this->plant->id)
+        ->set('data.calendar_date', '2026-08-19')
+        ->call('setJornada', '2026-08-19', 'processed_tons', '300');
+
+    $dia = ProductionCalendarDay::withoutGlobalScopes()->where('calendar_date', '2026-08-19')->first();
+
+    expect($dia->processed_tons)->toBe(300.0)
+        ->and($dia->programmed_hours)->toBe(22.0);
+});
+
+it('rechaza desde la tabla la fruta en kilogramos', function (): void {
+    $this->service->upsertDay($this->plant, Carbon::parse('2026-08-19'), 22, 336.04);
+
+    Livewire::test(CapturaDiaria::class)
+        ->set('data.plant_id', $this->plant->id)
+        ->set('data.calendar_date', '2026-08-19')
+        ->call('setJornada', '2026-08-19', 'processed_tons', '336040');
+
+    expect(ProductionCalendarDay::withoutGlobalScopes()->where('calendar_date', '2026-08-19')->first()->processed_tons)
+        ->toBe(336.04);
+});
+
+it('no escribe fruta en un día que todavía no tiene horas', function (): void {
+    Livewire::test(CapturaDiaria::class)
+        ->set('data.plant_id', $this->plant->id)
+        ->set('data.calendar_date', '2026-08-19')
+        ->call('setJornada', '2026-08-19', 'processed_tons', '300');
+
+    // Cero y «no sé» no son lo mismo: una jornada sin horas no es una jornada.
+    expect(ProductionCalendarDay::withoutGlobalScopes()->count())->toBe(0);
+});
+
+it('rechaza un texto que no es número en vez de convertirlo en uno', function (): void {
+    $this->service->upsertDay($this->plant, Carbon::parse('2026-08-19'), 22, 336.04);
+
+    // «1.250,5» a la española: `(float)` lo habría guardado como un 1.
+    Livewire::test(CapturaDiaria::class)
+        ->set('data.plant_id', $this->plant->id)
+        ->set('data.calendar_date', '2026-08-19')
+        ->call('setJornada', '2026-08-19', 'processed_tons', '1.250,5');
+
+    expect(ProductionCalendarDay::withoutGlobalScopes()->where('calendar_date', '2026-08-19')->first()->processed_tons)
+        ->toBe(336.04);
+});
+
+it('no acepta escribir en una columna que no sea de las dos', function (): void {
+    Livewire::test(CapturaDiaria::class)
+        ->set('data.plant_id', $this->plant->id)
+        ->set('data.calendar_date', '2026-08-19')
+        ->call('setJornada', '2026-08-19', 'notes', 'lo que sea')
+        ->assertStatus(400);
+});
+
+it('a quien no puede escribir le muestra el número, no una celda', function (): void {
+    $this->service->upsertDay($this->plant, Carbon::parse('2026-08-19'), 22, 336.04);
+
+    $lector = User::factory()->create(['is_active' => true, 'is_super_admin' => false]);
+    $lector->tenants()->attach($this->tenant->id, ['joined_at' => now()]);
+
+    // Los permisos de este proyecto van por equipo: sin fijar el del tenant, la concesión
+    // se intenta escribir sin `team_id` y la base la rechaza.
+    setPermissionsTeamId($this->tenant->id);
+    $lector->givePermissionTo('production-calendar.view');
+
+    $this->actingAs($lector);
+
+    Livewire::test(CapturaDiaria::class)
+        ->set('data.plant_id', $this->plant->id)
+        ->set('data.calendar_date', '2026-08-19')
+        ->assertDontSee('setJornada')
+        ->assertSee('336,04');
+});

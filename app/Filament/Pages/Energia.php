@@ -436,6 +436,90 @@ class Energia extends Page
         $this->loadDay();
     }
 
+    /** Si esta persona puede escribir lecturas: decide si la tabla pinta celdas o números. */
+    public function puedeEscribir(): bool
+    {
+        return auth()->user()?->can('create', EnergyMeter::class) ?? false;
+    }
+
+    /**
+     * Corrige el acumulado de un día desde la propia tabla.
+     *
+     * Pasa por el servicio y no escribe la fila directamente, y no es una formalidad: de
+     * una lectura cuelga el consumo de ese día **y el de todos los siguientes**. Guardar a
+     * mano dejaría los deltas posteriores mintiendo en silencio — exactamente el fallo de
+     * la hoja de cálculo que este módulo vino a cerrar.
+     *
+     * Vaciar la celda borra la lectura, no la pone a cero. Cero afirma que el contador no
+     * se movió; vacío dice que nadie pasó a leerlo.
+     *
+     * El aviso del dígito de más sigue mandando: si el valor no es creíble no se guarda.
+     * Confirmarlo a la fuerza se queda solo en el formulario de arriba, donde está la
+     * casilla — un clic en la tabla no debería poder saltarse el guardia sin querer.
+     */
+    public function setLectura(string $meterId, string $date, ?string $valor): void
+    {
+        abort_unless(auth()->user()?->can('create', EnergyMeter::class) ?? false, 403);
+
+        // El contador se busca entre los de la planta del tenant, no por su id a secas:
+        // aceptar el que llegue del navegador deja a un tenant escribiendo sobre el
+        // contador de otro.
+        $meter = $this->meters()->firstWhere('id', $meterId);
+
+        if ($meter === null) {
+            return;
+        }
+
+        $dia = Carbon::parse($date)->startOfDay();
+        $service = app(EnergyMeterReadingService::class);
+        $limpio = ($valor === null || trim($valor) === '') ? null : trim($valor);
+
+        // Sin esto, `(float)` convertiría cualquier texto en un número sin decir nada:
+        // «2.519.000» tecleado con puntos entra como un 2. Un dato falso que nadie ve es
+        // peor que un rechazo, que es la lección de la hoja que este módulo reemplazó.
+        if ($limpio !== null && ! is_numeric($limpio)) {
+            Notification::make()
+                ->title('Eso no es un número')
+                ->body('La lectura del contador se escribe sin puntos ni comas de miles.')
+                ->warning()
+                ->send();
+
+            $this->loadDay();
+
+            return;
+        }
+
+        try {
+            if ($limpio === null) {
+                $existente = $meter->readings()->where('reading_date', $dia->toDateString())->first();
+
+                if ($existente !== null) {
+                    $service->deleteReading($existente);
+                }
+            } else {
+                $service->record(
+                    meter: $meter,
+                    readingValue: (float) $limpio,
+                    recordedBy: auth()->user(),
+                    readingDate: $dia,
+                );
+            }
+        } catch (BusinessRuleException $e) {
+            Notification::make()
+                ->title('Revisa esa lectura')
+                ->body($e->getMessage().' Si de verdad es correcta, anótala desde la ronda de arriba.')
+                ->warning()
+                ->persistent()
+                ->send();
+        } catch (\InvalidArgumentException $e) {
+            Notification::make()->title($meter->name.': '.$e->getMessage())->danger()->send();
+        }
+
+        // Recargar aunque no se haya escrito: devuelve la celda a lo que hay en la base y
+        // deshace lo que el usuario tecleó y fue rechazado.
+        $this->loadDay();
+    }
+
     // ── Estado ────────────────────────────────────────────────────────────────
 
     private function loadDay(): void

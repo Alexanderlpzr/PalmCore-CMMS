@@ -352,3 +352,98 @@ it('la cabecera dice cuando el mes no tiene ninguna lectura', function (): void 
         ->set('data.reading_date', '2026-08-19')
         ->assertSee('Sin lecturas todavía');
 });
+
+// ── Corregir desde la tabla ──────────────────────────────────────────────────
+
+it('corregir el acumulado en la tabla mueve el consumo del día siguiente', function (): void {
+    // El test que justifica el módulo entero. De una lectura cuelga el consumo de ese día
+    // y el de todos los siguientes: si la celda escribiera directa sobre la fila, el 19
+    // seguiría diciendo 7.780 con una base que ya no es la suya.
+    $service = app(EnergyMeterReadingService::class);
+    $service->record($this->turbina, 2_519_653, $this->user, Carbon::parse('2026-08-18'));
+    $service->record($this->turbina, 2_527_433, $this->user, Carbon::parse('2026-08-19'));
+
+    Livewire::test(Energia::class)
+        ->set('data.reading_date', '2026-08-19')
+        ->call('setLectura', $this->turbina->id, '2026-08-18', '2519000');
+
+    $dia19 = EnergyMeterReading::where('energy_meter_id', $this->turbina->id)
+        ->where('reading_date', '2026-08-19')
+        ->first();
+
+    // 2.527.433 − 2.519.000, no los 7.780 de antes.
+    expect($dia19->delta)->toBe(8433.0);
+});
+
+it('vaciar una celda borra la lectura, no la pone en cero', function (): void {
+    app(EnergyMeterReadingService::class)
+        ->record($this->red, 388_349, $this->user, Carbon::parse('2026-08-18'));
+
+    Livewire::test(Energia::class)
+        ->set('data.reading_date', '2026-08-18')
+        ->call('setLectura', $this->red->id, '2026-08-18', '');
+
+    // Cero afirmaría que el contador no se movió. Vacío dice que nadie pasó a leerlo.
+    expect(EnergyMeterReading::where('energy_meter_id', $this->red->id)->exists())->toBeFalse();
+});
+
+it('no guarda desde la tabla una lectura implausible', function (): void {
+    $service = app(EnergyMeterReadingService::class);
+    foreach ([
+        '2026-08-10' => 2_488_804, '2026-08-11' => 2_493_548, '2026-08-12' => 2_499_136,
+        '2026-08-13' => 2_505_362, '2026-08-14' => 2_510_704, '2026-08-15' => 2_516_158,
+    ] as $f => $v) {
+        $service->record($this->turbina, $v, $this->user, Carbon::parse($f));
+    }
+
+    $antes = EnergyMeterReading::count();
+
+    Livewire::test(Energia::class)
+        ->set('data.reading_date', '2026-08-16')
+        ->call('setLectura', $this->turbina->id, '2026-08-16', '25161580');
+
+    // El guardia no se salta por escribir en la tabla: confirmar sigue viviendo arriba.
+    expect(EnergyMeterReading::count())->toBe($antes);
+});
+
+it('no deja escribir en el contador de otra planta', function (): void {
+    $otraPlanta = Plant::factory()->create(['tenant_id' => $this->tenant->id]);
+    $ajeno = EnergyMeter::factory()->grid()->create([
+        'tenant_id' => $this->tenant->id, 'plant_id' => $otraPlanta->id, 'code' => 'ENE-AJENO',
+    ]);
+
+    Livewire::test(Energia::class)
+        ->set('data.plant_id', $this->plant->id)
+        ->set('data.reading_date', '2026-08-18')
+        ->call('setLectura', $ajeno->id, '2026-08-18', '100000');
+
+    expect(EnergyMeterReading::where('energy_meter_id', $ajeno->id)->exists())->toBeFalse();
+});
+
+it('a quien no puede escribir le muestra el número, no una celda', function (): void {
+    app(EnergyMeterReadingService::class)
+        ->record($this->red, 388_349, $this->user, Carbon::parse('2026-08-18'));
+
+    $lector = User::factory()->create(['is_active' => true, 'is_super_admin' => false]);
+    $lector->tenants()->attach($this->tenant->id, ['joined_at' => now()]);
+    $lector->givePermissionTo('energy.view');
+
+    $this->actingAs($lector);
+
+    Livewire::test(Energia::class)
+        ->set('data.plant_id', $this->plant->id)
+        ->set('data.reading_date', '2026-08-18')
+        ->assertDontSee('setLectura')
+        ->assertSee('388.349');
+});
+
+it('rechaza un texto que no es número en vez de convertirlo en uno', function (): void {
+    // «2.519.000» tecleado con puntos de miles: `(float)` lo habría guardado como un 2 sin
+    // decir nada, y el consumo de los días siguientes habría salido de esa base falsa.
+    Livewire::test(Energia::class)
+        ->set('data.plant_id', $this->plant->id)
+        ->set('data.reading_date', '2026-08-18')
+        ->call('setLectura', $this->red->id, '2026-08-18', '2.519.000');
+
+    expect(EnergyMeterReading::where('energy_meter_id', $this->red->id)->exists())->toBeFalse();
+});
