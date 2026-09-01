@@ -2,6 +2,8 @@
 
 namespace App\Filament\Pages;
 
+use App\Domain\Reports\Services\DashboardPdfService;
+use App\Filament\Concerns\DescargaInformePdf;
 use App\Filament\Concerns\HasPeriodFilterForm;
 use App\Filament\Widgets\Analytics\CostByEquipmentWidget;
 use App\Filament\Widgets\Analytics\DowntimeByEquipmentWidget;
@@ -38,6 +40,7 @@ use UnitEnum;
  */
 class Dashboard extends BaseDashboard
 {
+    use DescargaInformePdf;
     use HasFiltersForm;
     use HasPeriodFilterForm;
 
@@ -84,6 +87,16 @@ class Dashboard extends BaseDashboard
             // Costos
             CostByEquipmentWidget::class,
             MonthlyCostByTypeWidget::class,
+        ];
+    }
+
+    /**
+     * @return array<Action>
+     */
+    protected function getHeaderActions(): array
+    {
+        return [
+            $this->descargarInformeAction(DashboardPdfService::class, 'El informe de paros, confiabilidad y costos'),
         ];
     }
 

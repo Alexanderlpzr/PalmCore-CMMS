@@ -3,6 +3,8 @@
 namespace App\Filament\Pages;
 
 use App\Domain\Analytics\Support\DashboardPeriod;
+use App\Domain\Reports\Services\PresupuestoPdfService;
+use App\Filament\Concerns\DescargaInformePdf;
 use App\Filament\Widgets\Budget\BudgetByCategoryChartWidget;
 use App\Filament\Widgets\Budget\BudgetExpensesTableWidget;
 use App\Filament\Widgets\Budget\BudgetProgressChartWidget;
@@ -29,6 +31,7 @@ use UnitEnum;
  */
 class Presupuesto extends BaseDashboard
 {
+    use DescargaInformePdf;
     use HasFiltersForm;
 
     protected static string $routePath = '/presupuesto';
@@ -67,6 +70,7 @@ class Presupuesto extends BaseDashboard
     protected function getHeaderActions(): array
     {
         return [
+            $this->descargarInformeAction(PresupuestoPdfService::class, 'El informe de presupuesto contra gasto real del período elegido'),
             $this->addExpenseAction(),
             $this->assignBudgetAction(),
         ];

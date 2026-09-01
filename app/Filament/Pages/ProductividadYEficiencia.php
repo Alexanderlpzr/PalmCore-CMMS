@@ -2,6 +2,8 @@
 
 namespace App\Filament\Pages;
 
+use App\Domain\Reports\Services\ProductividadPdfService;
+use App\Filament\Concerns\DescargaInformePdf;
 use App\Filament\Concerns\HasPeriodFilterForm;
 use App\Filament\Resources\ProductionCalendar\ProductionCalendarResource;
 use App\Filament\Widgets\Executive\PlantEfficiencyStatsWidget;
@@ -39,6 +41,7 @@ use UnitEnum;
  */
 class ProductividadYEficiencia extends BaseDashboard
 {
+    use DescargaInformePdf;
     use HasFiltersForm;
     use HasPeriodFilterForm;
 
@@ -84,6 +87,7 @@ class ProductividadYEficiencia extends BaseDashboard
     protected function getHeaderActions(): array
     {
         return [
+            $this->descargarInformeAction(ProductividadPdfService::class, 'El informe de productividad y eficiencia del período elegido'),
             Action::make('cargarProduccion')
                 ->label('Cargar producción')
                 ->icon(Heroicon::OutlinedTableCells)

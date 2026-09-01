@@ -2,6 +2,8 @@
 
 namespace App\Filament\Pages;
 
+use App\Domain\Reports\Services\EnergiaPdfService;
+use App\Filament\Concerns\DescargaInformePdf;
 use App\Filament\Concerns\HasPeriodFilterForm;
 use App\Filament\Widgets\Executive\PlantEnergyStatsWidget;
 use App\Filament\Widgets\Executive\PlantEnergyYearTableWidget;
@@ -32,6 +34,7 @@ use UnitEnum;
  */
 class ConsumoDeEnergia extends BaseDashboard
 {
+    use DescargaInformePdf;
     use HasFiltersForm;
     use HasPeriodFilterForm;
 
@@ -82,6 +85,7 @@ class ConsumoDeEnergia extends BaseDashboard
     protected function getHeaderActions(): array
     {
         return [
+            $this->descargarInformeAction(EnergiaPdfService::class, 'El informe de consumo de energía del período elegido'),
             Action::make('anotarLecturas')
                 ->label('Anotar lecturas')
                 ->icon(Heroicon::OutlinedBolt)
