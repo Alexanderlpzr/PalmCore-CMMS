@@ -75,9 +75,19 @@ class MaintenanceCalendar extends Page
         $this->month = now()->format('Y-m');
     }
 
+    /**
+     * El mes que se está viendo, como su día 1.
+     *
+     * El `!` del formato no es decorativo. Sin él, `createFromFormat` rellena lo que no se
+     * le dio —el día— con el de hoy, y en un 31 pedirle «2026-09» devuelve el 31 de
+     * septiembre, que no existe: Carbon lo desborda al 1 de octubre. El resultado era que
+     * cada día 31, «Mes anterior» desde un mes de treinta días devolvía ese mismo mes y el
+     * botón se quedaba atascado, sin decir nada. Con `!` los campos que faltan valen cero,
+     * y el día es 1 mire quien mire y cuando mire.
+     */
     private function currentMonth(): CarbonImmutable
     {
-        return CarbonImmutable::createFromFormat('Y-m', $this->month ?: now()->format('Y-m'))->startOfMonth();
+        return CarbonImmutable::createFromFormat('!Y-m', $this->month ?: now()->format('Y-m'));
     }
 
     // ── View data ───────────────────────────────────────────────────────────────

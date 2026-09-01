@@ -366,3 +366,22 @@ it('defaults costTrend() to the trailing 12 months when no range is given', func
     expect($trend)->toHaveCount(12)
         ->and($trend[11]['month'])->toBe(Carbon::now()->format('Y-m'));
 });
+
+it('no repite ni se salta meses en la serie, tampoco un día 31', function (): void {
+    // La fecha va fijada a propósito. Restarle dos meses a un 31 de agosto da el 31 de
+    // junio, que no existe, y Carbon lo desborda al 1 de julio: la serie mostraba julio
+    // dos veces y junio desaparecía. Solo pasaba los días 31, así que sin fijar la fecha
+    // este test sería verde casi siempre y el fallo volvería en silencio.
+    Carbon::setTestNow('2026-08-31');
+
+    $meses = array_column($this->service->trends($this->tenant->id), 'month');
+
+    expect($meses)->toHaveCount(12)
+        ->and($meses)->toBe(array_unique($meses))
+        ->and($meses[11])->toBe('2026-08')
+        ->and($meses[10])->toBe('2026-07')
+        ->and($meses[9])->toBe('2026-06')
+        ->and($meses[0])->toBe('2025-09');
+
+    Carbon::setTestNow();
+});

@@ -103,3 +103,27 @@ it('denies access to a user without the work-orders.view permission', function (
 
     expect(MaintenanceCalendar::canAccess())->toBeFalse();
 });
+
+it('navega hacia atrás también un día 31', function () {
+    // La fecha va fijada a propósito. Este fallo solo aparecía los días 31: pedirle
+    // «septiembre» a `createFromFormat('Y-m', …)` heredaba el día de hoy —el 31—, y como
+    // septiembre no tiene 31, Carbon lo desbordaba a octubre. «Mes anterior» devolvía
+    // entonces septiembre otra vez y el botón se quedaba clavado, sin avisar.
+    //
+    // Sin fijar la fecha, este test pasaría veintiocho días de cada treinta y uno y el
+    // fallo volvería sin que nadie lo notara.
+    CarbonImmutable::setTestNow('2026-08-31');
+    Carbon\Carbon::setTestNow('2026-08-31');
+
+    Livewire::test(MaintenanceCalendar::class)
+        ->assertSet('month', '2026-08')
+        ->call('nextMonth')
+        ->assertSet('month', '2026-09')
+        ->call('previousMonth')
+        ->assertSet('month', '2026-08')
+        ->call('previousMonth')
+        ->assertSet('month', '2026-07');
+
+    CarbonImmutable::setTestNow();
+    Carbon\Carbon::setTestNow();
+});

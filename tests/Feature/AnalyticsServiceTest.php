@@ -139,9 +139,11 @@ it('failuresByMonth excludes ongoing events (ended_at = null)', function () {
 it('failuresByMonth with an explicit from/to returns exactly that many months', function () {
     $tenant = analyticsTenant();
 
+    // startOfMonth() antes de restar: en un día 31, restar dos meses primero desborda y
+    // el rango pedido sale de dos meses en vez de tres. El test fallaba solo los días 31.
     $points = service()->failuresByMonth(
         $tenant->id,
-        now()->subMonths(2)->startOfMonth(),
+        now()->startOfMonth()->subMonths(2),
         now()->startOfMonth(),
     );
 

@@ -48,7 +48,10 @@ class EquipmentKpiService
     {
         $periodMonths = $this->resolvePeriodMonths($equipment->tenant_id);
         $periodEnd = CarbonImmutable::today();
-        $periodStart = $periodEnd->subMonths($periodMonths)->startOfDay();
+        // NoOverflow: restarle seis meses a un 31 de agosto cae en el 31 de febrero, que
+        // Carbon desborda al 3 de marzo, y la ventana acababa siendo tres días más corta
+        // de lo que dice llamarse.
+        $periodStart = $periodEnd->subMonthsNoOverflow($periodMonths)->startOfDay();
 
         $totalPeriodHours = (float) $periodStart->diffInHours($periodEnd);
 

@@ -229,7 +229,7 @@ class ExecutiveDashboardService
         $kpiRows = DB::table('equipment_kpis')
             ->where('tenant_id', $tenantId)
             ->whereNull('deleted_at')
-            ->where('period_start', '>=', Carbon::now()->subMonths(11)->startOfMonth())
+            ->where('period_start', '>=', Carbon::now()->startOfMonth()->subMonths(11))
             ->selectRaw("TO_CHAR(period_start, 'YYYY-MM') as month, AVG(availability_percentage) as avg_availability, AVG(mtbf_hours) as avg_mtbf, AVG(mttr_hours) as avg_mttr")
             ->groupByRaw("TO_CHAR(period_start, 'YYYY-MM')")
             ->get()
@@ -239,16 +239,22 @@ class ExecutiveDashboardService
         $costRows = DB::table('work_orders')
             ->where('tenant_id', $tenantId)
             ->whereNotNull('completed_at')
-            ->where('completed_at', '>=', Carbon::now()->subMonths(11)->startOfMonth())
+            ->where('completed_at', '>=', Carbon::now()->startOfMonth()->subMonths(11))
             ->selectRaw("TO_CHAR(completed_at, 'YYYY-MM') as month, SUM(actual_cost_total) as total_cost")
             ->groupByRaw("TO_CHAR(completed_at, 'YYYY-MM')")
             ->get()
             ->keyBy('month');
 
-        // Build 12-month list oldest-first
+        // Build 12-month list oldest-first.
+        //
+        // El startOfMonth() va antes de restar, y no es un detalle de estilo: restarle dos
+        // meses a un 31 de agosto da el 31 de junio, que no existe, y Carbon lo desborda al
+        // 1 de julio. Cada día 31 esta lista repetía un mes y se saltaba otro, y el mismo
+        // desbordamiento corría la ventana de las consultas de arriba un mes entero, así
+        // que el mes más viejo de la serie salía vacío.
         $months = [];
         for ($i = 11; $i >= 0; $i--) {
-            $months[] = Carbon::now()->subMonths($i)->format('Y-m');
+            $months[] = Carbon::now()->startOfMonth()->subMonths($i)->format('Y-m');
         }
 
         return array_map(function (string $month) use ($kpiRows, $costRows): array {
