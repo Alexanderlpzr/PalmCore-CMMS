@@ -18,7 +18,6 @@
 
 @php
     $horas = fn (float $h) => number_format($h, 2, ',', '.');
-    $parte = fn (float $h) => $horasTotales > 0 ? number_format($h / $horasTotales * 100, 1, ',', '.').'%' : '—';
 @endphp
 
 <div class="doc-body">
@@ -70,24 +69,24 @@
             @if (! empty($filas))
                 <div class="section">
                     <div class="section-title">{{ $titulo }}</div>
-                    <table class="data-table">
-                        <tr>
-                            <th style="width:60%">Concepto</th>
-                            <th style="width:20%; text-align:right">Horas</th>
-                            <th style="width:20%; text-align:right">Participación</th>
-                        </tr>
-                        @foreach ($filas as $fila)
-                            @php
-                                $etiqueta = is_array($fila) ? $fila['label'] : $fila->label;
-                                $valor = (float) (is_array($fila) ? $fila['hours'] : ($fila->value ?? 0));
-                            @endphp
-                            <tr>
-                                <td>{{ $etiqueta }}</td>
-                                <td style="text-align:right">{{ $horas($valor) }}</td>
-                                <td style="text-align:right">{{ $parte($valor) }}</td>
-                            </tr>
-                        @endforeach
-                    </table>
+                    {{-- Ordenado de mayor a menor y con barra: lo que se busca aquí es
+                         dónde se fueron las horas, y eso se ve antes por el largo que
+                         leyendo una columna de números. --}}
+                    @include('reports.partials.chart-bars', [
+                        'filas' => collect($filas)
+                            ->map(fn ($fila): array => [
+                                'name' => is_array($fila) ? $fila['label'] : $fila->label,
+                                'value' => (float) (is_array($fila) ? $fila['hours'] : ($fila->value ?? 0)),
+                            ])
+                            ->sortByDesc('value')
+                            ->map(fn (array $f): array => [
+                                ...$f,
+                                'text' => number_format($f['value'], 1, ',', '.').' h',
+                                'fill' => 'fill-warn',
+                            ])
+                            ->values()
+                            ->all(),
+                    ])
                 </div>
             @endif
         @endforeach
@@ -99,17 +98,29 @@
                     <tr>
                         <th style="width:15%">Código</th>
                         <th style="width:45%">Equipo</th>
-                        <th style="width:15%; text-align:right">Horas</th>
-                        <th style="width:10%; text-align:right">Paros</th>
-                        <th style="width:15%; text-align:right">Acumulado</th>
+                        <th style="width:12%; text-align:right">Horas</th>
+                        <th style="width:16%">&nbsp;</th>
+                        <th style="width:6%; text-align:right">Paros</th>
+                        <th style="width:12%; text-align:right">Acumulado</th>
                     </tr>
+                    @php($peor = collect($porEquipo)->max('hours') ?: 0)
                     @foreach ($porEquipo as $equipo)
                         <tr>
                             <td>{{ $equipo['code'] ?? '—' }}</td>
                             <td>{{ $equipo['name'] }}</td>
                             <td style="text-align:right">{{ $horas($equipo['hours']) }}</td>
+                            <td>
+                                <div class="chart-track">
+                                    <div class="chart-fill fill-bad"
+                                         style="width: {{ $peor > 0 ? max(2, round($equipo['hours'] / $peor * 100)) : 0 }}%;"></div>
+                                </div>
+                            </td>
                             <td style="text-align:right">{{ $equipo['events'] }}</td>
-                            <td style="text-align:right">{{ number_format($equipo['cumulative_percentage'], 1, ',', '.') }}%</td>
+                            {{-- El 80% es donde hay que mirar: por encima de esa línea está
+                                 el puñado de equipos que explica la mayor parte del paro. --}}
+                            <td style="text-align:right; {{ $equipo['cumulative_percentage'] <= 80 ? 'font-weight:bold; color:#dc2626;' : 'color:#94a3b8;' }}">
+                                {{ number_format($equipo['cumulative_percentage'], 1, ',', '.') }}%
+                            </td>
                         </tr>
                     @endforeach
                 </table>
@@ -124,18 +135,14 @@
             <div class="section-title">
                 Pareto de fallas <span class="ventana">— {{ $paretoVentana }}, no {{ $periodLabel }}</span>
             </div>
-            <table class="data-table">
-                <tr>
-                    <th style="width:70%">Equipo</th>
-                    <th style="width:30%; text-align:right">Fallas</th>
-                </tr>
-                @foreach ($pareto as $punto)
-                    <tr>
-                        <td>{{ $punto->label }}</td>
-                        <td style="text-align:right">{{ $punto->count ?: (int) $punto->value }}</td>
-                    </tr>
-                @endforeach
-            </table>
+            @include('reports.partials.chart-bars', [
+                'filas' => collect($pareto)->map(fn ($punto): array => [
+                    'name' => $punto->label,
+                    'value' => (float) ($punto->count ?: (int) $punto->value),
+                    'text' => ($punto->count ?: (int) $punto->value).' fallas',
+                    'fill' => 'fill-bad',
+                ])->all(),
+            ])
         </div>
     @endif
 
@@ -163,6 +170,12 @@
                 </td>
             </tr>
         </table>
+        @if ($cumplimiento['compliance'] !== null)
+            <div class="chart-track" style="margin-top:5px;">
+                <div class="chart-fill {{ $cumplimiento['compliance'] >= 90 ? 'fill-good' : ($cumplimiento['compliance'] >= 70 ? 'fill-warn' : 'fill-bad') }}"
+                     style="width: {{ min(100, round($cumplimiento['compliance'], 1)) }}%;"></div>
+            </div>
+        @endif
     </div>
 
     <div class="section">
@@ -187,6 +200,25 @@
                 </td>
             </tr>
         </table>
+        {{-- Una operación sana tiende a que la parte verde crezca: más trabajo planificado
+             y menos apagando incendios. Es la lectura de esta mezcla. --}}
+        @if ($planificado['total'] > 0)
+            <table class="chart-stack" style="margin-top:5px;">
+                <tr>
+                    @if ($planificado['preventive'] > 0)
+                        <td class="fill-good" style="width: {{ round($planificado['preventive'] / $planificado['total'] * 100, 2) }}%;">&nbsp;</td>
+                    @endif
+                    @if ($planificado['corrective'] > 0)
+                        <td class="fill-bad" style="width: {{ round($planificado['corrective'] / $planificado['total'] * 100, 2) }}%;">&nbsp;</td>
+                    @endif
+                </tr>
+            </table>
+            <div class="chart-legend">
+                <span class="dot fill-good"></span>Preventivo ({{ $planificado['preventive'] }})
+                &nbsp;&nbsp;
+                <span class="dot fill-bad"></span>Correctivo ({{ $planificado['corrective'] }})
+            </div>
+        @endif
     </div>
 
     @if (! empty($costoPorEquipo))
@@ -194,18 +226,14 @@
             <div class="section-title">
                 Costo por equipo <span class="ventana">— {{ $costoVentana }}, no {{ $periodLabel }}</span>
             </div>
-            <table class="data-table">
-                <tr>
-                    <th style="width:70%">Equipo</th>
-                    <th style="width:30%; text-align:right">Costo</th>
-                </tr>
-                @foreach ($costoPorEquipo as $punto)
-                    <tr>
-                        <td>{{ $punto->label }}</td>
-                        <td style="text-align:right">$ {{ number_format((float) $punto->value, 0, ',', '.') }}</td>
-                    </tr>
-                @endforeach
-            </table>
+            @include('reports.partials.chart-bars', [
+                'filas' => collect($costoPorEquipo)->map(fn ($punto): array => [
+                    'name' => $punto->label,
+                    'value' => (float) $punto->value,
+                    'text' => '$ '.number_format((float) $punto->value, 0, ',', '.'),
+                    'fill' => 'fill-gray',
+                ])->all(),
+            ])
         </div>
     @endif
 

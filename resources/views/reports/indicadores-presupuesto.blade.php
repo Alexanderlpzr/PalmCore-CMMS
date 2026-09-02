@@ -57,6 +57,14 @@
             comparar el gasto.
         </p>
     @else
+        {{-- La ejecución contra el techo. Cuando se pasa, la barra se llena en rojo y se
+             queda al 100%: un 130% dibujado saliéndose de la caja no se lee, y el número
+             de al lado ya dice cuánto se pasó. --}}
+        <div class="chart-track" style="height:14px; margin-bottom:8px;">
+            <div class="chart-fill {{ $excedido ? 'fill-bad' : ($porcentaje !== null && $porcentaje >= 85 ? 'fill-warn' : 'fill-good') }}"
+                 style="height:14px; width: {{ min(100, max(1, (int) round($porcentaje ?? 0))) }}%;"></div>
+        </div>
+
         <div class="summary-box">
             <table>
                 <tr>
@@ -85,7 +93,16 @@
         @if ($porCategoria === [])
             <p class="empty">No hay gastos registrados en este período.</p>
         @else
-            <table class="data-table">
+            @include('reports.partials.chart-bars', [
+                'filas' => collect($porCategoria)->map(fn (float $monto, string $categoria): array => [
+                    'name' => \App\Domain\Reports\Services\PresupuestoPdfService::categoryLabel($categoria),
+                    'value' => $monto,
+                    'text' => '$ '.number_format($monto, 0, ',', '.'),
+                    'fill' => 'fill-good',
+                ])->values()->all(),
+            ])
+
+            <table class="data-table" style="margin-top:6px;">
                 <tr>
                     <th style="width:55%">Categoría</th>
                     <th style="width:25%; text-align:right">Monto</th>
@@ -108,6 +125,22 @@
     @if ($meses !== [])
         <div class="section">
             <div class="section-title">Mes a mes</div>
+
+            {{-- El gasto de cada mes, para ver si viene creciendo. La tabla de abajo trae
+                 el presupuesto de cada uno; aquí solo lo ejecutado, que es la serie que
+                 tiene sentido comparar consigo misma. --}}
+            @include('reports.partials.chart-columns', [
+                'filas' => collect($meses)->map(fn (array $m): array => [
+                    'label' => mb_substr($m['label'], 0, 3),
+                    'value' => $m['total'],
+                    'text' => number_format($m['total'] / 1000, 0, ',', '.').'k',
+                    'fill' => $m['is_over_budget'] ? 'fill-bad' : 'fill-good',
+                ])->all(),
+            ])
+            <p style="font-size:8px; color:#64748b; margin:2px 0 8px;">
+                Ejecutado por mes, en miles. En rojo, los meses que se pasaron del presupuesto.
+            </p>
+
             <table class="data-table">
                 <tr>
                     <th>Mes</th>

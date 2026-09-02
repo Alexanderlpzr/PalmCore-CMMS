@@ -56,7 +56,37 @@
 
         <div class="section">
             <div class="section-title">De dónde salieron los kWh</div>
-            <table class="data-table">
+
+            @php
+                $fuentes = [
+                    ['campo' => 'kwh_grid',    'nombre' => 'Red pública',      'fill' => 'fill-warn'],
+                    ['campo' => 'kwh_genset',  'nombre' => 'Planta eléctrica', 'fill' => 'fill-bad'],
+                    ['campo' => 'kwh_turbine', 'nombre' => 'Turbina',          'fill' => 'fill-good'],
+                ];
+                $conDato = array_values(array_filter($fuentes, fn (array $f): bool => $resumen[$f['campo']] !== null));
+            @endphp
+
+            {{-- Una sola barra repartida: la pregunta de la reunión no es cuántos kWh dio
+                 cada fuente sino qué parte del total salió de la turbina, que es la propia
+                 y la limpia. Una composición se lee mejor junta que en tres barras. --}}
+            @if ($conDato !== [] && $resumen['kwh_total'] > 0)
+                <table class="chart-stack">
+                    <tr>
+                        @foreach ($conDato as $f)
+                            <td class="{{ $f['fill'] }}"
+                                style="width: {{ round($resumen[$f['campo']] / $resumen['kwh_total'] * 100, 2) }}%;">&nbsp;</td>
+                        @endforeach
+                    </tr>
+                </table>
+                <div class="chart-legend">
+                    @foreach ($conDato as $f)
+                        <span class="dot {{ $f['fill'] }}"></span>{{ $f['nombre'] }}
+                        ({{ number_format($resumen[$f['campo']] / $resumen['kwh_total'] * 100, 1, ',', '.') }}%)@if (! $loop->last) &nbsp;&nbsp; @endif
+                    @endforeach
+                </div>
+            @endif
+
+            <table class="data-table" style="margin-top:6px;">
                 <tr>
                     <th style="width:50%">Fuente</th>
                     <th style="width:25%; text-align:right">KWh</th>
@@ -99,6 +129,20 @@
                  denominador de fruta: el del rango no se puede repartir entre ellos. --}}
             <div class="section">
                 <div class="section-title">Mes a mes</div>
+
+                {{-- El KWh/RFF es el número que se vigila: si sube, la planta está gastando
+                     más energía por cada tonelada. En columnas se ve si viene subiendo, que
+                     es lo que la tabla de abajo no dice. --}}
+                @include('reports.partials.chart-columns', [
+                    'filas' => collect($meses)->map(fn (array $m): array => [
+                        'label' => mb_substr($m['label'], 0, 3),
+                        'value' => $m['kwh_per_ton'],
+                        'text' => $m['kwh_per_ton'] === null ? '—' : number_format($m['kwh_per_ton'], 1, ',', '.'),
+                        'fill' => 'fill-cool',
+                    ])->all(),
+                ])
+                <p style="font-size:8px; color:#64748b; margin:2px 0 8px;">KWh por tonelada de fruta, mes a mes.</p>
+
                 <table class="data-table">
                     <tr>
                         <th>Mes</th>

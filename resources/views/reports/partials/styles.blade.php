@@ -92,3 +92,52 @@ table.kpi-grid td { width: 16.6%; padding: 0 4px 0 0; vertical-align: top; }
 .task-num { width: 28px; font-weight: bold; color: #047857; }
 .checkbox-col { width: 20px; text-align: center; }
 .checkbox { display: inline-block; width: 10px; height: 10px; border: 1px solid #94a3b8; border-radius: 2px; }
+
+{{-- ── Gráficos ──────────────────────────────────────────────────────────────
+     DomPDF no ejecuta JavaScript, así que las gráficas de las pantallas —Chart.js—
+     no se pueden traer. Estas se dibujan con CSS, que es lo que DomPDF sí sabe
+     pintar, y de paso salen bien en una impresión en blanco y negro: cada barra
+     lleva su número al lado, así que el color informa pero no es lo único que
+     informa.
+
+     Prohibido aquí: flex, grid y transform. DomPDF implementa un subconjunto de
+     CSS 2.1 y los ignora en silencio — no falla, simplemente sale mal. Todo va
+     con tablas, bloques y anchos en porcentaje. --}}
+
+.chart { width: 100%; border-collapse: collapse; font-size: 9px; margin-top: 2px; }
+.chart td { padding: 2px 0; vertical-align: middle; border: none; }
+.chart .chart-name  { width: 38%; padding-right: 6px; color: #334155; }
+.chart .chart-plot  { width: 44%; }
+.chart .chart-value { width: 18%; text-align: right; padding-left: 6px;
+                      font-weight: bold; color: #1e293b; white-space: nowrap; }
+
+.chart-track { background: #f1f5f9; border-radius: 2px; width: 100%; height: 9px; }
+.chart-fill  { height: 9px; border-radius: 2px; background: #059669; }
+
+{{-- La escala de una barra: verde lo normal, ámbar lo que hay que mirar y rojo lo
+     que ya duele. No se usa para adornar — se usa cuando el número tiene un umbral. --}}
+.fill-good { background: #059669; }
+.fill-warn { background: #d97706; }
+.fill-bad  { background: #dc2626; }
+.fill-cool { background: #0891b2; }
+.fill-gray { background: #94a3b8; }
+
+{{-- Una sola barra repartida entre sus partes, para una composición: de dónde
+     salieron los kWh, o cuánto del trabajo fue preventivo. Los segmentos van en
+     celdas de una tabla porque es la única forma que DomPDF pinta de corrido sin
+     dejar costuras entre ellos. --}}
+.chart-stack { width: 100%; border-collapse: collapse; height: 16px; margin: 4px 0; }
+.chart-stack td { height: 16px; padding: 0; border: none; font-size: 0; }
+.chart-legend { font-size: 8px; color: #475569; margin-top: 3px; }
+.chart-legend .dot { display: inline-block; width: 7px; height: 7px; border-radius: 2px;
+                     margin-right: 3px; vertical-align: middle; }
+
+{{-- Columnas para una serie mensual: es la forma que deja ver la tendencia, que es
+     lo que una tabla de números no da. La altura va en píxeles y no en porcentaje
+     porque DomPDF no resuelve un alto porcentual sin un contenedor de alto fijo. --}}
+.chart-cols { width: 100%; border-collapse: collapse; margin-top: 4px; }
+.chart-cols td { vertical-align: bottom; text-align: center; padding: 0 2px; border: none; }
+.chart-col { background: #059669; border-radius: 2px 2px 0 0; margin: 0 auto; width: 70%; }
+.chart-col-value { font-size: 7px; color: #1e293b; font-weight: bold; padding-bottom: 1px; }
+.chart-col-label { font-size: 7px; color: #64748b; padding-top: 3px;
+                   border-top: 1px solid #e2e8f0; }

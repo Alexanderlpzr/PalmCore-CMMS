@@ -273,3 +273,89 @@ it('no deja emitir el informe de una planta de otro tenant', function (): void {
     // datos de otra empresa.
     expect($metodo->invoke($pagina))->toBeNull();
 });
+
+// ── La geometría de los gráficos ─────────────────────────────────────────────
+
+/**
+ * Un gráfico que miente es peor que ninguno: en la reunión se discute la barra, no la
+ * tabla. Estos tests no miran si es bonito —eso hay que verlo— sino si el dibujo dice
+ * lo mismo que el número.
+ */
+it('reparte la barra de fuentes en proporción a los kWh, y suma cien', function (): void {
+    $vista = view('reports.indicadores-energia', [
+        ...invadeBranding($this->plant),
+        'resumen' => [
+            'kwh_grid' => 250_000.0, 'kwh_genset' => 250_000.0, 'kwh_turbine' => 500_000.0,
+            'kwh_total' => 1_000_000.0, 'processed_tons' => 1_000.0,
+            'kwh_per_ton' => 1000.0, 'clean_energy_percentage' => 50.0,
+        ],
+        'meses' => [],
+        'hasData' => true,
+    ])->render();
+
+    // Sobre las celdas de la barra, no sobre el documento: buscar «width» a secas atrapaba
+    // primero las reglas del <style>, y el test pasaba midiendo la hoja de estilos.
+    preg_match_all('/<td class="fill-[a-z]+"\s*
+?\s*style="width:\s*([\d.]+)%/', $vista, $anchos);
+    $partes = array_map('floatval', $anchos[1]);
+
+    // 25 + 25 + 50. Si los segmentos no suman cien, la barra dibuja una composición que
+    // no existe — y es lo único que se mira de un vistazo.
+    expect($partes)->toBe([25.0, 25.0, 50.0])
+        ->and(array_sum($partes))->toBe(100.0);
+});
+
+it('no dibuja la barra de presupuesto más allá del cien por cien', function (): void {
+    $vista = view('reports.indicadores-presupuesto', [
+        ...invadeBranding($this->plant),
+        'meses' => [], 'presupuesto' => 100.0, 'gastado' => 130.0, 'restante' => -30.0,
+        'porcentaje' => 130.0, 'excedido' => true, 'porCategoria' => [], 'gastos' => 3,
+    ])->render();
+
+    preg_match('/chart-fill[^"]*"\s*\n?\s*style="height:14px; width:\s*(\d+)%/', $vista, $m);
+
+    // Una barra al 130% se sale de su caja y deja de leerse. Se llena en rojo y el número
+    // de al lado dice cuánto se pasó, que es donde vive esa información.
+    expect((int) ($m[1] ?? 0))->toBe(100)
+        ->and($vista)->toContain('fill-bad');
+});
+
+it('escala las barras contra la mayor, sin inventar una escala cuando todo es cero', function (): void {
+    $conDatos = view('reports.partials.chart-bars', ['filas' => [
+        ['name' => 'A', 'value' => 100, 'text' => '100'],
+        ['name' => 'B', 'value' => 50, 'text' => '50'],
+        ['name' => 'C', 'value' => 0, 'text' => '0'],
+    ]])->render();
+
+    preg_match_all('/width:\s*([\d.]+)%/', $conDatos, $m);
+
+    // La mayor manda: 100 → 100%, 50 → 50%. El cero se queda en cero y no en el mínimo
+    // de 1,5%, que sugeriría un valor pequeño donde no hay ninguno.
+    expect(array_map('floatval', $m[1]))->toBe([100.0, 50.0, 0.0]);
+
+    $enCero = view('reports.partials.chart-bars', ['filas' => [
+        ['name' => 'A', 'value' => 0, 'text' => '0'],
+        ['name' => 'B', 'value' => 0, 'text' => '0'],
+    ]])->render();
+
+    preg_match_all('/width:\s*([\d.]+)%/', $enCero, $m2);
+
+    // Si todo vale cero no hay nada que comparar: estirarlas al máximo sería dibujar una
+    // diferencia inexistente.
+    expect(array_map('floatval', $m2[1]))->toBe([0.0, 0.0]);
+});
+
+it('deja el hueco en la serie mensual cuando un mes no tiene dato', function (): void {
+    $html = view('reports.partials.chart-columns', ['filas' => [
+        ['label' => 'Mar', 'value' => 10.0, 'text' => '10'],
+        ['label' => 'Abr', 'value' => null, 'text' => '—'],
+        ['label' => 'May', 'value' => 5.0, 'text' => '5'],
+    ]])->render();
+
+    // Un mes sin dato no dibuja columna: una de altura cero se leería como un mes en que
+    // no se consumió nada, que es una afirmación distinta.
+    preg_match_all('/chart-col\s+[^"]*"\s*\n?\s*style="height:\s*(\d+)px/', $html, $m);
+
+    expect(array_map('intval', $m[1]))->toBe([70, 35])
+        ->and(substr_count($html, 'chart-col '))->toBe(2);
+});

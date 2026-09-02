@@ -26,7 +26,11 @@
     @else
         {{-- Los tres indicadores, arriba. Un guion cuando no se pueden calcular: sin horas
              base, una eficiencia del cero por ciento afirmaría que la planta estuvo parada
-             todo el mes, que es una cosa distinta de no saberlo. --}}
+             todo el mes, que es una cosa distinta de no saberlo.
+
+             Los dos porcentajes llevan barra porque tienen techo conocido —el 100%— y
+             contra ese techo se leen. La productividad en t/h no la lleva: no hay un
+             máximo contra el que compararla, y una barra inventaría una escala. --}}
         <table class="kpi-grid">
             <tr>
                 <td style="width:33.3%">
@@ -35,6 +39,12 @@
                             {{ $kpis['efficiency_percentage'] !== null ? number_format($kpis['efficiency_percentage'], 2, ',', '.').'%' : '—' }}
                         </div>
                         <div class="kpi-label">EFICIENCIA</div>
+                        @if ($kpis['efficiency_percentage'] !== null)
+                            <div class="chart-track" style="margin-top:5px;">
+                                <div class="chart-fill {{ $kpis['efficiency_percentage'] >= 85 ? 'fill-good' : ($kpis['efficiency_percentage'] >= 70 ? 'fill-warn' : 'fill-bad') }}"
+                                     style="width: {{ min(100, round($kpis['efficiency_percentage'], 1)) }}%;"></div>
+                            </div>
+                        @endif
                     </div>
                 </td>
                 <td style="width:33.3%">
@@ -51,6 +61,12 @@
                             {{ $kpis['availability_percentage'] !== null ? number_format($kpis['availability_percentage'], 2, ',', '.').'%' : '—' }}
                         </div>
                         <div class="kpi-label">DISPONIBILIDAD</div>
+                        @if ($kpis['availability_percentage'] !== null)
+                            <div class="chart-track" style="margin-top:5px;">
+                                <div class="chart-fill {{ $kpis['availability_percentage'] >= 90 ? 'fill-good' : ($kpis['availability_percentage'] >= 75 ? 'fill-warn' : 'fill-bad') }}"
+                                     style="width: {{ min(100, round($kpis['availability_percentage'], 1)) }}%;"></div>
+                            </div>
+                        @endif
                     </div>
                 </td>
             </tr>
@@ -61,7 +77,38 @@
              de arriba no se puede discutir en la reunión. --}}
         <div class="section">
             <div class="section-title">Cómo se reparten las horas</div>
-            <table class="data-table">
+
+            {{-- Las horas pagadas, repartidas. Es la lectura que la tabla de abajo no da de
+                 un vistazo: cuánto de lo que se pagó acabó moliendo fruta y cuánto se fue
+                 en aseo, en paro por mantenimiento y en lo demás. --}}
+            @if ($kpis['programmed_hours'] > 0)
+                @php
+                    $reparto = [
+                        ['n' => 'Prensado',              'v' => $kpis['effective_hours'],        'f' => 'fill-good'],
+                        ['n' => 'Aseo',                  'v' => $kpis['cleaning_hours'],         'f' => 'fill-cool'],
+                        ['n' => 'Paro por mantenimiento','v' => $kpis['maintenance_lost_hours'], 'f' => 'fill-bad'],
+                        ['n' => 'Otras pérdidas',        'v' => $kpis['other_lost_hours'],       'f' => 'fill-warn'],
+                    ];
+                    $conHoras = array_values(array_filter($reparto, fn (array $r): bool => $r['v'] > 0));
+                @endphp
+
+                <table class="chart-stack">
+                    <tr>
+                        @foreach ($conHoras as $r)
+                            <td class="{{ $r['f'] }}"
+                                style="width: {{ round($r['v'] / $kpis['programmed_hours'] * 100, 2) }}%;">&nbsp;</td>
+                        @endforeach
+                    </tr>
+                </table>
+                <div class="chart-legend">
+                    @foreach ($conHoras as $r)
+                        <span class="dot {{ $r['f'] }}"></span>{{ $r['n'] }}
+                        ({{ number_format($r['v'] / $kpis['programmed_hours'] * 100, 1, ',', '.') }}%)@if (! $loop->last) &nbsp;&nbsp; @endif
+                    @endforeach
+                </div>
+            @endif
+
+            <table class="data-table" style="margin-top:6px;">
                 <tr>
                     <th style="width:60%">Concepto</th>
                     <th style="width:20%; text-align:right">Horas</th>
