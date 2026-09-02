@@ -193,6 +193,33 @@ class PermissionSeeder extends Seeder
         'inventory.adjust',
         'inventory.transfer',
 
+        // Nómina y personal. Ninguno entra en 'administrador-general': es la primera
+        // información del sistema que el administrador del tenant no debe ver por
+        // omisión. `employee-salaries.view` va aparte de `employees.view` porque
+        // portería necesita el nombre de quien escanea, no su sueldo.
+        'employees.view',
+        'employees.create',
+        'employees.update',
+        'employees.delete',
+        'employee-salaries.view',
+        'employee-qr.view',
+        'employee-qr.create',
+        'employee-qr.update',
+        'attendance.view',
+        'attendance.record',
+        'attendance.confirm',
+        'payroll-runs.view',
+        'payroll-runs.manage',
+        'payroll-runs.close',
+        'employee-novelties.view',
+        'employee-novelties.manage',
+        'payroll-parameters.view',
+        'payroll-parameters.manage',
+        'payroll-concepts.view',
+        'payroll-concepts.manage',
+        'holidays.view',
+        'holidays.manage',
+
         // Home CMS — institutional content shown on the Inicio portal.
         'announcements.view',
         'announcements.create',

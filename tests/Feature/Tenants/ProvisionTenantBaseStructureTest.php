@@ -54,14 +54,19 @@ it('provisions the base equipment inventory for a new tenant', function () {
         ->and(EquipmentComponent::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count())->toBe(496);
 });
 
-it('provisions the single per-tenant administrator role', function () {
+it('provisions the administrator role plus the two payroll roles', function () {
+    // Fueron nueve roles, luego uno solo, y ahora son tres. Los dos nuevos no son una
+    // vuelta atrás a la matriz retirada: existen porque la nómina es la primera
+    // información del sistema que `administrador-general` NO debe ver, y un rol al que
+    // el administrador del tenant no llega no se puede modelar quitándole permisos a un
+    // rol que los tiene todos.
     $tenant = Tenant::factory()->create();
 
     app(ProvisionTenantBaseStructure::class)->handle($tenant);
 
     $roles = Role::where('team_id', $tenant->id)->pluck('name')->all();
 
-    expect($roles)->toEqualCanonicalizing(['administrador-general']);
+    expect($roles)->toEqualCanonicalizing(['administrador-general', 'talento-humano', 'porteria']);
 });
 
 it('self-heals a missing permission catalogue instead of throwing', function () {
@@ -96,5 +101,5 @@ it('is idempotent — re-running does not duplicate structure', function () {
         ->and(Area::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count())->toBe(9)
         ->and(Equipment::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count())->toBe(106)
         ->and(EquipmentComponent::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count())->toBe(496)
-        ->and(Role::where('team_id', $tenant->id)->count())->toBe(1);
+        ->and(Role::where('team_id', $tenant->id)->count())->toBe(3);
 });

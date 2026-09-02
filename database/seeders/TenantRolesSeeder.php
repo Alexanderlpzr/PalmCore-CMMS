@@ -63,6 +63,34 @@ class TenantRolesSeeder extends Seeder
             'announcements.view', 'announcements.create', 'announcements.update', 'announcements.delete',
             'carousel-slides.view', 'carousel-slides.create', 'carousel-slides.update', 'carousel-slides.delete',
         ],
+
+        /*
+         * Nómina. Deliberadamente fuera de 'administrador-general', que es lo que rompe
+         * el «un solo rol por diseño» de arriba.
+         *
+         * El motivo no es que hicieran falta más roles: es que hasta ahora todo lo que el
+         * sistema guarda —equipos, órdenes, inventario— es información que el ingeniero
+         * de mantenimiento tiene todo el derecho a ver en su planta. El salario del
+         * Director de Planta no lo es. Si en una empresa la misma persona hace las dos
+         * cosas, se le asignan los dos roles y queda el rastro de quién lo autorizó.
+         */
+        'talento-humano' => [
+            'employees.view', 'employees.create', 'employees.update', 'employees.delete',
+            'employee-salaries.view',
+            'employee-qr.view', 'employee-qr.create', 'employee-qr.update',
+            'attendance.view', 'attendance.confirm',
+            'payroll-runs.view', 'payroll-runs.manage', 'payroll-runs.close',
+            'employee-novelties.view', 'employee-novelties.manage',
+            'payroll-parameters.view', 'payroll-parameters.manage',
+            'payroll-concepts.view', 'payroll-concepts.manage',
+            'holidays.view', 'holidays.manage',
+        ],
+
+        // Lo mínimo para operar la puerta: marcar y ver lo que marcó. Sin sueldos.
+        'porteria' => [
+            'employees.view',
+            'attendance.view', 'attendance.record',
+        ],
     ];
 
     public function run(Tenant $tenant): void

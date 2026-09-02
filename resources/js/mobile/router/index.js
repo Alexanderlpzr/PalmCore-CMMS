@@ -39,6 +39,14 @@ const routes = [
         meta: { requiresAuth: true },
     },
     {
+        // La puerta. Separada de `scan-qr` porque no comparten casi nada: aquel busca un
+        // equipo y navega a su ficha; este marca y se queda escaneando al siguiente.
+        path: '/mobile/porteria',
+        name: 'porteria',
+        component: () => import('../views/PorteriaView.vue'),
+        meta: { requiresAuth: true },
+    },
+    {
         path: '/mobile/alerts',
         name: 'alerts',
         component: () => import('../views/AlertsView.vue'),

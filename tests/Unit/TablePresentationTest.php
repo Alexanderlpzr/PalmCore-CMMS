@@ -74,7 +74,11 @@ it('encuentra las tablas del proyecto', function (): void {
     // no estaba en ningún getWidgets(), y los relation managers de Técnicos y
     // Contratistas, que no estaban en ningún getRelations() desde que la OT se
     // colapsó a «crear y cerrar».
-    expect(tableFiles())->toHaveCount(66);
+    //
+    // Subió a 76 con el módulo de Talento Humano: Personal, Horas por confirmar,
+    // Nóminas, Parámetros de nómina, Conceptos de nómina, Festivos, y los cuatro
+    // relation managers (novedades, bonificaciones, descuentos y renglones de nómina).
+    expect(tableFiles())->toHaveCount(76);
 });
 
 it('alinea a la derecha toda columna de dinero o cantidad', function (): void {

@@ -3,12 +3,14 @@
 namespace App\Providers;
 
 use App\Domain\Assets\Services\ReferenceDataService;
+use App\Domain\HumanResources\Services\PayrollParameterService;
 use App\Domain\Shared\Enums\SubscriptionStatus;
 use App\Filament\Resources\Equipment\Pages\ListEquipment;
 use App\Models\Alert;
 use App\Models\Announcement;
 use App\Models\Area;
 use App\Models\CarouselSlide;
+use App\Models\Employee;
 use App\Models\Equipment;
 use App\Models\EquipmentCategory;
 use App\Models\EquipmentDocument;
@@ -28,6 +30,7 @@ use App\Observers\AlertObserver;
 use App\Observers\AnnouncementObserver;
 use App\Observers\AreaObserver;
 use App\Observers\CarouselSlideObserver;
+use App\Observers\EmployeeObserver;
 use App\Observers\EquipmentCategoryObserver;
 use App\Observers\EquipmentDocumentObserver;
 use App\Observers\EquipmentDowntimeEventObserver;
@@ -71,7 +74,11 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        /*
+         * Singleton por el memo interno: liquidar 48 empleados pide el mismo divisor de
+         * jornada 48 veces, y sin instancia compartida serían 48 consultas idénticas.
+         */
+        $this->app->singleton(PayrollParameterService::class);
     }
 
     public function boot(): void
@@ -232,6 +239,7 @@ class AppServiceProvider extends ServiceProvider
     private function registerObservers(): void
     {
         Equipment::observe(EquipmentObserver::class);
+        Employee::observe(EmployeeObserver::class);
         EquipmentDocument::observe(EquipmentDocumentObserver::class);
         EquipmentPhoto::observe(EquipmentPhotoObserver::class);
         WorkOrder::observe(WorkOrderObserver::class);

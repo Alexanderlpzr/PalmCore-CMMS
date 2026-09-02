@@ -96,6 +96,7 @@ class AdminPanelProvider extends PanelProvider
                 NavigationGroup::make('Indicadores'),
                 NavigationGroup::make('Gestión de Activos'),
                 NavigationGroup::make('Inventario'),
+                NavigationGroup::make('Talento Humano'),
                 NavigationGroup::make('Usuarios & Acceso'),
                 NavigationGroup::make('Automatizaciones'),
                 NavigationGroup::make('Integraciones'),

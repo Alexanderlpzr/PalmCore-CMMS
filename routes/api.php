@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\AlertController;
 use App\Http\Controllers\Api\V1\ApiTokenController;
 use App\Http\Controllers\Api\V1\AreaController;
 use App\Http\Controllers\Api\V1\AreaSummaryController;
+use App\Http\Controllers\Api\V1\AttendanceScanController;
 use App\Http\Controllers\Api\V1\ComponentHistoryController;
 use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\DowntimeEventController;
@@ -95,6 +96,18 @@ Route::prefix('v1')->group(function () {
 
         // Global command-palette search across resources
         Route::get('search', [SearchController::class, 'index'])->name('api.v1.search');
+
+        /*
+         * Portería. El escaneo del carné va con su propio limitador: la puerta genera
+         * ráfagas legítimas en el cambio de turno —cuarenta personas en diez minutos— que
+         * el límite general de la API trataría como abuso y cortaría justo cuando más se
+         * necesita.
+         */
+        Route::post('attendance/scan', [AttendanceScanController::class, 'store'])
+            ->middleware('throttle:120,1')
+            ->name('api.v1.attendance.scan');
+        Route::get('attendance/scans', [AttendanceScanController::class, 'index'])
+            ->name('api.v1.attendance.index');
 
         // Equipment — by-qr must be registered before apiResource to avoid {id} catch
         Route::get('equipment/by-qr/{qr_token}', [EquipmentController::class, 'byQrToken'])
