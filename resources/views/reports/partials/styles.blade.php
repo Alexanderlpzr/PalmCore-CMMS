@@ -137,7 +137,12 @@ table.kpi-grid td { width: 16.6%; padding: 0 4px 0 0; vertical-align: top; }
      porque DomPDF no resuelve un alto porcentual sin un contenedor de alto fijo. --}}
 .chart-cols { width: 100%; border-collapse: collapse; margin-top: 4px; }
 .chart-cols td { vertical-align: bottom; text-align: center; padding: 0 2px; border: none; }
-.chart-col { background: #059669; border-radius: 2px 2px 0 0; margin: 0 auto; width: 70%; }
+{{-- Sin background: el color lo pone la clase .fill-* que llega desde la vista. Cuando
+     esta regla lo fijaba, ganaba a .fill-cool y .fill-bad por ir después en la hoja —las
+     dos son selectores de una clase, así que decide el orden— y las columnas salían todas
+     verdes. En el informe de presupuesto eso era una gráfica que mentía: el pie prometía
+     los meses excedidos en rojo y no había ninguno. --}}
+.chart-col { border-radius: 2px 2px 0 0; margin: 0 auto; width: 70%; }
 .chart-col-value { font-size: 7px; color: #1e293b; font-weight: bold; padding-bottom: 1px; }
 .chart-col-label { font-size: 7px; color: #64748b; padding-top: 3px;
                    border-top: 1px solid #e2e8f0; }

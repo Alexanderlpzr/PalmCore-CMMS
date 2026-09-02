@@ -359,3 +359,92 @@ it('deja el hueco en la serie mensual cuando un mes no tiene dato', function ():
     expect(array_map('intval', $m[1]))->toBe([70, 35])
         ->and(substr_count($html, 'chart-col '))->toBe(2);
 });
+
+// ── Que el color llegue al papel ─────────────────────────────────────────────
+
+/**
+ * Los rellenos que de verdad quedaron dibujados en el PDF, en hexadecimal.
+ *
+ * Mira el flujo de contenido, no el HTML, y esa es toda la razón de existir: un fallo de
+ * cascada en la hoja de estilos no se ve en el marcado —la clase correcta está puesta— y
+ * solo aparece cuando el motor decide qué regla gana. Así pasó: `.chart-col` fijaba su
+ * propio fondo y ganaba a `.fill-bad` por ir después, y los meses excedidos del informe
+ * de presupuesto salían verdes mientras el pie prometía que saldrían rojos.
+ *
+ * @return list<string>
+ */
+function rellenosDelPdf(string $bytes): array
+{
+    $contenido = '';
+
+    preg_match_all('/stream\r?\n(.*?)endstream/s', $bytes, $flujos);
+
+    foreach ($flujos[1] as $flujo) {
+        $inflado = @gzuncompress($flujo) ?: @gzinflate(substr($flujo, 2));
+
+        if ($inflado !== false && $inflado !== '') {
+            $contenido .= $inflado;
+        }
+    }
+
+    preg_match_all('/([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+rg\b/', $contenido, $m, PREG_SET_ORDER);
+
+    return array_values(array_unique(array_map(
+        fn (array $c): string => sprintf('#%02x%02x%02x', (int) round($c[1] * 255), (int) round($c[2] * 255), (int) round($c[3] * 255)),
+        $m,
+    )));
+}
+
+it('pinta de rojo en el papel el mes que se pasó del presupuesto', function (): void {
+    // Los números están elegidos para que el rojo NO pueda venir de otro sitio: el rango
+    // entero queda dentro del presupuesto —así la barra de ejecución sale verde— pero
+    // agosto solo se pasa del suyo. El único rojo posible es el de su columna.
+    //
+    // La primera versión de este test gastaba de más en el total, la barra de arriba se
+    // ponía roja, y el test pasaba igual con el fallo puesto. Un test que no distingue
+    // las dos situaciones no prueba nada.
+    foreach ([7, 8] as $mes) {
+        MaintenanceBudget::withoutGlobalScopes()->create([
+            'tenant_id' => $this->tenant->id, 'plant_id' => $this->plant->id,
+            'year' => 2026, 'month' => $mes, 'amount' => 1_000_000,
+        ]);
+    }
+
+    foreach ([['2026-07-10', 100_000], ['2026-08-10', 1_200_000]] as [$fecha, $monto]) {
+        MaintenanceBudgetExpense::withoutGlobalScopes()->create([
+            'tenant_id' => $this->tenant->id, 'plant_id' => $this->plant->id,
+            'expense_date' => $fecha, 'amount' => $monto,
+            'category' => 'repuestos', 'description' => 'prueba',
+        ]);
+    }
+
+    $rellenos = rellenosDelPdf(app(PresupuestoPdfService::class)->generate(
+        $this->plant,
+        Carbon::parse('2026-07-01'),
+        Carbon::parse('2026-08-31'),
+    ));
+
+    // 1.300.000 sobre 2.000.000: el rango va al 65%, dentro. Agosto, 1.200.000 sobre
+    // 1.000.000, no.
+    expect($rellenos)->toContain('#dc2626');
+});
+
+it('pinta en el papel la barra repartida de las fuentes de energía', function (): void {
+    $turbina = EnergyMeter::factory()->turbine()->create([
+        'tenant_id' => $this->tenant->id, 'plant_id' => $this->plant->id,
+    ]);
+    $lecturas = app(EnergyMeterReadingService::class);
+    $lecturas->record($turbina, 0, $this->user, Carbon::parse('2026-08-01'));
+    $lecturas->record($turbina, 50_000, $this->user, Carbon::parse('2026-08-31'));
+    $this->calendario->upsertDay($this->plant, Carbon::parse('2026-08-15'), 20, 500);
+
+    $rellenos = rellenosDelPdf(app(EnergiaPdfService::class)->generate(
+        $this->plant,
+        Carbon::parse('2026-08-01'),
+        Carbon::parse('2026-08-31'),
+    ));
+
+    // El verde de la turbina, dibujado. Sin barras el PDF solo tendría los grises del
+    // texto y las tablas.
+    expect($rellenos)->toContain('#059669');
+});
