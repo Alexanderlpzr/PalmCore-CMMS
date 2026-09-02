@@ -6,6 +6,7 @@ use App\Models\Employee;
 use App\Models\Holiday;
 use App\Models\PayrollConcept;
 use App\Models\PayrollParameterVersion;
+use App\Models\PayrollRun;
 use App\Models\Tenant;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
@@ -13,9 +14,16 @@ use Database\Seeders\TenantRolesSeeder;
 use Spatie\Permission\PermissionRegistrar;
 
 /*
- * La nómina es la primera información del sistema que el administrador del tenant no
- * debe ver. Esta suite es la que impide que alguien, con toda la buena intención,
- * «arregle» el módulo dándole los permisos a administrador-general.
+ * Quién ve qué en la nómina.
+ *
+ * El módulo nació aislando la nómina de `administrador-general`, y la empresa decidió
+ * después lo contrario: en una extractora de este tamaño el administrador y quien lleva
+ * la nómina son la misma persona. Estos tests fijan la decisión nueva, incluida su
+ * consecuencia incómoda —el administrador ve los sueldos— para que si algún día se
+ * vuelve a aislar, sea porque alguien lo decidió y no porque se rompió sin que nadie
+ * lo notara.
+ *
+ * Lo que sí sigue separado es la puerta: quien liquida las horas no las registra.
  */
 
 beforeEach(function (): void {
@@ -41,19 +49,21 @@ function payrollUserWithRole(string $role, Tenant $tenant): User
     return $user->fresh();
 }
 
-it('el administrador general no ve el sueldo de nadie', function (): void {
+it('el administrador general ve el sueldo, y eso es la decisión, no un descuido', function (): void {
     $admin = payrollUserWithRole('administrador-general', $this->tenant);
 
-    expect($admin->can('viewSalary', $this->employee))->toBeFalse();
+    expect($admin->can('viewSalary', $this->employee))->toBeTrue()
+        ->and($admin->can('viewAnySalary', Employee::class))->toBeTrue();
 });
 
-it('el administrador general tampoco entra al maestro de personal ni a los parámetros', function (): void {
+it('el administrador general entra a todo el módulo de nómina', function (): void {
     $admin = payrollUserWithRole('administrador-general', $this->tenant);
 
-    expect($admin->can('viewAny', Employee::class))->toBeFalse()
-        ->and($admin->can('viewAny', PayrollParameterVersion::class))->toBeFalse()
-        ->and($admin->can('viewAny', PayrollConcept::class))->toBeFalse()
-        ->and($admin->can('viewAny', Holiday::class))->toBeFalse();
+    expect($admin->can('viewAny', Employee::class))->toBeTrue()
+        ->and($admin->can('viewAny', PayrollParameterVersion::class))->toBeTrue()
+        ->and($admin->can('viewAny', PayrollConcept::class))->toBeTrue()
+        ->and($admin->can('viewAny', Holiday::class))->toBeTrue()
+        ->and($admin->can('create', PayrollRun::class))->toBeTrue();
 });
 
 it('talento humano ve el sueldo y administra los parámetros', function (): void {
@@ -75,10 +85,10 @@ it('la comprobación de sueldo sin empleado delante funciona igual que con uno',
      * delataría. Por eso existe `viewAnySalary`, y por eso se prueba.
      */
     $rrhh = payrollUserWithRole('talento-humano', $this->tenant);
-    $admin = payrollUserWithRole('administrador-general', $this->tenant);
+    $porteria = payrollUserWithRole('porteria', $this->tenant);
 
     expect($rrhh->can('viewAnySalary', Employee::class))->toBeTrue()
-        ->and($admin->can('viewAnySalary', Employee::class))->toBeFalse();
+        ->and($porteria->can('viewAnySalary', Employee::class))->toBeFalse();
 });
 
 it('portería identifica al trabajador pero no ve su sueldo', function (): void {
@@ -130,12 +140,12 @@ it('marcar el reloj y firmar las horas son facultades separadas', function (): v
         ->and($rrhh->can('create', AttendanceScan::class))->toBeFalse();
 });
 
-it('el administrador general no ve ni firma las horas del reloj', function (): void {
+it('el administrador general también firma las horas del reloj', function (): void {
     $admin = payrollUserWithRole('administrador-general', $this->tenant);
     $dia = AttendanceDay::factory()->forEmployee($this->employee)->create();
 
-    expect($admin->can('viewAny', AttendanceDay::class))->toBeFalse()
-        ->and($admin->can('confirm', $dia))->toBeFalse();
+    expect($admin->can('viewAny', AttendanceDay::class))->toBeTrue()
+        ->and($admin->can('confirm', $dia))->toBeTrue();
 });
 
 it('un día de asistencia no se escribe ni se edita a mano', function (): void {

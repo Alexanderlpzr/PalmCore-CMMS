@@ -62,17 +62,38 @@ class TenantRolesSeeder extends Seeder
             'inventory.view', 'inventory.entry', 'inventory.exit', 'inventory.adjust', 'inventory.transfer',
             'announcements.view', 'announcements.create', 'announcements.update', 'announcements.delete',
             'carousel-slides.view', 'carousel-slides.create', 'carousel-slides.update', 'carousel-slides.delete',
+
+            /*
+             * Nómina. Al principio se dejó fuera a propósito, con el argumento de que un
+             * ingeniero de mantenimiento tiene derecho a ver los equipos de su planta pero
+             * no el salario del Director de Planta.
+             *
+             * Se revierte por decisión de la empresa: en una extractora de este tamaño el
+             * administrador general y quien lleva la nómina suelen ser la misma persona, y
+             * un rol al que el administrador no llega obliga a mantener dos cuentas para
+             * una sola persona. `employee-salaries.view` va incluido, así que el
+             * administrador ve los sueldos: es el precio de la decisión y conviene tenerlo
+             * escrito.
+             *
+             * El rol `talento-humano` sigue existiendo y sirve para lo contrario: dárselo a
+             * alguien de RRHH que NO deba ver equipos, órdenes ni inventario.
+             */
+            'employees.view', 'employees.create', 'employees.update', 'employees.delete',
+            'employee-salaries.view',
+            'employee-qr.view', 'employee-qr.create', 'employee-qr.update',
+            'attendance.view', 'attendance.record', 'attendance.confirm',
+            'payroll-runs.view', 'payroll-runs.manage', 'payroll-runs.close',
+            'employee-novelties.view', 'employee-novelties.manage',
+            'payroll-parameters.view', 'payroll-parameters.manage',
+            'payroll-concepts.view', 'payroll-concepts.manage',
+            'holidays.view', 'holidays.manage',
         ],
 
         /*
-         * Nómina. Deliberadamente fuera de 'administrador-general', que es lo que rompe
-         * el «un solo rol por diseño» de arriba.
-         *
-         * El motivo no es que hicieran falta más roles: es que hasta ahora todo lo que el
-         * sistema guarda —equipos, órdenes, inventario— es información que el ingeniero
-         * de mantenimiento tiene todo el derecho a ver en su planta. El salario del
-         * Director de Planta no lo es. Si en una empresa la misma persona hace las dos
-         * cosas, se le asignan los dos roles y queda el rastro de quién lo autorizó.
+         * El rol para quien lleva la nómina y nada más: ve personal, horas, parámetros y
+         * liquidaciones, pero ningún equipo ni orden de trabajo. No marca en portería —esa
+         * es la única separación de funciones que queda en pie— porque quien liquida las
+         * horas no debería ser quien las registra en la puerta.
          */
         'talento-humano' => [
             'employees.view', 'employees.create', 'employees.update', 'employees.delete',

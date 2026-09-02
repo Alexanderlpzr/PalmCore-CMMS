@@ -193,9 +193,10 @@ class PermissionSeeder extends Seeder
         'inventory.adjust',
         'inventory.transfer',
 
-        // Nómina y personal. Ninguno entra en 'administrador-general': es la primera
-        // información del sistema que el administrador del tenant no debe ver por
-        // omisión. `employee-salaries.view` va aparte de `employees.view` porque
+        // Nómina y personal. El administrador del tenant los tiene todos, incluido
+        // `employee-salaries.view`: la empresa decidió que en una extractora de este
+        // tamaño el administrador y quien lleva la nómina son la misma persona.
+        // `employee-salaries.view` sigue existiendo aparte de `employees.view` porque
         // portería necesita el nombre de quien escanea, no su sueldo.
         'employees.view',
         'employees.create',
