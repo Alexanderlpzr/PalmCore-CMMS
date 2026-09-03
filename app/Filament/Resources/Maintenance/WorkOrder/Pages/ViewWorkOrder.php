@@ -86,13 +86,17 @@ class ViewWorkOrder extends ViewRecord
                         ->native(false)
                         ->displayFormat('d/m/Y')
                         ->default(fn () => now()),
-                    // Cierra el registro fotográfico que abrió la foto del «antes»
+                    // Cierra el registro fotográfico que abrieron las fotos del «antes»
                     // al crear la OT: cómo quedó el equipo después del trabajo.
-                    FileUpload::make('after_photo_path')
-                        ->label('Foto del después')
-                        ->helperText('Cómo quedó el equipo. Queda junto a la foto del antes en el detalle de la OT.')
+                    FileUpload::make('after_photos')
+                        ->label('Fotos del después')
+                        ->helperText('Cómo quedó el equipo. Puede subir varias; quedan junto a las del antes en el detalle de la OT.')
                         ->image()
                         ->imageEditor()
+                        ->multiple()
+                        ->reorderable()
+                        ->appendFiles()
+                        ->maxFiles(10)
                         ->disk(persistent_disk())
                         ->visibility(persistent_disk() === 'public' ? 'public' : 'private')
                         ->directory('work-order-photos')

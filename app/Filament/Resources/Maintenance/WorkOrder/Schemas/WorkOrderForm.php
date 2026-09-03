@@ -115,13 +115,21 @@ class WorkOrderForm
                             ->label('Instrucciones de trabajo')
                             ->rows(4)
                             ->columnSpanFull(),
-                        // Foto del «antes»: cómo se encontró el equipo. La del
-                        // «después» se pide al cerrar la OT, en su modal.
-                        FileUpload::make('before_photo_path')
-                            ->label('Foto del antes')
-                            ->helperText('Cómo se encontró el equipo. Sirve de referencia para comparar con la foto del después al cerrar la OT.')
+                        // Fotos del «antes»: cómo se encontró el equipo. Las del
+                        // «después» se piden al cerrar la OT, en su modal.
+                        FileUpload::make('before_photos')
+                            ->label('Fotos del antes')
+                            ->helperText('Cómo se encontró el equipo. Puede subir varias y ordenarlas arrastrándolas; sirven de referencia para comparar con las del después al cerrar la OT.')
                             ->image()
                             ->imageEditor()
+                            ->multiple()
+                            // Se pueden reordenar porque el orden es el relato: la foto
+                            // que explica el problema debería quedar primero.
+                            ->reorderable()
+                            ->appendFiles()
+                            // Diez es de sobra para documentar un trabajo y evita que un
+                            // descuido suba la galería entera del celular.
+                            ->maxFiles(10)
                             ->disk(persistent_disk())
                             ->visibility(persistent_disk() === 'public' ? 'public' : 'private')
                             ->directory('work-order-photos')

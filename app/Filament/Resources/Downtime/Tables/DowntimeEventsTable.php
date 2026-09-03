@@ -8,6 +8,7 @@ use App\Domain\Assets\Enums\StoppageCategory;
 use App\Domain\Assets\Enums\StoppageConfirmationStatus;
 use App\Domain\Assets\Enums\StoppageReason;
 use App\Domain\Assets\Services\DowntimeService;
+use App\Filament\Filters\DateRangeFilter;
 use App\Models\EquipmentDowntimeEvent;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
@@ -98,6 +99,11 @@ class DowntimeEventsTable
                     ->toggleable(),
             ])
             ->filters([
+                // Primero el de fecha: la pregunta habitual sobre los paros es «qué pasó
+                // la semana pasada», y hasta ahora había que ordenar y desplazarse.
+                // Filtra por el inicio del paro, que es la fecha con la que la planta
+                // piensa; el que empezó el día 30 y cerró el 1 pertenece al 30.
+                DateRangeFilter::make('started_at', 'Fecha del paro'),
                 SelectFilter::make('reported_type')
                     ->label('Tipo I')
                     ->options(ReportedStoppageType::options()),

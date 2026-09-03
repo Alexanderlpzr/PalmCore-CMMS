@@ -80,6 +80,12 @@ class ConsumoDeEnergia extends BaseDashboard
      * El atajo a la captura, desde el indicador que la consume. La página sigue sin
      * escribir: solo lleva al sitio donde sí se escribe.
      *
+     * Se llamaba «Anotar lecturas» y no se encontraba. El nombre era correcto para quien
+     * ya sabe que los kWh se anotan de un contador, y para nadie más: quien llega a esta
+     * pantalla y ve que faltan datos busca «ingresar», no «anotar». Va además en color
+     * primario, porque en una pantalla que solo muestra indicadores es la única acción
+     * que cambia algo y debe verse como tal.
+     *
      * @return array<Action>
      */
     protected function getHeaderActions(): array
@@ -87,8 +93,10 @@ class ConsumoDeEnergia extends BaseDashboard
         return [
             $this->descargarInformeAction(EnergiaPdfService::class, 'El informe de consumo de energía del período elegido'),
             Action::make('anotarLecturas')
-                ->label('Anotar lecturas')
+                ->label('Ingresar lecturas')
+                ->tooltip('Abre la pantalla de Energía, donde se registran los kWh de red, planta eléctrica y turbina')
                 ->icon(Heroicon::OutlinedBolt)
+                ->color('primary')
                 ->url(fn (): string => Energia::getUrl())
                 ->visible(fn (): bool => auth()->user()?->can('create', EnergyMeter::class) ?? false),
         ];

@@ -41,8 +41,8 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'instructions',
     'failure_cause',
     'work_performed',
-    'before_photo_path',
-    'after_photo_path',
+    'before_photos',
+    'after_photos',
     'root_cause',
     'failure_mode',
     'diagnosed_stoppage_category',
@@ -373,6 +373,30 @@ class WorkOrder extends BaseModel
             'completed_at' => 'datetime',
             'verified_at' => 'datetime',
             'closed_at' => 'datetime',
+
+            // Galerías del registro fotográfico: una lista de rutas del disco
+            // persistente, no una sola foto. Ver la migración que las convirtió.
+            'before_photos' => 'array',
+            'after_photos' => 'array',
         ];
+    }
+
+    // ── Registro fotográfico ──────────────────────────────────────────────────
+
+    /**
+     * ¿La OT tiene alguna foto, del antes o del después?
+     *
+     * Vive aquí y no repetido en cada vista porque la sección del registro fotográfico
+     * se muestra u oculta con esta pregunta, y con dos galerías la condición dejó de ser
+     * un `filled()` sobre una columna.
+     */
+    public function hasPhotos(): bool
+    {
+        return $this->photoCount() > 0;
+    }
+
+    public function photoCount(): int
+    {
+        return count($this->before_photos ?? []) + count($this->after_photos ?? []);
     }
 }

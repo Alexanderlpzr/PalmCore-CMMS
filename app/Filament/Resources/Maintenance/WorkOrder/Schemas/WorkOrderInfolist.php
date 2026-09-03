@@ -122,19 +122,23 @@ class WorkOrderInfolist
                 // trazabilidad visual del trabajo sin tener que leer la OT.
                 Section::make('Registro fotográfico')
                     ->columns(2)
-                    ->visible(fn (WorkOrder $record): bool => filled($record->before_photo_path)
-                        || filled($record->after_photo_path))
+                    ->visible(fn (WorkOrder $record): bool => $record->hasPhotos())
                     ->schema([
-                        ImageEntry::make('before_photo_path')
-                            ->label('Antes')
+                        // Sin `stacked()`: apiladas se superponen y aquí lo que se viene
+                        // a hacer es comparar, así que van una al lado de otra aunque
+                        // ocupen más.
+                        ImageEntry::make('before_photos')
+                            ->label(fn (WorkOrder $record): string => 'Antes'
+                                .self::countSuffix($record->before_photos))
                             ->disk(persistent_disk())
                             ->height(240)
-                            ->placeholder('Sin foto del antes'),
-                        ImageEntry::make('after_photo_path')
-                            ->label('Después')
+                            ->placeholder('Sin fotos del antes'),
+                        ImageEntry::make('after_photos')
+                            ->label(fn (WorkOrder $record): string => 'Después'
+                                .self::countSuffix($record->after_photos))
                             ->disk(persistent_disk())
                             ->height(240)
-                            ->placeholder('Sin foto del después'),
+                            ->placeholder('Sin fotos del después'),
                     ]),
 
                 Section::make('Costo')
@@ -217,5 +221,20 @@ class WorkOrderInfolist
                             ->color('primary'),
                     ]),
             ]);
+    }
+
+    /**
+     * El «(3)» que va detrás de «Antes» cuando hay más de una foto.
+     *
+     * Con una sola no se pone nada: un contador que siempre dice «(1)» es ruido, y lo
+     * que interesa saber de un vistazo es si hay varias y hay que desplazarse.
+     *
+     * @param  array<int, string>|null  $photos
+     */
+    private static function countSuffix(?array $photos): string
+    {
+        $count = count($photos ?? []);
+
+        return $count > 1 ? " ({$count})" : '';
     }
 }
