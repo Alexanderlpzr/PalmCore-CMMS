@@ -113,10 +113,14 @@ class DateRangeFilter
                 // el fallo que ya tuvo el selector de los Indicadores, donde el rótulo decía
                 // «Enero» y los datos traían diciembre y enero.
                 ToggleButtons::make('atajo')
-                    ->hiddenLabel()
+                    // Con etiqueta y no oculta: sin ella los botones se pegan arriba de su
+                    // celda mientras las dos fechas bajan por las suyas, y la fila queda
+                    // desalineada. De paso dice qué son.
+                    ->label('Período')
                     ->inline()
                     ->grouped()
                     ->options(array_map(fn (array $a): string => $a['label'], $atajos))
+                    ->columnSpan(2)
                     ->live()
                     ->afterStateUpdated(function (?string $state, Set $set) use ($atajos): void {
                         if ($state === null) {
@@ -125,8 +129,7 @@ class DateRangeFilter
 
                         $set('desde', $atajos[$state]['desde']->toDateString());
                         $set('hasta', $atajos[$state]['hasta']->toDateString());
-                    })
-                    ->columnSpanFull(),
+                    }),
 
                 DatePicker::make('desde')
                     ->label("{$label} desde")
@@ -146,7 +149,15 @@ class DateRangeFilter
                     ->live()
                     ->afterStateUpdated(fn (Set $set) => $set('atajo', null)),
             ])
-            ->columns(2)
+            // El filtro ocupa la fila entera de la rejilla de filtros, y dentro se reparte
+            // en cuatro: los botones a la izquierda ocupando la mitad, y las dos fechas a
+            // la derecha. En una sola línea y sin huecos.
+            //
+            // Encajado en una sola columna —un tercio del ancho— los botones se salían de
+            // su celda y se montaban encima del filtro de al lado. Un control con varias
+            // partes no cabe en el hueco pensado para un desplegable.
+            ->columnSpanFull()
+            ->columns(4)
             ->query(function (Builder $query, array $data) use ($column, $atajos): Builder {
                 [$desde, $hasta] = self::ventana($data, $atajos);
 

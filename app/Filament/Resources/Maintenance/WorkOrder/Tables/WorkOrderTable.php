@@ -8,6 +8,7 @@ use App\Domain\Maintenance\Enums\PlantProcess;
 use App\Domain\Maintenance\Enums\WorkOrderPriority;
 use App\Domain\Maintenance\Enums\WorkOrderStatus;
 use App\Domain\Maintenance\Enums\WorkOrderType;
+use App\Filament\Filters\DateRangeFilter;
 use App\Models\Area;
 use App\Models\Equipment;
 use App\Models\WorkOrder;
@@ -21,6 +22,7 @@ use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -150,6 +152,15 @@ class WorkOrderTable
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                // Primero el de fecha, con sus atajos: «las OT de este mes» es la pregunta
+                // que más se hace y costaba abrir el embudo y navegar dos calendarios.
+                //
+                // Filtra por la fecha planificada y no por la de creación ni la de cierre.
+                // La tabla muestra tres fechas y cada una responde una pregunta distinta;
+                // esta es la del que planifica —qué hay por delante— y es la primera que se
+                // ve. Las cerradas en un mes se miran por «Fecha ejecutada», que es otra
+                // pregunta y hoy no tiene atajo.
+                DateRangeFilter::make('planned_start_at', 'Fecha planificada'),
                 // Hoja de vida del equipo: se elige la sección y el selector de
                 // equipo queda reducido a los de esa sección. Con el equipo puesto,
                 // el Histórico muestra todas sus OT y nada más.
@@ -217,6 +228,15 @@ class WorkOrderTable
                     ->label('Estado')
                     ->options(WorkOrderStatus::options()),
             ])
+            // Igual que en Paradas de Planta: los filtros a la vista en vez de escondidos
+            // en el embudo, y guardados entre visitas. Que se vean es lo que hace seguro
+            // guardarlos — si no, quien vuelve encuentra menos filas y cree que faltan OT.
+            ->filtersLayout(FiltersLayout::AboveContent)
+            ->filtersFormColumns(3)
+            ->persistFiltersInSession()
+            // Sin esto cada atajo necesitaría además su «Aplicar», y el clic ahorrado se
+            // perdería: Filament difiere los filtros por defecto.
+            ->deferFilters(false)
             ->recordActions([
                 ViewAction::make()
                     ->tooltip('Ver el detalle de esta OT'),
