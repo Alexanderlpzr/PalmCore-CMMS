@@ -21,6 +21,7 @@ use Filament\Notifications\Notification;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\Summarizers\Sum;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
@@ -136,6 +137,19 @@ class DowntimeEventsTable
                             ->whereNull('stoppage_category')
                             ->orWhere('stoppage_category', StoppageCategory::Other->value))),
             ])
+            // Los filtros a la vista y no escondidos en el embudo. Cuesta unos 80 px de
+            // alto, y a cambio quita un clic a cada búsqueda y —lo que importa más— deja
+            // ver qué filtro está puesto. Eso último deja de ser un detalle en cuanto el
+            // filtro se guarda entre visitas: sin verlo, quien vuelve tres días después
+            // ve menos filas y concluye que faltan datos.
+            ->filtersLayout(FiltersLayout::AboveContent)
+            ->filtersFormColumns(3)
+            ->persistFiltersInSession()
+            // Filament difiere los filtros por defecto, así que cada atajo necesitaría
+            // además su «Aplicar» y el clic ahorrado se perdería. El coste es una consulta
+            // de más cuando alguien pone «desde» y todavía no «hasta» — que es, además,
+            // una consulta legítima y de las más frecuentes.
+            ->deferFilters(false)
             ->recordActions([
                 ActionGroup::make([
                     EditAction::make(),
