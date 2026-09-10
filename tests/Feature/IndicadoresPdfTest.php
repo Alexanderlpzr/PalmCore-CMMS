@@ -8,6 +8,7 @@ use App\Domain\Reports\Services\EnergiaPdfService;
 use App\Domain\Reports\Services\PeriodPdfReport;
 use App\Domain\Reports\Services\PresupuestoPdfService;
 use App\Domain\Reports\Services\ProductividadPdfService;
+use App\Domain\Reports\Support\GraficoTorta;
 use App\Filament\Pages\ConsumoDeEnergia;
 use App\Models\EnergyMeter;
 use App\Models\MaintenanceBudget;
@@ -281,7 +282,26 @@ it('no deja emitir el informe de una planta de otro tenant', function (): void {
  * tabla. Estos tests no miran si es bonito —eso hay que verlo— sino si el dibujo dice
  * lo mismo que el número.
  */
-it('reparte la barra de fuentes en proporción a los kWh, y suma cien', function (): void {
+it('reparte la torta de fuentes en proporción a los kWh, y suma cien', function (): void {
+    // Sobre la función que calcula el reparto, no rascando el HTML: lo que puede estar
+    // mal es la aritmética, y un test contra el marcado se rompe con un salto de línea
+    // sin que nada esté roto de verdad.
+    $porciones = GraficoTorta::porciones([
+        'Red pública' => 250_000.0,
+        'Planta eléctrica' => 250_000.0,
+        'Turbina' => 500_000.0,
+    ]);
+
+    $porEtiqueta = collect($porciones)->keyBy('label');
+
+    expect($porEtiqueta['Turbina']['percentage'])->toBe(50.0)
+        ->and($porEtiqueta['Red pública']['percentage'])->toBe(25.0)
+        ->and($porEtiqueta['Planta eléctrica']['percentage'])->toBe(25.0)
+        // Si las porciones no suman cien, el dibujo reparte un total que no existe.
+        ->and(array_sum(array_column($porciones, 'percentage')))->toBe(100.0);
+});
+
+it('la vista de energía incrusta la torta como imagen, que es lo único que DomPDF dibuja', function (): void {
     $vista = view('reports.indicadores-energia', [
         ...invadeBranding($this->plant),
         'resumen' => [
@@ -293,16 +313,48 @@ it('reparte la barra de fuentes en proporción a los kWh, y suma cien', function
         'hasData' => true,
     ])->render();
 
-    // Sobre las celdas de la barra, no sobre el documento: buscar «width» a secas atrapaba
-    // primero las reglas del <style>, y el test pasaba midiendo la hoja de estilos.
-    preg_match_all('/<td class="fill-[a-z]+"\s*
-?\s*style="width:\s*([\d.]+)%/', $vista, $anchos);
-    $partes = array_map('floatval', $anchos[1]);
+    // Un <svg> escrito en el HTML lo ignora DomPDF sin dar error. Si alguien lo
+    // «simplifica» algún día, el gráfico desaparece del PDF en silencio y este test es lo
+    // único que lo diría.
+    expect($vista)->toContain('data:image/svg+xml;base64,')
+        ->and($vista)->toContain('50,0%');
+});
 
-    // 25 + 25 + 50. Si los segmentos no suman cien, la barra dibuja una composición que
-    // no existe — y es lo único que se mira de un vistazo.
-    expect($partes)->toBe([25.0, 25.0, 50.0])
-        ->and(array_sum($partes))->toBe(100.0);
+// ── La aritmética de la torta ────────────────────────────────────────────────
+
+it('descarta las categorías en cero en vez de dibujarles una porción', function (): void {
+    // Una porción de ángulo cero no se ve, pero su etiqueta sí saldría en la leyenda
+    // afirmando que participa de algo. Es el error de la astilla de barra, otra vez.
+    $porciones = GraficoTorta::porciones(['Turbina' => 100.0, 'Red' => 0.0, 'Planta' => 50.0]);
+
+    expect($porciones)->toHaveCount(2)
+        ->and(array_column($porciones, 'label'))->not->toContain('Red');
+});
+
+it('agrupa la cola en «Otros» cuando hay más categorías de las que caben', function (): void {
+    $valores = [];
+    foreach (range(1, 9) as $i) {
+        $valores["Causa {$i}"] = (float) (10 * $i);
+    }
+
+    $porciones = GraficoTorta::porciones($valores);
+    $otros = collect($porciones)->firstWhere(fn (array $p): bool => str_starts_with($p['label'], 'Otros'));
+
+    // Seis porciones como máximo, y la última es la suma exacta de las que agrupa:
+    // las cuatro más pequeñas son 10 + 20 + 30 + 40.
+    expect($porciones)->toHaveCount(GraficoTorta::MAXIMO_PORCIONES)
+        ->and($otros['label'])->toBe('Otros (4)')
+        ->and($otros['value'])->toBe(100.0)
+        ->and(array_sum(array_column($porciones, 'value')))->toBe(450.0);
+});
+
+it('dibuja un círculo entero cuando solo hay una categoría', function (): void {
+    // Un arco de 360° empieza y acaba en el mismo punto, y el motor lo resuelve como un
+    // arco de cero grados: la torta saldría vacía.
+    $svg = base64_decode(substr(GraficoTorta::svg(GraficoTorta::porciones(['Turbina' => 500.0])), strlen('data:image/svg+xml;base64,')));
+
+    expect($svg)->toContain('<circle')
+        ->and($svg)->not->toContain('<path');
 });
 
 it('no dibuja la barra de presupuesto más allá del cien por cien', function (): void {
@@ -447,4 +499,34 @@ it('pinta en el papel la barra repartida de las fuentes de energía', function (
     // El verde de la turbina, dibujado. Sin barras el PDF solo tendría los grises del
     // texto y las tablas.
     expect($rellenos)->toContain('#059669');
+});
+
+it('dibuja la torta en el papel, con una porción de cada color', function (): void {
+    $turbina = EnergyMeter::factory()->turbine()->create([
+        'tenant_id' => $this->tenant->id, 'plant_id' => $this->plant->id,
+    ]);
+    $red = EnergyMeter::factory()->grid()->create([
+        'tenant_id' => $this->tenant->id, 'plant_id' => $this->plant->id, 'code' => 'ENE-RED2',
+    ]);
+
+    $lecturas = app(EnergyMeterReadingService::class);
+    foreach ([[$turbina, 0, 60_000], [$red, 0, 20_000]] as [$m, $ini, $fin]) {
+        $lecturas->record($m, $ini, $this->user, Carbon::parse('2026-08-01'));
+        $lecturas->record($m, $fin, $this->user, Carbon::parse('2026-08-31'));
+    }
+    $this->calendario->upsertDay($this->plant, Carbon::parse('2026-08-15'), 20, 500);
+
+    $bytes = app(EnergiaPdfService::class)->generate(
+        $this->plant,
+        Carbon::parse('2026-08-01'),
+        Carbon::parse('2026-08-31'),
+    );
+
+    $rellenos = rellenosDelPdf($bytes);
+
+    // Los dos colores de las dos primeras porciones. Si DomPDF ignorara el SVG —como hace
+    // con el marcado en línea— no habría ni uno, y el informe saldría sin gráfico sin que
+    // nada fallara.
+    expect($rellenos)->toContain('#059669')
+        ->and($rellenos)->toContain('#d97706');
 });

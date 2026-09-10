@@ -93,13 +93,13 @@
         @if ($porCategoria === [])
             <p class="empty">No hay gastos registrados en este período.</p>
         @else
-            @include('reports.partials.chart-bars', [
-                'filas' => collect($porCategoria)->map(fn (float $monto, string $categoria): array => [
-                    'name' => \App\Domain\Reports\Services\PresupuestoPdfService::categoryLabel($categoria),
-                    'value' => $monto,
-                    'text' => '$ '.number_format($monto, 0, ',', '.'),
-                    'fill' => 'fill-good',
-                ])->values()->all(),
+            {{-- En torta: el gasto por categoría es un reparto del total ejecutado, y lo
+                 que se mira aquí es en qué se fue la mayor parte. --}}
+            @include('reports.partials.chart-pie', [
+                'valores' => collect($porCategoria)->mapWithKeys(fn (float $monto, string $cat): array => [
+                    \App\Domain\Reports\Services\PresupuestoPdfService::categoryLabel($cat) => $monto,
+                ])->all(),
+                'unidad' => '$',
             ])
 
             <table class="data-table" style="margin-top:6px;">

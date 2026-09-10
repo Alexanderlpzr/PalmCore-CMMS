@@ -69,23 +69,17 @@
             @if (! empty($filas))
                 <div class="section">
                     <div class="section-title">{{ $titulo }}</div>
-                    {{-- Ordenado de mayor a menor y con barra: lo que se busca aquí es
-                         dónde se fueron las horas, y eso se ve antes por el largo que
-                         leyendo una columna de números. --}}
-                    @include('reports.partials.chart-bars', [
-                        'filas' => collect($filas)
-                            ->map(fn ($fila): array => [
-                                'name' => is_array($fila) ? $fila['label'] : $fila->label,
-                                'value' => (float) (is_array($fila) ? $fila['hours'] : ($fila->value ?? 0)),
-                            ])
-                            ->sortByDesc('value')
-                            ->map(fn (array $f): array => [
-                                ...$f,
-                                'text' => number_format($f['value'], 1, ',', '.').' h',
-                                'fill' => 'fill-warn',
-                            ])
-                            ->values()
-                            ->all(),
+                    {{-- En torta: cada uno reparte las mismas horas perdidas, y lo que se
+                         busca es quién se llevó la mayor parte. La cola se agrupa en
+                         «Otros» a partir de la sexta, que es donde una torta deja de
+                         leerse. --}}
+                    @include('reports.partials.chart-pie', [
+                        'valores' => collect($filas)->mapWithKeys(fn ($fila): array => [
+                            (is_array($fila) ? $fila['label'] : $fila->label)
+                                => (float) (is_array($fila) ? $fila['hours'] : ($fila->value ?? 0)),
+                        ])->all(),
+                        'unidad' => 'h',
+                        'decimales' => 1,
                     ])
                 </div>
             @endif
@@ -203,21 +197,14 @@
         {{-- Una operación sana tiende a que la parte verde crezca: más trabajo planificado
              y menos apagando incendios. Es la lectura de esta mezcla. --}}
         @if ($planificado['total'] > 0)
-            <table class="chart-stack" style="margin-top:5px;">
-                <tr>
-                    @if ($planificado['preventive'] > 0)
-                        <td class="fill-good" style="width: {{ round($planificado['preventive'] / $planificado['total'] * 100, 2) }}%;">&nbsp;</td>
-                    @endif
-                    @if ($planificado['corrective'] > 0)
-                        <td class="fill-bad" style="width: {{ round($planificado['corrective'] / $planificado['total'] * 100, 2) }}%;">&nbsp;</td>
-                    @endif
-                </tr>
-            </table>
-            <div class="chart-legend">
-                <span class="dot fill-good"></span>Preventivo ({{ $planificado['preventive'] }})
-                &nbsp;&nbsp;
-                <span class="dot fill-bad"></span>Correctivo ({{ $planificado['corrective'] }})
-            </div>
+            @include('reports.partials.chart-pie', [
+                'valores' => [
+                    'Preventivo' => (float) $planificado['preventive'],
+                    'Correctivo' => (float) $planificado['corrective'],
+                ],
+                'unidad' => 'OT',
+                'tamano' => 110,
+            ])
         @endif
     </div>
 

@@ -66,25 +66,16 @@
                 $conDato = array_values(array_filter($fuentes, fn (array $f): bool => $resumen[$f['campo']] !== null));
             @endphp
 
-            {{-- Una sola barra repartida: la pregunta de la reunión no es cuántos kWh dio
-                 cada fuente sino qué parte del total salió de la turbina, que es la propia
-                 y la limpia. Una composición se lee mejor junta que en tres barras. --}}
-            @if ($conDato !== [] && $resumen['kwh_total'] > 0)
-                <table class="chart-stack">
-                    <tr>
-                        @foreach ($conDato as $f)
-                            <td class="{{ $f['fill'] }}"
-                                style="width: {{ round($resumen[$f['campo']] / $resumen['kwh_total'] * 100, 2) }}%;">&nbsp;</td>
-                        @endforeach
-                    </tr>
-                </table>
-                <div class="chart-legend">
-                    @foreach ($conDato as $f)
-                        <span class="dot {{ $f['fill'] }}"></span>{{ $f['nombre'] }}
-                        ({{ number_format($resumen[$f['campo']] / $resumen['kwh_total'] * 100, 1, ',', '.') }}%)@if (! $loop->last) &nbsp;&nbsp; @endif
-                    @endforeach
-                </div>
-            @endif
+            {{-- En torta porque es un reparto: la pregunta de la reunión no es cuántos
+                 kWh dio cada fuente sino qué parte del total salió de la turbina, que es
+                 la propia y la limpia. --}}
+            @include('reports.partials.chart-pie', [
+                'valores' => collect($fuentes)
+                    ->filter(fn (array $f): bool => $resumen[$f['campo']] !== null)
+                    ->mapWithKeys(fn (array $f): array => [$f['nombre'] => (float) $resumen[$f['campo']]])
+                    ->all(),
+                'unidad' => 'kWh',
+            ])
 
             <table class="data-table" style="margin-top:6px;">
                 <tr>

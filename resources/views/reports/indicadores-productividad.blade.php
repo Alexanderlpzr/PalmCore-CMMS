@@ -78,34 +78,20 @@
         <div class="section">
             <div class="section-title">Cómo se reparten las horas</div>
 
-            {{-- Las horas pagadas, repartidas. Es la lectura que la tabla de abajo no da de
-                 un vistazo: cuánto de lo que se pagó acabó moliendo fruta y cuánto se fue
-                 en aseo, en paro por mantenimiento y en lo demás. --}}
+            {{-- En torta porque es un reparto de las horas pagadas: cuánto de lo que
+                 se pagó acabó moliendo fruta y cuánto se fue en aseo, en paro por
+                 mantenimiento y en lo demás. --}}
             @if ($kpis['programmed_hours'] > 0)
-                @php
-                    $reparto = [
-                        ['n' => 'Prensado',              'v' => $kpis['effective_hours'],        'f' => 'fill-good'],
-                        ['n' => 'Aseo',                  'v' => $kpis['cleaning_hours'],         'f' => 'fill-cool'],
-                        ['n' => 'Paro por mantenimiento','v' => $kpis['maintenance_lost_hours'], 'f' => 'fill-bad'],
-                        ['n' => 'Otras pérdidas',        'v' => $kpis['other_lost_hours'],       'f' => 'fill-warn'],
-                    ];
-                    $conHoras = array_values(array_filter($reparto, fn (array $r): bool => $r['v'] > 0));
-                @endphp
-
-                <table class="chart-stack">
-                    <tr>
-                        @foreach ($conHoras as $r)
-                            <td class="{{ $r['f'] }}"
-                                style="width: {{ round($r['v'] / $kpis['programmed_hours'] * 100, 2) }}%;">&nbsp;</td>
-                        @endforeach
-                    </tr>
-                </table>
-                <div class="chart-legend">
-                    @foreach ($conHoras as $r)
-                        <span class="dot {{ $r['f'] }}"></span>{{ $r['n'] }}
-                        ({{ number_format($r['v'] / $kpis['programmed_hours'] * 100, 1, ',', '.') }}%)@if (! $loop->last) &nbsp;&nbsp; @endif
-                    @endforeach
-                </div>
+                @include('reports.partials.chart-pie', [
+                    'valores' => [
+                        'Prensado' => (float) $kpis['effective_hours'],
+                        'Aseo' => (float) $kpis['cleaning_hours'],
+                        'Paro por mantenimiento' => (float) $kpis['maintenance_lost_hours'],
+                        'Otras pérdidas' => (float) $kpis['other_lost_hours'],
+                    ],
+                    'unidad' => 'h',
+                    'decimales' => 1,
+                ])
             @endif
 
             <table class="data-table" style="margin-top:6px;">
