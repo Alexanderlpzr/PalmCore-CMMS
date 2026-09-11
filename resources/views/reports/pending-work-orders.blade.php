@@ -43,12 +43,15 @@
     <table class="data-table">
         <thead>
             <tr>
+                {{-- Sin Actividad ni Estado, a pedido del cliente: el título repetía la
+                     descripción con otras palabras, y el estado decía «Abierta» en todas
+                     las filas. Responsable sale de `executed_by`, el mismo campo que el
+                     formulario llama «Responsable(s)» y el único que se llena en planta. --}}
                 <th style="width:130px;">Equipo</th>
-                <th>Actividad</th>
                 <th>Descripción</th>
                 <th style="width:60px;">Tipo</th>
                 <th style="width:70px;">Área Mtto</th>
-                <th style="width:60px;">Estado</th>
+                <th style="width:120px;">Responsable</th>
                 <th style="width:75px;">Fecha planificada</th>
                 <th style="width:45px;">Parado</th>
             </tr>
@@ -62,7 +65,6 @@
                         {{ $wo->equipment?->area?->name ?? '—' }} · {{ $wo->work_order_number }}
                     </span>
                 </td>
-                <td>{{ $wo->title }}</td>
                 <td>{{ $wo->description ?? '—' }}</td>
                 <td>{{ $wo->work_order_type->label() }}</td>
                 <td>
@@ -78,15 +80,7 @@
                         —
                     @endif
                 </td>
-                <td>
-                    @php
-                        $statusBadge = match ($wo->status->color()) {
-                            'success', 'warning', 'danger', 'info', 'gray' => $wo->status->color(),
-                            default => 'gray',
-                        };
-                    @endphp
-                    <span class="badge badge-{{ $statusBadge }}">{{ $wo->status->label() }}</span>
-                </td>
+                <td>{{ $wo->executed_by ?: '—' }}</td>
                 <td>{{ $wo->planned_start_at?->format('d/m/Y') ?? '—' }}</td>
                 <td>{{ $wo->equipment_stopped ? 'Sí' : 'No' }}</td>
             </tr>

@@ -357,7 +357,9 @@ it('the pending-work-orders blade renders the corrected columns without a técni
         'equipment_id' => $equipment->id,
         'status' => 'draft',
         'maintenance_area' => 'mecanico',
+        'title' => 'CAMBIO DE RODAMIENTO',
         'description' => 'Cambio de rodamiento del eje principal',
+        'executed_by' => 'JAVIER DELGADO Y DANIEL FLOREZ',
     ]);
 
     $html = view('reports.pending-work-orders', [
@@ -376,10 +378,44 @@ it('the pending-work-orders blade renders the corrected columns without a técni
         ->and($html)->not->toContain('Falta técnico')
         ->and($html)->not->toContain('Sin técnico asignado')
         // Rótulos de columna acordados con el cliente.
-        ->and($html)->toContain('Actividad')
         ->and($html)->toContain('Fecha planificada')
         ->and($html)->not->toContain('<th>Título</th>')
-        ->and($html)->not->toContain('Inicio planif.');
+        ->and($html)->not->toContain('Inicio planif.')
+        // Responsable sí; Actividad y Estado ya no (septiembre de 2026). El título
+        // repetía la descripción, y el estado decía «Abierta» en todas las filas.
+        ->and($html)->toContain('>Responsable</th>')
+        ->and($html)->toContain('JAVIER DELGADO Y DANIEL FLOREZ')
+        ->and($html)->not->toContain('>Actividad</th>')
+        ->and($html)->not->toContain('>Estado</th>')
+        ->and($html)->not->toContain('CAMBIO DE RODAMIENTO')
+        ->and($html)->not->toContain('Abierta');
+});
+
+it('the pending-work-orders blade prints a dash when an OT has no responsable', function () {
+    $tenant = Tenant::factory()->create();
+    $equipment = Equipment::factory()->create(['tenant_id' => $tenant->id]);
+    // Todo lo demás lleno, para que la única celda «—» sea la del responsable.
+    $wo = WorkOrder::factory()->create([
+        'tenant_id' => $tenant->id,
+        'equipment_id' => $equipment->id,
+        'status' => 'draft',
+        'maintenance_area' => 'mecanico',
+        'description' => 'Revisión general',
+        'planned_start_at' => '2026-09-14',
+        'executed_by' => null,
+    ]);
+
+    $html = view('reports.pending-work-orders', [
+        'workOrders' => WorkOrder::where('id', $wo->id)->with('equipment.area')->get(),
+        'tenant' => $tenant,
+        'logoBase64' => null,
+        'documentNumber' => 'OT-PEND-TEST',
+        'documentVersion' => '1.0',
+        'qrBase64' => null,
+        'generatedAt' => now(),
+    ])->render();
+
+    expect($html)->toContain('<td>—</td>');
 });
 
 // ── GenerateInventoryReportJob ────────────────────────────────────────────────
