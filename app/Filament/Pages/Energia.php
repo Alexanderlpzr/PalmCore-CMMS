@@ -3,10 +3,14 @@
 namespace App\Filament\Pages;
 
 use App\Domain\Energy\Services\EnergyMeterReadingService;
+use App\Domain\Maintenance\Services\EquipmentMeterReadingService;
 use App\Exceptions\BusinessRuleException;
 use App\Filament\Concerns\MesEnCalendario;
 use App\Models\EnergyMeter;
+use App\Models\Equipment;
+use App\Models\EquipmentMeterReading;
 use App\Models\Plant;
+use App\Models\PlantEnergyDailyLog;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
@@ -182,6 +186,14 @@ class Energia extends Page
             Section::make('Los contadores')
                 ->description('Se anota lo que marca el contador. El consumo del día lo calcula el sistema restando la lectura anterior, para que no pueda desviarse del aparato.')
                 ->schema($this->meterFields()),
+
+            // La planta eléctrica, en la misma pasada. Antes eran tres renglones de un
+            // Excel que nadie llenaba desde el sistema, y las horas se tecleaban aparte
+            // pudiendo salir del horómetro que ya se lee.
+            Section::make('La planta eléctrica')
+                ->description('El horómetro de cada generador, el combustible cargado y las veces que se cambió de fuente. Las horas del mes las calcula el sistema con lo que avanzó el horómetro.')
+                ->columns(2)
+                ->schema($this->powerPlantFields()),
         ]);
     }
 
@@ -225,6 +237,56 @@ class Energia extends Page
         if ($fields === []) {
             $fields[] = Text::make('Esta planta no tiene contadores de energía configurados.');
         }
+
+        return $fields;
+    }
+
+    /**
+     * Los campos de la planta eléctrica: un horómetro por generador marcado, más el
+     * combustible y los cambios del día.
+     *
+     * El horómetro se escribe aquí pero **no se guarda aquí**: va a la misma tabla de
+     * lecturas de equipo que el módulo de Horómetros, con su cadena de deltas y sus avisos
+     * de mantenimiento por horas. Un solo dato, dos pantallas donde verlo.
+     *
+     * @return array<Component>
+     */
+    private function powerPlantFields(): array
+    {
+        $fields = [];
+
+        foreach ($this->generadores() as $generador) {
+            $anterior = $this->previousHourMeterFor($generador);
+
+            $fields[] = TextInput::make("power_plant.hours.{$generador->id}")
+                ->label('Horómetro · '.$generador->name.' (h)')
+                ->helperText($anterior === null
+                    ? 'Sin lectura previa: será la línea base y no cuenta como horas trabajadas.'
+                    : 'Anterior: '.number_format((float) $anterior->reading_value, 1, ',', '.')
+                        .' h el '.$anterior->recorded_at->translatedFormat('d/m/Y'))
+                ->numeric()
+                ->minValue(0)
+                ->placeholder('Sin leer');
+        }
+
+        if ($fields === []) {
+            $fields[] = Text::make('Ningún equipo de esta planta está marcado como planta eléctrica. Se marca en la ficha del equipo.')
+                ->columnSpanFull();
+        }
+
+        $fields[] = TextInput::make('power_plant.fuel_gallons')
+            ->label('Combustible del día (galones)')
+            ->helperText('Cero si no se cargó diésel. En blanco es que nadie lo anotó, y el mes no lo cuenta.')
+            ->numeric()
+            ->minValue(0)
+            ->placeholder('Sin anotar');
+
+        $fields[] = TextInput::make('power_plant.switch_count')
+            ->label('Cambios de energía del día')
+            ->helperText('Cuántas veces se pasó de una fuente a otra: red, planta eléctrica o turbina.')
+            ->integer()
+            ->minValue(0)
+            ->placeholder('Sin anotar');
 
         return $fields;
     }
@@ -327,6 +389,8 @@ class Energia extends Page
             }
         }
 
+        $this->savePowerPlant($state, $plant, $date);
+
         $this->loadDay();
 
         Notification::make()
@@ -334,6 +398,104 @@ class Energia extends Page
             ->body("{$saved} contador(es) anotados · {$skipped} sin leer")
             ->success()
             ->send();
+    }
+
+    /**
+     * Guarda lo de la planta eléctrica: horómetros, combustible y cambios de fuente.
+     *
+     * Los horómetros pasan por el servicio de lecturas de equipo —no se escribe la fila a
+     * mano— porque de cada lectura cuelgan el delta, el acumulado y las horas de vida de
+     * las piezas. Y si el día ya tenía lectura se **corrige** en vez de añadir una segunda:
+     * dos lecturas del mismo día darían un avance inventado en el mes.
+     *
+     * @param  array<string, mixed>  $state
+     */
+    private function savePowerPlant(array $state, Plant $plant, Carbon $date): void
+    {
+        $service = app(EquipmentMeterReadingService::class);
+
+        foreach ($this->generadores() as $generador) {
+            $value = $state['power_plant']['hours'][$generador->id] ?? null;
+
+            if ($value === null || $value === '' || ! is_numeric($value)) {
+                continue;
+            }
+
+            $existente = $this->hourMeterOfDay($generador, $date);
+
+            if ($existente !== null) {
+                if (abs((float) $existente->reading_value - (float) $value) > 0.001) {
+                    $service->updateReading($existente, (float) $value);
+                }
+
+                continue;
+            }
+
+            $service->record(
+                equipment: $generador,
+                readingValue: (float) $value,
+                recordedBy: auth()->user(),
+                recordedAt: $date,
+            );
+        }
+
+        $galones = $state['power_plant']['fuel_gallons'] ?? null;
+        $cambios = $state['power_plant']['switch_count'] ?? null;
+
+        $limpio = fn ($valor): ?float => ($valor === null || $valor === '' || ! is_numeric($valor))
+            ? null
+            : (float) $valor;
+
+        // Vacío no borra lo que ya estaba anotado: quien no llenó el campo no está diciendo
+        // que ese día no hubo combustible, solo que no lo anotó.
+        $valores = array_filter([
+            'fuel_gallons' => $limpio($galones),
+            'energy_switch_count' => $limpio($cambios) === null ? null : (int) $limpio($cambios),
+        ], fn (?float $v): bool => $v !== null);
+
+        if ($valores === []) {
+            return;
+        }
+
+        PlantEnergyDailyLog::withoutGlobalScopes()->updateOrCreate(
+            ['plant_id' => $plant->id, 'log_date' => $date->toDateString()],
+            [...$valores, 'tenant_id' => $plant->tenant_id, 'recorded_by' => auth()->id()],
+        );
+    }
+
+    /** Los generadores que cuentan como planta eléctrica en esta planta. */
+    private function generadores()
+    {
+        $plant = $this->currentPlant();
+
+        if ($plant === null) {
+            return collect();
+        }
+
+        return Equipment::query()
+            ->where('plant_id', $plant->id)
+            ->where('counts_as_power_plant', true)
+            ->orderBy('name')
+            ->get();
+    }
+
+    /** La lectura del horómetro de ese equipo en ese día, si ya existe. */
+    private function hourMeterOfDay(Equipment $generador, Carbon $date): ?EquipmentMeterReading
+    {
+        return EquipmentMeterReading::query()
+            ->where('equipment_id', $generador->id)
+            ->whereBetween('recorded_at', [$date->copy()->startOfDay(), $date->copy()->endOfDay()])
+            ->orderByDesc('recorded_at')
+            ->first();
+    }
+
+    private function previousHourMeterFor(Equipment $generador): ?EquipmentMeterReading
+    {
+        return EquipmentMeterReading::query()
+            ->where('equipment_id', $generador->id)
+            ->where('recorded_at', '<', $this->readingDate()->startOfDay())
+            ->orderByDesc('recorded_at')
+            ->first();
     }
 
     public function content(Schema $schema): Schema
@@ -543,6 +705,23 @@ class Energia extends Page
         }
 
         $this->data['readings'] = $readings;
+
+        $horas = [];
+
+        foreach ($this->generadores() as $generador) {
+            $horas[$generador->id] = $this->hourMeterOfDay($generador, $this->readingDate())?->reading_value;
+        }
+
+        $registro = PlantEnergyDailyLog::query()
+            ->where('plant_id', $this->data['plant_id'] ?? null)
+            ->where('log_date', $date)
+            ->first();
+
+        $this->data['power_plant'] = [
+            'hours' => $horas,
+            'fuel_gallons' => $registro?->fuel_gallons,
+            'switch_count' => $registro?->energy_switch_count,
+        ];
     }
 
     /** @return Collection<int, EnergyMeter> */

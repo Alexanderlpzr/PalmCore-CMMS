@@ -166,3 +166,34 @@ it('sigue aceptando un CSV sin la columna de fruta', function (): void {
     expect(PlantMonthlyKpi::withoutGlobalScopes()->where('year', 2026)->first()->kwh_total)
         ->toBe(163060.0);
 });
+
+// ── Los tres renglones de la planta eléctrica ────────────────────────────────
+
+it('carga los cambios, las horas y el combustible', function (): void {
+    file_put_contents($this->csv, "anio,mes,cambios_energia,horas_planta,galones\n2026,1,7,60,2436.6\n");
+
+    $this->artisan('energy:import-history', ['file' => $this->csv])->assertSuccessful();
+
+    $enero = PlantMonthlyKpi::withoutGlobalScopes()->where('year', 2026)->where('month', 1)->first();
+
+    expect($enero->energy_switch_count)->toBe(7)
+        ->and($enero->genset_hours)->toBe(60.0)
+        ->and($enero->genset_fuel_gallons)->toBe(2436.6);
+});
+
+it('un CSV sin columnas de kWh no borra los kWh ya cargados', function (): void {
+    // El caso real: los kWh de 2026 llevan meses cargados y la hoja solo aporta los tres
+    // renglones nuevos. Escribir las tres columnas de kWh siempre —con nulos, porque el
+    // archivo no las trae— vaciaría ocho meses de consumo en una sola pasada.
+    escribirCsv($this->csv, "2026,1,13828,31115,118117,,\n");
+    $this->artisan('energy:import-history', ['file' => $this->csv])->assertSuccessful();
+
+    file_put_contents($this->csv, "anio,mes,cambios_energia,horas_planta,galones\n2026,1,7,60,2436.6\n");
+    $this->artisan('energy:import-history', ['file' => $this->csv])->assertSuccessful();
+
+    $enero = PlantMonthlyKpi::withoutGlobalScopes()->where('year', 2026)->where('month', 1)->first();
+
+    expect($enero->kwh_grid)->toBe(13828.0)
+        ->and($enero->kwh_turbine)->toBe(118117.0)
+        ->and($enero->genset_hours)->toBe(60.0);
+});

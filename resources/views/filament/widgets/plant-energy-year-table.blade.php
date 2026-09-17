@@ -59,6 +59,11 @@
                             <th class="text-right font-semibold px-3 py-2 border-b border-gray-200 dark:border-white/10 whitespace-nowrap">PLANTA</th>
                             <th class="text-right font-semibold px-3 py-2 border-b border-gray-200 dark:border-white/10 whitespace-nowrap">TURBINA</th>
                             <th class="text-right font-semibold px-3 py-2 border-b border-l border-gray-200 dark:border-white/10 whitespace-nowrap">LIMPIA</th>
+                            {-- Los tres renglones amarillos de la hoja. Aquí van en columnas
+                                 porque esta tabla lleva los meses en filas. --}
+                            <th class="text-right font-semibold px-3 py-2 border-b border-l border-gray-200 dark:border-white/10 whitespace-nowrap">CAMBIOS</th>
+                            <th class="text-right font-semibold px-3 py-2 border-b border-gray-200 dark:border-white/10 whitespace-nowrap">HORAS PLANTA</th>
+                            <th class="text-right font-semibold px-3 py-2 border-b border-gray-200 dark:border-white/10 whitespace-nowrap">GALONES</th>
                         </tr>
                     </thead>
 
@@ -116,6 +121,15 @@
                                 <td class="text-right px-3 py-2 border-b border-l border-gray-100 dark:border-white/5 tabular-nums whitespace-nowrap">
                                     {!! $num($fila['clean_energy_percentage'], 2) ?? $guion !!}
                                 </td>
+                                <td class="text-right px-3 py-2 border-b border-l border-gray-100 dark:border-white/5 tabular-nums whitespace-nowrap text-gray-500 dark:text-gray-400">
+                                    {!! $num($fila['energy_switch_count']) ?? $guion !!}
+                                </td>
+                                <td class="text-right px-3 py-2 border-b border-gray-100 dark:border-white/5 tabular-nums whitespace-nowrap text-gray-500 dark:text-gray-400">
+                                    {!! $num($fila['genset_hours'], 1) ?? $guion !!}
+                                </td>
+                                <td class="text-right px-3 py-2 border-b border-gray-100 dark:border-white/5 tabular-nums whitespace-nowrap text-gray-500 dark:text-gray-400">
+                                    {!! $num($fila['genset_fuel_gallons'], 1) ?? $guion !!}
+                                </td>
                             </tr>
 
                             {{-- El detalle del mes, dentro de su propia fila. De solo
@@ -125,7 +139,7 @@
                                 @php($dailyDetail = $dailyDetails[$numero] ?? null)
 
                                 <tr wire:key="detalle-{{ $numero }}">
-                                    <td colspan="8" class="px-3 py-3 border-b border-gray-100 dark:border-white/5">
+                                    <td colspan="11" class="px-3 py-3 border-b border-gray-100 dark:border-white/5">
                                         @if ($dailyDetail === null || $dailyDetail['meters']->isEmpty())
                                             <p class="text-sm text-gray-500 dark:text-gray-400">Esta planta no tiene contadores configurados.</p>
                                         @elseif (! $dailyDetail['has_readings'])
@@ -196,6 +210,9 @@
                             <td class="text-right px-3 py-2 tabular-nums whitespace-nowrap font-bold">{!! $num($totals['kwh_genset']) ?? $guion !!}</td>
                             <td class="text-right px-3 py-2 tabular-nums whitespace-nowrap font-bold">{!! $num($totals['kwh_turbine']) ?? $guion !!}</td>
                             <td class="text-right px-3 py-2 border-l border-gray-200 dark:border-white/10 tabular-nums whitespace-nowrap font-bold">{!! $num($totals['clean_energy_percentage'], 2) ?? $guion !!}</td>
+                            <td class="text-right px-3 py-2 border-l border-gray-200 dark:border-white/10 tabular-nums whitespace-nowrap font-bold">{!! $num($totals['energy_switch_count']) ?? $guion !!}</td>
+                            <td class="text-right px-3 py-2 tabular-nums whitespace-nowrap font-bold">{!! $num($totals['genset_hours'], 1) ?? $guion !!}</td>
+                            <td class="text-right px-3 py-2 tabular-nums whitespace-nowrap font-bold">{!! $num($totals['genset_fuel_gallons'], 1) ?? $guion !!}</td>
                         </tr>
                     </tbody>
                 </table>

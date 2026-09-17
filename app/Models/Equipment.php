@@ -54,6 +54,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'meter_unit',
     'reading_frequency',
     'meter_capture_mode',
+    'counts_as_power_plant',
     'last_failure_at',
 ])]
 class Equipment extends BaseModel
@@ -294,6 +295,7 @@ class Equipment extends BaseModel
             'meter_unit' => MeterReadingUnit::class,
             'reading_frequency' => MeterReadingFrequency::class,
             'meter_capture_mode' => MeterCaptureMode::class,
+            'counts_as_power_plant' => 'boolean',
             'last_failure_at' => 'datetime',
         ];
     }

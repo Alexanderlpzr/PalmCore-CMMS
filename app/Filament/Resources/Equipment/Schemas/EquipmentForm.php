@@ -114,6 +114,10 @@ class EquipmentForm
                             ->default(MeterCaptureMode::Accumulated->value)
                             ->native(false)
                             ->required(),
+                        Toggle::make('counts_as_power_plant')
+                            ->label('Cuenta como planta eléctrica')
+                            ->helperText('Para los generadores. Las horas de operación de la planta eléctrica del informe de energía se suman del horómetro de los equipos marcados aquí.')
+                            ->default(false),
                     ]),
 
                 Section::make('Ubicación')

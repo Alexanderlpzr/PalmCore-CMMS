@@ -7,8 +7,11 @@ use App\Domain\Assets\Services\LostHoursCalculator;
 use App\Domain\Energy\Enums\EnergySource;
 use App\Models\EnergyMeter;
 use App\Models\EnergyMeterReading;
+use App\Models\Equipment;
 use App\Models\EquipmentDowntimeEvent;
+use App\Models\EquipmentMeterReading;
 use App\Models\Plant;
+use App\Models\PlantEnergyDailyLog;
 use App\Models\PlantMonthlyKpi;
 use App\Models\ProductionCalendarDay;
 use App\Models\WorkOrderTimeLog;
@@ -365,6 +368,16 @@ class PlantKpiService
             ]
             : $this->energyBySource($plant, $from, $to);
 
+        // Misma guarda para los tres renglones de la planta eléctrica: los ocho meses que
+        // vinieron de la hoja no tienen lecturas detrás, y recalcularlos los vaciaría.
+        $plantaElectrica = $keepsImportedEnergy
+            ? [
+                'genset_hours' => $existing->genset_hours,
+                'genset_fuel_gallons' => $existing->genset_fuel_gallons,
+                'energy_switch_count' => $existing->energy_switch_count,
+            ]
+            : $this->powerPlantSummary($plant, $from, $to);
+
         return PlantMonthlyKpi::withoutGlobalScopes()->updateOrCreate(
             [
                 'plant_id' => $plant->id,
@@ -382,6 +395,7 @@ class PlantKpiService
                     ? $existing->processed_tons
                     : $metrics['processed_tons'],
                 ...$energy,
+                ...$plantaElectrica,
                 'energy_is_imported' => $keepsImportedEnergy,
                 'failure_count' => $metrics['failure_count'],
                 'mtbf_hours' => $metrics['mtbf_hours'],
@@ -488,6 +502,7 @@ class PlantKpiService
      * @return array<int, array{
      *     processed_tons: ?float, kwh_grid: ?float, kwh_genset: ?float, kwh_turbine: ?float,
      *     kwh_total: ?float, kwh_per_ton: ?float, clean_energy_percentage: ?float,
+     *     genset_hours: ?float, genset_fuel_gallons: ?float, energy_switch_count: ?int,
      *     is_manual: bool,
      * }>
      */
@@ -534,11 +549,61 @@ class PlantKpiService
                 'clean_energy_percentage' => ($turbine !== null && $total > 0)
                     ? round($turbine / $total * 100, 2)
                     : null,
+                'genset_hours' => $kpi?->genset_hours,
+                'genset_fuel_gallons' => $kpi?->genset_fuel_gallons,
+                'energy_switch_count' => $kpi?->energy_switch_count,
                 'is_manual' => (bool) ($kpi?->energy_is_imported || $kpi?->processed_tons_is_manual),
             ];
         }
 
         return $rows;
+    }
+
+    /**
+     * Los tres renglones de la planta eléctrica en un período.
+     *
+     * Las **horas salen del horómetro** de los generadores marcados, no de un campo que
+     * alguien teclee: se suman los deltas de las lecturas del período, que es lo que el
+     * dial avanzó. Sumar deltas y no restar los extremos importa por la misma razón que en
+     * los kWh — si cambiaron el horómetro a mitad de mes, la resta daría un absurdo y el
+     * delta ya trae resuelto el reset.
+     *
+     * `null` y no cero cuando no hay avance medible en el período. La primera lectura de
+     * un equipo nace con delta cero porque no tiene contra qué restarse: contarla como
+     * cero horas afirmaría que el generador estuvo parado el mes entero, cuando lo único
+     * cierto es que solo lo leyeron una vez. Es el caso de agosto de 2026 en producción.
+     *
+     * @return array{genset_hours: ?float, genset_fuel_gallons: ?float, energy_switch_count: ?int}
+     */
+    public function powerPlantSummary(Plant $plant, CarbonInterface $from, CarbonInterface $to): array
+    {
+        $lecturas = EquipmentMeterReading::withoutGlobalScopes()
+            ->whereIn('equipment_id', Equipment::withoutGlobalScopes()
+                ->where('plant_id', $plant->id)
+                ->where('counts_as_power_plant', true)
+                ->select('id'))
+            ->whereBetween('recorded_at', [
+                Carbon::parse($from)->startOfDay(),
+                Carbon::parse($to)->endOfDay(),
+            ])
+            // Sin lectura anterior no hay avance: es una lectura que solo dice en cuánto
+            // está el dial.
+            ->whereNotNull('previous_value');
+
+        $horas = $lecturas->exists() ? round((float) $lecturas->sum('delta'), 1) : null;
+
+        $diario = PlantEnergyDailyLog::withoutGlobalScopes()
+            ->where('plant_id', $plant->id)
+            ->whereBetween('log_date', [$from->toDateString(), $to->toDateString()]);
+
+        $galones = (clone $diario)->whereNotNull('fuel_gallons');
+        $cambios = (clone $diario)->whereNotNull('energy_switch_count');
+
+        return [
+            'genset_hours' => $horas,
+            'genset_fuel_gallons' => $galones->exists() ? round((float) $galones->sum('fuel_gallons'), 1) : null,
+            'energy_switch_count' => $cambios->exists() ? (int) $cambios->sum('energy_switch_count') : null,
+        ];
     }
 
     /**

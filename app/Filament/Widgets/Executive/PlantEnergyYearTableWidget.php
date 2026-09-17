@@ -134,6 +134,9 @@ class PlantEnergyYearTableWidget extends Widget implements HasActions, HasSchema
             'kwh_grid' => $sum('kwh_grid'),
             'kwh_genset' => $sum('kwh_genset'),
             'kwh_turbine' => $turbine,
+            'genset_hours' => $sum('genset_hours'),
+            'genset_fuel_gallons' => $sum('genset_fuel_gallons'),
+            'energy_switch_count' => $sum('energy_switch_count'),
             'kwh_per_ton' => ($total !== null && $tons > 0) ? round($total / $tons, 2) : null,
             'clean_energy_percentage' => ($turbine !== null && $total > 0)
                 ? round($turbine / $total * 100, 2)
@@ -243,6 +246,23 @@ class PlantEnergyYearTableWidget extends Widget implements HasActions, HasSchema
                 TextInput::make('kwh_turbine')
                     ->label('KWh turbina')
                     ->helperText('Déjalo vacío si no se sabe. Vacío y cero no son lo mismo: cero afirma que la turbina no generó nada.')
+                    ->numeric()
+                    ->minValue(0),
+
+                // Los tres de la planta eléctrica. En un mes con ronda diaria se llenan
+                // solos —las horas salen del horómetro— y esto es para los meses que
+                // vinieron de la hoja, o para corregir.
+                TextInput::make('energy_switch_count')
+                    ->label('Cantidad de cambios de energía')
+                    ->integer()
+                    ->minValue(0),
+                TextInput::make('genset_hours')
+                    ->label('Horas de operación de la planta eléctrica')
+                    ->helperText('En un mes con lecturas diarias esto sale del horómetro de los generadores.')
+                    ->numeric()
+                    ->minValue(0),
+                TextInput::make('genset_fuel_gallons')
+                    ->label('Consumo de combustible (galones)')
                     ->numeric()
                     ->minValue(0),
 
@@ -363,6 +383,9 @@ class PlantEnergyYearTableWidget extends Widget implements HasActions, HasSchema
             'kwh_grid' => $kpi?->kwh_grid,
             'kwh_genset' => $kpi?->kwh_genset,
             'kwh_turbine' => $kpi?->kwh_turbine,
+            'genset_hours' => $kpi?->genset_hours,
+            'genset_fuel_gallons' => $kpi?->genset_fuel_gallons,
+            'energy_switch_count' => $kpi?->energy_switch_count,
         ];
     }
 

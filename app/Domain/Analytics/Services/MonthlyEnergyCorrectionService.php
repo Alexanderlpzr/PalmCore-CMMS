@@ -36,6 +36,14 @@ class MonthlyEnergyCorrectionService
 
     private const MAX_MONTHLY_KWH = 10_000_000;
 
+    /** Un mes tiene 744 horas; con dos generadores, 1.488 y ni una más. */
+    private const MAX_MONTHLY_GENSET_HOURS = 1_488;
+
+    private const MAX_MONTHLY_GALLONS = 100_000;
+
+    /** Treinta y un días cambiando de fuente cada hora ya serían 744. */
+    private const MAX_MONTHLY_SWITCHES = 1_000;
+
     /**
      * Escribe la corrección y marca el mes como puesto a mano.
      *
@@ -46,7 +54,7 @@ class MonthlyEnergyCorrectionService
      * Un campo vacío entra como `null`, no como cero. Es la distinción que sostiene toda
      * la planilla: cero afirma que no hubo consumo, vacío dice que no se sabe.
      *
-     * @param  array{processed_tons?: float|string|null, kwh_grid?: float|string|null, kwh_genset?: float|string|null, kwh_turbine?: float|string|null}  $values
+     * @param  array{processed_tons?: float|string|null, kwh_grid?: float|string|null, kwh_genset?: float|string|null, kwh_turbine?: float|string|null, genset_hours?: float|string|null, genset_fuel_gallons?: float|string|null, energy_switch_count?: float|string|null}  $values
      *
      * @throws BusinessRuleException
      */
@@ -61,7 +69,14 @@ class MonthlyEnergyCorrectionService
         $genset = $this->clean($values['kwh_genset'] ?? null, self::MAX_MONTHLY_KWH, 'El consumo de planta eléctrica');
         $turbine = $this->clean($values['kwh_turbine'] ?? null, self::MAX_MONTHLY_KWH, 'La generación de turbina');
 
-        return DB::transaction(function () use ($plant, $year, $month, $tons, $grid, $genset, $turbine): PlantMonthlyKpi {
+        // Los tres renglones de la planta eléctrica. Las horas tienen techo propio: un mes
+        // no da más de 744 horas por generador, y con dos son 1.488. Un número por encima
+        // de eso es un dedazo, no un mes muy trabajado.
+        $horas = $this->clean($values['genset_hours'] ?? null, self::MAX_MONTHLY_GENSET_HOURS, 'Las horas de la planta eléctrica');
+        $galones = $this->clean($values['genset_fuel_gallons'] ?? null, self::MAX_MONTHLY_GALLONS, 'El combustible del mes');
+        $cambios = $this->clean($values['energy_switch_count'] ?? null, self::MAX_MONTHLY_SWITCHES, 'Los cambios de energía');
+
+        return DB::transaction(function () use ($plant, $year, $month, $tons, $grid, $genset, $turbine, $horas, $galones, $cambios): PlantMonthlyKpi {
             $existing = PlantMonthlyKpi::withoutGlobalScopes()
                 ->where('plant_id', $plant->id)
                 ->where('year', $year)
@@ -77,6 +92,9 @@ class MonthlyEnergyCorrectionService
                     'kwh_grid' => $grid,
                     'kwh_genset' => $genset,
                     'kwh_turbine' => $turbine,
+                    'genset_hours' => $horas,
+                    'genset_fuel_gallons' => $galones,
+                    'energy_switch_count' => $cambios === null ? null : (int) $cambios,
                     'energy_is_imported' => true,
                     'calculated_at' => $existing?->calculated_at ?? now(),
                 ],
