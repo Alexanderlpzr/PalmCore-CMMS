@@ -6,6 +6,7 @@ use App\Domain\Reports\DTOs\ReportRequest;
 use App\Domain\Reports\Enums\ExcelReportType;
 use App\Domain\Reports\Enums\ReportType;
 use App\Domain\Reports\Excel\ExcelReportManager;
+use App\Domain\Reports\Services\OrdenesTrabajoPdfService;
 use App\Domain\Reports\Services\ReportManager;
 use App\Filament\Resources\Maintenance\WorkOrder\WorkOrderResource;
 use App\Models\WorkOrder;
@@ -17,6 +18,7 @@ use Filament\Resources\Pages\ListRecords;
 use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Database\Eloquent\Builder;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ListWorkOrders extends ListRecords
 {
@@ -64,6 +66,8 @@ class ListWorkOrders extends ListRecords
                         ->send();
                 }),
 
+            $this->descargarPdfAction(),
+
             Action::make('download_pending_pdf')
                 ->label('PDF de Pendientes')
                 ->tooltip('Descarga un PDF con todas las OT que aún no están completadas')
@@ -79,5 +83,58 @@ class ListWorkOrders extends ListRecords
 
             CreateAction::make(),
         ];
+    }
+
+    /**
+     * El PDF de lo que la tabla está mostrando: la pestaña, el rango de fechas y los demás
+     * filtros, tal cual.
+     *
+     * Va sobre `getFilteredTableQuery()`, que ya trae la pestaña aplicada, y no sobre un
+     * rango de fechas armado aparte — la misma decisión que en Paradas de Planta, por la
+     * misma razón: tabla y gráficos no pueden contar dos cosas distintas.
+     */
+    private function descargarPdfAction(): Action
+    {
+        return Action::make('descargarOrdenes')
+            ->label('PDF del filtro')
+            ->tooltip('Las OT que muestra la tabla, con los filtros aplicados')
+            ->icon(Heroicon::OutlinedArrowDownTray)
+            ->color('gray')
+            ->action(function (OrdenesTrabajoPdfService $informe): ?StreamedResponse {
+                $query = $this->getFilteredTableQuery();
+
+                if ($query === null) {
+                    return null;
+                }
+
+                $bytes = $informe->generate(Filament::getTenant()->id, $query, $this->filtrosAplicados());
+
+                return response()->streamDownload(
+                    fn () => print ($bytes),
+                    $informe->filename(),
+                    ['Content-Type' => 'application/pdf'],
+                );
+            });
+    }
+
+    /**
+     * Los filtros como los dice la pantalla, con la pestaña delante.
+     *
+     * La pestaña no es un filtro para Filament y no sale en los indicadores, pero decide
+     * la mitad del informe: un PDF del Histórico sin decirlo parece un listado de trabajo
+     * pendiente.
+     *
+     * @return list<string>
+     */
+    private function filtrosAplicados(): array
+    {
+        $pestana = $this->getCachedTabs()[$this->activeTab ?? ''] ?? null;
+
+        return array_values(array_filter([
+            $pestana !== null ? 'Pestaña: '.$pestana->getLabel() : null,
+            ...collect($this->getTable()->getFilterIndicators())
+                ->map(fn ($indicador): string => (string) $indicador->getLabel())
+                ->all(),
+        ]));
     }
 }

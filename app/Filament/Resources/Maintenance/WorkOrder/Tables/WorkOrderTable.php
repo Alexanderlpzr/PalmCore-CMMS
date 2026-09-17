@@ -206,15 +206,12 @@ class WorkOrderTable
                         }
 
                         return $indicators;
-                    }),
-                Filter::make('assigned_to_me')
-                    ->label('Asignadas a mí')
-                    ->toggle()
-                    ->default(fn (): bool => auth()->user()?->cannot('work-orders.plan') ?? false)
-                    ->query(fn (Builder $query): Builder => $query->whereHas(
-                        'technicians',
-                        fn (Builder $technicians) => $technicians->where('user_id', auth()->id())
-                    )),
+                    })
+                    // Dos tercios de la fila y sus dos desplegables lado a lado. En un solo
+                    // tercio se apilaban: Equipo caía solo en la fila de abajo y el resto
+                    // de la rejilla quedaba desalineado alrededor.
+                    ->columnSpan(2)
+                    ->columns(2),
                 SelectFilter::make('work_order_type')
                     ->label('Tipo')
                     ->options(WorkOrderType::options()),
@@ -227,6 +224,16 @@ class WorkOrderTable
                 SelectFilter::make('status')
                     ->label('Estado')
                     ->options(WorkOrderStatus::options()),
+                // El interruptor al final, en su propia fila: entre desplegables quedaba
+                // más bajo que ellos y rompía la línea.
+                Filter::make('assigned_to_me')
+                    ->label('Asignadas a mí')
+                    ->toggle()
+                    ->default(fn (): bool => auth()->user()?->cannot('work-orders.plan') ?? false)
+                    ->query(fn (Builder $query): Builder => $query->whereHas(
+                        'technicians',
+                        fn (Builder $technicians) => $technicians->where('user_id', auth()->id())
+                    )),
             ])
             // Igual que en Paradas de Planta: los filtros a la vista en vez de escondidos
             // en el embudo, y guardados entre visitas. Que se vean es lo que hace seguro
