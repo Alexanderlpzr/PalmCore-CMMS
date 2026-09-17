@@ -59,24 +59,26 @@ beforeEach(function () {
     $service->assignTechnician($this->otherWorkOrder, $this->otherTechnician, TechnicianRole::Technician);
 });
 
-it('defaults to showing only the technician\'s own work orders', function () {
+it('does not default the filter on for someone who cannot plan either', function () {
+    // Antes se encendía solo para este perfil. Pero en planta nadie asigna técnicos a la
+    // OT —el responsable se escribe a mano—, y encendido dejaba la tabla vacía.
     $this->actingAs($this->technician);
     Filament::setCurrentPanel(Filament::getPanel('admin'));
     Filament::setTenant($this->tenant);
 
     Livewire::test(ListWorkOrders::class)
-        ->assertCanSeeTableRecords([$this->myWorkOrder])
-        ->assertCanNotSeeTableRecords([$this->otherWorkOrder]);
+        ->assertCanSeeTableRecords([$this->myWorkOrder, $this->otherWorkOrder]);
 });
 
-it('lets the technician turn the filter off to see every work order', function () {
+it('still narrows to the technician\'s own work orders when turned on', function () {
     $this->actingAs($this->technician);
     Filament::setCurrentPanel(Filament::getPanel('admin'));
     Filament::setTenant($this->tenant);
 
     Livewire::test(ListWorkOrders::class)
-        ->filterTable('assigned_to_me', false)
-        ->assertCanSeeTableRecords([$this->myWorkOrder, $this->otherWorkOrder]);
+        ->filterTable('assigned_to_me', true)
+        ->assertCanSeeTableRecords([$this->myWorkOrder])
+        ->assertCanNotSeeTableRecords([$this->otherWorkOrder]);
 });
 
 it('does not default the filter on for an administrator', function () {

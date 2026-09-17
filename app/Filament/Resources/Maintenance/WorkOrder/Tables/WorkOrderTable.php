@@ -229,7 +229,11 @@ class WorkOrderTable
                 Filter::make('assigned_to_me')
                     ->label('Asignadas a mí')
                     ->toggle()
-                    ->default(fn (): bool => auth()->user()?->cannot('work-orders.plan') ?? false)
+                    // Apagado por defecto para todos. Antes se encendía solo para quien no
+                    // planifica, pero busca técnicos asignados a la OT y en planta nadie los
+                    // asigna —el responsable se escribe a mano en «Responsable(s)»—, así que
+                    // encendido dejaba la tabla vacía sin decir por qué.
+                    ->default(false)
                     ->query(fn (Builder $query): Builder => $query->whereHas(
                         'technicians',
                         fn (Builder $technicians) => $technicians->where('user_id', auth()->id())
