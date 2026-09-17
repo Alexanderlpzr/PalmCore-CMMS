@@ -166,6 +166,25 @@ it('lo dice en vez de imprimir un informe vacío', function (): void {
         ->and($html)->toContain('trae todas las órdenes de trabajo');
 });
 
+it('es un listado, sin gráficos', function (): void {
+    otDeInforme('2026-09-05');
+
+    $datos = app(OrdenesTrabajoPdfService::class)->datos(WorkOrder::query());
+    $html = view('reports.ordenes-trabajo-filtradas', [...$datos, ...marcoDelInforme()])->render();
+
+    // Las tortas se quitaron a pedido del cliente: es un papel para repartir el trabajo.
+    expect($html)->not->toContain('data:image/svg+xml')
+        ->and($html)->not->toContain('Reparto en torta');
+});
+
+it('no ofrece el PDF de pendientes al lado del PDF del filtro', function (): void {
+    // Estaban juntos y con el mismo icono: se descargaba el de pendientes —que ignora
+    // los filtros— creyendo descargar el filtrado, y con el 14/09 salía una OT del 21/09.
+    Livewire::test(ListWorkOrders::class)
+        ->assertActionExists('descargarOrdenes')
+        ->assertActionDoesNotExist('download_pending_pdf');
+});
+
 // ── La rejilla de filtros ────────────────────────────────────────────────────
 
 it('pone Sección y Equipo lado a lado, en dos tercios de la fila', function (): void {

@@ -2,12 +2,9 @@
 
 namespace App\Filament\Resources\Maintenance\WorkOrder\Pages;
 
-use App\Domain\Reports\DTOs\ReportRequest;
 use App\Domain\Reports\Enums\ExcelReportType;
-use App\Domain\Reports\Enums\ReportType;
 use App\Domain\Reports\Excel\ExcelReportManager;
 use App\Domain\Reports\Services\OrdenesTrabajoPdfService;
-use App\Domain\Reports\Services\ReportManager;
 use App\Filament\Resources\Maintenance\WorkOrder\WorkOrderResource;
 use App\Models\WorkOrder;
 use Filament\Actions\Action;
@@ -28,8 +25,12 @@ class ListWorkOrders extends ListRecords
      * Abiertas (por defecto) vs Histórico (cerradas/canceladas): antes convivían
      * en la misma tabla y se hacía difícil distinguir el trabajo pendiente del ya
      * resuelto — sobre todo en la exportación, donde el histórico ensuciaba el
-     * PDF de pendientes. «PDF de Pendientes» ya filtraba solo abiertas por su
-     * cuenta; esto es lo mismo pero visible en pantalla.
+     * PDF de pendientes.
+     *
+     * Aquí ya no hay botón «PDF de Pendientes»: estaba al lado de «PDF del filtro»,
+     * con el mismo icono, y se descargaba uno creyendo descargar el otro — con el
+     * 14/09 filtrado salía una OT del 21/09. «PDF del filtro» en Abiertas y sin
+     * filtros da el mismo listado; el informe fijo sigue en el centro de informes.
      *
      * @return array<string, Tab>
      */
@@ -67,20 +68,6 @@ class ListWorkOrders extends ListRecords
                 }),
 
             $this->descargarPdfAction(),
-
-            Action::make('download_pending_pdf')
-                ->label('PDF de Pendientes')
-                ->tooltip('Descarga un PDF con todas las OT que aún no están completadas')
-                ->icon(Heroicon::OutlinedArrowDownTray)
-                ->color('gray')
-                ->action(function (ReportManager $manager): mixed {
-                    return $manager->streamDownload(new ReportRequest(
-                        type: ReportType::PendingWorkOrders,
-                        tenantId: Filament::getTenant()->id,
-                        requestedBy: auth()->id(),
-                    ));
-                }),
-
             CreateAction::make(),
         ];
     }

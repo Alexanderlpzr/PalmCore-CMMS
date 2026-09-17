@@ -57,30 +57,6 @@
             </table>
         </div>
 
-        {{-- Repartos en torta: cuántas OT se lleva cada categoría. --}}
-        <table class="grid-2">
-            <tr>
-                <td style="width:33%; vertical-align:top; padding-right:8px;">
-                    <div class="section">
-                        <div class="section-title">Tipo</div>
-                        @include('reports.partials.chart-pie', ['valores' => $porTipo, 'unidad' => 'OT', 'decimales' => 0, 'tamano' => 90])
-                    </div>
-                </td>
-                <td style="width:33%; vertical-align:top; padding-right:8px;">
-                    <div class="section">
-                        <div class="section-title">Clase de mantenimiento</div>
-                        @include('reports.partials.chart-pie', ['valores' => $porClase, 'unidad' => 'OT', 'decimales' => 0, 'tamano' => 90])
-                    </div>
-                </td>
-                <td style="width:34%; vertical-align:top;">
-                    <div class="section">
-                        <div class="section-title">Sección</div>
-                        @include('reports.partials.chart-pie', ['valores' => $porSeccion, 'unidad' => 'OT', 'decimales' => 0, 'tamano' => 90])
-                    </div>
-                </td>
-            </tr>
-        </table>
-
         <table class="data-table">
             <thead>
                 <tr>

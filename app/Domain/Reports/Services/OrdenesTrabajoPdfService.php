@@ -6,15 +6,14 @@ use App\Models\Tenant;
 use App\Models\WorkOrder;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Collection;
 
 /**
  * Las órdenes de trabajo que la pantalla está mostrando, en PDF.
  *
  * Mismo principio que {@see ParadasPdfService}: recibe la **consulta ya filtrada** de la
- * tabla —con la pestaña, el rango de fechas y los demás filtros aplicados— y de ahí salen
- * el listado y los gráficos. Si se armara aparte con un rango de fechas, un PDF filtrado
- * por «Sección: Prensado» traería tortas de toda la planta.
+ * tabla —con la pestaña, el rango de fechas y los demás filtros aplicados—, así que el
+ * documento trae exactamente las OT que se ven en pantalla. Sin gráficos, a pedido del
+ * cliente: es un listado para repartir el trabajo.
  *
  * No sustituye a {@see PendingWorkOrdersPdfService}: ese es un informe fijo —todas las
  * pendientes— que también se pide desde el centro de informes, sin pantalla detrás.
@@ -61,7 +60,6 @@ class OrdenesTrabajoPdfService
      */
     public function datos(Builder $query, array $filtros = []): array
     {
-        // Una sola lectura: tabla y gráficos salen de la misma colección.
         $ordenes = (clone $query)
             ->with(['equipment.area'])
             ->reorder()
@@ -84,30 +82,6 @@ class OrdenesTrabajoPdfService
             'mostrarEstado' => $estados->count() > 1,
             // Igual con la fecha de ejecución: en las abiertas no existe todavía.
             'mostrarEjecutada' => $ordenes->contains(fn (WorkOrder $ot): bool => $ot->actual_end_at !== null),
-            'porTipo' => $this->contar($ordenes, fn (WorkOrder $ot): ?string => $ot->work_order_type?->label()),
-            'porClase' => $this->contar($ordenes, fn (WorkOrder $ot): ?string => $ot->maintenance_area?->label()),
-            'porSeccion' => $this->contar($ordenes, fn (WorkOrder $ot): ?string => $ot->equipment?->area?->name),
         ];
-    }
-
-    /**
-     * Cuántas OT caen en cada categoría. Sin clasificar va aparte y a la vista: dice que
-     * alguien no lo llenó, y eso también es información.
-     *
-     * @param  Collection<int, WorkOrder>  $ordenes
-     * @return array<string, int>
-     */
-    private function contar(Collection $ordenes, callable $etiqueta): array
-    {
-        $totales = [];
-
-        foreach ($ordenes as $ot) {
-            $clave = $etiqueta($ot) ?? 'Sin clasificar';
-            $totales[$clave] = ($totales[$clave] ?? 0) + 1;
-        }
-
-        arsort($totales);
-
-        return $totales;
     }
 }
