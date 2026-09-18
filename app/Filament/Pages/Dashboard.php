@@ -5,6 +5,7 @@ namespace App\Filament\Pages;
 use App\Domain\Reports\Services\DashboardPdfService;
 use App\Filament\Concerns\DescargaInformePdf;
 use App\Filament\Concerns\HasPeriodFilterForm;
+use App\Filament\Concerns\RequiresMaintenanceAccess;
 use App\Filament\Widgets\Analytics\CostByEquipmentWidget;
 use App\Filament\Widgets\Analytics\DowntimeByEquipmentWidget;
 use App\Filament\Widgets\Analytics\DowntimeByReasonWidget;
@@ -43,6 +44,7 @@ class Dashboard extends BaseDashboard
     use DescargaInformePdf;
     use HasFiltersForm;
     use HasPeriodFilterForm;
+    use RequiresMaintenanceAccess;
 
     protected static string $routePath = '/dashboard';
 

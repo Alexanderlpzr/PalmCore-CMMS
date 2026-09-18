@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Domain\Reports\Excel\MonthlyMaintenanceCostExcelExport;
+use App\Filament\Concerns\RequiresMaintenanceAccess;
 use App\Filament\Widgets\Costs\BudgetVsSpentWidget;
 use App\Filament\Widgets\Costs\CostBreakdownWidget;
 use App\Filament\Widgets\Costs\MonthlyCostByTypeWidget;
@@ -31,6 +32,7 @@ use UnitEnum;
 class GastosDeMantenimiento extends BaseDashboard
 {
     use HasFiltersForm;
+    use RequiresMaintenanceAccess;
 
     protected static string $routePath = '/gastos-mantenimiento';
 

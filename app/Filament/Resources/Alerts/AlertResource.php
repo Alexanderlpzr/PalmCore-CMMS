@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Alerts;
 
 use App\Domain\Alerts\Enums\AlertStatus;
+use App\Filament\Concerns\RequiresMaintenanceAccess;
 use App\Filament\Resources\Alerts\Alert\Pages\ListAlerts;
 use App\Filament\Resources\Alerts\Alert\Pages\ViewAlert;
 use App\Filament\Resources\Alerts\Alert\Schemas\AlertInfolist;
@@ -21,6 +22,8 @@ use UnitEnum;
 
 class AlertResource extends Resource
 {
+    use RequiresMaintenanceAccess;
+
     protected static ?string $model = Alert::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBellAlert;

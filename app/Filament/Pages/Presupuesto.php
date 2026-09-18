@@ -5,6 +5,7 @@ namespace App\Filament\Pages;
 use App\Domain\Analytics\Support\DashboardPeriod;
 use App\Domain\Reports\Services\PresupuestoPdfService;
 use App\Filament\Concerns\DescargaInformePdf;
+use App\Filament\Concerns\RequiresMaintenanceAccess;
 use App\Filament\Widgets\Budget\BudgetByCategoryChartWidget;
 use App\Filament\Widgets\Budget\BudgetExpensesTableWidget;
 use App\Filament\Widgets\Budget\BudgetProgressChartWidget;
@@ -33,6 +34,7 @@ class Presupuesto extends BaseDashboard
 {
     use DescargaInformePdf;
     use HasFiltersForm;
+    use RequiresMaintenanceAccess;
 
     protected static string $routePath = '/presupuesto';
 

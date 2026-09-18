@@ -3,6 +3,9 @@
 namespace App\Filament\Pages;
 
 use App\Domain\Home\Services\HomePageService;
+use App\Filament\Resources\Employees\EmployeeResource;
+use App\Models\Employee;
+use App\Models\Equipment;
 use App\Models\Role;
 use BackedEnum;
 use Filament\Facades\Filament;
@@ -50,6 +53,17 @@ class Inicio extends Page
 
     protected string $view = 'filament.pages.inicio';
 
+    /** En el menú solo para mantenimiento: a los demás se les redirige, ver mount(). */
+    public static function shouldRegisterNavigation(): bool
+    {
+        return self::isForMaintenance();
+    }
+
+    private static function isForMaintenance(): bool
+    {
+        return auth()->user()?->can('viewAny', Equipment::class) ?? false;
+    }
+
     public static function getRoutePath(Panel $panel): string
     {
         return static::$routePath;
@@ -64,6 +78,16 @@ class Inicio extends Page
     public function mount(): void
     {
         $user = auth()->user();
+
+        // Quien no trabaja en mantenimiento —la cuenta de talento humano— no tiene nada
+        // que hacer aquí: el portal abre con lo que requiere atención en la planta, que
+        // son equipos y órdenes. Se le lleva a Personal siempre, no solo al entrar,
+        // porque Inicio es la raíz del panel y a ella vuelve cada vez que pulsa el logo.
+        if ($user !== null && ! self::isForMaintenance() && $user->can('viewAny', Employee::class)) {
+            $this->redirect(EmployeeResource::getUrl());
+
+            return;
+        }
 
         if ($user === null || session()->get(self::LANDING_REDIRECT_KEY, false)) {
             return;

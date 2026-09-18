@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Domain\Analytics\Support\DashboardPeriod;
+use App\Filament\Concerns\RequiresMaintenanceAccess;
 use App\Filament\Widgets\Analytics\DowntimeByEquipmentWidget;
 use App\Filament\Widgets\Analytics\DowntimeByReasonWidget;
 use App\Filament\Widgets\Analytics\DowntimeByReportedTypeWidget;
@@ -29,6 +30,7 @@ use UnitEnum;
 class IndicadoresDeParos extends BaseDashboard
 {
     use HasFiltersForm;
+    use RequiresMaintenanceAccess;
 
     protected static string $routePath = '/indicadores-de-paros';
 

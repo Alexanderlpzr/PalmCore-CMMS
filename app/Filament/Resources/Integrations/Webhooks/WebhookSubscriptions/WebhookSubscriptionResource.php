@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Integrations\Webhooks\WebhookSubscriptions;
 
+use App\Filament\Concerns\RequiresMaintenanceAccess;
 use App\Filament\Resources\Integrations\Webhooks\WebhookSubscriptions\Pages\CreateWebhookSubscription;
 use App\Filament\Resources\Integrations\Webhooks\WebhookSubscriptions\Pages\EditWebhookSubscription;
 use App\Filament\Resources\Integrations\Webhooks\WebhookSubscriptions\Pages\ListWebhookSubscriptions;
@@ -19,6 +20,8 @@ use UnitEnum;
 
 class WebhookSubscriptionResource extends Resource
 {
+    use RequiresMaintenanceAccess;
+
     protected static ?string $model = WebhookSubscription::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBolt;

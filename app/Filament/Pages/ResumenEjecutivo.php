@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Filament\Concerns\HasPeriodFilterForm;
+use App\Filament\Concerns\RequiresMaintenanceAccess;
 use App\Filament\Widgets\Executive\AreaHealthWidget;
 use App\Filament\Widgets\Executive\AvailabilityTrendWidget;
 use App\Filament\Widgets\Executive\CostByTypeWidget;
@@ -33,6 +34,7 @@ class ResumenEjecutivo extends BaseDashboard
 {
     use HasFiltersForm;
     use HasPeriodFilterForm;
+    use RequiresMaintenanceAccess;
 
     protected static string $routePath = '/resumen-ejecutivo';
 

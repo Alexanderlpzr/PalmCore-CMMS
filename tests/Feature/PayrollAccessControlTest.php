@@ -16,6 +16,10 @@ use Spatie\Permission\PermissionRegistrar;
 /*
  * Quién ve qué en la nómina.
  *
+ * Actualización del 2026-09-18: la decisión se volvió a invertir. El Pajuil tiene ya una
+ * cuenta propia de RRHH, y el administrador general deja de ver la nómina. Los tests de
+ * abajo fijan la decisión vigente; el párrafo siguiente queda como historia.
+ *
  * El módulo nació aislando la nómina de `administrador-general`, y la empresa decidió
  * después lo contrario: en una extractora de este tamaño el administrador y quien lleva
  * la nómina son la misma persona. Estos tests fijan la decisión nueva, incluida su
@@ -49,21 +53,23 @@ function payrollUserWithRole(string $role, Tenant $tenant): User
     return $user->fresh();
 }
 
-it('el administrador general ve el sueldo, y eso es la decisión, no un descuido', function (): void {
+it('el administrador general no ve el sueldo ni la ficha del trabajador', function (): void {
     $admin = payrollUserWithRole('administrador-general', $this->tenant);
 
-    expect($admin->can('viewSalary', $this->employee))->toBeTrue()
-        ->and($admin->can('viewAnySalary', Employee::class))->toBeTrue();
+    expect($admin->can('viewSalary', $this->employee))->toBeFalse()
+        ->and($admin->can('viewAnySalary', Employee::class))->toBeFalse()
+        ->and($admin->can('view', $this->employee))->toBeFalse();
 });
 
-it('el administrador general entra a todo el módulo de nómina', function (): void {
+it('el administrador general no entra a ninguna pantalla de nómina', function (): void {
     $admin = payrollUserWithRole('administrador-general', $this->tenant);
 
-    expect($admin->can('viewAny', Employee::class))->toBeTrue()
-        ->and($admin->can('viewAny', PayrollParameterVersion::class))->toBeTrue()
-        ->and($admin->can('viewAny', PayrollConcept::class))->toBeTrue()
-        ->and($admin->can('viewAny', Holiday::class))->toBeTrue()
-        ->and($admin->can('create', PayrollRun::class))->toBeTrue();
+    expect($admin->can('viewAny', Employee::class))->toBeFalse()
+        ->and($admin->can('viewAny', PayrollParameterVersion::class))->toBeFalse()
+        ->and($admin->can('viewAny', PayrollConcept::class))->toBeFalse()
+        ->and($admin->can('viewAny', Holiday::class))->toBeFalse()
+        ->and($admin->can('viewAny', AttendanceDay::class))->toBeFalse()
+        ->and($admin->can('viewAny', PayrollRun::class))->toBeFalse();
 });
 
 it('talento humano ve el sueldo y administra los parámetros', function (): void {
@@ -138,14 +144,6 @@ it('marcar el reloj y firmar las horas son facultades separadas', function (): v
         ->and($rrhh->can('confirm', $dia))->toBeTrue()
         ->and($porteria->can('create', AttendanceScan::class))->toBeTrue()
         ->and($rrhh->can('create', AttendanceScan::class))->toBeFalse();
-});
-
-it('el administrador general también firma las horas del reloj', function (): void {
-    $admin = payrollUserWithRole('administrador-general', $this->tenant);
-    $dia = AttendanceDay::factory()->forEmployee($this->employee)->create();
-
-    expect($admin->can('viewAny', AttendanceDay::class))->toBeTrue()
-        ->and($admin->can('confirm', $dia))->toBeTrue();
 });
 
 it('un día de asistencia no se escribe ni se edita a mano', function (): void {

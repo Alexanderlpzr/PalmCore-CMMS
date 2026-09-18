@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Filament\Concerns\RequiresMaintenanceAccess;
 use App\Models\PersonalAccessToken;
 use Carbon\Carbon;
 use Filament\Actions\Action;
@@ -15,6 +16,8 @@ use Filament\Support\Icons\Heroicon;
 
 class ApiTokens extends Page
 {
+    use RequiresMaintenanceAccess;
+
     protected static string|\BackedEnum|null $navigationIcon = Heroicon::OutlinedKey;
 
     protected static ?string $navigationLabel = 'API Tokens';

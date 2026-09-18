@@ -63,30 +63,9 @@ class TenantRolesSeeder extends Seeder
             'announcements.view', 'announcements.create', 'announcements.update', 'announcements.delete',
             'carousel-slides.view', 'carousel-slides.create', 'carousel-slides.update', 'carousel-slides.delete',
 
-            /*
-             * Nómina. Al principio se dejó fuera a propósito, con el argumento de que un
-             * ingeniero de mantenimiento tiene derecho a ver los equipos de su planta pero
-             * no el salario del Director de Planta.
-             *
-             * Se revierte por decisión de la empresa: en una extractora de este tamaño el
-             * administrador general y quien lleva la nómina suelen ser la misma persona, y
-             * un rol al que el administrador no llega obliga a mantener dos cuentas para
-             * una sola persona. `employee-salaries.view` va incluido, así que el
-             * administrador ve los sueldos: es el precio de la decisión y conviene tenerlo
-             * escrito.
-             *
-             * El rol `talento-humano` sigue existiendo y sirve para lo contrario: dárselo a
-             * alguien de RRHH que NO deba ver equipos, órdenes ni inventario.
-             */
-            'employees.view', 'employees.create', 'employees.update', 'employees.delete',
-            'employee-salaries.view',
-            'employee-qr.view', 'employee-qr.create', 'employee-qr.update',
-            'attendance.view', 'attendance.record', 'attendance.confirm',
-            'payroll-runs.view', 'payroll-runs.manage', 'payroll-runs.close',
-            'employee-novelties.view', 'employee-novelties.manage',
-            'payroll-parameters.view', 'payroll-parameters.manage',
-            'payroll-concepts.view', 'payroll-concepts.manage',
-            'holidays.view', 'holidays.manage',
+            // Sin nómina: la lleva `talento-humano`. Ver la migración
+            // 2026_09_18_204030_revoke_payroll_from_tenant_admin, que explica por qué
+            // esta es la tercera vuelta de la decisión.
         ],
 
         /*

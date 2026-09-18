@@ -5,6 +5,7 @@ namespace App\Filament\Pages;
 use App\Domain\Reports\Services\ProductividadPdfService;
 use App\Filament\Concerns\DescargaInformePdf;
 use App\Filament\Concerns\HasPeriodFilterForm;
+use App\Filament\Concerns\RequiresMaintenanceAccess;
 use App\Filament\Resources\ProductionCalendar\ProductionCalendarResource;
 use App\Filament\Widgets\Executive\PlantEfficiencyStatsWidget;
 use App\Filament\Widgets\Executive\PlantHoursBreakdownWidget;
@@ -44,6 +45,7 @@ class ProductividadYEficiencia extends BaseDashboard
     use DescargaInformePdf;
     use HasFiltersForm;
     use HasPeriodFilterForm;
+    use RequiresMaintenanceAccess;
 
     protected static string $routePath = '/productividad-y-eficiencia';
 
