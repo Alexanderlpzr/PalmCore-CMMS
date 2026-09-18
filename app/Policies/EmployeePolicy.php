@@ -70,6 +70,18 @@ class EmployeePolicy
         return $user->is_super_admin || $user->hasPermissionTo('employee-salaries.view');
     }
 
+    /**
+     * La carpeta de documentos: exámenes médicos, cédula, contrato.
+     *
+     * Va con `employees.update` y no con `employees.view` porque portería ve al
+     * trabajador para saber a quién escaneó, y eso no le da por qué abrir su examen de
+     * ingreso. Quien puede editar la ficha es quien lleva la carpeta.
+     */
+    public function viewDocuments(User $user, Employee $employee): bool
+    {
+        return $user->is_super_admin || $user->hasPermissionTo('employees.update');
+    }
+
     public function manageQrCode(User $user, Employee $employee): bool
     {
         return $user->is_super_admin || $user->hasPermissionTo('employee-qr.update');

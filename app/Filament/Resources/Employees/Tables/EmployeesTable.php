@@ -2,9 +2,12 @@
 
 namespace App\Filament\Resources\Employees\Tables;
 
+use App\Domain\HumanResources\Enums\EmployeeDocumentType;
 use App\Domain\HumanResources\Enums\EmploymentStatus;
 use App\Domain\HumanResources\Services\EmployeeQrCodeService;
+use App\Domain\HumanResources\Support\EmployeeProfileOptions as Options;
 use App\Models\Employee;
+use App\Models\EmployeeDocument;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -12,9 +15,12 @@ use Filament\Actions\EditAction;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 class EmployeesTable
 {
@@ -22,7 +28,20 @@ class EmployeesTable
     {
         return $table
             ->defaultSort('last_name')
+            // «Carpeta» necesita el tipo de cada documento y «Carné» el QR activo. Sin
+            // cargarlos aquí, cada fila los pedía por separado, y con la carga perezosa
+            // prohibida fuera de producción la lista ni siquiera abría.
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with([
+                'documents:id,employee_id,document_type',
+                'qrCode',
+            ]))
             ->columns([
+                TextColumn::make('employee_code')
+                    ->label('Código')
+                    ->searchable()
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
+
                 TextColumn::make('document_number')
                     ->label('Documento')
                     ->searchable()
@@ -37,8 +56,14 @@ class EmployeesTable
 
                 TextColumn::make('position')
                     ->label('Cargo')
+                    ->description(fn (Employee $record): ?string => Options::SPECIFIC_AREAS[$record->area_specific] ?? null)
                     ->limitWithTooltip(30)
                     ->toggleable(),
+
+                TextColumn::make('phone')
+                    ->label('Celular')
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('status')
                     ->label('Estado')
@@ -63,6 +88,23 @@ class EmployeesTable
                     ->visible(fn (): bool => auth()->user()?->can('viewAnySalary', Employee::class) ?? false)
                     ->toggleable(),
 
+                // Cuántos de los once documentos obligatorios tiene la carpeta. Solo lo ve
+                // quien puede abrirla: a portería no le dice nada.
+                TextColumn::make('documents_progress')
+                    ->label('Carpeta')
+                    ->badge()
+                    ->getStateUsing(fn (Employee $record): string => $record->requiredDocumentsProgress())
+                    ->color(fn (Employee $record): string => match (count($record->missingRequiredDocuments())) {
+                        0 => 'success',
+                        count(EmployeeDocumentType::required()) => 'danger',
+                        default => 'warning',
+                    })
+                    ->tooltip(fn (Employee $record): ?string => ($missing = $record->missingRequiredDocuments())
+                        ? 'Faltan: '.collect($missing)->map->shortLabel()->implode(', ')
+                        : null)
+                    ->visible(fn (): bool => auth()->user()?->can('create', EmployeeDocument::class) ?? false)
+                    ->toggleable(),
+
                 IconColumn::make('qrCode')
                     ->label('Carné')
                     ->boolean()
@@ -75,8 +117,37 @@ class EmployeesTable
                     ->options(EmploymentStatus::options())
                     ->default(EmploymentStatus::Activo->value),
 
+                SelectFilter::make('area_specific')
+                    ->label('Área específica')
+                    ->options(Options::SPECIFIC_AREAS),
+
                 TernaryFilter::make('excluded_from_overtime')
                     ->label('No causa horas extras'),
+
+                // Por tipos distintos y no por filas: dos exámenes médicos no reemplazan
+                // al contrato que falta.
+                Filter::make('carpeta_incompleta')
+                    ->label('Carpeta incompleta')
+                    ->toggle()
+                    ->query(fn (Builder $query): Builder => $query->where(
+                        DB::table('hr_employee_documents')
+                            ->selectRaw('count(distinct document_type)')
+                            ->whereColumn('employee_id', 'hr_employees.id')
+                            ->whereNull('deleted_at')
+                            ->whereIn('document_type', array_map(
+                                fn (EmployeeDocumentType $type): string => $type->value,
+                                EmployeeDocumentType::required(),
+                            )),
+                        '<',
+                        count(EmployeeDocumentType::required()),
+                    )),
+
+                // Los cumpleaños del mes: el Excel tenía dos columnas, DÍA y MES, solo
+                // para poder filtrar esto.
+                Filter::make('cumple_este_mes')
+                    ->label('Cumple años este mes')
+                    ->toggle()
+                    ->query(fn (Builder $query): Builder => $query->whereMonth('birth_date', now()->month)),
             ])
             ->recordActions([
                 EditAction::make(),

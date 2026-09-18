@@ -78,7 +78,9 @@ it('encuentra las tablas del proyecto', function (): void {
     // Subió a 76 con el módulo de Talento Humano: Personal, Horas por confirmar,
     // Nóminas, Parámetros de nómina, Conceptos de nómina, Festivos, y los cuatro
     // relation managers (novedades, bonificaciones, descuentos y renglones de nómina).
-    expect(tableFiles())->toHaveCount(76);
+    //
+    // 77 con la pestaña «Documentos» de la ficha del trabajador.
+    expect(tableFiles())->toHaveCount(77);
 });
 
 it('alinea a la derecha toda columna de dinero o cantidad', function (): void {

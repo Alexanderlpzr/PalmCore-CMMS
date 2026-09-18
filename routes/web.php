@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AuditLogExportController;
 use App\Http\Controllers\Api\V1\ImpersonationStatusController;
+use App\Http\Controllers\EmployeeDocumentDownloadController;
 use App\Http\Controllers\EquipmentPublicController;
 use App\Http\Controllers\HealthCheckController;
 use App\Http\Controllers\ImpersonationController;
@@ -55,6 +56,8 @@ Route::middleware(['auth', 'signed'])->group(function () {
 Route::middleware('auth')->group(function () {
     Route::get('/work-order-attachments/{attachment}/download', WorkOrderAttachmentDownloadController::class)
         ->name('work-order-attachments.download');
+    Route::get('/employee-documents/{document}/download', EmployeeDocumentDownloadController::class)
+        ->name('employee-documents.download');
 });
 
 Route::middleware(['auth', 'super-admin'])->group(function () {

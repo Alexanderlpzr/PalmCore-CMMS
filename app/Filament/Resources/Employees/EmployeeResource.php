@@ -7,6 +7,7 @@ use App\Filament\Resources\Employees\Pages\EditEmployee;
 use App\Filament\Resources\Employees\Pages\ListEmployees;
 use App\Filament\Resources\Employees\RelationManagers\BonusesRelationManager;
 use App\Filament\Resources\Employees\RelationManagers\DeductionsRelationManager;
+use App\Filament\Resources\Employees\RelationManagers\DocumentsRelationManager;
 use App\Filament\Resources\Employees\RelationManagers\NoveltiesRelationManager;
 use App\Filament\Resources\Employees\Schemas\EmployeeForm;
 use App\Filament\Resources\Employees\Tables\EmployeesTable;
@@ -52,10 +53,14 @@ class EmployeeResource extends Resource
      * Novedades, bonificaciones y descuentos viven aquí y no en pantallas aparte porque
      * se capturan mirando a la persona: llega la incapacidad de fulano y se registra en
      * la ficha de fulano.
+     *
+     * Los documentos van primero porque en la ficha son la pestaña que sigue a
+     * «Información», como la carpeta física que talento humano abre al lado.
      */
     public static function getRelations(): array
     {
         return [
+            DocumentsRelationManager::class,
             NoveltiesRelationManager::class,
             BonusesRelationManager::class,
             DeductionsRelationManager::class,

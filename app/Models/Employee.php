@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Domain\HumanResources\Enums\EmployeeDocumentType;
 use App\Domain\HumanResources\Enums\EmploymentStatus;
 use App\Domain\Shared\Models\BaseModel;
 use Database\Factories\EmployeeFactory;
@@ -25,11 +26,31 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'tenant_id',
     'plant_id',
     'user_id',
+    'employee_code',
     'document_type',
     'document_number',
+    'document_issue_date',
+    'document_issue_place',
     'first_name',
     'last_name',
+    'birth_date',
+    'sex',
+    'has_children',
+    'children_count',
+    'blood_type',
+    'allergies',
+    'address',
+    'city',
+    'residence_zone',
+    'phone',
+    'email',
+    'emergency_contact_name',
+    'emergency_contact_relationship',
+    'emergency_contact_phone',
     'position',
+    'contract_type',
+    'area',
+    'area_specific',
     'base_salary',
     'salary_type',
     'excluded_from_overtime',
@@ -40,6 +61,12 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'eps',
     'pension_fund',
     'severance_fund',
+    'arl',
+    'compensation_fund',
+    'shirt_size',
+    'pants_size',
+    'boot_size',
+    'jacket_size',
     'arl_risk_class',
     'notes',
 ])]
@@ -97,6 +124,12 @@ class Employee extends BaseModel
         return $this->hasMany(EmployeeDeduction::class);
     }
 
+    /** La carpeta del trabajador: cédula, contrato, exámenes, afiliaciones. */
+    public function documents(): HasMany
+    {
+        return $this->hasMany(EmployeeDocument::class);
+    }
+
     // ── Scopes ────────────────────────────────────────────────────────────────
 
     public function scopeActive(Builder $query): Builder
@@ -114,6 +147,32 @@ class Employee extends BaseModel
     public function getFullNameAttribute(): string
     {
         return $this->fullName();
+    }
+
+    /**
+     * Los documentos obligatorios que todavía faltan en la carpeta.
+     *
+     * Un documento vencido cuenta como presente: la carpeta está completa, y el vencido
+     * se señala aparte en la pestaña, donde se ve en rojo.
+     *
+     * @return list<EmployeeDocumentType>
+     */
+    public function missingRequiredDocuments(): array
+    {
+        $present = $this->documents->pluck('document_type')->unique();
+
+        return array_values(array_filter(
+            EmployeeDocumentType::required(),
+            fn (EmployeeDocumentType $type): bool => ! $present->contains($type),
+        ));
+    }
+
+    /** Cuántos de los obligatorios ya están, sobre cuántos son. */
+    public function requiredDocumentsProgress(): string
+    {
+        $total = count(EmployeeDocumentType::required());
+
+        return ($total - count($this->missingRequiredDocuments())).'/'.$total;
     }
 
     /**
@@ -155,6 +214,10 @@ class Employee extends BaseModel
             'base_salary' => 'decimal:2',
             'excluded_from_overtime' => 'boolean',
             'transport_allowance_override' => 'boolean',
+            'document_issue_date' => 'date',
+            'birth_date' => 'date',
+            'has_children' => 'boolean',
+            'children_count' => 'integer',
             'hire_date' => 'date',
             'termination_date' => 'date',
             'status' => EmploymentStatus::class,
