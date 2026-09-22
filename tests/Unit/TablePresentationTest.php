@@ -79,8 +79,9 @@ it('encuentra las tablas del proyecto', function (): void {
     // Nóminas, Parámetros de nómina, Conceptos de nómina, Festivos, y los cuatro
     // relation managers (novedades, bonificaciones, descuentos y renglones de nómina).
     //
-    // 77 con la pestaña «Documentos» de la ficha del trabajador.
-    expect(tableFiles())->toHaveCount(77);
+    // 77 con la pestaña «Documentos» de la ficha del trabajador, y 78 con Usuarios en
+    // el panel de plataforma.
+    expect(tableFiles())->toHaveCount(78);
 });
 
 it('alinea a la derecha toda columna de dinero o cantidad', function (): void {

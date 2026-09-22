@@ -29,6 +29,14 @@ class ApiTokenController extends Controller
             return response()->json(['message' => 'Tu cuenta está inactiva. Contacta a tu administrador.'], 403);
         }
 
+        // La app móvil no tiene pantalla para cambiarla: con una contraseña temporal se
+        // entra primero por la web, que obliga a reemplazarla.
+        if ($user->must_change_password) {
+            return response()->json([
+                'message' => 'Tu contraseña es temporal. Entra primero a fronda.app desde un navegador para elegir una propia.',
+            ], 403);
+        }
+
         $tenant = Tenant::where('slug', $request->tenant_slug)->first();
 
         if (! $user->canAccessTenant($tenant)) {

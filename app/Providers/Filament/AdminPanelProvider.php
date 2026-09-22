@@ -2,10 +2,12 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Auth\EditProfile;
 use App\Filament\AvatarProviders\InitialsAvatarProvider;
 use App\Filament\Pages\Auth\Login;
 use App\Http\Middleware\CheckTenantSubscription;
 use App\Http\Middleware\EnforceTwoFactor;
+use App\Http\Middleware\EnsurePasswordIsChanged;
 use App\Http\Middleware\SyncSpatieTeamId;
 use App\Models\Tenant;
 use App\Support\FrondaPalette;
@@ -35,6 +37,9 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login(Login::class)
+            // Cada usuario cambia aquí su propia contraseña, y es la única pantalla que
+            // se abre a quien entró con una temporal (ver EnsurePasswordIsChanged).
+            ->profile(EditProfile::class)
             ->brandName('PAJUIL CMMS')
             ->brandLogo(branding_asset('images/logo.png'))
             ->brandLogoHeight('4rem')
@@ -136,6 +141,7 @@ class AdminPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
                 EnforceTwoFactor::class,
+                EnsurePasswordIsChanged::class,
             ]);
     }
 }

@@ -135,6 +135,8 @@ class User extends Authenticatable implements FilamentUser, HasAvatar, HasTenant
             'is_active' => 'boolean',
             'is_super_admin' => 'boolean',
             'password' => 'hashed',
+            'must_change_password' => 'boolean',
+            'password_changed_at' => 'datetime',
         ];
     }
 }

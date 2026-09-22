@@ -2,8 +2,10 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Auth\EditProfile;
 use App\Filament\AvatarProviders\InitialsAvatarProvider;
 use App\Filament\Pages\Auth\Login;
+use App\Http\Middleware\EnsurePasswordIsChanged;
 use App\Http\Middleware\EnsureSuperAdmin;
 use App\Support\FrondaPalette;
 use Filament\Http\Middleware\Authenticate;
@@ -30,6 +32,9 @@ class PlatformPanelProvider extends PanelProvider
             ->id('platform')
             ->path('platform')
             ->login(Login::class)
+            // Cada usuario cambia aquí su propia contraseña, y es la única pantalla que
+            // se abre a quien entró con una temporal (ver EnsurePasswordIsChanged).
+            ->profile(EditProfile::class)
             ->brandName('PAJUIL · Plataforma')
             ->brandLogo(branding_asset('images/logo.png'))
             ->brandLogoHeight('4rem')
@@ -87,6 +92,7 @@ class PlatformPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
                 EnsureSuperAdmin::class,
+                EnsurePasswordIsChanged::class,
             ]);
     }
 }
