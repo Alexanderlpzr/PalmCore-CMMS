@@ -14,6 +14,8 @@ export default defineConfig({
                 'resources/css/filament/platform/theme.css',
                 'resources/js/app.js',
                 'resources/js/passkeys.js',
+                // Los números dibujados sobre las gráficas del panel.
+                'resources/js/filament-chart-js-plugins.js',
                 'resources/css/mobile.css',
                 'resources/js/mobile/main.js',
                 'resources/css/ops.css',

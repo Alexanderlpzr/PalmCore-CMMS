@@ -4,6 +4,7 @@ namespace App\Filament\Widgets\Analytics;
 
 use App\Domain\Analytics\Support\DashboardPeriod;
 use App\Domain\Assets\Services\DowntimeService;
+use App\Filament\Widgets\Concerns\MuestraLosValoresEnBarras;
 use App\Models\Plant;
 use Filament\Widgets\ChartWidget;
 use Filament\Widgets\Concerns\InteractsWithPageFilters;
@@ -17,6 +18,7 @@ use Illuminate\Support\Carbon;
 class DowntimeByEquipmentWidget extends ChartWidget
 {
     use InteractsWithPageFilters;
+    use MuestraLosValoresEnBarras;
 
     protected ?string $heading = 'Horas de Parada por Equipo';
 
@@ -66,10 +68,10 @@ class DowntimeByEquipmentWidget extends ChartWidget
         ];
     }
 
-    protected function getOptions(): array
+    /** Barras horizontales: los nombres de equipo se leen mejor así, como en el Excel. */
+    protected function barrasHorizontales(): bool
     {
-        // Barras horizontales: los nombres de equipo se leen mejor así, como en el Excel.
-        return ['indexAxis' => 'y'];
+        return true;
     }
 
     protected function getType(): string

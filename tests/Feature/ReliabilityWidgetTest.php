@@ -3,7 +3,7 @@
 use App\Filament\Pages\Dashboard;
 use App\Filament\Widgets\Analytics\CostByEquipmentWidget;
 use App\Filament\Widgets\Analytics\DowntimeByEquipmentWidget;
-use App\Filament\Widgets\Analytics\DowntimeByReportedTypeWidget;
+use App\Filament\Widgets\Analytics\DowntimeMaintenanceBreakdownWidget;
 use App\Filament\Widgets\Analytics\ParetoFailuresWidget;
 use App\Filament\Widgets\Executive\PlantEfficiencyStatsWidget;
 use App\Filament\Widgets\Reliability\AllEquipmentKpisWidget;
@@ -320,7 +320,7 @@ it('the dashboard renders the curated indicator widgets', function () {
 
     expect($widgets)->toContain(
         PlantEfficiencyStatsWidget::class,
-        DowntimeByReportedTypeWidget::class,
+        DowntimeMaintenanceBreakdownWidget::class,
         DowntimeByEquipmentWidget::class,
         MaintenanceComplianceWidget::class,
         ParetoFailuresWidget::class,

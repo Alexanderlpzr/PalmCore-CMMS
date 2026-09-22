@@ -4,6 +4,7 @@ namespace App\Filament\Widgets\Analytics;
 
 use App\Domain\Analytics\Services\AnalyticsService;
 use App\Domain\Analytics\Support\DashboardPeriod;
+use App\Filament\Widgets\Concerns\MuestraLosValores;
 use Filament\Facades\Filament;
 use Filament\Widgets\ChartWidget;
 use Filament\Widgets\Concerns\InteractsWithPageFilters;
@@ -15,6 +16,7 @@ use Filament\Widgets\Concerns\InteractsWithPageFilters;
 class DowntimeByReasonWidget extends ChartWidget
 {
     use InteractsWithPageFilters;
+    use MuestraLosValores;
 
     /** Paleta que se recicla sobre las porciones del pie. */
     private const PALETTE = [

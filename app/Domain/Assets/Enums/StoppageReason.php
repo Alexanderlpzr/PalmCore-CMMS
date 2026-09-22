@@ -43,6 +43,35 @@ enum StoppageReason: string
     }
 
     /**
+     * Qué es exactamente cada causa, en una línea.
+     *
+     * No es adorno: la planilla real mezcla las tres «programadas» —mantenimiento
+     * programado, arranque y apagado de planta— bajo el mismo Tipo I, y solo la primera
+     * es una intervención de mantenimiento. Las otras dos son maniobras de operación que
+     * ocurren todos los días (247 arranques y 28 apagados en los datos cargados), y
+     * contarlas como mantenimiento inflaría las horas del área y descontaría de la
+     * eficiencia un tiempo que la planta sí tenía para prensar.
+     *
+     * Se muestra donde se clasifica el paro, que es donde la definición sirve de algo.
+     */
+    public function description(): string
+    {
+        return match ($this) {
+            self::MantenimientoProgramado => 'Intervención de mantenimiento con la planta detenida a propósito. Es la única «programada» que cuenta como mantenimiento.',
+            self::ArranqueDePlanta => 'Puesta en marcha: calentamiento y llenado al empezar la jornada. Es operación, no mantenimiento.',
+            self::ApagadoDePlanta => 'Parada ordenada al terminar la jornada o el lote. Es operación, aunque se anote como programada.',
+            self::FallaMecanica => 'Se rompió o falló una pieza mecánica: rodamiento, cadena, sinfín, tornillo, acople.',
+            self::FallaElectrica => 'Falló un motor, un variador, un tablero o el cableado.',
+            self::FallaOperativa => 'Error o maniobra de operación: mal ajuste, mal manejo. No se rompió nada.',
+            self::Atascamiento => 'Producto atascado en un equipo: se destapa y la línea sigue. Es proceso, no falla del equipo.',
+            self::FaltaFrutaEsterilizada => 'La línea espera fruta ya esterilizada: cuello de botella del propio proceso.',
+            self::FaltaFrutaFresca => 'No llegó fruta que procesar. Mantenimiento no responde por esto.',
+            self::CorteEnergiaRed => 'Se fue la energía de la red pública.',
+            self::Capacitaciones => 'Parada por formación o reunión del personal.',
+        };
+    }
+
+    /**
      * El Tipo I al que pertenece este Tipo II — el que propone el formulario.
      *
      * Es una propuesta, no una regla: la planilla de El Pajuil clasifica el mismo

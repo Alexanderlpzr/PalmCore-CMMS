@@ -99,7 +99,13 @@ class DowntimeEventForm
                         ->afterStateUpdated(fn (Set $set) => $set('stoppage_reason', null)),
                     Select::make('stoppage_reason')
                         ->label('Tipo II')
-                        ->helperText('La causa concreta; la lista depende del Tipo I.')
+                        // La definición de la causa elegida, a la vista. Sin ella, «apagado
+                        // de planta» y «mantenimiento programado» se ven igual de
+                        // programados y acaban mezclados: solo el primero es mantenimiento.
+                        ->helperText(fn (Get $get): string => filled($get('stoppage_reason'))
+                            ? StoppageReason::from($get('stoppage_reason'))->description()
+                            : 'La causa concreta; la lista depende del Tipo I.')
+                        ->live()
                         ->options(fn (Get $get): array => filled($get('reported_type'))
                             ? StoppageReason::optionsFor(ReportedStoppageType::from($get('reported_type')))
                             : [])

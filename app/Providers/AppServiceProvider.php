@@ -48,6 +48,8 @@ use App\Observers\WorkOrderPartObserver;
 use App\Security\SsrfValidator;
 use Carbon\CarbonImmutable;
 use Filament\Facades\Filament;
+use Filament\Support\Assets\Js;
+use Filament\Support\Facades\FilamentAsset;
 use Filament\Support\Facades\FilamentView;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -62,6 +64,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use Laravel\Sanctum\Sanctum;
@@ -95,6 +98,45 @@ class AppServiceProvider extends ServiceProvider
         $this->configureLivewire();
         $this->configureFilamentRenderHooks();
         $this->configureFilamentTables();
+        $this->configureFilamentCharts();
+    }
+
+    /**
+     * Los valores dibujados sobre las gráficas del panel.
+     *
+     * Filament trae su propio Chart.js y busca los complementos en
+     * `window.filamentChartJsPlugins`; este archivo empuja ahí el de etiquetas. Sin
+     * registrarlo, cada gráfica seguiría obligando a pasar el ratón porción por porción
+     * para saber cuánto vale cada una, que no es forma de leer un informe en una reunión.
+     */
+    private const CHART_PLUGINS_ENTRY = 'resources/js/filament-chart-js-plugins.js';
+
+    private function configureFilamentCharts(): void
+    {
+        // Sin el manifiesto —tests, o un despliegue antes de compilar— `Vite::asset()`
+        // lanza y se lleva por delante el arranque entero de la aplicación, no solo las
+        // gráficas. Preguntar primero cuesta una lectura de archivo; no preguntar costaba
+        // que un panel completo devolviera error 500 por un adorno de las gráficas.
+        if (! $this->viteTraeElComplementoDeGraficas()) {
+            return;
+        }
+
+        FilamentAsset::register([
+            Js::make('chart-js-plugins', Vite::asset(self::CHART_PLUGINS_ENTRY))->module(),
+        ]);
+    }
+
+    private function viteTraeElComplementoDeGraficas(): bool
+    {
+        $manifest = public_path('build/manifest.json');
+
+        if (! is_file($manifest)) {
+            return false;
+        }
+
+        $entradas = json_decode((string) file_get_contents($manifest), true);
+
+        return is_array($entradas) && array_key_exists(self::CHART_PLUGINS_ENTRY, $entradas);
     }
 
     /**

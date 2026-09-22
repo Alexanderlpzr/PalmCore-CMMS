@@ -4,18 +4,22 @@ namespace App\Filament\Widgets\Analytics;
 
 use App\Domain\Analytics\Services\AnalyticsService;
 use App\Domain\Analytics\Support\DashboardPeriod;
+use App\Filament\Widgets\Concerns\MuestraLosValores;
 use Filament\Facades\Filament;
 use Filament\Widgets\ChartWidget;
 use Filament\Widgets\Concerns\InteractsWithPageFilters;
 
 /**
- * Horas de parada por causa física (Tipo II): mecánico, eléctrico, falta de
- * fruta… El complemento de DowntimeByReportedTypeWidget — ese responde quién
- * paró la línea, este responde qué se rompió.
+ * Horas de parada por causa física: mecánico, eléctrico, falta de fruta…
+ *
+ * Reparte **todas** las horas perdidas, las de mantenimiento y las que no lo son; el
+ * complemento es {@see DowntimeMaintenanceBreakdownWidget}, que abre solo la parte que
+ * mantenimiento puede arreglar.
  */
 class DowntimeByStoppageCategoryWidget extends ChartWidget
 {
     use InteractsWithPageFilters;
+    use MuestraLosValores;
 
     private const COLORS = [
         'Mecánico' => 'rgba(239, 68, 68, 0.8)',

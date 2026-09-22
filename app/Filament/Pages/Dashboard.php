@@ -9,9 +9,9 @@ use App\Filament\Concerns\RequiresMaintenanceAccess;
 use App\Filament\Widgets\Analytics\CostByEquipmentWidget;
 use App\Filament\Widgets\Analytics\DowntimeByEquipmentWidget;
 use App\Filament\Widgets\Analytics\DowntimeByReasonWidget;
-use App\Filament\Widgets\Analytics\DowntimeByReportedTypeWidget;
 use App\Filament\Widgets\Analytics\DowntimeBySectionWidget;
 use App\Filament\Widgets\Analytics\DowntimeByStoppageCategoryWidget;
+use App\Filament\Widgets\Analytics\DowntimeMaintenanceBreakdownWidget;
 use App\Filament\Widgets\Analytics\ParetoFailuresWidget;
 use App\Filament\Widgets\Costs\MonthlyCostByTypeWidget;
 use App\Filament\Widgets\Executive\PlantEfficiencyStatsWidget;
@@ -78,7 +78,7 @@ class Dashboard extends BaseDashboard
             // Resumen
             PlantEfficiencyStatsWidget::class,
             // Paros
-            DowntimeByReportedTypeWidget::class,
+            DowntimeMaintenanceBreakdownWidget::class,
             DowntimeByReasonWidget::class,
             DowntimeBySectionWidget::class,
             DowntimeByStoppageCategoryWidget::class,

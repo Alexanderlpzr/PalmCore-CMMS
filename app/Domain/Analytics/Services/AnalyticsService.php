@@ -12,6 +12,7 @@ use App\Models\EquipmentDowntimeEvent;
 use App\Models\EquipmentKpi;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -203,25 +204,56 @@ class AnalyticsService
     }
 
     /**
-     * @param  class-string<ReportedStoppageType|StoppageCategory|PlantSection|StoppageReason>  $enumClass
+     * Las horas que son responsabilidad de mantenimiento, abiertas por causa concreta.
+     *
+     * Se filtra por la **causa física** y no por el Tipo I que escribió la planta, y esa
+     * es toda la decisión. En los datos de El Pajuil hay 141,6 h de falla mecánica
+     * registradas como «Operativa» contra 164,9 h registradas como «Mantenimiento»: un
+     * gráfico por Tipo I dejaría fuera casi la mitad de las fallas mecánicas del año y
+     * haría ver a mantenimiento mucho mejor de lo que está.
+     *
+     * Quedan fuera arranque y apagado de planta aunque la planilla los marque como
+     * «Programada»: son maniobras de operación, no intervenciones de mantenimiento.
+     *
      * @return TrendPoint[]
      */
-    private function downtimeByColumn(string $tenantId, string $column, string $enumClass, ?CarbonInterface $from, ?CarbonInterface $to): array
+    public function downtimeMaintenanceByReason(string $tenantId, ?CarbonInterface $from = null, ?CarbonInterface $to = null): array
+    {
+        return $this->downtimeByColumn(
+            $tenantId,
+            'stoppage_reason',
+            StoppageReason::class,
+            $from,
+            $to,
+            fn (Builder $query): Builder => $query->whereIn('stoppage_category', StoppageCategory::maintenanceValues()),
+            'maintenance',
+        );
+    }
+
+    /**
+     * @param  class-string<ReportedStoppageType|StoppageCategory|PlantSection|StoppageReason>  $enumClass
+     * @param  (callable(Builder): Builder)|null  $scope  acota qué paros entran, sin duplicar la consulta
+     * @return TrendPoint[]
+     */
+    private function downtimeByColumn(string $tenantId, string $column, string $enumClass, ?CarbonInterface $from, ?CarbonInterface $to, ?callable $scope = null, string $scopeKey = ''): array
     {
         $to = CarbonImmutable::parse($to ?? now())->startOfMonth();
         $from = CarbonImmutable::parse($from ?? $to->subMonths(11))->startOfMonth();
 
-        $key = "analytics:downtime_by_{$column}:{$tenantId}:{$from->format('Y-m')}:{$to->format('Y-m')}";
+        // La clave lleva el acotamiento: sin él, el gráfico de mantenimiento y el de todas
+        // las causas compartirían caché y el segundo mostraría los datos del primero.
+        $key = "analytics:downtime_by_{$column}{$scopeKey}:{$tenantId}:{$from->format('Y-m')}:{$to->format('Y-m')}";
 
         return $this->rememberPoints(
             $key,
-            function () use ($tenantId, $column, $enumClass, $from, $to): array {
+            function () use ($tenantId, $column, $enumClass, $from, $to, $scope): array {
                 return DB::table('equipment_downtime_events')
                     ->where('tenant_id', $tenantId)
                     ->whereNotNull($column)
                     ->whereNotNull('ended_at')
                     ->where('started_at', '>=', $from)
                     ->where('started_at', '<', $to->addMonth())
+                    ->when($scope !== null, fn (Builder $query): Builder => $scope($query))
                     ->selectRaw("{$column} AS bucket, COALESCE(SUM(duration_minutes), 0) AS total_minutes")
                     ->groupBy($column)
                     ->orderByDesc('total_minutes')

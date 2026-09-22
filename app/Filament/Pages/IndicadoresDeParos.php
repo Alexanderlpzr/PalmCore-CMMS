@@ -6,9 +6,9 @@ use App\Domain\Analytics\Support\DashboardPeriod;
 use App\Filament\Concerns\RequiresMaintenanceAccess;
 use App\Filament\Widgets\Analytics\DowntimeByEquipmentWidget;
 use App\Filament\Widgets\Analytics\DowntimeByReasonWidget;
-use App\Filament\Widgets\Analytics\DowntimeByReportedTypeWidget;
 use App\Filament\Widgets\Analytics\DowntimeBySectionWidget;
 use App\Filament\Widgets\Analytics\DowntimeByStoppageCategoryWidget;
+use App\Filament\Widgets\Analytics\DowntimeMaintenanceBreakdownWidget;
 use App\Filament\Widgets\Executive\PlantEfficiencyStatsWidget;
 use App\Models\Plant;
 use BackedEnum;
@@ -57,7 +57,7 @@ class IndicadoresDeParos extends BaseDashboard
     {
         return [
             PlantEfficiencyStatsWidget::class,
-            DowntimeByReportedTypeWidget::class,
+            DowntimeMaintenanceBreakdownWidget::class,
             DowntimeByStoppageCategoryWidget::class,
             DowntimeBySectionWidget::class,
             DowntimeByReasonWidget::class,
