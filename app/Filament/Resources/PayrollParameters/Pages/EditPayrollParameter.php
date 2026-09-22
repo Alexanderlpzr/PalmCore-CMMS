@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\PayrollParameters\Pages;
 
+use App\Filament\Resources\Concerns\HasBackAction;
 use App\Filament\Resources\PayrollParameters\PayrollParameterResource;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
@@ -12,11 +13,14 @@ use Filament\Resources\Pages\EditRecord;
  */
 class EditPayrollParameter extends EditRecord
 {
+    use HasBackAction;
+
     protected static string $resource = PayrollParameterResource::class;
 
     protected function getHeaderActions(): array
     {
         return [
+            $this->getBackAction(),
             DeleteAction::make(),
         ];
     }

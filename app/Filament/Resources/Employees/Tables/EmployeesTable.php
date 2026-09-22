@@ -35,18 +35,22 @@ class EmployeesTable
                 'documents:id,employee_id,document_type',
                 'qrCode',
             ]))
+            // Cargo | Código | Nombre | Documento: así lo lee talento humano, que busca
+            // primero por puesto —«¿quién está de operario de proceso?»— y después por
+            // persona. El documento es la llave, pero casi nunca es lo primero que se mira.
             ->columns([
+                TextColumn::make('position')
+                    ->label('Cargo')
+                    ->description(fn (Employee $record): ?string => Options::SPECIFIC_AREAS[$record->area_specific] ?? null)
+                    ->searchable()
+                    ->sortable()
+                    ->limitWithTooltip(30),
+
                 TextColumn::make('employee_code')
                     ->label('Código')
                     ->searchable()
                     ->placeholder('—')
-                    ->toggleable(isToggledHiddenByDefault: true),
-
-                TextColumn::make('document_number')
-                    ->label('Documento')
-                    ->searchable()
-                    ->sortable()
-                    ->alignEnd(),
+                    ->toggleable(),
 
                 TextColumn::make('full_name')
                     ->label('Nombre')
@@ -54,11 +58,11 @@ class EmployeesTable
                     ->searchable(['first_name', 'last_name'])
                     ->sortable(['last_name']),
 
-                TextColumn::make('position')
-                    ->label('Cargo')
-                    ->description(fn (Employee $record): ?string => Options::SPECIFIC_AREAS[$record->area_specific] ?? null)
-                    ->limitWithTooltip(30)
-                    ->toggleable(),
+                TextColumn::make('document_number')
+                    ->label('Documento')
+                    ->searchable()
+                    ->sortable()
+                    ->alignEnd(),
 
                 TextColumn::make('phone')
                     ->label('Celular')

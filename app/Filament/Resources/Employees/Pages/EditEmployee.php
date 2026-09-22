@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Employees\Pages;
 
+use App\Filament\Resources\Concerns\HasBackAction;
 use App\Filament\Resources\Employees\EmployeeResource;
 use App\Models\Employee;
 use Filament\Actions\DeleteAction;
@@ -21,6 +22,8 @@ use Illuminate\Contracts\Support\Htmlable;
  */
 class EditEmployee extends EditRecord
 {
+    use HasBackAction;
+
     protected static string $resource = EmployeeResource::class;
 
     public function hasCombinedRelationManagerTabsWithContent(): bool
@@ -57,6 +60,7 @@ class EditEmployee extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            $this->getBackAction(),
             DeleteAction::make(),
         ];
     }

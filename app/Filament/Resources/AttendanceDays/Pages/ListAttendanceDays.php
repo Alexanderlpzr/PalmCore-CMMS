@@ -4,6 +4,7 @@ namespace App\Filament\Resources\AttendanceDays\Pages;
 
 use App\Domain\HumanResources\Services\AttendanceDayBuilder;
 use App\Filament\Resources\AttendanceDays\AttendanceDayResource;
+use App\Filament\Resources\Concerns\HasBackAction;
 use App\Models\AttendanceDay;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
@@ -14,11 +15,14 @@ use Illuminate\Support\Carbon;
 
 class ListAttendanceDays extends ListRecords
 {
+    use HasBackAction;
+
     protected static string $resource = AttendanceDayResource::class;
 
     protected function getHeaderActions(): array
     {
         return [
+            $this->getHistoryBackAction(),
             Action::make('reconstruir')
                 ->label('Reconstruir período')
                 ->icon('heroicon-o-arrow-path')

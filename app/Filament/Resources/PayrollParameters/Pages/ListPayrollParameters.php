@@ -4,6 +4,7 @@ namespace App\Filament\Resources\PayrollParameters\Pages;
 
 use App\Domain\HumanResources\Enums\PayrollParameter;
 use App\Domain\HumanResources\Services\PayrollParameterService;
+use App\Filament\Resources\Concerns\HasBackAction;
 use App\Filament\Resources\PayrollParameters\PayrollParameterResource;
 use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
@@ -14,11 +15,14 @@ use Illuminate\Support\Carbon;
 
 class ListPayrollParameters extends ListRecords
 {
+    use HasBackAction;
+
     protected static string $resource = PayrollParameterResource::class;
 
     protected function getHeaderActions(): array
     {
         return [
+            $this->getHistoryBackAction(),
             CreateAction::make()->label('Nueva vigencia'),
 
             /*
