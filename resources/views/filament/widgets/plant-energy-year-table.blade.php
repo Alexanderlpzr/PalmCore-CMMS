@@ -16,10 +16,6 @@
             Energía · {{ $year }}
         </x-slot>
 
-        <x-slot name="description">
-            Un mes sin dato muestra «—». Pulsa un mes para desplegar sus días; puedes tener varios abiertos a la vez.
-        </x-slot>
-
         @if ($canEdit || filled($openMonths))
             <x-slot name="afterHeader">
                 <div class="flex flex-wrap items-center gap-2">
@@ -59,8 +55,8 @@
                             <th class="text-right font-semibold px-3 py-2 border-b border-gray-200 dark:border-white/10 whitespace-nowrap">PLANTA</th>
                             <th class="text-right font-semibold px-3 py-2 border-b border-gray-200 dark:border-white/10 whitespace-nowrap">TURBINA</th>
                             <th class="text-right font-semibold px-3 py-2 border-b border-l border-gray-200 dark:border-white/10 whitespace-nowrap">LIMPIA</th>
-                            {-- Los tres renglones amarillos de la hoja. Aquí van en columnas
-                                 porque esta tabla lleva los meses en filas. --}
+                            {{-- Los tres renglones amarillos de la hoja. Aquí van en columnas
+                                 porque esta tabla lleva los meses en filas. --}}
                             <th class="text-right font-semibold px-3 py-2 border-b border-l border-gray-200 dark:border-white/10 whitespace-nowrap">CAMBIOS</th>
                             <th class="text-right font-semibold px-3 py-2 border-b border-gray-200 dark:border-white/10 whitespace-nowrap">HORAS PLANTA</th>
                             <th class="text-right font-semibold px-3 py-2 border-b border-gray-200 dark:border-white/10 whitespace-nowrap">GALONES</th>

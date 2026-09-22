@@ -54,7 +54,35 @@ trait MuestraLosValores
                     legend: {
                         display: true,
                         position: 'bottom',
-                        labels: { boxWidth: 12, padding: 10 },
+                        labels: {
+                            boxWidth: 12,
+                            padding: 10,
+                            // Las horas al lado del nombre. La etiqueta dibujada sobre el
+                            // sector se pierde en las porciones finas —y en las de menos
+                            // del 4 % ni se escribe—, así que la leyenda es el único sitio
+                            // donde el valor de TODAS las porciones se puede leer.
+                            generateLabels: (chart) => {
+                                const conjunto = chart.data.datasets[0] ?? { data: [] };
+                                const colores = conjunto.backgroundColor ?? [];
+
+                                return (chart.data.labels ?? []).map((etiqueta, i) => {
+                                    const valor = Number(conjunto.data[i]) || 0;
+                                    const horas = valor.toLocaleString('es-CO', {
+                                        minimumFractionDigits: 0,
+                                        maximumFractionDigits: 1,
+                                    });
+
+                                    return {
+                                        text: etiqueta + ' — ' + horas + ' h',
+                                        fillStyle: Array.isArray(colores) ? colores[i] : colores,
+                                        strokeStyle: Array.isArray(colores) ? colores[i] : colores,
+                                        lineWidth: 0,
+                                        hidden: !chart.getDataVisibility(i),
+                                        index: i,
+                                    };
+                                });
+                            },
+                        },
                     },
                 },
             }

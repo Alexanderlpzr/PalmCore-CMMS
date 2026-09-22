@@ -3,6 +3,7 @@
 namespace App\Filament\Widgets\Analytics;
 
 use App\Domain\Analytics\Support\DashboardPeriod;
+use App\Domain\Analytics\Support\PlantaGeneral;
 use App\Domain\Assets\Services\DowntimeService;
 use App\Filament\Widgets\Concerns\MuestraLosValoresEnBarras;
 use App\Models\Plant;
@@ -47,11 +48,16 @@ class DowntimeByEquipmentWidget extends ChartWidget
         $from = $from !== null ? Carbon::parse($from)->startOfMonth() : Carbon::now()->startOfMonth();
         $to = $to !== null ? Carbon::parse($to)->endOfMonth() : Carbon::now()->endOfMonth();
 
-        $rows = array_slice(
+        // Fuera el comodín «PLANTA GENERAL»: es el equipo ficticio donde se anotan los
+        // paros de toda la planta, y en una gráfica de «dónde se pierden las horas» no se
+        // puede ir a arreglar. Se quita antes de recortar a doce, para que su hueco lo
+        // ocupe un equipo de verdad.
+        $rows = array_values(array_filter(
             app(DowntimeService::class)->lostHoursByEquipment($plant->id, $from, $to)['equipment'],
-            0,
-            12,
-        );
+            fn (array $r): bool => ! PlantaGeneral::es($r['name'] ?? null) && ! PlantaGeneral::es($r['code'] ?? null),
+        ));
+
+        $rows = array_slice($rows, 0, 12);
 
         return [
             'datasets' => [

@@ -1,14 +1,19 @@
 <?php
 
 use App\Domain\Analytics\Services\AnalyticsService;
+use App\Domain\Analytics\Support\PlantaGeneral;
+use App\Domain\Assets\Enums\PlantSection;
 use App\Domain\Assets\Enums\ReportedStoppageType;
 use App\Domain\Assets\Enums\StoppageCategory;
 use App\Domain\Assets\Enums\StoppageReason;
 use App\Filament\Pages\IndicadoresDeParos;
+use App\Filament\Widgets\Analytics\DowntimeBySectionWidget;
 use App\Filament\Widgets\Analytics\DowntimeMaintenanceBreakdownWidget;
 use App\Models\Equipment;
 use App\Models\EquipmentDowntimeEvent;
 use App\Models\Tenant;
+use App\Models\User;
+use Filament\Facades\Filament;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 
@@ -29,6 +34,11 @@ beforeEach(function (): void {
 
     $this->tenant = Tenant::factory()->create();
     $this->equipo = Equipment::factory()->create(['tenant_id' => $this->tenant->id]);
+
+    // Filament exige un usuario autenticado para fijar el tenant de un widget.
+    $this->admin = User::factory()->create(['is_active' => true, 'is_super_admin' => true]);
+    $this->admin->tenants()->attach($this->tenant->id, ['joined_at' => now()]);
+    $this->actingAs($this->admin);
 });
 
 afterEach(fn () => Carbon::setTestNow());
@@ -110,6 +120,40 @@ it('no comparte caché con el gráfico de todas las causas', function (): void {
         ->and($todas)->toBe(['Atascamiento' => 6.0, 'Falla mecánica' => 3.0]);
 });
 
+function graficaDeSecciones(): DowntimeBySectionWidget
+{
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+    Filament::setTenant(test()->tenant);
+
+    return new DowntimeBySectionWidget;
+}
+
+/** @return array<string, mixed> */
+function datosDeLaGrafica(DowntimeBySectionWidget $widget): array
+{
+    $metodo = new ReflectionMethod($widget, 'getData');
+    $metodo->setAccessible(true);
+
+    return $metodo->invoke($widget);
+}
+
+function paroEnSeccion(PlantSection $seccion, float $horas): EquipmentDowntimeEvent
+{
+    // Tres días de separación: estos paros duran decenas de horas y se pisarían.
+    static $dia = 14;
+    $inicio = Carbon::parse('2026-09-01 06:00')->addDays($dia);
+    $dia += 3;
+
+    return EquipmentDowntimeEvent::factory()->create([
+        'tenant_id' => test()->tenant->id,
+        'equipment_id' => test()->equipo->id,
+        'started_at' => $inicio,
+        'ended_at' => $inicio->copy()->addMinutes((int) ($horas * 60)),
+        'duration_minutes' => (int) ($horas * 60),
+        'section' => $seccion,
+    ]);
+}
+
 // ── La pantalla ──────────────────────────────────────────────────────────────
 
 it('la pantalla de paros ya no ofrece el gráfico de Tipo I', function (): void {
@@ -138,4 +182,33 @@ it('solo el mantenimiento programado cuenta como intervención de mantenimiento'
     expect(StoppageReason::MantenimientoProgramado->category()->isMaintenanceResponsibility())->toBeTrue()
         ->and(StoppageReason::ApagadoDePlanta->category()->isMaintenanceResponsibility())->toBeFalse()
         ->and(StoppageReason::ArranqueDePlanta->category()->isMaintenanceResponsibility())->toBeFalse();
+});
+
+// ── Fuera el comodín de «Planta general» ─────────────────────────────────────
+
+it('la gráfica por sección deja fuera «Planta general» pero dice cuántas horas aparta', function (): void {
+    // En producción esa sección son 425,6 h contra 251,1 de Extracción, la siguiente: es
+    // el cajón de los paros de toda la planta y aplasta a las secciones de verdad.
+    paroEnSeccion(PlantSection::PlantaGeneral, 40);
+    paroEnSeccion(PlantSection::Extraccion, 10);
+
+    $widget = graficaDeSecciones();
+
+    expect(datosDeLaGrafica($widget)['labels'])->toBe(['Extracción'])
+        // Apartadas, no borradas: el subtítulo dice cuántas horas no se están viendo.
+        ->and($widget->getDescription())->toContain('40,0 h')
+        ->and($widget->getDescription())->toContain('Planta general');
+});
+
+it('no dice nada de «Planta general» cuando no hay paros suyos', function (): void {
+    paroEnSeccion(PlantSection::Extraccion, 10);
+
+    expect(graficaDeSecciones()->getDescription())->not->toContain('Planta general');
+});
+
+it('la gráfica por equipo deja fuera el equipo comodín y no pierde un puesto', function (): void {
+    expect(PlantaGeneral::es('PLANTA GENERAL'))->toBeTrue()
+        ->and(PlantaGeneral::es('Planta General'))->toBeTrue()
+        ->and(PlantaGeneral::es('Prensa de Doble Tornillo'))->toBeFalse()
+        ->and(PlantaGeneral::es(null))->toBeFalse();
 });
