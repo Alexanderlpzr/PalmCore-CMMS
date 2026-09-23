@@ -1,6 +1,10 @@
 {{--
-    El checklist «Documentos pendientes» de la hoja Items: qué tiene la carpeta y qué
-    le falta, arriba de la tabla, para no tener que contarlo fila por fila.
+    El checklist «Documentos pendientes» de la hoja Items: qué tiene la carpeta y qué le
+    falta, para no tener que contarlo fila por fila.
+
+    Va como descripción de la tabla y no como cabecera propia: la cabecera de Filament es
+    una sola, y ocuparla dejaba fuera el botón de subir documentos. Por eso aquí todo es
+    en línea —spans, no divs—, que es lo que cabe dentro del párrafo de la descripción.
 --}}
 @php
     /** @var \App\Models\Employee $employee */
@@ -9,25 +13,16 @@
     $done = count($required) - $missing->count();
 @endphp
 
-<div class="flex flex-col gap-3 px-4 py-3 sm:px-6">
-    <div class="flex flex-wrap items-center justify-between gap-2">
-        <p class="text-sm font-medium text-gray-950 dark:text-white">
-            @if ($missing->isEmpty())
-                Carpeta completa: los {{ count($required) }} documentos obligatorios están cargados.
-            @else
-                {{ $done }} de {{ count($required) }} documentos obligatorios
-                <span class="font-normal text-gray-500 dark:text-gray-400">
-                    · faltan {{ $missing->count() }}
-                </span>
-            @endif
-        </p>
+<span class="fi-ta-header-description">
+    <span class="font-medium text-gray-950 dark:text-white">
+        @if ($missing->isEmpty())
+            Carpeta completa: los {{ count($required) }} documentos obligatorios están cargados.
+        @else
+            {{ $done }} de {{ count($required) }} documentos obligatorios · faltan {{ $missing->count() }}
+        @endif
+    </span>
 
-        <x-filament::badge :color="$missing->isEmpty() ? 'success' : ($done === 0 ? 'danger' : 'warning')">
-            {{ $done }}/{{ count($required) }}
-        </x-filament::badge>
-    </div>
-
-    <div class="flex flex-wrap gap-1.5">
+    <span class="mt-2 flex flex-wrap gap-1.5">
         @foreach ($required as $type)
             @php($isMissing = $missing->contains($type))
             <x-filament::badge
@@ -38,5 +33,5 @@
                 {{ $type->shortLabel() }}
             </x-filament::badge>
         @endforeach
-    </div>
-</div>
+    </span>
+</span>

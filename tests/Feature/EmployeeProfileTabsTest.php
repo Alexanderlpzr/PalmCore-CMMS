@@ -103,17 +103,17 @@ it('guarda los datos personales y el contacto de emergencia', function (): void 
         ->and($this->employee->compensation_fund)->toBe('Comfacaquetá');
 });
 
-it('talento humano sube un documento a la carpeta, al disco privado', function (): void {
+it('sube un documento a la carpeta, al disco privado', function (): void {
     $this->actingAs(fichaUserWithRole('talento-humano', $this->tenant));
 
     Livewire::test(DocumentsRelationManager::class, [
         'ownerRecord' => $this->employee,
         'pageClass' => EditEmployee::class,
     ])
-        ->callAction(TestAction::make('create')->table(), data: [
+        ->callAction(TestAction::make('subir')->table(), data: [
             'document_type' => EmployeeDocumentType::Examenes->value,
             'title' => 'Examen médico de ingreso',
-            'file_path' => UploadedFile::fake()->create('examen.pdf', 100, 'application/pdf'),
+            'files' => [UploadedFile::fake()->create('examen.pdf', 100, 'application/pdf')],
             'expires_at' => now()->addYear()->toDateString(),
         ])
         ->assertHasNoActionErrors();
@@ -122,9 +122,57 @@ it('talento humano sube un documento a la carpeta, al disco privado', function (
 
     expect($document->title)->toBe('Examen médico de ingreso')
         ->and($document->tenant_id)->toBe($this->tenant->id)
+        ->and($document->file_name)->toBe('examen.pdf')
         ->and($document->file_path)->toStartWith("employee-documents/{$this->tenant->id}/{$this->employee->id}/");
 
     Storage::disk(private_files_disk())->assertExists($document->file_path);
+});
+
+it('sube varios archivos de una vez, uno por fila', function (): void {
+    // La cédula tiene dos caras y los exámenes son varios informes: se escriben el tipo y
+    // la descripción una sola vez, y cada archivo queda como documento aparte.
+    $this->actingAs(fichaUserWithRole('talento-humano', $this->tenant));
+
+    Livewire::test(DocumentsRelationManager::class, [
+        'ownerRecord' => $this->employee,
+        'pageClass' => EditEmployee::class,
+    ])
+        ->callAction(TestAction::make('subir')->table(), data: [
+            'document_type' => EmployeeDocumentType::Cedula->value,
+            'files' => [
+                UploadedFile::fake()->create('cedula-frente.pdf', 50, 'application/pdf'),
+                UploadedFile::fake()->create('cedula-reverso.pdf', 50, 'application/pdf'),
+            ],
+        ])
+        ->assertHasNoActionErrors()
+        ->assertNotified('2 documentos subidos');
+
+    $documents = $this->employee->documents()->get();
+
+    expect($documents)->toHaveCount(2)
+        ->and($documents->pluck('file_name')->sort()->values()->all())
+        ->toBe(['cedula-frente.pdf', 'cedula-reverso.pdf'])
+        // Sin descripción, el documento se llama como su tipo, y los dos cuentan como
+        // una sola cédula en el checklist.
+        ->and($documents->pluck('title')->unique()->all())->toBe(['Cédula de ciudadanía'])
+        ->and($this->employee->fresh()->load('documents')->requiredDocumentsProgress())->toBe('1/11');
+
+    foreach ($documents as $document) {
+        Storage::disk(private_files_disk())->assertExists($document->file_path);
+    }
+});
+
+it('el botón de subir está en la pestaña y también en la carpeta vacía', function (): void {
+    $this->actingAs(fichaUserWithRole('talento-humano', $this->tenant));
+
+    // Se fue una vez: el checklist ocupaba la cabecera de la tabla, que es donde Filament
+    // pinta este botón, y la carpeta no se podía llenar.
+    Livewire::test(DocumentsRelationManager::class, [
+        'ownerRecord' => $this->employee,
+        'pageClass' => EditEmployee::class,
+    ])
+        ->assertActionVisible(TestAction::make('subir')->table())
+        ->assertSee('0 de 11 documentos obligatorios');
 });
 
 it('portería no ve la pestaña de documentos', function (): void {
@@ -201,7 +249,7 @@ it('el checklist dice qué documentos obligatorios faltan', function (): void {
         ->assertSee('2 de 11 documentos obligatorios')
         ->assertSee('faltan 9')
         // «Subir documento» propone el primero que falta.
-        ->mountAction(TestAction::make('create')->table())
+        ->mountAction(TestAction::make('subir')->table())
         ->assertSchemaStateSet(['document_type' => EmployeeDocumentType::CertificadoBancario->value]);
 });
 
