@@ -26,7 +26,8 @@ use function Laravel\Prompts\select;
  *
  * Tres reglas deciden qué se escribe:
  *
- * - La llave es la cédula. El «código empresarial» no sirve: en el libro hay uno repetido.
+ * - La llave es la cédula. Ninguno de los dos códigos sirve: el empresarial está repetido
+ *   en dos personas, y el consecutivo tiene huecos.
  * - Una celda vacía no borra nada. La hoja tiene huecos —trece trabajadores sin fecha de
  *   nacimiento— y cargarla no puede deshacer lo que alguien ya completó en la ficha.
  * - El salario no se toca. No está en esta hoja, y el que ya cargó la nómina manda.
@@ -52,7 +53,8 @@ class ImportEmployeeRoster extends Command
      * @var array<string, string>
      */
     private const HEADERS = [
-        'CODIGO EMPRESARIAL' => 'employee_code',
+        'CODIGO' => 'employee_code',
+        'CODIGO EMPRESARIAL' => 'company_code',
         'ESTADO' => 'status',
         'NOMBRE' => 'name',
         'CEDULA' => 'document_number',
@@ -257,7 +259,8 @@ class ImportEmployeeRoster extends Command
             'document_number' => $documentNumber,
             'first_name' => $firstName,
             'last_name' => $lastName,
-            'employee_code' => self::text($raw('employee_code')),
+            'employee_code' => Employee::formatCode(self::text($raw('employee_code'))),
+            'company_code' => self::text($raw('company_code')),
             'status' => match (Str::upper((string) self::text($raw('status')))) {
                 'ACTIVO' => EmploymentStatus::Activo->value,
                 'INACTIVO', 'RETIRADO' => EmploymentStatus::Retirado->value,

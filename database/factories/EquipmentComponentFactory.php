@@ -13,13 +13,19 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  */
 class EquipmentComponentFactory extends Factory
 {
+    private static int $nextCode = 0;
+
     public function definition(): array
     {
         return [
             'tenant_id' => Tenant::factory(),
             'equipment_id' => Equipment::factory(),
             'parent_id' => null,
-            'code' => strtoupper(fake()->bothify('COMP-###')),
+            // equipment_components carries unique(equipment_id, code). A random
+            // COMP-### has only 1000 values, so two components on one equipment
+            // collide now and then and the suite fails for no reason. Sequential
+            // codes cannot repeat within a run.
+            'code' => sprintf('COMP-%04d', ++static::$nextCode),
             'name' => fake()->words(3, true),
             'manufacturer' => fake()->optional(0.6)->company(),
             'model' => fake()->optional(0.5)->bothify('MDL-???##'),

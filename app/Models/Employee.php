@@ -27,6 +27,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'plant_id',
     'user_id',
     'employee_code',
+    'company_code',
     'document_type',
     'document_number',
     'document_issue_date',
@@ -147,6 +148,35 @@ class Employee extends BaseModel
     public function getFullNameAttribute(): string
     {
         return $this->fullName();
+    }
+
+    /**
+     * El consecutivo corto con el que se nombra a la gente en planta, a tres dígitos.
+     *
+     * Se guarda como texto y no como número porque es un identificador, no una cantidad:
+     * el 004 no es «cuatro», y un día puede llevar letra.
+     */
+    public static function formatCode(int|string|null $code): ?string
+    {
+        $code = trim((string) $code);
+
+        if ($code === '') {
+            return null;
+        }
+
+        return ctype_digit($code) ? str_pad($code, 3, '0', STR_PAD_LEFT) : $code;
+    }
+
+    /** El siguiente consecutivo libre de la empresa, para proponerlo al crear una ficha. */
+    public static function nextCode(string $tenantId): string
+    {
+        $highest = static::withoutGlobalScopes()
+            ->where('tenant_id', $tenantId)
+            ->whereRaw("employee_code ~ '^[0-9]+$'")
+            ->selectRaw('max(cast(employee_code as integer)) as highest')
+            ->value('highest');
+
+        return static::formatCode(((int) $highest) + 1);
     }
 
     /**

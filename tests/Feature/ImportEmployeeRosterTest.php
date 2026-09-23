@@ -65,7 +65,10 @@ it('carga la ficha completa y normaliza lo que el libro escribe de varias formas
 
     expect($employee->first_name)->toBe('Deysi Jazmin')
         ->and($employee->last_name)->toBe('Lancheros Villamil')
-        ->and($employee->employee_code)->toBe('O4082022')
+        // Los dos códigos, cada uno de su columna: el consecutivo a tres dígitos y el
+        // empresarial tal como viene en el libro.
+        ->and($employee->employee_code)->toBe('004')
+        ->and($employee->company_code)->toBe('O4082022')
         ->and($employee->status)->toBe(EmploymentStatus::Activo)
         ->and($employee->area)->toBe('administrativo')
         ->and($employee->area_specific)->toBe('oficios_varios')

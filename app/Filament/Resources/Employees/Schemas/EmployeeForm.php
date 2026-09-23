@@ -8,6 +8,7 @@ use App\Filament\Resources\Employees\RelationManagers\DocumentsRelationManager;
 use App\Models\Employee;
 use App\Models\Plant;
 use Carbon\CarbonInterface;
+use Filament\Facades\Filament;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -165,8 +166,21 @@ class EmployeeForm
             ->columns(3)
             ->columnSpanFull()
             ->schema([
+                // Dos códigos, porque en El Pajuil son dos cosas distintas: el
+                // consecutivo corto con el que se nombra a la gente en planta, y el
+                // empresarial del libro, que lleva pegada la fecha de vinculación.
                 TextInput::make('employee_code')
-                    ->label('Código del trabajador')
+                    ->label('Código')
+                    ->placeholder('001')
+                    ->maxLength(10)
+                    ->default(fn (): ?string => Filament::getTenant()
+                        ? Employee::nextCode(Filament::getTenant()->id)
+                        : null)
+                    ->dehydrateStateUsing(fn (?string $state): ?string => Employee::formatCode($state))
+                    ->helperText('Consecutivo de tres dígitos. Al crear se propone el siguiente libre.'),
+                TextInput::make('company_code')
+                    ->label('Código empresarial')
+                    ->placeholder('O4092021')
                     ->maxLength(30),
                 TextInput::make('position')->label('Cargo')->maxLength(120),
                 Select::make('contract_type')

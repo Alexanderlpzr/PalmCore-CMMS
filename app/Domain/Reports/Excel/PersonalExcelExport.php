@@ -81,6 +81,7 @@ class PersonalExcelExport
         $row = [
             'Cargo' => $employee->position,
             'Código' => $employee->employee_code,
+            'Código empresarial' => $employee->company_code,
             'Nombres' => $employee->first_name,
             'Apellidos' => $employee->last_name,
             'Tipo documento' => $employee->document_type,

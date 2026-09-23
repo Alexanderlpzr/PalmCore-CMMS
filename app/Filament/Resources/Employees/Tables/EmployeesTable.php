@@ -48,7 +48,9 @@ class EmployeesTable
 
                 TextColumn::make('employee_code')
                     ->label('Código')
-                    ->searchable()
+                    ->description(fn (Employee $record): ?string => $record->company_code)
+                    ->searchable(['employee_code', 'company_code'])
+                    ->sortable()
                     ->placeholder('—')
                     ->toggleable(),
 

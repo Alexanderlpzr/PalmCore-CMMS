@@ -1,6 +1,7 @@
 <?php
 
 use App\Domain\Reports\Excel\PersonalExcelExport;
+use App\Filament\Resources\Employees\Pages\EditEmployee;
 use App\Filament\Resources\Employees\Pages\ListEmployees;
 use App\Models\AttendanceDay;
 use App\Models\Employee;
@@ -34,7 +35,8 @@ beforeEach(function (): void {
         'first_name' => 'Fermin',
         'last_name' => 'Beltran Vergara',
         'position' => 'Operario de Proceso I',
-        'employee_code' => 'O4092021',
+        'employee_code' => '001',
+        'company_code' => 'O4092021',
         'base_salary' => 1_750_905,
         'blood_type' => 'O+',
     ]);
@@ -120,8 +122,8 @@ it('cada fila lleva la ficha, el salario como número y las horas del mes', func
         ->rows(Employee::query()->whereKey($this->operario->id), Carbon::parse('2026-08-01'), includeSalary: true)
         ->sole();
 
-    expect(array_slice(array_keys($row), 0, 4))->toBe(['Cargo', 'Código', 'Nombres', 'Apellidos'])
-        ->and($row['Código'])->toBe('O4092021')
+    expect(array_slice(array_keys($row), 0, 5))->toBe(['Cargo', 'Código', 'Código empresarial', 'Nombres', 'Apellidos'])
+        ->and($row['Código empresarial'])->toBe('O4092021')
         ->and($row['Salario básico'])->toBe(1_750_905.0)
         ->and($row['Horas trabajadas (confirmadas)'])->toBe(10.0)
         ->and($row['Horas extras'])->toBe(2.0)
@@ -152,4 +154,49 @@ it('el botón descarga el Excel con los filtros de la tabla', function (): void 
         ->callAction('exportarExcel', data: ['mes' => '2026-08'])
         ->assertHasNoActionErrors()
         ->assertFileDownloaded('PERSONAL-2026-08.xlsx');
+});
+
+// ── Los dos códigos ──────────────────────────────────────────────────────────
+
+it('el código del trabajador se guarda a tres dígitos', function (): void {
+    expect(Employee::formatCode('1'))->toBe('001')
+        ->and(Employee::formatCode(17))->toBe('017')
+        ->and(Employee::formatCode('004'))->toBe('004')
+        ->and(Employee::formatCode('1234'))->toBe('1234')
+        ->and(Employee::formatCode('A7'))->toBe('A7')
+        ->and(Employee::formatCode(null))->toBeNull();
+});
+
+it('propone el siguiente consecutivo libre', function (): void {
+    Employee::factory()->create(['tenant_id' => $this->tenant->id, 'employee_code' => '004']);
+    Employee::factory()->create(['tenant_id' => $this->tenant->id, 'employee_code' => '017']);
+    // Un código con letra no rompe la cuenta.
+    Employee::factory()->create(['tenant_id' => $this->tenant->id, 'employee_code' => 'X1']);
+
+    expect(Employee::nextCode($this->tenant->id))->toBe('018');
+});
+
+it('el consecutivo y el empresarial son campos distintos, y ambos salen en el Excel', function (): void {
+    $this->operario->forceFill(['employee_code' => '001', 'company_code' => 'O4092021'])->save();
+
+    $row = app(PersonalExcelExport::class)
+        ->rows(Employee::query()->whereKey($this->operario->id), Carbon::parse('2026-08-01'), includeSalary: false)
+        ->sole();
+
+    expect($row['Código'])->toBe('001')
+        ->and($row['Código empresarial'])->toBe('O4092021');
+});
+
+it('la ficha guarda el código a tres dígitos aunque se escriba suelto', function (): void {
+    personalUser('talento-humano', $this->tenant);
+
+    Livewire::test(EditEmployee::class, ['record' => $this->operario->getRouteKey()])
+        ->fillForm(['employee_code' => '7', 'company_code' => '220820231'])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    $this->operario->refresh();
+
+    expect($this->operario->employee_code)->toBe('007')
+        ->and($this->operario->company_code)->toBe('220820231');
 });
