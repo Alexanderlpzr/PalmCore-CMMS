@@ -35,12 +35,22 @@ trait MuestraLosValoresEnBarras
                                 return null;
                             }
 
+                            // Un paro de dos minutos no puede escribir «0 h»: eso afirma
+                            // que el equipo no paró, y sí paró. Se vio en el Molino Ripple
+                            // Mill, con 0,03 h en septiembre.
+                            if (value < 0.1) {
+                                return '<0,1 h';
+                            }
+
                             return Number(value).toLocaleString('es-CO', {
                                 minimumFractionDigits: 0,
                                 maximumFractionDigits: 1,
                             }) + ' h';
                         },
                     },
+                    // Sin leyenda: una sola serie, y su nombre ya está en el título de la
+                    // tarjeta. Quitarla devuelve alto a las barras, que es lo que se mira.
+                    legend: { display: false },
                 },
             }
         JS);

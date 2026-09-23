@@ -28,6 +28,11 @@ trait MuestraLosValores
                         font: { weight: 'bold', size: 11 },
                         textStrokeColor: 'rgba(15, 23, 42, 0.55)',
                         textStrokeWidth: 3,
+                        // 'auto' esconde la etiqueta que se montaría sobre otra. Sin esto,
+                        // en la torta de Tipo II «5,9 h 11.6%» se superponía con
+                        // «2,5 h 4.8%» y las dos quedaban ilegibles — comprobado en
+                        // pantalla con los datos de septiembre.
+                        display: 'auto',
                         formatter: (value, ctx) => {
                             const datos = ctx.chart.data.datasets[0].data;
                             const total = datos.reduce((suma, n) => suma + (Number(n) || 0), 0);
@@ -42,12 +47,16 @@ trait MuestraLosValores
                                 return null;
                             }
 
-                            const horas = Number(value).toLocaleString('es-CO', {
-                                minimumFractionDigits: 0,
+                            // Solo el porcentaje, en una línea: es lo que una torta
+                            // responde bien —qué parte del total se lleva cada causa— y las
+                            // horas exactas ya están en la leyenda, completas y sin
+                            // taparse. Con dos líneas la etiqueta ocupaba el doble y se
+                            // pisaba con la de al lado en cuanto había más de cuatro
+                            // porciones.
+                            return porcentaje.toLocaleString('es-CO', {
+                                minimumFractionDigits: 1,
                                 maximumFractionDigits: 1,
-                            });
-
-                            return horas + ' h\n' + porcentaje.toFixed(1) + '%';
+                            }) + ' %';
                         },
                         textAlign: 'center',
                     },

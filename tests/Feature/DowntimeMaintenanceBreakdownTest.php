@@ -212,3 +212,31 @@ it('la gráfica por equipo deja fuera el equipo comodín y no pierde un puesto',
         ->and(PlantaGeneral::es('Prensa de Doble Tornillo'))->toBeFalse()
         ->and(PlantaGeneral::es(null))->toBeFalse();
 });
+
+// ── Cómo se dibujan los valores ──────────────────────────────────────────────
+
+it('las tortas escriben el porcentaje con coma y esconden las etiquetas que se montan', function (): void {
+    // Se miró en pantalla con los datos de septiembre: con las horas y el porcentaje en
+    // dos líneas, «5,9 h 11.6%» se superponía con «2,5 h 4.8%». Las horas exactas viven en
+    // la leyenda, que no se tapa nunca.
+    $opciones = opcionesDe(new DowntimeMaintenanceBreakdownWidget);
+
+    expect($opciones)->toContain("display: 'auto'")
+        ->and($opciones)->toContain("toLocaleString('es-CO'")
+        ->and($opciones)->not->toContain('toFixed(1)')
+        ->and($opciones)->toContain('generateLabels');
+});
+
+it('una barra de tres minutos no escribe «0 h»', function (): void {
+    // El Molino Ripple Mill paró 0,03 h en septiembre y la barra decía «0 h», que afirma
+    // que no paró.
+    expect(opcionesDe(new DowntimeBySectionWidget))->toContain("'<0,1 h'");
+});
+
+function opcionesDe(object $widget): string
+{
+    $metodo = new ReflectionMethod($widget, 'getOptions');
+    $metodo->setAccessible(true);
+
+    return (string) $metodo->invoke($widget);
+}
