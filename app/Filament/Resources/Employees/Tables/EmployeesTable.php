@@ -8,6 +8,7 @@ use App\Domain\HumanResources\Services\EmployeeQrCodeService;
 use App\Domain\HumanResources\Support\EmployeeProfileOptions as Options;
 use App\Models\Employee;
 use App\Models\EmployeeDocument;
+use Carbon\CarbonInterface;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -18,6 +19,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
+use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -28,6 +30,33 @@ class EmployeesTable
     {
         return $table
             ->defaultSort('last_name')
+            // Cómo quedó ordenada, filtrada y buscada la tabla se recuerda para la
+            // próxima visita: quien organiza el personal por antigüedad lo hace todos
+            // los días, y volver a ordenarlo en cada entrada es trabajo repetido.
+            ->persistSortInSession()
+            ->persistFiltersInSession()
+            ->persistSearchInSession()
+            // Agrupar es la otra forma de organizar: en vez de ordenar una lista larga,
+            // partirla por área o por cargo y plegar lo que no interesa. Sin grupo por
+            // omisión: lo elige quien mira.
+            ->groups([
+                Group::make('area_specific')
+                    ->label('Área específica')
+                    ->getTitleFromRecordUsing(fn (Employee $record): string => Options::SPECIFIC_AREAS[$record->area_specific] ?? 'Sin área')
+                    ->collapsible(),
+                Group::make('area')
+                    ->label('Área')
+                    ->getTitleFromRecordUsing(fn (Employee $record): string => Options::AREAS[$record->area] ?? 'Sin área')
+                    ->collapsible(),
+                Group::make('position')
+                    ->label('Cargo')
+                    ->getTitleFromRecordUsing(fn (Employee $record): string => $record->position ?? 'Sin cargo')
+                    ->collapsible(),
+                Group::make('status')
+                    ->label('Estado')
+                    ->getTitleFromRecordUsing(fn (Employee $record): string => $record->status?->label() ?? '—')
+                    ->collapsible(),
+            ])
             // «Carpeta» necesita el tipo de cada documento y «Carné» el QR activo. Sin
             // cargarlos aquí, cada fila los pedía por separado, y con la carga perezosa
             // prohibida fuera de producción la lista ni siquiera abría.
@@ -65,6 +94,18 @@ class EmployeesTable
                     ->searchable()
                     ->sortable()
                     ->alignEnd(),
+
+                // Ordenando por aquí sale la lista por antigüedad: ascendente, del más
+                // antiguo al más reciente.
+                TextColumn::make('hire_date')
+                    ->label('Ingreso')
+                    ->date('d/m/Y')
+                    ->description(fn (Employee $record): ?string => $record->hire_date
+                        ? $record->hire_date->diffForHumans(now(), ['syntax' => CarbonInterface::DIFF_ABSOLUTE, 'parts' => 1]).' en la empresa'
+                        : null)
+                    ->placeholder('—')
+                    ->sortable()
+                    ->toggleable(),
 
                 TextColumn::make('phone')
                     ->label('Celular')
@@ -122,6 +163,10 @@ class EmployeesTable
                     ->label('Estado')
                     ->options(EmploymentStatus::options())
                     ->default(EmploymentStatus::Activo->value),
+
+                SelectFilter::make('area')
+                    ->label('Área')
+                    ->options(Options::AREAS),
 
                 SelectFilter::make('area_specific')
                     ->label('Área específica')

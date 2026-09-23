@@ -200,3 +200,56 @@ it('la ficha guarda el código a tres dígitos aunque se escriba suelto', functi
     expect($this->operario->employee_code)->toBe('007')
         ->and($this->operario->company_code)->toBe('220820231');
 });
+
+// ── Ordenar y agrupar ────────────────────────────────────────────────────────
+
+it('ordena por nombre en los dos sentidos', function (): void {
+    personalUser('talento-humano', $this->tenant);
+
+    // Activos los dos: la tabla filtra por «Activo» de entrada.
+    $zapata = Employee::factory()->create([
+        'tenant_id' => $this->tenant->id, 'first_name' => 'Zoraida', 'last_name' => 'Zapata',
+    ]);
+
+    Livewire::test(ListEmployees::class)
+        ->sortTable('full_name')
+        ->assertCanSeeTableRecords([$this->operario, $zapata], inOrder: true)
+        ->sortTable('full_name', 'desc')
+        ->assertCanSeeTableRecords([$zapata, $this->operario], inOrder: true);
+});
+
+it('ordena por antigüedad, del más antiguo al más reciente', function (): void {
+    personalUser('talento-humano', $this->tenant);
+
+    $this->operario->forceFill(['hire_date' => '2021-09-04'])->save();
+    $reciente = Employee::factory()->create([
+        'tenant_id' => $this->tenant->id, 'hire_date' => '2026-01-08',
+    ]);
+
+    Livewire::test(ListEmployees::class)
+        ->sortTable('hire_date')
+        ->assertCanSeeTableRecords([$this->operario, $reciente], inOrder: true)
+        ->sortTable('hire_date', 'desc')
+        ->assertCanSeeTableRecords([$reciente, $this->operario], inOrder: true);
+});
+
+it('agrupa por área, cargo o estado sin agrupar por omisión', function (): void {
+    personalUser('talento-humano', $this->tenant);
+
+    $table = Livewire::test(ListEmployees::class)->instance()->getTable();
+
+    expect(array_keys($table->getGroups()))->toBe(['area_specific', 'area', 'position', 'status'])
+        ->and($table->getDefaultGroup())->toBeNull();
+});
+
+it('filtra por área general', function (): void {
+    personalUser('talento-humano', $this->tenant);
+
+    $this->operario->forceFill(['area' => 'operativo'])->save();
+    $administrativo = Employee::factory()->create(['tenant_id' => $this->tenant->id, 'area' => 'administrativo']);
+
+    Livewire::test(ListEmployees::class)
+        ->filterTable('area', 'administrativo')
+        ->assertCanSeeTableRecords([$administrativo])
+        ->assertCanNotSeeTableRecords([$this->operario]);
+});
