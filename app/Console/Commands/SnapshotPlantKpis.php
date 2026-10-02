@@ -87,6 +87,10 @@ class SnapshotPlantKpis extends Command
             'genset_fuel_gallons' => 'galones',
             'energy_switch_count' => 'cambios de energía',
         ],
+        'protecciones' => [
+            'processed_tons_is_manual' => 'toneladas a mano',
+            'energy_is_imported' => 'energía de la hoja',
+        ],
     ];
 
     public function handle(PlantKpiService $service): int
@@ -238,7 +242,7 @@ class SnapshotPlantKpis extends Command
             }
 
             if ($parts !== []) {
-                $this->line(sprintf('      %-17s %s', $group, implode('  ·  ', $parts)));
+                $this->groupLine($group, $parts);
             }
         }
 
@@ -248,8 +252,22 @@ class SnapshotPlantKpis extends Command
                 array_keys($pending),
             );
 
-            $this->line(sprintf('      %-17s %s', 'otras', implode('  ·  ', $parts)));
+            $this->groupLine('otras', $parts);
         }
+    }
+
+    /**
+     * Una línea por grupo, con el nombre del grupo en columna.
+     *
+     * Se rellena por caracteres y no con `%-17s`, que cuenta bytes: «producción»,
+     * «energía» y «planta eléctrica» llevan tilde y quedaban corridos un espacio
+     * respecto de «horas» y «fallas».
+     *
+     * @param  list<string>  $parts
+     */
+    private function groupLine(string $group, array $parts): void
+    {
+        $this->line('      '.mb_str_pad($group, 17).' '.implode('  ·  ', $parts));
     }
 
     /** @param  array{0: mixed, 1: mixed}  $change */

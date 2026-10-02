@@ -160,6 +160,22 @@ it('shows the indicators Postgres derives, not only the stored figures', functio
     expect(Artisan::output())->toContain('eficiencia 100 → 90');
 });
 
+it('lines the groups up even when their names carry an accent', function (): void {
+    // `%-17s` cuenta bytes, y la «ó» de «producción» son dos: la línea salía
+    // corrida un espacio respecto de «horas». Un mes nuevo enseña todos los
+    // grupos, así que sirve para ver la columna entera.
+    Artisan::call('plant-kpis:snapshot', ['--from' => '2026-03', '--to' => '2026-03', '--dry-run' => true]);
+
+    expect(Artisan::output())
+        ->toContain('      horas             HPREN')
+        ->toContain('      producción        toneladas')
+        ->toContain('      protecciones      toneladas a mano')
+        // Las banderas tienen nombre propio: «otras» es para columnas que nadie
+        // etiquetó, no para estas.
+        ->not->toContain('processed_tons_is_manual')
+        ->not->toContain('energy_is_imported');
+});
+
 // ── La auditoría ─────────────────────────────────────────────────────────────
 
 it('leaves no audit trail of a simulation', function (): void {
