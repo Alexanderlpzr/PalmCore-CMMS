@@ -165,10 +165,24 @@ docker image prune -f
 # capas— contra 1,6 GB de imágenes y 102 MB de base de datos. `image prune` no la
 # toca, así que crecía sin techo mientras el log decía que estaba limpiando.
 #
-# Se conservan 7 días para que un despliegue normal siga reutilizando capas y no
-# recompile la extensión intl desde cero cada vez.
-log "Pruning build cache older than 7 days"
-docker builder prune -f --filter until=168h || log "WARNING: build cache prune failed"
+# Con techo de tamaño, no de antigüedad. Conservar «los últimos 7 días» hacía que
+# el tamaño dependiera de cuántas veces se desplegaba: el 2026-10-02 había 11,5 GB,
+# todo de menos de una semana, después de una racha de despliegues.
+#
+# El techo cuenta solo la caché recuperable: las capas que usa la imagen en marcha
+# no entran en la cuenta ni se pueden borrar. Ahí está la cara —el `apk add` que
+# compila las extensiones de PHP, 791 MB—, así que esa la protege la imagen, no el
+# techo. Lo que el techo sí tiene que guardar es lo reutilizable que no acaba en la
+# imagen: `npm ci`, `composer install` y sus bases, unos 700 MB. Si se perdiera, el
+# siguiente build rehace esas dos etapas: un par de minutos, no un build en frío.
+#
+# BuildKit borra primero lo menos usado, así que lo que se va son las capas de
+# despliegues anteriores y los `apk add` de imágenes base que Docker Hub ya
+# reemplazó. Probado contra el servidor el 2026-10-02: de 5,5 GB a 3,1 GB, quedó
+# una sola `apk add` de tres, y `npm ci` y `composer install` intactos.
+BUILD_CACHE_MAX="2gb"
+log "Pruning reclaimable build cache down to ${BUILD_CACHE_MAX}"
+docker builder prune -f --max-used-space "$BUILD_CACHE_MAX" || log "WARNING: build cache prune failed"
 
 log "Disk usage after cleanup"
 df -h / | tail -1
