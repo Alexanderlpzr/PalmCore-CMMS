@@ -3,7 +3,10 @@
 use App\Domain\Analytics\Services\PlantKpiService;
 use App\Domain\Assets\Enums\StoppageCategory;
 use App\Domain\Assets\Services\DowntimeService;
+use App\Domain\Energy\Services\EnergyMeterReadingService;
+use App\Infrastructure\Audit\Jobs\WriteAuditLog;
 use App\Jobs\SnapshotPlantKpisJob;
+use App\Models\EnergyMeter;
 use App\Models\Plant;
 use App\Models\PlantMonthlyKpi;
 use App\Models\ProductionCalendarDay;
@@ -11,6 +14,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Queue;
 
 beforeEach(function (): void {
     $this->tenant = Tenant::factory()->create();
@@ -120,6 +124,136 @@ it('does not touch the energy that came from the historical sheet', function ():
 
     expect((float) $kpi->kwh_grid)->toBe(8002.0)
         ->and((float) $kpi->kwh_turbine)->toBe(71970.0);
+});
+
+// ── Lo que la simulación enseña ──────────────────────────────────────────────
+
+it('shows on a dry run the energy that recalculating would correct', function (): void {
+    // La primera versión comparaba una lista fija de cifras y no incluía la
+    // energía: septiembre corrigió sus kWh sin que la simulación lo anunciara.
+    app(PlantKpiService::class)->snapshotMonth($this->plant, 2026, 8);
+
+    $turbina = EnergyMeter::factory()->turbine()->create([
+        'tenant_id' => $this->tenant->id,
+        'plant_id' => $this->plant->id,
+    ]);
+    $lecturas = app(EnergyMeterReadingService::class);
+    $lecturas->record($turbina, 2_463_979, $this->actor, Carbon::parse('2026-07-31'));
+    $lecturas->record($turbina, 2_527_433, $this->actor, Carbon::parse('2026-08-19'));
+
+    Artisan::call('plant-kpis:snapshot', ['--from' => '2026-08', '--to' => '2026-08', '--dry-run' => true]);
+
+    expect(Artisan::output())
+        ->toContain('energía')
+        ->toContain('kWh turbina — → 63454');
+});
+
+it('shows the indicators Postgres derives, not only the stored figures', function (): void {
+    // La eficiencia es una columna generada: la simulación la lee de la fila
+    // escrita y deshecha, en vez de repetir aquí la fórmula.
+    diaDeProceso($this->plant, '2026-03-02', 100.0);
+    app(PlantKpiService::class)->snapshotMonth($this->plant, 2026, 3);
+    paroDeCierre($this->plant, '2026-03-05 08:00', 10.0);
+
+    Artisan::call('plant-kpis:snapshot', ['--from' => '2026-03', '--to' => '2026-03', '--dry-run' => true]);
+
+    expect(Artisan::output())->toContain('eficiencia 100 → 90');
+});
+
+// ── La auditoría ─────────────────────────────────────────────────────────────
+
+it('leaves no audit trail of a simulation', function (): void {
+    // El cierre es auditable. Una simulación que escribe y deshace dejaría, sin
+    // los eventos apagados, correcciones que nunca ocurrieron en el registro que
+    // existe justamente para distinguirlas de las reales.
+    diaDeProceso($this->plant, '2026-03-02', 100.0);
+    app(PlantKpiService::class)->snapshotMonth($this->plant, 2026, 3);
+    paroDeCierre($this->plant, '2026-03-05 08:00', 4.0);
+
+    Queue::fake();
+
+    Artisan::call('plant-kpis:snapshot', ['--from' => '2026-03', '--to' => '2026-03', '--dry-run' => true]);
+    app()->terminate();
+
+    // Vio el cambio…
+    expect(Artisan::output())->toContain('fallas 0 → 1');
+
+    // …y no lo apuntó como hecho.
+    Queue::assertNotPushed(
+        WriteAuditLog::class,
+        fn (WriteAuditLog $job): bool => $job->modelClass === PlantMonthlyKpi::class && $job->event === 'updated',
+    );
+});
+
+it('audits only the months whose figures actually changed', function (): void {
+    // El reloj se fija porque `calculated_at` se guarda al segundo: si la
+    // preparación y el comando cayeran en el mismo segundo, ni el cierre viejo
+    // —el que reescribía siempre— reescribiría febrero, y la prueba pasaría sin
+    // probar nada.
+    Carbon::setTestNow('2026-04-01 04:00');
+    diaDeProceso($this->plant, '2026-02-02', 100.0);
+    diaDeProceso($this->plant, '2026-03-02', 100.0);
+    app(PlantKpiService::class)->snapshotMonth($this->plant, 2026, 2);
+    app(PlantKpiService::class)->snapshotMonth($this->plant, 2026, 3);
+
+    Carbon::setTestNow('2026-04-02 04:00');
+
+    // Solo marzo recibe un paro tarde.
+    paroDeCierre($this->plant, '2026-03-05 08:00', 4.0);
+
+    Queue::fake();
+
+    Artisan::call('plant-kpis:snapshot', ['--from' => '2026-02', '--to' => '2026-03']);
+    app()->terminate();
+
+    $auditados = Queue::pushed(
+        WriteAuditLog::class,
+        fn (WriteAuditLog $job): bool => $job->modelClass === PlantMonthlyKpi::class && $job->event === 'updated',
+    );
+
+    expect($auditados)->toHaveCount(1)
+        ->and((int) $auditados->first()->newValues['month'])->toBe(3);
+
+    Carbon::setTestNow();
+});
+
+it('does not rewrite a month whose figures did not change', function (): void {
+    // El cierre corre a diario sobre dos meses. Si escribiera siempre, cada pasada
+    // dejaría una «corrección» en la que solo se movió la hora del cálculo.
+    Carbon::setTestNow('2026-04-01 04:00');
+    diaDeProceso($this->plant, '2026-03-02', 100.0);
+    $primero = app(PlantKpiService::class)->snapshotMonth($this->plant, 2026, 3);
+
+    Carbon::setTestNow('2026-04-02 04:00');
+    Queue::fake();
+
+    $otraVez = app(PlantKpiService::class)->snapshotMonth($this->plant, 2026, 3);
+    app()->terminate();
+
+    expect($otraVez->calculated_at->equalTo($primero->calculated_at))->toBeTrue();
+
+    Queue::assertNotPushed(
+        WriteAuditLog::class,
+        fn (WriteAuditLog $job): bool => $job->modelClass === PlantMonthlyKpi::class && $job->event === 'updated',
+    );
+
+    Carbon::setTestNow();
+});
+
+it('stamps the moment a month actually changed', function (): void {
+    Carbon::setTestNow('2026-04-01 04:00');
+    diaDeProceso($this->plant, '2026-03-02', 100.0);
+    app(PlantKpiService::class)->snapshotMonth($this->plant, 2026, 3);
+
+    Carbon::setTestNow('2026-04-02 04:00');
+    paroDeCierre($this->plant, '2026-03-05 08:00', 4.0);
+
+    $corregido = app(PlantKpiService::class)->snapshotMonth($this->plant, 2026, 3);
+
+    expect($corregido->calculated_at->toDateTimeString())->toBe('2026-04-02 04:00:00')
+        ->and($corregido->failure_count)->toBe(1);
+
+    Carbon::setTestNow();
 });
 
 // ── El rango ─────────────────────────────────────────────────────────────────

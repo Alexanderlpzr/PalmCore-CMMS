@@ -347,6 +347,13 @@ class PlantKpiService
      * se las lleva por delante. Báscula y laboratorio rara vez coinciden al cierre,
      * y el mes se vuelve a calcular cada vez que entra un paro atrasado — sin esta
      * guarda, la corrección duraría hasta el siguiente recálculo.
+     *
+     * Y solo escribe cuando alguna cifra cambió. El cierre es auditable y corre a
+     * diario sobre dos meses: escribiendo siempre, cada pasada dejaba en la
+     * auditoría una «corrección» en la que lo único que se movía era la hora del
+     * cálculo — cientos de entradas de ruido al año tapando las que importan. Por
+     * lo mismo, `calculated_at` marca la última vez que el mes cambió, no la última
+     * vez que alguien lo miró.
      */
     public function snapshotMonth(Plant $plant, int $year, int $month): PlantMonthlyKpi
     {
@@ -355,11 +362,13 @@ class PlantKpiService
 
         $metrics = $this->calculate($plant, $from, $to);
 
-        $existing = PlantMonthlyKpi::withoutGlobalScopes()
-            ->where('plant_id', $plant->id)
-            ->where('year', $year)
-            ->where('month', $month)
-            ->first();
+        $kpi = PlantMonthlyKpi::withoutGlobalScopes()->firstOrNew([
+            'plant_id' => $plant->id,
+            'year' => $year,
+            'month' => $month,
+        ]);
+
+        $existing = $kpi->exists ? $kpi : null;
 
         $keepsManualTons = $existing?->processed_tons_is_manual === true;
 
@@ -386,31 +395,33 @@ class PlantKpiService
             ]
             : $this->powerPlantSummary($plant, $from, $to);
 
-        return PlantMonthlyKpi::withoutGlobalScopes()->updateOrCreate(
-            [
-                'plant_id' => $plant->id,
-                'year' => $year,
-                'month' => $month,
-            ],
-            [
-                'tenant_id' => $plant->tenant_id,
-                'programmed_hours' => $metrics['programmed_hours'],
-                'lost_hours' => $metrics['lost_hours'],
-                'effective_hours' => $metrics['effective_hours'],
-                'maintenance_lost_hours' => $metrics['maintenance_lost_hours'],
-                'cleaning_hours' => $metrics['cleaning_hours'],
-                'processed_tons' => $keepsManualTons
-                    ? $existing->processed_tons
-                    : $metrics['processed_tons'],
-                ...$energy,
-                ...$plantaElectrica,
-                'energy_is_imported' => $keepsImportedEnergy,
-                'failure_count' => $metrics['failure_count'],
-                'mtbf_hours' => $metrics['mtbf_hours'],
-                'mttr_hours' => $metrics['mttr_hours'],
-                'calculated_at' => now(),
-            ],
-        )->refresh();
+        $kpi->fill([
+            'tenant_id' => $plant->tenant_id,
+            'programmed_hours' => $metrics['programmed_hours'],
+            'lost_hours' => $metrics['lost_hours'],
+            'effective_hours' => $metrics['effective_hours'],
+            'maintenance_lost_hours' => $metrics['maintenance_lost_hours'],
+            'cleaning_hours' => $metrics['cleaning_hours'],
+            'processed_tons' => $keepsManualTons
+                ? $existing->processed_tons
+                : $metrics['processed_tons'],
+            ...$energy,
+            ...$plantaElectrica,
+            'energy_is_imported' => $keepsImportedEnergy,
+            'failure_count' => $metrics['failure_count'],
+            'mtbf_hours' => $metrics['mtbf_hours'],
+            'mttr_hours' => $metrics['mttr_hours'],
+        ]);
+
+        // Nada que corregir: ni escritura ni entrada de auditoría.
+        if ($kpi->exists && ! $kpi->isDirty()) {
+            return $kpi;
+        }
+
+        $kpi->calculated_at = now();
+        $kpi->save();
+
+        return $kpi->refresh();
     }
 
     /**
