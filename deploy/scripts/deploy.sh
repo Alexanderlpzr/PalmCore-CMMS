@@ -165,29 +165,27 @@ docker image prune -f
 # capas— contra 1,6 GB de imágenes y 102 MB de base de datos. `image prune` no la
 # toca, así que crecía sin techo mientras el log decía que estaba limpiando.
 #
-# Por antigüedad, y no por tamaño. Un techo de tamaño se probó el 2026-10-02 y
-# rompió justo lo que había que guardar: la capa `apk add` que compila las
-# extensiones de PHP (791 MB, ~9 minutos de build). BuildKit no le actualiza el
-# «último uso» cuando un build la reutiliza —marcaba «hace 3 horas, 1 uso» tras
-# dos aciertos de caché—, y su recolector borra primero lo de pocos usos y uso
-# antiguo. Con cualquier techo que obligue a borrar, la capa más cara parece la
-# más prescindible: con 2 GiB, el despliegue siguiente pasó de 1 minuto a 11.
+# Por antigüedad, y solo por antigüedad. El 2026-10-02 se probaron las otras
+# opciones de `builder prune` y las dos rompieron la caché que importa:
 #
-# Con el filtro de 7 días esa capa dura una semana desde que se construyó, que es
-# más o menos lo que tarda Docker Hub en publicar una `php:8.4-fpm-alpine` nueva y
-# obligar a reconstruirla igual. El tamaño queda acotado por una semana de
-# despliegues: el máximo visto fue 11,5 GB tras la racha del 22 y 23 de septiembre.
+#   --max-used-space 2gb   el build siguiente rehízo `apk add` (529 s) y `composer
+#                          install` sobre las mismas imágenes base que una hora
+#                          antes habían salido de caché en un minuto.
+#   --min-free-space 15gb  con 38 GB libres solo borró 22 MB, y aun así el build
+#                          siguiente volvió a rehacer las dos (583 s).
+#
+# En los dos casos se perdieron justo las etapas cuya imagen base se había
+# descargado ese día; `npm ci`, sobre una base de hace dos meses, sobrevivió. Lo
+# probable es que un recorte sin filtro de antigüedad se lleve los registros de la
+# base recién bajada, y con ellos el enlace a las capas que cuelgan de ella. Sea
+# cual sea el mecanismo, `until=168h` es lo único que ha mantenido los despliegues
+# en 1–2 minutos: no cambiarlo sin probar antes dos despliegues seguidos.
+#
+# El precio es que el tamaño lo acota una semana de despliegues y no un número: el
+# máximo visto fue 11,5 GB tras la racha del 22 y 23 de septiembre, en un disco de
+# 48 GB con ~10 GB de datos.
 log "Pruning build cache unused for 7 days"
 docker builder prune -f --filter until=168h || log "WARNING: build cache prune failed"
-
-# Red de seguridad para una semana de muchos despliegues: si al disco le quedan
-# menos de 15 GB libres, se recorta la caché hasta recuperarlos. Con espacio de
-# sobra no toca nada útil —probado con 38 GB libres: solo se llevó el contexto
-# del último build—, así que el `apk add` solo se sacrifica cuando de verdad hay
-# que elegir entre él y el disco.
-BUILD_CACHE_MIN_FREE="15gb"
-log "Keeping at least ${BUILD_CACHE_MIN_FREE} free on disk"
-docker builder prune -f --min-free-space "$BUILD_CACHE_MIN_FREE" || log "WARNING: build cache prune failed"
 
 log "Disk usage after cleanup"
 df -h / | tail -1
