@@ -121,7 +121,11 @@ class PlantKpiService
                 ? round(($programmed - $maintenanceLost) / $programmed * 100, 2)
                 : null,
             'failure_count' => $failures,
-            'mtbf_hours' => $failures > 0 ? round($effective / $failures, 2) : null,
+            // Sin horas programadas el MTBF no es cero, es desconocido: no hay base
+            // de exposición sobre la que repartir las fallas. Un cero diría «la
+            // planta falla cada cero horas» —el peor valor posible— de un mes que
+            // simplemente no tiene calendario cargado, como los diez del histórico.
+            'mtbf_hours' => $failures > 0 && $programmed > 0 ? round($effective / $failures, 2) : null,
             // Horas de paro por falla: lo que le costó a producción. Incluye la
             // espera del repuesto, porque la máquina estuvo abajo igual.
             'mttr_hours' => $failures > 0 ? round($downtimeHours / $failures, 2) : null,
@@ -316,18 +320,22 @@ class PlantKpiService
         // Lo que realmente falló, según la causa física del paro.
         $actual = (clone $window())->maintenanceOwned()->count();
 
-        $effective = max(0.0, round(
-            $this->programmedHours($plant, $from, $to) - $this->lostHours($plant, $from, $to),
-            2,
-        ));
+        $programmed = $this->programmedHours($plant, $from, $to);
+
+        $effective = max(0.0, round($programmed - $this->lostHours($plant, $from, $to), 2));
+
+        // Misma guarda que en `calculate()`: sin calendario, los dos MTBF son
+        // desconocidos, no cero. El conteo de fallas sí vale —sale de los paros—,
+        // así que la brecha se puede enseñar aunque falten las horas.
+        $hasExposure = $programmed > 0;
 
         return [
             'reported_failure_count' => $reported,
             'actual_failure_count' => $actual,
             // Las fallas que la planta no se cobra a sí misma: el hueco.
             'unattributed_failure_count' => max(0, $actual - $reported),
-            'reported_mtbf_hours' => $reported > 0 ? round($effective / $reported, 2) : null,
-            'actual_mtbf_hours' => $actual > 0 ? round($effective / $actual, 2) : null,
+            'reported_mtbf_hours' => $reported > 0 && $hasExposure ? round($effective / $reported, 2) : null,
+            'actual_mtbf_hours' => $actual > 0 && $hasExposure ? round($effective / $actual, 2) : null,
         ];
     }
 

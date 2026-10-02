@@ -157,6 +157,35 @@ it('reports no MTBF when the plant had no failures', function (): void {
         ->and($kpis['mttr_hours'])->toBeNull();
 });
 
+it('reports MTBF as unknown, not zero, when the month has no programmed hours', function (): void {
+    // Es el caso de los diez meses del histórico: los paros están, el calendario
+    // de producción no. Las horas efectivas dan cero y 0 ÷ 15 fallas = 0, que no
+    // significa «no sabemos» sino «la planta falla cada cero horas», el peor MTBF
+    // posible. Las gráficas lo habrían enseñado como un desastre que no ocurrió.
+    stop($this->plant, StoppageCategory::Mechanical, 4.0);
+    stop($this->plant, StoppageCategory::Electrical, 2.0);
+
+    $kpis = $this->service->calculate($this->plant, now()->startOfMonth(), now()->endOfMonth());
+
+    expect($kpis['programmed_hours'])->toBe(0.0)
+        ->and($kpis['failure_count'])->toBe(2)
+        ->and($kpis['mtbf_hours'])->toBeNull()
+        // El MTTR sí se sabe: sale de los propios paros, no del calendario.
+        ->and($kpis['mttr_hours'])->toBe(3.0);
+});
+
+it('reports the attribution gap without a calendar, but not its MTBF', function (): void {
+    // El conteo de fallas sale de los paros y vale aunque falten las horas; los
+    // dos MTBF de la brecha no.
+    stop($this->plant, StoppageCategory::Mechanical, 4.0);
+
+    $gap = $this->service->failureAttributionGap($this->plant, now()->startOfMonth(), now()->endOfMonth());
+
+    expect($gap['actual_failure_count'])->toBe(1)
+        ->and($gap['actual_mtbf_hours'])->toBeNull()
+        ->and($gap['reported_mtbf_hours'])->toBeNull();
+});
+
 // ── El mes cerrado ────────────────────────────────────────────────────────────
 
 it('freezes the month with the efficiency derived by the database', function (): void {
