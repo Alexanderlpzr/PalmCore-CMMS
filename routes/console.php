@@ -90,9 +90,12 @@ Schedule::call(function (): void {
     ->dailyAt('05:00')
     ->onOneServer();
 
-// Close the month: freeze each plant's efficiency, MTBF and MTTR on the 1st.
+// Cierra el mes en curso y el anterior, cada día. A diario y no el día 1: el
+// calendario de producción se termina de llenar después de que el mes acaba y los
+// paros se registran tarde, así que un cierre único congelaba las cifras de antes
+// de los últimos apuntes y nada volvía a mirarlas.
 Schedule::job(new SnapshotPlantKpisJob)
-    ->monthlyOn(1, '04:00')
+    ->dailyAt('04:00')
     ->onOneServer();
 
 // Horizon metrics snapshots — required for dashboard graphs to populate
