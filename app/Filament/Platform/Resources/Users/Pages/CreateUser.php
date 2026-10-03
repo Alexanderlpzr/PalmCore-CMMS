@@ -24,6 +24,25 @@ class CreateUser extends CreateRecord
     /** Solo vive entre el alta y la notificación que la enseña: no se guarda en claro. */
     private ?string $temporaryPassword = null;
 
+    /**
+     * Desde la ficha de una empresa se llega con `?tenant=`: la empresa ya viene
+     * elegida y solo falta el nombre, el correo y el rol.
+     */
+    protected function fillForm(): void
+    {
+        $this->callHook('beforeFill');
+
+        $tenantId = request()->query('tenant');
+
+        $this->form->fill(
+            is_string($tenantId) && Tenant::withoutGlobalScopes()->whereKey($tenantId)->exists()
+                ? ['tenant_id' => $tenantId]
+                : [],
+        );
+
+        $this->callHook('afterFill');
+    }
+
     protected function handleRecordCreation(array $data): Model
     {
         try {

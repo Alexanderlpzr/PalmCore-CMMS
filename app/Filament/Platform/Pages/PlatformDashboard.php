@@ -19,9 +19,11 @@ use Filament\Support\Icons\Heroicon;
  */
 class PlatformDashboard extends Page
 {
-    protected static string|\BackedEnum|null $navigationIcon = Heroicon::OutlinedSquares2x2;
+    protected static string|\BackedEnum|null $navigationIcon = Heroicon::OutlinedHome;
 
-    protected static ?string $navigationLabel = 'Dashboard';
+    protected static ?string $navigationLabel = 'Inicio';
+
+    protected static ?string $title = 'Inicio';
 
     protected static ?int $navigationSort = -1;
 
@@ -41,6 +43,7 @@ class PlatformDashboard extends Page
     public function getViewData(): array
     {
         $health = app(SystemHealthService::class);
+        $checks = $health->checks();
 
         return [
             'totalTenants' => Tenant::withoutGlobalScopes()->count(),
@@ -51,8 +54,8 @@ class PlatformDashboard extends Page
             'suspendedTenants' => Tenant::withoutGlobalScopes()
                 ->where('subscription_status', SubscriptionStatus::Suspended)->count(),
 
-            'overall' => $health->overallStatus(),
-            'checks' => $health->checks(),
+            'overall' => $health->overallStatus($checks),
+            'checks' => $checks,
             'tenants' => app(TenantHealthService::class)->overview(),
         ];
     }

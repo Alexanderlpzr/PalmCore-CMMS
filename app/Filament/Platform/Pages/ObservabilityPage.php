@@ -27,11 +27,11 @@ class ObservabilityPage extends Page implements HasTable
 
     protected static string|\BackedEnum|null $navigationIcon = Heroicon::OutlinedQueueList;
 
-    protected static ?string $navigationLabel = 'Colas y trabajos';
+    protected static ?string $navigationLabel = 'Tareas en segundo plano';
 
-    protected static ?string $title = 'Colas y trabajos fallidos';
+    protected static ?string $title = 'Tareas en segundo plano';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Observabilidad';
+    protected static string|\UnitEnum|null $navigationGroup = 'Sistema';
 
     protected static ?int $navigationSort = 1;
 

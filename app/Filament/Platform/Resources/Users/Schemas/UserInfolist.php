@@ -21,6 +21,7 @@ final class UserInfolist
     {
         return $schema->components([
             Section::make('Cuenta')
+                ->columnSpanFull()
                 ->columns(3)
                 ->schema([
                     TextEntry::make('name')

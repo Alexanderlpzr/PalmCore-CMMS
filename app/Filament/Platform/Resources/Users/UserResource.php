@@ -54,15 +54,17 @@ class UserResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedUsers;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Empresas';
+    protected static string|UnitEnum|null $navigationGroup = 'Clientes';
 
     protected static ?int $navigationSort = 2;
 
     protected static ?string $navigationLabel = 'Usuarios';
 
-    protected static ?string $modelLabel = 'Usuario';
+    protected static ?string $modelLabel = 'usuario';
 
     protected static ?string $pluralModelLabel = 'Usuarios';
+
+    protected static bool $hasTitleCaseModelLabel = false;
 
     protected static ?string $recordTitleAttribute = 'name';
 

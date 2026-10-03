@@ -20,7 +20,7 @@ class BackupsPage extends Page
 
     protected static ?string $title = 'Respaldos';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Observabilidad';
+    protected static string|\UnitEnum|null $navigationGroup = 'Sistema';
 
     protected static ?int $navigationSort = 3;
 
@@ -28,9 +28,12 @@ class BackupsPage extends Page
 
     protected function getHeaderActions(): array
     {
+        // Respaldar primero y como acción principal. Apagar el automático va detrás y
+        // en gris: era un botón rojo grande delante de «Respaldar ahora», a un clic de
+        // dejar el servidor sin copias. El rojo se queda en la confirmación.
         return [
-            $this->toggleAutomaticAction(),
             $this->runBackupAction(),
+            $this->toggleAutomaticAction(),
         ];
     }
 
@@ -49,8 +52,11 @@ class BackupsPage extends Page
         return Action::make('toggleAutomatic')
             ->label($enabled ? 'Desactivar respaldo automático' : 'Activar respaldo automático')
             ->icon($enabled ? Heroicon::OutlinedPause : Heroicon::OutlinedPlay)
-            ->color($enabled ? 'danger' : 'success')
+            ->color($enabled ? 'gray' : 'success')
+            ->outlined($enabled)
             ->requiresConfirmation()
+            ->modalIconColor($enabled ? 'danger' : 'success')
+            ->modalSubmitAction(fn (Action $action): Action => $action->color($enabled ? 'danger' : 'success'))
             ->modalHeading($enabled ? 'Desactivar el respaldo automático' : 'Activar el respaldo automático')
             ->modalDescription($enabled
                 ? 'Dejarán de guardarse copias de la base de datos cada noche. Si el servidor se pierde mañana, se pierde todo lo que no hayas respaldado a mano. Puedes volver a activarlo cuando quieras.'

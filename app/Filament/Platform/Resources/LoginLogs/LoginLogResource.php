@@ -25,15 +25,17 @@ class LoginLogResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedKey;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Sistema';
+    protected static string|UnitEnum|null $navigationGroup = 'Seguridad';
 
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 1;
 
-    protected static ?string $navigationLabel = 'Accesos';
+    protected static ?string $navigationLabel = 'Ingresos';
 
-    protected static ?string $modelLabel = 'Registro de acceso';
+    protected static ?string $modelLabel = 'ingreso';
 
-    protected static ?string $pluralModelLabel = 'Registros de acceso';
+    protected static ?string $pluralModelLabel = 'Ingresos';
+
+    protected static bool $hasTitleCaseModelLabel = false;
 
     protected static bool $isScopedToTenant = false;
 

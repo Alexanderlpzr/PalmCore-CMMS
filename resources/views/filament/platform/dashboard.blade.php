@@ -32,6 +32,18 @@
                 <p class="text-sm text-gray-600 dark:text-gray-400">
                     Última comprobación: {{ now()->format('d/m/Y H:i') }}
                 </p>
+                {{-- Qué falla, sin tener que buscar el renglón en rojo en la lista de abajo. --}}
+                @php($pendientes = collect($checks)->reject(fn (array $check): bool => $check['status'] === HealthStatus::Ok))
+                @if ($pendientes->isNotEmpty())
+                    <ul class="mt-2 space-y-0.5 text-sm text-gray-800 dark:text-gray-200">
+                        @foreach ($pendientes as $check)
+                            <li>
+                                <span class="font-semibold">{{ $check['label'] }}:</span>
+                                {{ $check['value'] }} · {{ $check['status']->label() }}
+                            </li>
+                        @endforeach
+                    </ul>
+                @endif
             </div>
         </div>
     </div>
@@ -103,8 +115,12 @@
                             <td class="p-3">
                                 <span class="font-medium text-gray-900 dark:text-white">{{ $row['tenant']->name }}</span>
                                 @if ($row['is_dormant'])
-                                    <span class="ml-2 rounded-lg bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-                                        Inactiva
+                                    {{-- «Sin uso reciente» y no «Inactiva»: la tarjeta de arriba ya usa
+                                         «Activas» para el estado de la suscripción, y una empresa
+                                         activa sin ingresos se leía como una contradicción. --}}
+                                    <span class="ml-2 whitespace-nowrap rounded-lg bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                                          title="Nadie de esta empresa ha entrado en los últimos 14 días.">
+                                        Sin uso reciente
                                     </span>
                                 @endif
                             </td>

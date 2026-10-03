@@ -18,15 +18,17 @@ class ImpersonationLogResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedUserCircle;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Sistema';
+    protected static string|UnitEnum|null $navigationGroup = 'Seguridad';
 
     protected static ?int $navigationSort = 2;
 
-    protected static ?string $navigationLabel = 'Impersonaciones';
+    protected static ?string $navigationLabel = 'Suplantaciones';
 
-    protected static ?string $modelLabel = 'Registro de impersonación';
+    protected static ?string $modelLabel = 'suplantación';
 
-    protected static ?string $pluralModelLabel = 'Registros de impersonación';
+    protected static ?string $pluralModelLabel = 'Suplantaciones';
+
+    protected static bool $hasTitleCaseModelLabel = false;
 
     protected static bool $isScopedToTenant = false;
 

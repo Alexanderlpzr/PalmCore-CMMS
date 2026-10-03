@@ -61,13 +61,16 @@ class PlatformPanelProvider extends PanelProvider
             // Local data-URI initials avatars — keeps the strict CSP (no
             // ui-avatars.com request) consistent with the admin panel.
             ->defaultAvatarProvider(InitialsAvatarProvider::class)
+            // Cuatro grupos, en el orden en que se usan: las empresas y su gente todos
+            // los días; quién entró, de vez en cuando; la salud del sistema cuando algo
+            // falla; y el contenido de las portadas, casi nunca. Antes eran seis grupos
+            // para doce secciones, varios con una sola entrada y nombres técnicos
+            // («Observabilidad», «Contenido CMS») que había que saber traducir.
             ->navigationGroups([
-                NavigationGroup::make('Empresas'),
-                NavigationGroup::make('Contenido'),
-                NavigationGroup::make('Suscripciones'),
-                NavigationGroup::make('Integraciones'),
-                NavigationGroup::make('Observabilidad'),
+                NavigationGroup::make('Clientes'),
+                NavigationGroup::make('Seguridad'),
                 NavigationGroup::make('Sistema'),
+                NavigationGroup::make('Contenido'),
             ])
             ->renderHook(
                 PanelsRenderHook::SIDEBAR_NAV_END,

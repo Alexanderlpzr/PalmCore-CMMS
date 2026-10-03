@@ -7,6 +7,7 @@ use App\Filament\Platform\Resources\Tenants\Pages\EditTenant;
 use App\Filament\Platform\Resources\Tenants\Pages\ListTenants;
 use App\Filament\Platform\Resources\Tenants\Pages\ViewTenant;
 use App\Filament\Platform\Resources\Tenants\RelationManagers\PlantsRelationManager;
+use App\Filament\Platform\Resources\Tenants\RelationManagers\UsersRelationManager;
 use App\Filament\Resources\Tenants\Schemas\TenantForm;
 use App\Filament\Resources\Tenants\Schemas\TenantInfolist;
 use App\Filament\Resources\Tenants\Tables\TenantsTable;
@@ -26,13 +27,15 @@ class TenantResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBuildingOffice2;
 
-    protected static ?string $modelLabel = 'Empresa';
+    protected static ?string $modelLabel = 'empresa';
 
     protected static ?string $pluralModelLabel = 'Empresas';
 
+    protected static bool $hasTitleCaseModelLabel = false;
+
     protected static ?string $navigationLabel = 'Empresas';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Empresas';
+    protected static string|UnitEnum|null $navigationGroup = 'Clientes';
 
     protected static ?int $navigationSort = 1;
 
@@ -66,6 +69,7 @@ class TenantResource extends Resource
     public static function getRelations(): array
     {
         return [
+            UsersRelationManager::class,
             PlantsRelationManager::class,
         ];
     }

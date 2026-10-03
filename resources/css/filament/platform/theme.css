@@ -23,3 +23,53 @@
 /* El render hook con el enlace «← Panel Admin» vive en el provider, no en una
    vista: sin esta ruta sus clases de Tailwind no se compilan. */
 @source '../../../../app/Providers/Filament/*.php';
+
+/*
+ * Modo oscuro: el petróleo del logo es el tono 600 (#00384c), casi negro. Filament pinta
+ * lo activo con el 400 y los botones principales con el 600, y sobre fondo oscuro eso
+ * invertía el énfasis: el ítem activo del menú quedaba MÁS apagado que los inactivos
+ * (luminosidad 0,58 contra 0,93) y el botón principal se perdía en el fondo (0,32).
+ *
+ * Aquí se suben solo esos tonos, solo en oscuro y solo en la plataforma. La rampa de
+ * FrondaPalette no se toca: está anclada al color del logo, y Filament elige el tono de
+ * los botones por contraste (ver tests/Unit/BrandPaletteTest.php).
+ */
+
+/* Ítem activo del menú: fondo petróleo visible, filete a la izquierda y texto claro. */
+.dark .fi-sidebar-item.fi-active > .fi-sidebar-item-btn {
+    background-color: color-mix(in oklab, var(--primary-400) 24%, transparent);
+    box-shadow: inset 3px 0 0 var(--primary-300);
+}
+
+.dark .fi-sidebar-item.fi-active > .fi-sidebar-item-btn > .fi-icon,
+.dark .fi-sidebar-item.fi-active > .fi-sidebar-item-btn > .fi-sidebar-item-label {
+    color: var(--primary-200);
+}
+
+/* Pestaña activa de las fichas, con el mismo criterio que el menú. */
+.dark .fi-tabs-item.fi-active {
+    background-color: color-mix(in oklab, var(--primary-400) 24%, transparent);
+}
+
+.dark .fi-tabs-item.fi-active .fi-tabs-item-label,
+.dark .fi-tabs-item.fi-active > .fi-icon {
+    color: var(--primary-200);
+}
+
+/* Botón principal relleno: el 500 en vez del 600. El texto (tono 50) sigue en ~6:1. */
+.dark .fi-btn.fi-color-primary:not(.fi-outlined) {
+    background-color: var(--primary-500);
+}
+
+.dark .fi-btn.fi-color-primary:not(.fi-outlined):hover {
+    background-color: color-mix(in oklab, var(--primary-500), white 12%);
+}
+
+/* Enlaces y acciones de tabla en color primario («Cambiar rol», «Ver»). */
+.dark .fi-link.fi-color-primary {
+    color: var(--primary-300);
+}
+
+.dark .fi-link.fi-color-primary:hover {
+    color: var(--primary-200);
+}

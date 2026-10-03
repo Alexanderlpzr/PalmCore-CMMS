@@ -50,10 +50,18 @@ class SystemHealthService
         ];
     }
 
-    /** El peor estado de todos: lo que el semáforo de la cabecera debe mostrar. */
-    public function overallStatus(): HealthStatus
+    /**
+     * El peor estado de todos: lo que el semáforo de la cabecera debe mostrar.
+     *
+     * Acepta los chequeos ya hechos: el inicio los necesita para la lista y para el
+     * semáforo, y sin esto los corría dos veces por carga —uno escribe y lee un
+     * archivo en disco—.
+     *
+     * @param  list<array{status: HealthStatus}>|null  $checks
+     */
+    public function overallStatus(?array $checks = null): HealthStatus
     {
-        $statuses = array_column($this->checks(), 'status');
+        $statuses = array_column($checks ?? $this->checks(), 'status');
 
         foreach ([HealthStatus::Critical, HealthStatus::Warning, HealthStatus::Unknown] as $status) {
             if (in_array($status, $statuses, strict: true)) {

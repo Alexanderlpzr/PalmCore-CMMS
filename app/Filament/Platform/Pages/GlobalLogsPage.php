@@ -11,11 +11,11 @@ class GlobalLogsPage extends Page
 {
     protected static string|\BackedEnum|null $navigationIcon = Heroicon::OutlinedDocumentText;
 
-    protected static ?string $navigationLabel = 'Errores recientes';
+    protected static ?string $navigationLabel = 'Errores';
 
     protected static ?string $title = 'Errores recientes';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Observabilidad';
+    protected static string|\UnitEnum|null $navigationGroup = 'Sistema';
 
     protected static ?int $navigationSort = 2;
 

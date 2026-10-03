@@ -27,11 +27,13 @@ class InstitutionalContentResource extends Resource
 
     protected static ?int $navigationSort = 1;
 
-    protected static ?string $navigationLabel = 'Contenido CMS';
+    protected static ?string $navigationLabel = 'Portada del inicio';
 
-    protected static ?string $modelLabel = 'Contenido';
+    protected static ?string $modelLabel = 'contenido';
 
-    protected static ?string $pluralModelLabel = 'Contenido Institucional';
+    protected static ?string $pluralModelLabel = 'Portada del inicio';
+
+    protected static bool $hasTitleCaseModelLabel = false;
 
     protected static bool $isScopedToTenant = false;
 

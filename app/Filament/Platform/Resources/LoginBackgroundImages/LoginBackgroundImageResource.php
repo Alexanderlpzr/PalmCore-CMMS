@@ -27,11 +27,13 @@ class LoginBackgroundImageResource extends Resource
 
     protected static ?int $navigationSort = 2;
 
-    protected static ?string $navigationLabel = 'Carrusel de Login';
+    protected static ?string $navigationLabel = 'Fondos del login';
 
-    protected static ?string $modelLabel = 'Imagen';
+    protected static ?string $modelLabel = 'imagen de fondo';
 
-    protected static ?string $pluralModelLabel = 'Carrusel de Login';
+    protected static ?string $pluralModelLabel = 'Fondos del login';
+
+    protected static bool $hasTitleCaseModelLabel = false;
 
     protected static bool $isScopedToTenant = false;
 
