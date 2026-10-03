@@ -37,9 +37,11 @@ class ApiTokenController extends Controller
             ], 403);
         }
 
+        // La validación (`exists`) también deja pasar a las archivadas, y aquí `first()`
+        // no las ve: sin este null, canAccessTenant(null) reventaba con un 500.
         $tenant = Tenant::where('slug', $request->tenant_slug)->first();
 
-        if (! $user->canAccessTenant($tenant)) {
+        if ($tenant === null || ! $user->canAccessTenant($tenant)) {
             return response()->json(['message' => 'No tienes acceso a esta empresa.'], 403);
         }
 

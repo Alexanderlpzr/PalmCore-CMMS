@@ -72,6 +72,19 @@ enum SubscriptionStatus: string
         };
     }
 
+    /**
+     * Lo que responde la API al rechazar una escritura con este estado, o null si las
+     * permite. La app móvil lo muestra junto a la acción que no se guardó.
+     */
+    public function writeRejectionMessage(): ?string
+    {
+        return match ($this) {
+            self::Trial, self::Active => null,
+            self::ReadOnly => 'No se guardó: la empresa está en solo lectura. Se puede consultar, pero no crear ni cambiar nada hasta que se renueve la suscripción.',
+            self::Suspended => 'No se guardó: la empresa está suspendida. Se puede consultar, pero no crear ni cambiar nada. Contacta a soporte para reactivarla.',
+        };
+    }
+
     public static function options(): array
     {
         return array_column(

@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Domain\Shared\Enums\SubscriptionStatus;
 use App\Infrastructure\Tenancy\CurrentTenant;
 use App\Models\PersonalAccessToken;
 use Closure;
@@ -48,6 +49,31 @@ class ResolveApiTenant
         // against the token's tenant during API requests.
         setPermissionsTeamId($tenant->id);
 
+        // Lo mismo que en la web (CheckTenantSubscription): una empresa suspendida o
+        // con el plan vencido consulta, pero no crea ni cambia nada. Atado al
+        // contenedor, las políticas lo ven; el rechazo de abajo cubre además las
+        // escrituras que no pasan por ninguna política, que en la API son la mayoría.
+        $status = $tenant->effectiveSubscriptionStatus();
+        app()->instance('subscription.status', $status);
+
+        if ($this->isBlockedWrite($request, $status)) {
+            return response()->json([
+                'message' => $status->writeRejectionMessage(),
+                'code' => 'tenant_read_only',
+            ], 403);
+        }
+
         return $next($request);
+    }
+
+    /**
+     * Toda escritura, menos dar de alta o de baja el aviso push del teléfono: no toca
+     * los datos de la planta, y darlo de baja es parte de cerrar sesión.
+     */
+    private function isBlockedWrite(Request $request, SubscriptionStatus $status): bool
+    {
+        return ! $status->allowsMutations()
+            && ! $request->isMethodSafe()
+            && ! $request->is('api/v1/push-subscriptions');
     }
 }

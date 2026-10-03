@@ -40,8 +40,10 @@ class TokenRefreshController extends Controller
                 ->withoutCookie('fronda_refresh_token');
         }
 
-        $abilities = json_decode($refreshPat->abilities ?? '[]', true);
-        if (! in_array('token.refresh', $abilities, true)) {
+        // `abilities` ya llega como arreglo (cast `json` del modelo). El json_decode()
+        // que había aquí reventaba con un TypeError: renovar daba 500 siempre, y la app
+        // móvil y /app pedían iniciar sesión otra vez al recargar o a la hora.
+        if (! in_array('token.refresh', $refreshPat->abilities ?? [], true)) {
             return response()->json(['message' => 'Token inválido.'], 401);
         }
 
@@ -52,10 +54,13 @@ class TokenRefreshController extends Controller
             return response()->json(['message' => 'Cuenta inactiva.'], 403);
         }
 
+        // Una empresa suspendida sigue renovando: entra a consultar y la escritura la
+        // frena ResolveApiTenant, como en la web. Antes la echaba de la app al cabo de
+        // una hora, aunque podía volver a iniciar sesión. Una archivada no aparece.
         $tenant = Tenant::find($refreshPat->tenant_id);
 
-        if (! $tenant || ! $tenant->is_active) {
-            return response()->json(['message' => 'Empresa no encontrada o inactiva.'], 403);
+        if (! $tenant) {
+            return response()->json(['message' => 'Empresa no encontrada.'], 403);
         }
 
         // Revoke previous access tokens for this user+tenant to avoid accumulation
