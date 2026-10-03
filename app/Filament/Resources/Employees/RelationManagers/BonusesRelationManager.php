@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Employees\RelationManagers;
 
 use App\Domain\HumanResources\Enums\BonusType;
+use App\Models\EmployeeBonus;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
@@ -10,6 +11,7 @@ use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
@@ -50,6 +52,9 @@ class BonusesRelationManager extends RelationManager
 
             TextInput::make('concept')->label('Concepto')->required()->maxLength(80),
             TextInput::make('amount')->label('Valor')->numeric()->required()->minValue(0)->prefix('$'),
+            Toggle::make('prorate_by_worked_days')
+                ->label('Proporcional a los días laborados')
+                ->helperText('Como el bono de rodamiento: quien trabajó 15 de 30 días recibe la mitad. Apagado, se paga completo.'),
 
             DatePicker::make('effective_from')
                 ->label('Vigente desde')
@@ -75,7 +80,12 @@ class BonusesRelationManager extends RelationManager
                     ->badge()
                     ->formatStateUsing(fn (BonusType $state): string => $state->label())
                     ->color(fn (BonusType $state): string => $state->color()),
-                TextColumn::make('amount')->label('Valor')->money('COP', 0)->alignEnd()->sortable(),
+                TextColumn::make('amount')
+                    ->label('Valor')
+                    ->money('COP', 0)
+                    ->description(fn (EmployeeBonus $record): ?string => $record->prorate_by_worked_days ? 'Por días laborados' : null)
+                    ->alignEnd()
+                    ->sortable(),
                 TextColumn::make('effective_from')->label('Desde')->date('d/m/Y')->sortable(),
                 TextColumn::make('effective_to')->label('Hasta')->date('d/m/Y')->placeholder('Indefinida'),
             ])

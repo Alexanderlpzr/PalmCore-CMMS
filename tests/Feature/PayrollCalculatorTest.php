@@ -201,6 +201,29 @@ it('la bonificación constitutiva entra al IBC y la no constitutiva no', functio
         ->and((float) $entry->total_earned)->toBe(1_750_905.0 + 767_849.0 + 249_095.0);
 });
 
+it('paga la bonificación proporcional por los días laborados, y la otra completa', function (): void {
+    // El bono de rodamiento del libro: quien trabajó 11 de 30 días recibió 134.877 de
+    // los 367.849 (columna BD). Una bonificación sin la marca se paga entera.
+    $e = trabajador(['base_salary' => 1_750_905]);
+
+    for ($d = 1; $d <= 11; $d++) {
+        diaConfirmado($e, sprintf('2026-08-%02d', $d));
+    }
+
+    EmployeeBonus::factory()->forEmployee($e)
+        ->of(BonusType::NoConstitutiva, 367_849, '2026-08-01', '2026-08-31')
+        ->create(['concept' => 'Bono de rodamiento', 'prorate_by_worked_days' => true]);
+    EmployeeBonus::factory()->forEmployee($e)
+        ->of(BonusType::NoConstitutiva, 100_000, '2026-08-01', '2026-08-31')
+        ->create(['concept' => 'Bonificación fija']);
+
+    $entry = liquidar($e);
+
+    // 367.849 / 30 × 11 = 134.877,97, más los 100.000 completos.
+    expect((float) $entry->worked_days)->toBe(11.0)
+        ->and(round((float) $entry->bonus_non_constitutive, 2))->toBe(234_877.97);
+});
+
 it('el día de ausencia no se paga pero sí cotiza a pensión', function (): void {
     $e = trabajador(['base_salary' => 1_750_905]);
 

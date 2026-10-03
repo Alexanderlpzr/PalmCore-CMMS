@@ -135,7 +135,7 @@ class PayrollCalculator
         }
 
         // ── Bonificaciones ────────────────────────────────────────────────────
-        $bonuses = $this->bonuses($employee, $from, $to);
+        $bonuses = $this->bonuses($employee, $from, $to, $workedDays / $monthDays);
         $bonusesTotal = array_sum($bonuses);
 
         // ── Auxilio de transporte ─────────────────────────────────────────────
@@ -381,8 +381,13 @@ class PayrollCalculator
 
     // ── Bonificaciones y descuentos ───────────────────────────────────────────
 
-    /** @return array<string, float> */
-    private function bonuses(Employee $employee, CarbonImmutable $from, CarbonImmutable $to): array
+    /**
+     * Las proporcionales se pagan por los días laborados, como el auxilio de transporte:
+     * el bono de rodamiento del libro va así.
+     *
+     * @return array<string, float>
+     */
+    private function bonuses(Employee $employee, CarbonImmutable $from, CarbonImmutable $to, float $workedShare): array
     {
         $totals = array_fill_keys(array_column(BonusType::cases(), 'value'), 0.0);
 
@@ -391,8 +396,10 @@ class PayrollCalculator
             ->where('employee_id', $employee->id)
             ->overlapping($from, $to)
             ->get()
-            ->each(function (EmployeeBonus $bonus) use (&$totals): void {
-                $totals[$bonus->type->value] += (float) $bonus->amount;
+            ->each(function (EmployeeBonus $bonus) use (&$totals, $workedShare): void {
+                $totals[$bonus->type->value] += $bonus->prorate_by_worked_days
+                    ? (float) $bonus->amount * $workedShare
+                    : (float) $bonus->amount;
             });
 
         return $totals;

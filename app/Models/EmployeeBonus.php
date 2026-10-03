@@ -24,6 +24,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'type',
     'concept',
     'amount',
+    'prorate_by_worked_days',
     'effective_from',
     'effective_to',
     'notes',
@@ -61,6 +62,7 @@ class EmployeeBonus extends BaseModel
         return [
             'type' => BonusType::class,
             'amount' => 'decimal:2',
+            'prorate_by_worked_days' => 'boolean',
             'effective_from' => 'date',
             'effective_to' => 'date',
         ];
