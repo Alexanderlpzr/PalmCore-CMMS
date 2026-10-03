@@ -79,6 +79,13 @@ class Inicio extends Page
     {
         $user = auth()->user();
 
+        // El vigilante abre directo en la puerta: es lo único que hace en el día.
+        if ($user !== null && ! self::isForMaintenance() && Porteria::canAccess()) {
+            $this->redirect(Porteria::getUrl());
+
+            return;
+        }
+
         // Quien no trabaja en mantenimiento —la cuenta de talento humano— no tiene nada
         // que hacer aquí: el portal abre con lo que requiere atención en la planta, que
         // son equipos y órdenes. Se le lleva a Personal siempre, no solo al entrar,

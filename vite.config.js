@@ -16,6 +16,8 @@ export default defineConfig({
                 'resources/js/passkeys.js',
                 // Los números dibujados sobre las gráficas del panel.
                 'resources/js/filament-chart-js-plugins.js',
+                // La cámara de la pantalla «Portería» del panel; solo se carga ahí.
+                'resources/js/filament/porteria-scanner.js',
                 'resources/css/mobile.css',
                 'resources/js/mobile/main.js',
                 'resources/css/ops.css',

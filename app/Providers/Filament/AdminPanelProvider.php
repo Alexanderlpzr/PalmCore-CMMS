@@ -5,6 +5,7 @@ namespace App\Providers\Filament;
 use App\Filament\Auth\EditProfile;
 use App\Filament\AvatarProviders\InitialsAvatarProvider;
 use App\Filament\Pages\Auth\Login;
+use App\Filament\Pages\Porteria;
 use App\Http\Middleware\CheckTenantSubscription;
 use App\Http\Middleware\EnforceTwoFactor;
 use App\Http\Middleware\EnsurePasswordIsChanged;
@@ -108,6 +109,16 @@ class AdminPanelProvider extends PanelProvider
                 NavigationGroup::make('Configuración'),
                 NavigationGroup::make('Sistema'),
             ])
+            // Acceso rápido a la puerta, arriba del menú, para quien marca entradas y
+            // salidas. El superadministrador ya tiene «Portería» en el menú.
+            ->renderHook(
+                PanelsRenderHook::SIDEBAR_NAV_START,
+                fn (): string => Porteria::canAccess() && ! auth()->user()?->is_super_admin
+                    ? '<div class="px-2 pb-2"><a href="'.e(Porteria::getUrl()).'" class="flex items-center justify-center gap-2 rounded-lg bg-primary-600 px-3 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 dark:bg-primary-500 dark:hover:bg-primary-400">'
+                        .'<svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 3.75 9.375v-4.5ZM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 0 1-1.125-1.125v-4.5ZM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 13.5 9.375v-4.5Z"/></svg>'
+                        .'Escanear carné</a></div>'
+                    : '',
+            )
             ->renderHook(
                 PanelsRenderHook::SIDEBAR_NAV_END,
                 // El enlace se pinta con el color del panel al que lleva (petróleo),
