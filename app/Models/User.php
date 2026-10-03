@@ -11,10 +11,12 @@ use Filament\Panel;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -75,6 +77,19 @@ class User extends Authenticatable implements FilamentUser, HasAvatar, HasTenant
         return file_signed_url(persistent_disk(), $this->profile?->avatar_path);
     }
 
+    /**
+     * La foto vive en `user_profiles`, no en `users`. El campo de foto de los
+     * formularios de usuario lee `avatar_path` del registro al validar, para compararlo
+     * con el archivo anterior; sin este acceso, con `preventAccessingMissingAttributes`
+     * —activo fuera de producción— guardar la ficha de cualquier usuario reventaba.
+     *
+     * Solo lectura: quien guarda la foto escribe en el perfil, nunca en `users`.
+     */
+    protected function avatarPath(): Attribute
+    {
+        return Attribute::get(fn (): ?string => $this->profile?->avatar_path);
+    }
+
     // ─── Relationships ───────────────────────────────────────────────────────
 
     public function tenants(): BelongsToMany
@@ -88,6 +103,27 @@ class User extends Authenticatable implements FilamentUser, HasAvatar, HasTenant
     public function profile(): HasOne
     {
         return $this->hasOne(UserProfile::class)->withDefault();
+    }
+
+    /** Sus ingresos, salidas e intentos fallidos. */
+    public function loginLogs(): HasMany
+    {
+        return $this->hasMany(LoginLog::class);
+    }
+
+    /** Las veces que un superadministrador entró como esta persona. */
+    public function impersonationsReceived(): HasMany
+    {
+        return $this->hasMany(ImpersonationLog::class, 'impersonated_user_id');
+    }
+
+    /**
+     * Lo que se le cambió a la cuenta desde la plataforma. Solo eso: `User` no lleva el
+     * trait Auditable, que guardaría el hash de la contraseña y cada inicio de sesión.
+     */
+    public function accountChanges(): HasMany
+    {
+        return $this->hasMany(AuditLog::class, 'auditable_id')->where('auditable_type', self::class);
     }
 
     // ─── Scopes ──────────────────────────────────────────────────────────────

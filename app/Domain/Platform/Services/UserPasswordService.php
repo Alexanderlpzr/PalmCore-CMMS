@@ -68,7 +68,13 @@ class UserPasswordService
         ])->save();
     }
 
-    private function signOutEverywhere(User $user): void
+    /**
+     * Cierra todas sus sesiones del panel y revoca sus tokens de la app móvil.
+     *
+     * Público porque también se usa sin cambiar la contraseña: al desactivar una
+     * cuenta, al quitar la verificación en dos pasos, o a petición del superadministrador.
+     */
+    public function signOutEverywhere(User $user): void
     {
         if (config('session.driver') === 'database') {
             DB::table(config('session.table', 'sessions'))->where('user_id', $user->getKey())->delete();

@@ -81,7 +81,10 @@ it('encuentra las tablas del proyecto', function (): void {
     //
     // 77 con la pestaña «Documentos» de la ficha del trabajador, y 78 con Usuarios en
     // el panel de plataforma.
-    expect(tableFiles())->toHaveCount(78);
+    //
+    // 82 con las cuatro pestañas de la ficha de usuario en la plataforma: empresas y
+    // roles, ingresos, suplantaciones y cambios.
+    expect(tableFiles())->toHaveCount(82);
 });
 
 it('alinea a la derecha toda columna de dinero o cantidad', function (): void {

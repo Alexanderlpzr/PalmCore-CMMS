@@ -57,21 +57,7 @@ class UserForm
                 Section::make('Foto de perfil')
                     ->hiddenOn('create')
                     ->schema([
-                        FileUpload::make('avatar_path')
-                            ->label('Avatar')
-                            ->image()
-                            ->disk(persistent_disk())
-                            ->directory(fn (?User $record): string => 'avatars/'.($record?->id ?? 'temp'))
-                            ->visibility(persistent_disk() === 'public' ? 'public' : 'private')
-                            ->preventFilePathTampering()
-                            ->maxSize(5120)
-                            ->imageCropAspectRatio('1:1')
-                            ->imageResizeMode('cover')
-                            ->imageResizeTargetWidth('400')
-                            ->imageResizeTargetHeight('400')
-                            ->afterStateHydrated(function (FileUpload $component, ?User $record): void {
-                                $component->state($record?->profile?->avatar_path);
-                            }),
+                        self::avatarUpload(),
                     ]),
 
                 Section::make('Rol en el Tenant')
@@ -99,5 +85,28 @@ class UserForm
                             ->helperText('Los roles se aplican dentro del tenant actual'),
                     ]),
             ]);
+    }
+
+    /**
+     * La foto de perfil. La usan el panel de cada empresa y el de plataforma: es el
+     * mismo archivo en el mismo disco, y no debe poder configurarse distinto en uno.
+     */
+    public static function avatarUpload(): FileUpload
+    {
+        return FileUpload::make('avatar_path')
+            ->label('Avatar')
+            ->image()
+            ->disk(persistent_disk())
+            ->directory(fn (?User $record): string => 'avatars/'.($record?->id ?? 'temp'))
+            ->visibility(persistent_disk() === 'public' ? 'public' : 'private')
+            ->preventFilePathTampering()
+            ->maxSize(5120)
+            ->imageCropAspectRatio('1:1')
+            ->imageResizeMode('cover')
+            ->imageResizeTargetWidth('400')
+            ->imageResizeTargetHeight('400')
+            ->afterStateHydrated(function (FileUpload $component, ?User $record): void {
+                $component->state($record?->profile?->avatar_path);
+            });
     }
 }
