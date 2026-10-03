@@ -152,10 +152,11 @@ it('keeps every page closed to anyone who is not a super administrator', functio
 
     $this->actingAs($adminDeEmpresa);
 
-    $this->get(UserResource::getUrl('index'))->assertForbidden();
-    $this->get(UserResource::getUrl('create'))->assertForbidden();
-    $this->get(UserResource::getUrl('view', ['record' => $this->ana]))->assertForbidden();
-    $this->get(UserResource::getUrl('edit', ['record' => $this->ana]))->assertForbidden();
+    // No ve ninguna: lo manda a su propio panel (RedirectNonSuperAdminsToAdminPanel).
+    $this->get(UserResource::getUrl('index'))->assertRedirect(url('admin'));
+    $this->get(UserResource::getUrl('create'))->assertRedirect(url('admin'));
+    $this->get(UserResource::getUrl('view', ['record' => $this->ana]))->assertRedirect(url('admin'));
+    $this->get(UserResource::getUrl('edit', ['record' => $this->ana]))->assertRedirect(url('admin'));
 
     // Y el recurso no depende solo del middleware del panel.
     expect(UserResource::canView($this->ana))->toBeFalse()

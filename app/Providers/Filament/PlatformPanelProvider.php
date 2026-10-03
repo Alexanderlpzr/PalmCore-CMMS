@@ -7,6 +7,7 @@ use App\Filament\AvatarProviders\InitialsAvatarProvider;
 use App\Filament\Pages\Auth\Login;
 use App\Http\Middleware\EnsurePasswordIsChanged;
 use App\Http\Middleware\EnsureSuperAdmin;
+use App\Http\Middleware\RedirectNonSuperAdminsToAdminPanel;
 use App\Support\FrondaPalette;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -94,6 +95,9 @@ class PlatformPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
+                // Primero se manda a su panel a quien no es superadministrador;
+                // EnsureSuperAdmin queda detrás para todo lo que no sea abrir una página.
+                RedirectNonSuperAdminsToAdminPanel::class,
                 EnsureSuperAdmin::class,
                 EnsurePasswordIsChanged::class,
             ]);

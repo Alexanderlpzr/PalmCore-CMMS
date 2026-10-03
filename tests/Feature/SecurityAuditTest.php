@@ -40,12 +40,19 @@ function auditTenantUser(Tenant $tenant, array $attributes = []): array
 
 // ── 1. Tenant admin cannot access /platform ───────────────────────────────────
 
-it('returns 403 when a tenant admin tries to access the platform panel', function () {
+it('keeps a tenant admin out of the platform panel', function () {
     $tenant = Tenant::factory()->create();
     ['user' => $user] = auditTenantUser($tenant);
 
+    // Al abrir la página, a su propio panel en vez de un 403 en blanco
+    // (RedirectNonSuperAdminsToAdminPanel)...
     $this->actingAs($user)
         ->get('/platform')
+        ->assertRedirect(url('admin'));
+
+    // ...y todo lo que no sea abrir una página sigue topando con EnsureSuperAdmin.
+    $this->actingAs($user)
+        ->getJson('/platform')
         ->assertForbidden();
 });
 

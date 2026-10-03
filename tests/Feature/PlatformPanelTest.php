@@ -1,5 +1,6 @@
 <?php
 
+use App\Filament\Pages\Auth\Login;
 use App\Filament\Platform\Pages\BackupsPage;
 use App\Filament\Platform\Pages\GlobalLogsPage;
 use App\Filament\Platform\Pages\ObservabilityPage;
@@ -37,14 +38,44 @@ it('lets the super admin into the machine room', function (): void {
         ->assertSuccessful();
 });
 
-it('keeps a normal user out of the platform panel', function (): void {
+it('keeps a normal user out of the platform panel, sending them to their own', function (): void {
     $user = User::factory()->create(['is_active' => true, 'is_super_admin' => false]);
     $user->tenants()->attach($this->tenant->id, ['joined_at' => now()]);
 
-    // No es una pantalla más: desde aquí se ven los datos de todos los clientes.
+    // No es una pantalla más: desde aquí se ven los datos de todos los clientes. Antes
+    // recibía un 403 en blanco y se quedaba ahí; ahora va a su panel sin ver nada.
     $this->actingAs($user->fresh())
-        ->get('/platform')
+        ->get('/platform/platform-dashboard')
+        ->assertRedirect(url('admin'));
+
+    $this->get('/platform/tenants')->assertRedirect(url('admin'));
+});
+
+it('still answers 403 to anything but opening a page', function (): void {
+    // La redirección es solo para visitas; detrás sigue EnsureSuperAdmin.
+    $user = User::factory()->create(['is_active' => true, 'is_super_admin' => false]);
+    $user->tenants()->attach($this->tenant->id, ['joined_at' => now()]);
+
+    $this->actingAs($user->fresh())
+        ->getJson('/platform/tenants')
         ->assertForbidden();
+});
+
+it('sends a company admin who signs in on the platform login to their own panel', function (): void {
+    // El caso del 403: salir de la plataforma deja en su pantalla de entrada, y ahí
+    // entraba después el administrador de una empresa.
+    $user = User::factory()->create(['is_active' => true, 'is_super_admin' => false]);
+    $user->tenants()->attach($this->tenant->id, ['joined_at' => now()]);
+
+    Livewire::test(Login::class)
+        ->fillForm(['email' => $user->email, 'password' => 'password'])
+        ->call('authenticate')
+        ->assertHasNoFormErrors()
+        ->assertRedirect();
+
+    expect(auth()->id())->toBe($user->id);
+
+    $this->get('/platform/platform-dashboard')->assertRedirect(url('admin'));
 });
 
 // ── Dashboard ────────────────────────────────────────────────────────────────
