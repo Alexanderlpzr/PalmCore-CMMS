@@ -27,6 +27,23 @@ it('un login exitoso queda registrado con el usuario y la IP', function (): void
         ->and($log->ip_address)->not->toBeNull();
 });
 
+it('anota cada ingreso, salida e intento fallido una sola vez', function (): void {
+    // La prueba de arriba busca con first() y pasaba aunque hubiera dos filas. Hasta
+    // 2026-10 las había: el listener se registraba a mano y además lo descubría
+    // Laravel, y de 290 registros en producción solo 129 eran distintos.
+    $user = User::factory()->create();
+
+    $this->post(route('login.store'), ['email' => $user->email, 'password' => 'password']);
+    $this->post(route('logout'));
+    $this->post(route('login.store'), ['email' => $user->email, 'password' => 'otra-cosa']);
+
+    $eventos = LoginLog::where('email', $user->email)->pluck('event')
+        ->map(fn (LoginLogEvent $event): string => $event->value)
+        ->sort()->values()->all();
+
+    expect($eventos)->toBe(['failed', 'login', 'logout']);
+});
+
 it('un login exitoso actualiza last_login_at y last_login_ip del usuario', function (): void {
     $user = User::factory()->create(['last_login_at' => null]);
 

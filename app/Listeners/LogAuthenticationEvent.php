@@ -13,6 +13,11 @@ use Illuminate\Auth\Events\Logout;
  * desde qué IP. Escribe de forma síncrona, no encolada — un intento fallido
  * es justamente el tipo de evento que no puede perderse si el worker de colas
  * está caído.
+ *
+ * Laravel lo registra solo: descubre los métodos `handle*` de app/Listeners por el
+ * evento que reciben. **No registrarlo además a mano** con `Event::listen`. Hasta
+ * 2026-10 lo hacía AuditServiceProvider, y cada ingreso quedaba anotado dos veces:
+ * en producción, 290 filas para 145 eventos.
  */
 class LogAuthenticationEvent
 {

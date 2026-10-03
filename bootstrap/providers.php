@@ -1,7 +1,6 @@
 <?php
 
 use App\Providers\AppServiceProvider;
-use App\Providers\AuditServiceProvider;
 use App\Providers\Filament\AdminPanelProvider;
 use App\Providers\Filament\PlatformPanelProvider;
 use App\Providers\FortifyServiceProvider;
@@ -10,7 +9,6 @@ use App\Providers\TenancyServiceProvider;
 
 return [
     AppServiceProvider::class,
-    AuditServiceProvider::class,
     AdminPanelProvider::class,
     PlatformPanelProvider::class,
     FortifyServiceProvider::class,
