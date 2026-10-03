@@ -4,6 +4,7 @@ namespace App\Domain\HumanResources\Services;
 
 use App\Domain\HumanResources\Enums\AttendanceDirection;
 use App\Domain\HumanResources\Exceptions\AttendanceException;
+use App\Jobs\BuildAttendanceDaysJob;
 use App\Models\AttendanceScan;
 use App\Models\Employee;
 use App\Models\EmployeeQrCode;
@@ -41,7 +42,7 @@ class AttendanceService
      * entrada vieja se da por no cerrada —queda anotada para que el supervisor la
      * resuelva— y el escaneo nuevo vuelve a ser una entrada.
      */
-    private const MAX_OPEN_SHIFT_HOURS = 16;
+    public const MAX_OPEN_SHIFT_HOURS = 16;
 
     /**
      * Resuelve el carné. Solo trabajadores activos: el retirado conserva su historia pero
@@ -89,7 +90,8 @@ class AttendanceService
         $qrCode->loadMissing('employee');
 
         $employee = $qrCode->employee;
-        $at ??= now();
+        // En UTC siempre: Eloquent guarda la hora de pared sin convertirla.
+        $at = ($at ?? now())->copy()->utc();
 
         return DB::transaction(function () use ($qrCode, $employee, $recordedBy, $gate, $at, $source): AttendanceScan {
             $previous = $this->lastScanFor($employee, $at);
@@ -98,7 +100,9 @@ class AttendanceService
                 return $previous;
             }
 
-            [$direction, $note] = $this->inferDirection($previous, $at);
+            $timezone = $employee->tenant()->first()?->plantTimezone() ?? 'America/Bogota';
+
+            [$direction, $note] = $this->inferDirection($previous, $at, $timezone);
 
             $scan = AttendanceScan::create([
                 'tenant_id' => $employee->tenant_id,
@@ -114,6 +118,17 @@ class AttendanceService
 
             $qrCode->recordScan();
 
+            // La salida cierra un turno: sus horas se calculan en cola, sin hacer esperar
+            // a la puerta. El turno arrancó a lo sumo MAX_OPEN_SHIFT_HOURS antes.
+            if ($direction === AttendanceDirection::Salida) {
+                // Fechas en la hora de la planta, que es como cuenta los días el motor.
+                BuildAttendanceDaysJob::dispatch(
+                    $employee->id,
+                    $previous->scanned_at->copy()->setTimezone($timezone)->toDateString(),
+                    $at->copy()->setTimezone($timezone)->toDateString(),
+                )->afterCommit();
+            }
+
             return $scan;
         });
     }
@@ -123,7 +138,7 @@ class AttendanceService
      *
      * @return array{0: AttendanceDirection, 1: ?string}
      */
-    private function inferDirection(?AttendanceScan $previous, CarbonInterface $at): array
+    private function inferDirection(?AttendanceScan $previous, CarbonInterface $at, string $timezone): array
     {
         if (! $previous) {
             return [AttendanceDirection::Entrada, null];
@@ -140,7 +155,7 @@ class AttendanceService
                 AttendanceDirection::Entrada,
                 sprintf(
                     'Entrada nueva: la anterior del %s quedó sin salida (%d horas abiertas).',
-                    $previous->scanned_at->format('d/m/Y H:i'),
+                    $previous->scanned_at->copy()->setTimezone($timezone)->format('d/m/Y H:i'),
                     $openHours,
                 ),
             ];

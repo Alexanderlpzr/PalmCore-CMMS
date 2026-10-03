@@ -31,10 +31,11 @@ beforeEach(function (): void {
     Holiday::factory()->on('2026-08-17', 'Asunción de la Virgen')->create(['tenant_id' => $this->tenant->id]);
 });
 
+/** `$cuando` es la hora de la planta, como la lee el reloj de la puerta. */
 function marcar(Employee $employee, string $cuando, AttendanceDirection $sentido): AttendanceScan
 {
     return AttendanceScan::factory()->forEmployee($employee)->create([
-        'scanned_at' => Carbon::parse($cuando),
+        'scanned_at' => Carbon::parse($cuando, 'America/Bogota')->utc(),
         'direction' => $sentido,
     ]);
 }

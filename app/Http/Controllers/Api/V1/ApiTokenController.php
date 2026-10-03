@@ -7,6 +7,7 @@ use App\Http\Requests\Api\V1\CreateTokenRequest;
 use App\Models\PersonalAccessToken;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Support\MobileAppModes;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -45,7 +46,7 @@ class ApiTokenController extends Controller
             return response()->json(['message' => 'No tienes acceso a esta empresa.'], 403);
         }
 
-        $abilities = $request->abilities ?? ['work-orders.read', 'work-orders.write', 'equipment.read', 'maintenance-requests.read', 'maintenance-requests.write', 'inventory.read', 'plants.read', 'areas.read'];
+        $abilities = $request->abilities ?? MobileAppModes::TOKEN_ABILITIES;
 
         // Short-lived access token (1 hour) — stored in JS memory only
         $accessResult = $user->createToken(
@@ -78,7 +79,12 @@ class ApiTokenController extends Controller
             'abilities' => $abilities,
             'expires_at' => now()->addHour()->toISOString(),
             'tenant' => ['id' => $tenant->id, 'name' => $tenant->name],
-            'user' => ['id' => $user->id, 'name' => $user->name, 'is_super_admin' => (bool) $user->is_super_admin],
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'is_super_admin' => (bool) $user->is_super_admin,
+                'modes' => MobileAppModes::for($user, $tenant),
+            ],
         ], 201)->withCookie($refreshCookie);
     }
 
@@ -104,7 +110,8 @@ class ApiTokenController extends Controller
             ->map(fn (PersonalAccessToken $token) => [
                 'id' => $token->id,
                 'name' => $token->name,
-                'abilities' => json_decode($token->abilities ?? '["*"]', true),
+                // Ya llega como arreglo (cast `json`): el json_decode() de antes reventaba.
+                'abilities' => $token->abilities ?? ['*'],
                 'last_used_at' => $token->last_used_at?->toISOString(),
                 'expires_at' => $token->expires_at?->toISOString(),
                 'created_at' => $token->created_at->toISOString(),

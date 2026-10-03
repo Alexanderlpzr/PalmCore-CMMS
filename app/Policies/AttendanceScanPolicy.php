@@ -36,6 +36,15 @@ class AttendanceScanPolicy
         return $user->is_super_admin || $user->hasPermissionTo('attendance.record');
     }
 
+    /**
+     * Agregar la marca que faltó o anular la que sobró, con su motivo. Es de quien firma
+     * las horas, no de portería: corregir la puerta es decidir qué se paga.
+     */
+    public function correct(User $user): bool
+    {
+        return $user->is_super_admin || $user->hasPermissionTo('attendance.confirm');
+    }
+
     public function update(User $user, AttendanceScan $scan): bool
     {
         return false;

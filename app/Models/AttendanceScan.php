@@ -16,8 +16,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * Una marca de portería: esta persona cruzó la puerta a esta hora, en este sentido.
  *
  * Sin `SoftDeletes` a propósito, igual que `WorkOrderTimeLog`: es la prueba de a qué
- * hora entró alguien a la planta y de ahí sale lo que se le paga. Una marca equivocada
- * se corrige con otra marca manual que deja rastro, nunca borrando la anterior.
+ * hora entró alguien a la planta y de ahí sale lo que se le paga. Una marca que falta se
+ * agrega a mano; una equivocada se anula con su motivo. Ninguna se borra.
+ *
+ * Las anuladas no cuentan en ninguna parte: las excluye el alcance global
+ * {@see self::VALID_SCOPE}. Solo el historial de marcas las pide de vuelta.
  */
 #[Fillable([
     'tenant_id',
@@ -29,6 +32,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'recorded_by',
     'gate',
     'notes',
+    'voided_at',
+    'voided_by',
+    'void_reason',
 ])]
 class AttendanceScan extends Model
 {
@@ -40,6 +46,13 @@ class AttendanceScan extends Model
     use HasUuids;
 
     protected $table = 'hr_attendance_scans';
+
+    public const VALID_SCOPE = 'notVoided';
+
+    protected static function booted(): void
+    {
+        static::addGlobalScope(self::VALID_SCOPE, fn (Builder $query) => $query->whereNull('voided_at'));
+    }
 
     // ── Relationships ─────────────────────────────────────────────────────────
 
@@ -58,6 +71,11 @@ class AttendanceScan extends Model
         return $this->belongsTo(User::class, 'recorded_by');
     }
 
+    public function voidedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'voided_by');
+    }
+
     // ── Scopes ────────────────────────────────────────────────────────────────
 
     public function scopeOn(Builder $query, string $date): Builder
@@ -72,12 +90,18 @@ class AttendanceScan extends Model
         return $this->direction === AttendanceDirection::Entrada;
     }
 
+    public function isVoided(): bool
+    {
+        return $this->voided_at !== null;
+    }
+
     // ── Casts ─────────────────────────────────────────────────────────────────
 
     protected function casts(): array
     {
         return [
             'scanned_at' => 'datetime',
+            'voided_at' => 'datetime',
             'direction' => AttendanceDirection::class,
         ];
     }

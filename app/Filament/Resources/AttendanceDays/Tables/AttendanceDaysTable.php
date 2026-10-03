@@ -4,6 +4,7 @@ namespace App\Filament\Resources\AttendanceDays\Tables;
 
 use App\Domain\HumanResources\Enums\AttendanceDayStatus;
 use App\Domain\HumanResources\Services\AttendanceDayConfirmer;
+use App\Filament\Resources\AttendanceScans\AttendanceMarkActions;
 use App\Models\AttendanceDay;
 use App\Models\Employee;
 use Filament\Actions\Action;
@@ -17,6 +18,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Carbon;
 
 class AttendanceDaysTable
 {
@@ -127,6 +129,15 @@ class AttendanceDaysTable
 
                         Notification::make()->title('Horas confirmadas')->success()->send();
                     }),
+
+                // Corregir desde aquí lo que avisa la anomalía: la salida que faltó.
+                AttendanceMarkActions::add('agregarMarcaDelDia')
+                    ->visible(fn (AttendanceDay $record): bool => $record->status === AttendanceDayStatus::Propuesta)
+                    ->fillForm(fn (AttendanceDay $record): array => [
+                        'employee_id' => $record->employee_id,
+                        // Las 2 p. m. de ese día en la planta; el selector guarda en UTC.
+                        'scanned_at' => Carbon::parse($record->work_date->format('Y-m-d').' 14:00', AttendanceMarkActions::timezone())->utc()->toDateTimeString(),
+                    ]),
 
                 Action::make('reabrir')
                     ->label('Reabrir')

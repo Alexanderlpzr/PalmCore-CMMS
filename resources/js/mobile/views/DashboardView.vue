@@ -11,6 +11,29 @@
                 <p class="text-xs text-zinc-400 mt-0.5">{{ auth.userEmail }}</p>
             </div>
 
+            <!-- Portería: para quien también marca en la puerta -->
+            <RouterLink
+                v-if="auth.modes.gate"
+                to="/mobile/porteria"
+                class="flex items-center justify-between bg-zinc-900 border border-zinc-800 rounded-2xl p-5 hover:border-zinc-700 transition"
+            >
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                        <svg class="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                  d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 3.75 9.375v-4.5ZM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 0 1-1.125-1.125v-4.5ZM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 13.5 9.375v-4.5Z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-zinc-100">Portería</p>
+                        <p class="text-sm text-zinc-400">Marcar entradas y salidas</p>
+                    </div>
+                </div>
+                <svg class="w-5 h-5 text-zinc-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m9 5 7 7-7 7"/>
+                </svg>
+            </RouterLink>
+
             <!-- Quick action: Mis OTs -->
             <RouterLink
                 to="/mobile/work-orders"

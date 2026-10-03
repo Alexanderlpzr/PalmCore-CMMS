@@ -97,7 +97,7 @@ async function submit() {
     errorMessage.value = ''
     try {
         await auth.login(form.email, form.password, form.tenantSlug)
-        router.push({ name: 'dashboard' })
+        router.push({ name: auth.homeRoute })
     } catch (e) {
         errorMessage.value = e.message
     } finally {

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\PersonalAccessToken;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Support\MobileAppModes;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
@@ -72,7 +73,9 @@ class TokenRefreshController extends Controller
 
         $accessResult = $user->createToken(
             'Fronda Mobile',
-            ['work-orders.read', 'work-orders.write', 'equipment.read', 'maintenance-requests.read', 'maintenance-requests.write', 'inventory.read', 'plants.read', 'areas.read', 'reliability.read'],
+            // Las mismas que pide la app al entrar: sin las de asistencia, el vigilante
+            // perdía la portería a la hora de haber iniciado sesión.
+            MobileAppModes::TOKEN_ABILITIES,
             now()->addHour(),
         );
         $accessResult->accessToken->forceFill(['tenant_id' => $tenant->id])->save();
@@ -81,7 +84,12 @@ class TokenRefreshController extends Controller
             'token' => $accessResult->plainTextToken,
             'expires_at' => now()->addHour()->toISOString(),
             'tenant' => ['id' => $tenant->id, 'name' => $tenant->name],
-            'user' => ['id' => $user->id, 'name' => $user->name, 'is_super_admin' => (bool) $user->is_super_admin],
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'is_super_admin' => (bool) $user->is_super_admin,
+                'modes' => MobileAppModes::for($user, $tenant),
+            ],
         ]);
     }
 

@@ -15,4 +15,19 @@ class AttendanceException extends RuntimeException
     {
         return new self(sprintf('%s figura como %s y no puede marcar.', $name, mb_strtolower($status)));
     }
+
+    public static function dayAlreadyConfirmed(string $date): self
+    {
+        return new self(sprintf('El %s ya está confirmado: reábrelo en «Horas por confirmar» antes de corregir sus marcas.', $date));
+    }
+
+    public static function alreadyVoided(): self
+    {
+        return new self('Esa marca ya estaba anulada.');
+    }
+
+    public static function markInTheFuture(): self
+    {
+        return new self('La marca no puede quedar con una hora que todavía no ha pasado.');
+    }
 }

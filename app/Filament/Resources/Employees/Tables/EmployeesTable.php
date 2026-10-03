@@ -23,6 +23,8 @@ use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class EmployeesTable
 {
@@ -202,6 +204,31 @@ class EmployeesTable
             ])
             ->recordActions([
                 EditAction::make(),
+
+                // La imagen del QR, para pegarla en el carné que ya usa la empresa.
+                Action::make('descargarQr')
+                    ->label('Descargar QR')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->color('gray')
+                    ->authorize(fn (Employee $record): bool => auth()->user()?->can('manageQrCode', $record) ?? false)
+                    ->visible(fn (Employee $record): bool => $record->qrCode !== null)
+                    ->action(function (Employee $record) {
+                        $qrCode = $record->qrCode;
+                        $disk = Storage::disk(persistent_disk());
+
+                        // Si la imagen se perdió del disco, se vuelve a dibujar del mismo
+                        // token: el carné impreso sigue sirviendo.
+                        if (! $qrCode->qr_image_path || ! $disk->exists($qrCode->qr_image_path)) {
+                            $qrCode->update([
+                                'qr_image_path' => app(EmployeeQrCodeService::class)->generateImage($qrCode->qr_token, $record->tenant_id),
+                            ]);
+                        }
+
+                        return $disk->download(
+                            $qrCode->qr_image_path,
+                            Str::slug(trim(($record->employee_code ?? '').' '.$record->fullName())).'-qr.png',
+                        );
+                    }),
 
                 Action::make('reemitirCarne')
                     ->label('Reemitir carné')

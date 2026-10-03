@@ -7,6 +7,7 @@ use App\Domain\HumanResources\Services\AttendanceService;
 use App\Http\Controllers\Controller;
 use App\Infrastructure\Tenancy\CurrentTenant;
 use App\Models\AttendanceScan;
+use App\Models\Tenant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -102,10 +103,13 @@ class AttendanceScanController extends Controller
             'date' => ['nullable', 'date'],
         ]);
 
-        $date = isset($data['date']) ? Carbon::parse($data['date']) : now();
+        // El día de la planta, no el de UTC: a las ocho de la noche en Colombia ya es
+        // mañana en UTC, y las marcas del cambio de turno saltaban al día siguiente.
+        $timezone = Tenant::query()->whereKey(CurrentTenant::id())->first()?->plantTimezone() ?? 'America/Bogota';
+        $date = isset($data['date']) ? Carbon::parse($data['date'], $timezone) : now($timezone);
 
         $scans = AttendanceScan::query()
-            ->on($date->toDateString())
+            ->whereBetween('scanned_at', [$date->copy()->startOfDay()->utc(), $date->copy()->endOfDay()->utc()])
             ->with('employee:id,first_name,last_name,document_number,position')
             ->orderByDesc('scanned_at')
             ->limit(200)
@@ -120,6 +124,8 @@ class AttendanceScanController extends Controller
                 'direction_label' => $scan->direction->label(),
                 'scanned_at' => $scan->scanned_at->toIso8601String(),
                 'gate' => $scan->gate,
+                'source' => $scan->source,
+                'notice' => $scan->notes,
             ])->all(),
         ]);
     }

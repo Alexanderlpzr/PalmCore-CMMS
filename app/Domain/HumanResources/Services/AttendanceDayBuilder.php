@@ -10,6 +10,7 @@ use App\Models\AttendanceDay;
 use App\Models\AttendanceScan;
 use App\Models\Employee;
 use App\Models\Holiday;
+use App\Models\Tenant;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
@@ -50,8 +51,11 @@ class AttendanceDayBuilder
      */
     public function buildForEmployee(Employee $employee, CarbonInterface $from, CarbonInterface $to): Collection
     {
-        $from = CarbonImmutable::instance($from)->startOfDay();
-        $to = CarbonImmutable::instance($to)->endOfDay();
+        // Los días se cuentan en la hora de la planta, no en la UTC con que se guardan las
+        // marcas: si no, la ventana nocturna y la medianoche quedan corridas cinco horas.
+        $timezone = $this->plantTimezone($employee);
+        $from = CarbonImmutable::parse(CarbonImmutable::instance($from)->toDateString(), $timezone)->startOfDay();
+        $to = CarbonImmutable::parse(CarbonImmutable::instance($to)->toDateString(), $timezone)->endOfDay();
 
         $config = $this->resolveConfig($employee->tenant_id, $from);
         $surchargedDays = $this->surchargedDayResolver($employee->tenant_id, $from, $to);
@@ -59,11 +63,11 @@ class AttendanceDayBuilder
         $scans = AttendanceScan::query()
             ->forTenant($employee->tenant_id)
             ->where('employee_id', $employee->id)
-            ->whereBetween('scanned_at', [$from->subDays(self::LOOKBACK_DAYS), $to])
+            ->whereBetween('scanned_at', [$from->subDays(self::LOOKBACK_DAYS)->utc(), $to->utc()])
             ->orderBy('scanned_at')
             ->get();
 
-        [$sessionsByDate, $openEntries] = $this->pairIntoSessions($scans);
+        [$sessionsByDate, $openEntries] = $this->pairIntoSessions($scans, $timezone);
 
         $built = collect();
 
@@ -133,8 +137,9 @@ class AttendanceDayBuilder
      *
      * @return array{0: array<string, array<int, array{0: CarbonImmutable, 1: CarbonImmutable}>>, 1: array<string, string>}
      */
-    private function pairIntoSessions(Collection $scans): array
+    private function pairIntoSessions(Collection $scans, string $timezone): array
     {
+        $local = fn (AttendanceScan $scan): CarbonImmutable => CarbonImmutable::instance($scan->scanned_at)->setTimezone($timezone);
         $sessionsByDate = [];
         $openEntries = [];
         $openScan = null;
@@ -144,8 +149,8 @@ class AttendanceDayBuilder
                 if ($openScan) {
                     // Dos entradas seguidas: la primera nunca se cerró. `AttendanceService`
                     // ya lo anota en la marca; aquí se traduce en un día sin horas.
-                    $openEntries[$openScan->scanned_at->toDateString()] = $openScan->scanned_at->format('d/m/Y H:i');
-                    $sessionsByDate[$openScan->scanned_at->toDateString()] ??= [];
+                    $openEntries[$local($openScan)->toDateString()] = $local($openScan)->format('d/m/Y H:i');
+                    $sessionsByDate[$local($openScan)->toDateString()] ??= [];
                 }
 
                 $openScan = $scan;
@@ -158,18 +163,15 @@ class AttendanceDayBuilder
                 continue;
             }
 
-            $date = $openScan->scanned_at->toDateString();
-            $sessionsByDate[$date][] = [
-                CarbonImmutable::instance($openScan->scanned_at),
-                CarbonImmutable::instance($scan->scanned_at),
-            ];
+            $date = $local($openScan)->toDateString();
+            $sessionsByDate[$date][] = [$local($openScan), $local($scan)];
 
             $openScan = null;
         }
 
         if ($openScan) {
-            $date = $openScan->scanned_at->toDateString();
-            $openEntries[$date] = $openScan->scanned_at->format('d/m/Y H:i');
+            $date = $local($openScan)->toDateString();
+            $openEntries[$date] = $local($openScan)->format('d/m/Y H:i');
             $sessionsByDate[$date] ??= [];
         }
 
@@ -269,6 +271,11 @@ class AttendanceDayBuilder
     }
 
     /** @return array{nightStart: float, nightEnd: float, ordinaryPerDay: float, maxOvertimeDay: float} */
+    private function plantTimezone(Employee $employee): string
+    {
+        return Tenant::query()->whereKey($employee->tenant_id)->first()?->plantTimezone() ?? 'America/Bogota';
+    }
+
     private function resolveConfig(string $tenantId, CarbonImmutable $on): array
     {
         return [

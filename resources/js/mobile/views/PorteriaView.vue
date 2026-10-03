@@ -1,5 +1,5 @@
 <template>
-    <AppLayout title="Portería" show-back>
+    <AppLayout title="Portería" :show-back="auth.modes.maintenance">
         <div class="flex flex-col px-4 py-4 space-y-4">
 
             <!--
@@ -69,11 +69,35 @@
                 </button>
             </div>
 
-            <!-- Lo del día, para confirmar que quedó registrado -->
-            <div v-if="delDia.length" class="space-y-2">
-                <p class="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                    Hoy · {{ delDia.length }} marcas
-                </p>
+            <!-- Las marcas del día, y de los anteriores con las flechas -->
+            <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                    <button
+                        type="button"
+                        class="p-2 -ml-2 rounded-xl text-zinc-400 hover:bg-zinc-800"
+                        aria-label="Día anterior"
+                        @click="moverDia(-1)"
+                    >
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+                        </svg>
+                    </button>
+                    <p class="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                        {{ etiquetaDia }} · {{ delDia.length }} {{ delDia.length === 1 ? 'marca' : 'marcas' }}
+                    </p>
+                    <button
+                        type="button"
+                        class="p-2 -mr-2 rounded-xl text-zinc-400 hover:bg-zinc-800 disabled:opacity-30"
+                        aria-label="Día siguiente"
+                        :disabled="esHoy"
+                        @click="moverDia(1)"
+                    >
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m9 5 7 7-7 7"/>
+                        </svg>
+                    </button>
+                </div>
+                <p v-if="!delDia.length" class="text-sm text-zinc-500 text-center py-4">Sin marcas ese día.</p>
                 <div
                     v-for="marca in delDia"
                     :key="marca.scan_id"
@@ -100,12 +124,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { Html5Qrcode } from 'html5-qrcode'
 import AppLayout from '../components/AppLayout.vue'
 import { useApi } from '../composables/useApi.js'
+import { useAuthStore } from '../stores/auth.js'
 
 const api = useApi()
+const auth = useAuthStore()
 
 const cameraError = ref(null)
 const tokenManual = ref('')
@@ -113,6 +139,26 @@ const enviando = ref(false)
 const errorMarca = ref(null)
 const ultimo = ref(null)
 const delDia = ref([])
+
+// El día que se está mirando, en la hora de la planta (AAAA-MM-DD).
+const fecha = ref(hoy())
+const esHoy = computed(() => fecha.value === hoy())
+const etiquetaDia = computed(() => (esHoy.value
+    ? 'Hoy'
+    : new Date(`${fecha.value}T12:00:00`).toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' })))
+
+function hoy() {
+    return new Date().toLocaleDateString('en-CA')
+}
+
+async function moverDia(dias) {
+    const d = new Date(`${fecha.value}T12:00:00`)
+    d.setDate(d.getDate() + dias)
+    const nueva = d.toLocaleDateString('en-CA')
+    if (nueva > hoy()) return
+    fecha.value = nueva
+    await cargarDelDia()
+}
 
 // El carné lleva un UUID v4 pelado, no una URL: si alguien lo fotografía en la puerta,
 // no abre nada.
@@ -191,6 +237,8 @@ async function marcar(token, source = 'qr') {
     try {
         const respuesta = await api.post('attendance/scan', { qr_token: token, source })
         ultimo.value = respuesta.data
+        // Lo que se acaba de marcar es de hoy: vuelve a hoy para verlo en la lista.
+        fecha.value = hoy()
         await cargarDelDia()
     } catch (e) {
         ultimo.value = null
@@ -202,7 +250,7 @@ async function marcar(token, source = 'qr') {
 
 async function cargarDelDia() {
     try {
-        const respuesta = await api.get('attendance/scans')
+        const respuesta = await api.get(`attendance/scans?date=${fecha.value}`)
         delDia.value = respuesta.data
     } catch (_) {
         // La lista es una confirmación, no la función: si falla, marcar sigue sirviendo.

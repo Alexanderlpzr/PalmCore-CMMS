@@ -84,7 +84,9 @@ it('encuentra las tablas del proyecto', function (): void {
     //
     // 82 con las cuatro pestañas de la ficha de usuario en la plataforma: empresas y
     // roles, ingresos, suplantaciones y cambios.
-    expect(tableFiles())->toHaveCount(82);
+    //
+    // 83 con «Marcas de portería», el historial de la puerta en Talento Humano.
+    expect(tableFiles())->toHaveCount(83);
 });
 
 it('alinea a la derecha toda columna de dinero o cantidad', function (): void {

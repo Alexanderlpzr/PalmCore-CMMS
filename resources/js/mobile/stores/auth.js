@@ -10,6 +10,26 @@ export const useAuthStore = defineStore('auth', () => {
     const tenantName = ref(localStorage.getItem('fronda_tenant_name') ?? null)
     const userEmail = ref(localStorage.getItem('fronda_user_email') ?? null)
     const userName = ref(localStorage.getItem('fronda_user_name') ?? null)
+    // Qué partes de la app le tocan: el vigilante solo ve la portería. Lo decide el
+    // servidor al entrar y al renovar; aquí solo se guarda para enrutar.
+    const modes = ref(readModes())
+
+    function readModes() {
+        try {
+            return JSON.parse(localStorage.getItem('fronda_user_modes')) ?? { maintenance: true, gate: false }
+        } catch {
+            return { maintenance: true, gate: false }
+        }
+    }
+
+    function setModes(value) {
+        if (!value) return
+        modes.value = { maintenance: !!value.maintenance, gate: !!value.gate }
+        localStorage.setItem('fronda_user_modes', JSON.stringify(modes.value))
+    }
+
+    /** La pantalla de inicio de cada quien. */
+    const homeRoute = computed(() => (!modes.value.maintenance && modes.value.gate ? 'porteria' : 'dashboard'))
 
     const isAuthenticated = computed(() => token.value !== null)
 
@@ -23,7 +43,8 @@ export const useAuthStore = defineStore('auth', () => {
                 password,
                 tenant_slug: tenantSlug,
                 token_name: 'Fronda Mobile',
-                abilities: ['work-orders.read', 'work-orders.write', 'equipment.read', 'maintenance-requests.read', 'maintenance-requests.write', 'inventory.read', 'plants.read', 'areas.read'],
+                // Sin `abilities`: el servidor da las de mantenimiento y las de portería, y
+                // los permisos del rol deciden qué se puede hacer de verdad.
             }),
         })
 
@@ -38,6 +59,7 @@ export const useAuthStore = defineStore('auth', () => {
         tenantName.value = data.tenant?.name ?? tenantSlug
         userEmail.value = email
         userName.value = data.user?.name ?? null
+        setModes(data.user?.modes)
 
         // Persist only non-sensitive display data
         localStorage.setItem('fronda_tenant_name', tenantName.value)
@@ -79,6 +101,7 @@ export const useAuthStore = defineStore('auth', () => {
                 userName.value = data.user.name
                 localStorage.setItem('fronda_user_name', data.user.name)
             }
+            setModes(data.user?.modes)
             return true
         } catch {
             return false
@@ -109,7 +132,9 @@ export const useAuthStore = defineStore('auth', () => {
         localStorage.removeItem('fronda_tenant_name')
         localStorage.removeItem('fronda_user_email')
         localStorage.removeItem('fronda_user_name')
+        localStorage.removeItem('fronda_user_modes')
+        modes.value = { maintenance: true, gate: false }
     }
 
-    return { token, tenantName, userEmail, userName, isAuthenticated, login, logout, restoreSession }
+    return { token, tenantName, userEmail, userName, modes, homeRoute, isAuthenticated, login, logout, restoreSession }
 })

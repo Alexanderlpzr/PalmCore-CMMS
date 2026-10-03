@@ -80,12 +80,14 @@ it('talento humano solo entra a las pantallas de Talento Humano', function (): v
     expect($outside)->toBe([]);
 });
 
-it('talento humano sí entra a sus seis pantallas', function (): void {
+it('talento humano sí entra a sus siete pantallas', function (): void {
     actingWithTenantRole('talento-humano', $this->tenant);
 
     $hr = array_filter(accessibleNavigationGroups(), fn (string $screen): bool => str_starts_with($screen, 'Talento Humano / '));
 
-    expect($hr)->toHaveCount(6);
+    // La séptima, desde 2026-10: «Marcas de portería», el historial de la puerta.
+    expect($hr)->toHaveCount(7)
+        ->and($hr)->toContain('Talento Humano / AttendanceScanResource');
 });
 
 it('el administrador no entra a ninguna pantalla de Talento Humano', function (): void {

@@ -82,6 +82,25 @@ class Tenant extends Model
         return $stored;
     }
 
+    /**
+     * La hora de la planta. La aplicación guarda y calcula en UTC; lo que se paga —la
+     * ventana nocturna, la medianoche que parte el turno, el domingo— se mide en la hora
+     * local de la planta.
+     *
+     * Vacía o «UTC» cuenta como Colombia: «UTC» fue el valor por omisión del formulario
+     * hasta 2026-10, y ninguna planta trabaja en esa hora.
+     */
+    public function plantTimezone(): string
+    {
+        $timezone = $this->timezone;
+
+        if (blank($timezone) || strtoupper($timezone) === 'UTC' || ! in_array($timezone, timezone_identifiers_list(), true)) {
+            return 'America/Bogota';
+        }
+
+        return $timezone;
+    }
+
     /** Days until the subscription expires (negative when already expired). */
     public function daysUntilExpiry(): ?int
     {
