@@ -35,6 +35,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::view('dashboard', 'dashboard')->name('dashboard');
 });
 
+// El registro público está cerrado (config/fortify.php): las cuentas las crea un
+// administrador. Quien llegue a /register por un enlace viejo cae en el login; solo GET,
+// así que ya no hay por dónde crear una cuenta desde fuera.
+Route::get('/register', fn () => redirect()->route('filament.admin.auth.login'));
+
 // Super Admin impersonation (session-based, CSRF-protected via the web group).
 // Authorization is enforced inside ImpersonationService.
 Route::middleware('auth')->group(function () {

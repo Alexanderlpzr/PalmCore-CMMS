@@ -159,8 +159,11 @@ return [
     |
     */
 
+    // Sin `Features::registration()`: las cuentas las crea un administrador —desde la
+    // plataforma o desde el panel de su empresa—. Estuvo activo hasta 2026-10: la
+    // pantalla redirigía al login, pero el POST /register seguía creando cuentas sin
+    // empresa a quien lo enviara.
     'features' => [
-        Features::registration(),
         Features::resetPasswords(),
         Features::emailVerification(),
         Features::passkeys([

@@ -1,29 +1,31 @@
 <?php
 
-use Laravel\Fortify\Features;
+use App\Models\User;
 
-beforeEach(function () {
-    $this->skipUnlessFortifyHas(Features::registration());
-});
+/*
+ * El registro público está cerrado: las cuentas las crea un administrador, desde la
+ * plataforma o desde el panel de su empresa.
+ *
+ * Hasta 2026-10 esta prueba comprobaba lo contrario —«new users can register»—, aunque
+ * su propio comentario decía que no debía haber registro público. La pantalla redirigía
+ * al login, pero el POST seguía creando cuentas sin empresa a quien lo enviara.
+ */
 
-test('registration screen redirects to the real product login', function () {
-    // Sin registro público real: las cuentas las crea un administrador desde Filament.
-    // La pantalla de registro del scaffold de Livewire/Flux no debe quedar huérfana.
-    $response = $this->get(route('register'));
-
-    $response->assertRedirect(route('filament.admin.auth.login'));
-});
-
-test('new users can register', function () {
-    $response = $this->post(route('register.store'), [
-        'name' => 'John Doe',
-        'email' => 'test@example.com',
-        'password' => 'password',
-        'password_confirmation' => 'password',
+test('nobody can create an account from outside', function () {
+    $response = $this->post('/register', [
+        'name' => 'Alguien de Fuera',
+        'email' => 'intruso@example.com',
+        'password' => 'password-123',
+        'password_confirmation' => 'password-123',
     ]);
 
-    $response->assertSessionHasNoErrors()
-        ->assertRedirect(route('dashboard', absolute: false));
+    // GET existe para los enlaces viejos; POST no.
+    expect($response->status())->toBeIn([404, 405]);
 
-    $this->assertAuthenticated();
+    $this->assertGuest();
+    expect(User::where('email', 'intruso@example.com')->exists())->toBeFalse();
+});
+
+test('the old registration address takes you to the login', function () {
+    $this->get('/register')->assertRedirect(route('filament.admin.auth.login'));
 });
