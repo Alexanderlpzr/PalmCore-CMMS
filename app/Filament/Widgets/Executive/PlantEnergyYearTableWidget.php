@@ -178,21 +178,31 @@ class PlantEnergyYearTableWidget extends Widget implements HasActions, HasSchema
             ->orderBy('sort_order')
             ->get();
 
-        $serie = app(EnergyMeterReadingService::class)->monthReadings(
-            $meters,
-            Carbon::create($this->selectedYear(), $month, 1),
-        );
+        $inicio = Carbon::create($this->selectedYear(), $month, 1);
+
+        $serie = app(EnergyMeterReadingService::class)->monthReadings($meters, $inicio);
+
+        // Los tres renglones de la planta eléctrica, día por día, y su total con el mismo
+        // cálculo que la fila del mes: el detalle tiene que sumar lo que dice la fila.
+        $kpis = app(PlantKpiService::class);
+        $plantaPorDia = $kpis->powerPlantDaily($plant, $inicio->copy()->startOfMonth(), $inicio->copy()->endOfMonth());
 
         // Un mes pasado siempre trae sus treinta y un días, tenga lecturas o no. Sin esta
         // comprobación, abrir un mes vacío pintaba treinta y una filas de guiones en vez
         // de decir que no hay nada que ver.
-        $hayLecturas = collect($serie['days'])->contains(
+        $hayLecturas = $plantaPorDia !== [] || collect($serie['days'])->contains(
             fn (array $day): bool => collect($day['cells'])->contains(
                 fn (array $cell): bool => $cell['accumulated'] !== null,
             ),
         );
 
-        return ['meters' => $meters, 'has_readings' => $hayLecturas, ...$serie];
+        return [
+            'meters' => $meters,
+            'has_readings' => $hayLecturas,
+            ...$serie,
+            'power_plant' => $plantaPorDia,
+            'power_plant_totals' => $kpis->powerPlantSummary($plant, $inicio->copy()->startOfMonth(), $inicio->copy()->endOfMonth()),
+        ];
     }
 
     // ── Corregir un mes ───────────────────────────────────────────────────────

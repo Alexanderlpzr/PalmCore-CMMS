@@ -626,6 +626,56 @@ class PlantKpiService
     }
 
     /**
+     * Los tres renglones de la planta eléctrica, día por día.
+     *
+     * Las mismas reglas que {@see self::powerPlantSummary()}, partidas por fecha, para que
+     * el detalle de un mes sume exactamente lo que dice su fila: las horas son el avance
+     * del horómetro ese día (la primera lectura, sin anterior, no cuenta) y los galones y
+     * cambios, lo anotado. Un día sin nada no aparece: vacío y no cero.
+     *
+     * @return array<string, array{genset_hours: ?float, genset_fuel_gallons: ?float, energy_switch_count: ?int}>
+     */
+    public function powerPlantDaily(Plant $plant, CarbonInterface $from, CarbonInterface $to): array
+    {
+        $dias = [];
+        $vacio = ['genset_hours' => null, 'genset_fuel_gallons' => null, 'energy_switch_count' => null];
+
+        EquipmentMeterReading::withoutGlobalScopes()
+            ->whereIn('equipment_id', Equipment::withoutGlobalScopes()
+                ->where('plant_id', $plant->id)
+                ->where('counts_as_power_plant', true)
+                ->select('id'))
+            ->whereBetween('recorded_at', [
+                Carbon::parse($from)->startOfDay(),
+                Carbon::parse($to)->endOfDay(),
+            ])
+            ->whereNotNull('previous_value')
+            ->get(['recorded_at', 'delta'])
+            ->groupBy(fn (EquipmentMeterReading $lectura): string => $lectura->recorded_at->toDateString())
+            ->each(function ($lecturas, string $fecha) use (&$dias, $vacio): void {
+                $dias[$fecha] = [...($dias[$fecha] ?? $vacio), 'genset_hours' => round((float) $lecturas->sum('delta'), 1)];
+            });
+
+        PlantEnergyDailyLog::withoutGlobalScopes()
+            ->where('plant_id', $plant->id)
+            ->whereBetween('log_date', [$from->toDateString(), $to->toDateString()])
+            ->get(['log_date', 'fuel_gallons', 'energy_switch_count'])
+            ->each(function (PlantEnergyDailyLog $registro) use (&$dias, $vacio): void {
+                $fecha = $registro->log_date->toDateString();
+
+                $dias[$fecha] = [
+                    ...($dias[$fecha] ?? $vacio),
+                    'genset_fuel_gallons' => $registro->fuel_gallons === null ? null : round((float) $registro->fuel_gallons, 1),
+                    'energy_switch_count' => $registro->energy_switch_count === null ? null : (int) $registro->energy_switch_count,
+                ];
+            });
+
+        ksort($dias);
+
+        return $dias;
+    }
+
+    /**
      * Los kWh del período, separados por fuente.
      *
      * `null` —no cero— cuando un contador no tiene ni una lectura en el rango: cero kWh

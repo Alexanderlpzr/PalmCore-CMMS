@@ -2,10 +2,13 @@
 
 use App\Domain\Analytics\Services\PlantKpiService;
 use App\Domain\Energy\Services\EnergyMeterReadingService;
+use App\Domain\Maintenance\Services\EquipmentMeterReadingService;
 use App\Filament\Pages\ConsumoDeEnergia;
 use App\Filament\Widgets\Executive\PlantEnergyYearTableWidget;
 use App\Models\EnergyMeter;
+use App\Models\Equipment;
 use App\Models\Plant;
+use App\Models\PlantEnergyDailyLog;
 use App\Models\PlantMonthlyKpi;
 use App\Models\ProductionCalendarDay;
 use App\Models\Tenant;
@@ -474,4 +477,91 @@ it('dice que el mes no tiene días en vez de abrir una tabla vacía', function (
     ])
         ->call('toggleMonth', 3)
         ->assertSee('no tiene ningún día registrado');
+});
+
+// ── La planta eléctrica en el detalle del mes ───────────────────────────────
+
+/** Un generador que cuenta como planta eléctrica, con dos lecturas de horómetro. */
+function generadorConHoras(Plant $plant, User $user, array $lecturas): Equipment
+{
+    $generador = Equipment::factory()->create([
+        'tenant_id' => $plant->tenant_id,
+        'plant_id' => $plant->id,
+        'name' => 'Planta eléctrica',
+        'counts_as_power_plant' => true,
+    ]);
+
+    foreach ($lecturas as $cuando => $valor) {
+        app(EquipmentMeterReadingService::class)->record(
+            equipment: $generador->refresh(),
+            readingValue: $valor,
+            recordedBy: $user,
+            recordedAt: Carbon::parse($cuando),
+        );
+    }
+
+    return $generador;
+}
+
+it('names the switches column «cambios de energía» in the year table', function (): void {
+    Livewire::test(PlantEnergyYearTableWidget::class, [
+        'pageFilters' => ['plant_id' => $this->plant->id, 'preset' => 'year', 'year' => 2026],
+    ])
+        ->assertSee('CAMBIOS DE ENERGÍA')
+        ->assertSee('HORAS PLANTA')
+        ->assertSee('GALONES');
+});
+
+it('shows each day\'s energy switches, plant hours and gallons in the month detail', function (): void {
+    $turbina = EnergyMeter::factory()->turbine()->create([
+        'tenant_id' => $this->tenant->id, 'plant_id' => $this->plant->id,
+    ]);
+    $lecturas = app(EnergyMeterReadingService::class);
+    $lecturas->record($turbina, 2_519_653, $this->user, Carbon::parse('2026-08-18'));
+    $lecturas->record($turbina, 2_527_433, $this->user, Carbon::parse('2026-08-19'));
+
+    // El horómetro avanzó 12,5 horas el 19; el 18 es la primera lectura y no cuenta.
+    generadorConHoras($this->plant, $this->user, ['2026-08-18' => 5_000, '2026-08-19' => 5_012.5]);
+
+    PlantEnergyDailyLog::factory()->forPlant($this->plant)->create([
+        'log_date' => '2026-08-19', 'fuel_gallons' => 120.5, 'energy_switch_count' => 3,
+    ]);
+    PlantEnergyDailyLog::factory()->forPlant($this->plant)->create([
+        'log_date' => '2026-08-20', 'fuel_gallons' => 80, 'energy_switch_count' => 2,
+    ]);
+
+    $componente = Livewire::test(PlantEnergyYearTableWidget::class, [
+        'pageFilters' => ['plant_id' => $this->plant->id, 'preset' => 'year', 'year' => 2026],
+    ])->call('toggleMonth', 8);
+
+    $detalle = $componente->viewData('dailyDetails')[8];
+
+    expect($detalle['power_plant']['2026-08-19'])->toBe([
+        'genset_hours' => 12.5, 'genset_fuel_gallons' => 120.5, 'energy_switch_count' => 3,
+    ])
+        ->and($detalle['power_plant']['2026-08-20'])->toBe([
+            'genset_hours' => null, 'genset_fuel_gallons' => 80.0, 'energy_switch_count' => 2,
+        ])
+        // El total del detalle es el de la fila del mes, no una suma aparte.
+        ->and($detalle['power_plant_totals'])->toBe(
+            $this->service->powerPlantSummary($this->plant, Carbon::parse('2026-08-01'), Carbon::parse('2026-08-31')),
+        )
+        ->and($detalle['power_plant_totals'])->toBe([
+            'genset_hours' => 12.5, 'genset_fuel_gallons' => 200.5, 'energy_switch_count' => 5,
+        ]);
+
+    $componente->assertSee('12,5')->assertSee('120,5')->assertSee('200,5');
+});
+
+it('opens a month that only has power plant data instead of saying there are no meters', function (): void {
+    PlantEnergyDailyLog::factory()->forPlant($this->plant)->create([
+        'log_date' => '2026-08-05', 'fuel_gallons' => 45, 'energy_switch_count' => 1,
+    ]);
+
+    Livewire::test(PlantEnergyYearTableWidget::class, [
+        'pageFilters' => ['plant_id' => $this->plant->id, 'preset' => 'year', 'year' => 2026],
+    ])
+        ->call('toggleMonth', 8)
+        ->assertDontSee('no tiene contadores configurados')
+        ->assertSee('45,0');
 });

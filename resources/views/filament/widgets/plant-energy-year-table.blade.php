@@ -57,7 +57,7 @@
                             <th class="text-right font-semibold px-3 py-2 border-b border-l border-gray-200 dark:border-white/10 whitespace-nowrap">LIMPIA</th>
                             {{-- Los tres renglones amarillos de la hoja. Aquí van en columnas
                                  porque esta tabla lleva los meses en filas. --}}
-                            <th class="text-right font-semibold px-3 py-2 border-b border-l border-gray-200 dark:border-white/10 whitespace-nowrap">CAMBIOS</th>
+                            <th class="text-right font-semibold px-3 py-2 border-b border-l border-gray-200 dark:border-white/10 whitespace-nowrap">CAMBIOS DE ENERGÍA</th>
                             <th class="text-right font-semibold px-3 py-2 border-b border-gray-200 dark:border-white/10 whitespace-nowrap">HORAS PLANTA</th>
                             <th class="text-right font-semibold px-3 py-2 border-b border-gray-200 dark:border-white/10 whitespace-nowrap">GALONES</th>
                         </tr>
@@ -136,7 +136,7 @@
 
                                 <tr wire:key="detalle-{{ $numero }}">
                                     <td colspan="11" class="px-3 py-3 border-b border-gray-100 dark:border-white/5">
-                                        @if ($dailyDetail === null || $dailyDetail['meters']->isEmpty())
+                                        @if ($dailyDetail === null || ($dailyDetail['meters']->isEmpty() && $dailyDetail['power_plant'] === []))
                                             <p class="text-sm text-gray-500 dark:text-gray-400">Esta planta no tiene contadores configurados.</p>
                                         @elseif (! $dailyDetail['has_readings'])
                                             <p class="text-sm text-gray-500 dark:text-gray-400">
@@ -153,6 +153,11 @@
                                                                     {{ mb_strtoupper($meter->source->label()) }}
                                                                 </th>
                                                             @endforeach
+                                                            {{-- Lo de la planta eléctrica, día por día: lo que la fila
+                                                                 del mes resume en sus tres últimas columnas. --}}
+                                                            <th rowspan="2" class="text-right font-semibold px-2 py-1 border-l border-gray-200 dark:border-white/10 whitespace-nowrap align-bottom">CAMBIOS DE ENERGÍA</th>
+                                                            <th rowspan="2" class="text-right font-semibold px-2 py-1 whitespace-nowrap align-bottom">HORAS PLANTA</th>
+                                                            <th rowspan="2" class="text-right font-semibold px-2 py-1 whitespace-nowrap align-bottom">GALONES</th>
                                                         </tr>
                                                         <tr class="text-gray-400 dark:text-gray-500">
                                                             @foreach ($dailyDetail['meters'] as $meter)
@@ -177,6 +182,16 @@
                                                                         @endif
                                                                     </td>
                                                                 @endforeach
+                                                                @php($planta = $dailyDetail['power_plant'][$day['date']] ?? null)
+                                                                <td class="text-right px-2 py-1 border-l border-gray-100 dark:border-white/5 tabular-nums whitespace-nowrap">
+                                                                    {!! $num($planta['energy_switch_count'] ?? null) ?? $guion !!}
+                                                                </td>
+                                                                <td class="text-right px-2 py-1 tabular-nums whitespace-nowrap">
+                                                                    {!! $num($planta['genset_hours'] ?? null, 1) ?? $guion !!}
+                                                                </td>
+                                                                <td class="text-right px-2 py-1 tabular-nums whitespace-nowrap">
+                                                                    {!! $num($planta['genset_fuel_gallons'] ?? null, 1) ?? $guion !!}
+                                                                </td>
                                                             </tr>
                                                         @endforeach
                                                         <tr class="font-bold">
@@ -187,6 +202,15 @@
                                                                     {{ number_format($dailyDetail['totals'][$meter->id] ?? 0, 0, ',', '.') }}
                                                                 </td>
                                                             @endforeach
+                                                            <td class="text-right px-2 py-1 border-l border-gray-100 dark:border-white/5 tabular-nums whitespace-nowrap">
+                                                                {!! $num($dailyDetail['power_plant_totals']['energy_switch_count']) ?? $guion !!}
+                                                            </td>
+                                                            <td class="text-right px-2 py-1 tabular-nums whitespace-nowrap">
+                                                                {!! $num($dailyDetail['power_plant_totals']['genset_hours'], 1) ?? $guion !!}
+                                                            </td>
+                                                            <td class="text-right px-2 py-1 tabular-nums whitespace-nowrap">
+                                                                {!! $num($dailyDetail['power_plant_totals']['genset_fuel_gallons'], 1) ?? $guion !!}
+                                                            </td>
                                                         </tr>
                                                     </tbody>
                                                 </table>
