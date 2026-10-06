@@ -236,7 +236,8 @@ it('shows the gate marks to HR and lets them add and void one', function (): voi
         ->assertCanSeeTableRecords([$marca])
         ->callAction(TestAction::make('agregarMarca'), [
             'employee_id' => $this->employee->id,
-            'scanned_at' => horaDePlanta('2026-08-10 14:00')->toDateTimeString(),
+            // El selector trabaja en la hora de la planta, como la escribe talento humano.
+            'scanned_at' => '2026-08-10 14:00:00',
             'direction' => AttendanceDirection::Salida->value,
             'reason' => 'Olvidó marcar la salida',
         ])
@@ -245,7 +246,10 @@ it('shows the gate marks to HR and lets them add and void one', function (): voi
         ->assertNotified('Marca anulada')
         ->assertCanNotSeeTableRecords([$marca]);
 
-    expect(AttendanceScan::query()->where('source', 'manual')->count())->toBe(1);
+    $manual = AttendanceScan::query()->where('source', 'manual')->sole();
+
+    // Las 2 p. m. de la planta, guardadas en UTC.
+    expect($manual->scanned_at->equalTo(horaDePlanta('2026-08-10 14:00')))->toBeTrue();
 });
 
 it('lets HR download the QR of a worker', function (): void {

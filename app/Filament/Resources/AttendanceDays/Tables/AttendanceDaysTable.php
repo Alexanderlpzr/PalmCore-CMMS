@@ -4,10 +4,12 @@ namespace App\Filament\Resources\AttendanceDays\Tables;
 
 use App\Domain\HumanResources\Enums\AttendanceDayStatus;
 use App\Domain\HumanResources\Services\AttendanceDayConfirmer;
+use App\Filament\Resources\AttendanceDays\AttendanceDayActions;
 use App\Filament\Resources\AttendanceScans\AttendanceMarkActions;
 use App\Models\AttendanceDay;
 use App\Models\Employee;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Notifications\Notification;
@@ -26,6 +28,8 @@ class AttendanceDaysTable
     {
         return $table
             ->defaultSort('work_date', 'desc')
+            // Quién ajustó a mano: lo lee el aviso de las horas.
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('adjustedBy:id,name'))
             ->columns([
                 TextColumn::make('work_date')
                     ->label('Fecha')
@@ -42,6 +46,10 @@ class AttendanceDaysTable
                     ->label('Trabajadas')
                     ->numeric(2)
                     ->alignEnd()
+                    ->description(fn (AttendanceDay $record): ?string => $record->isManuallyAdjusted() ? 'Ajustado a mano' : null)
+                    ->tooltip(fn (AttendanceDay $record): ?string => $record->isManuallyAdjusted()
+                        ? 'Ajustado por '.($record->adjustedBy?->name ?? '—').' el '.$record->adjusted_at?->format('d/m/Y').': '.$record->adjustment_reason
+                        : null)
                     ->sortable(),
 
                 // Las siete bolsas. Ocultas por defecto porque la pantalla se usa para
@@ -130,14 +138,23 @@ class AttendanceDaysTable
                         Notification::make()->title('Horas confirmadas')->success()->send();
                     }),
 
-                // Corregir desde aquí lo que avisa la anomalía: la salida que faltó.
-                AttendanceMarkActions::add('agregarMarcaDelDia')
-                    ->visible(fn (AttendanceDay $record): bool => $record->status === AttendanceDayStatus::Propuesta)
-                    ->fillForm(fn (AttendanceDay $record): array => [
-                        'employee_id' => $record->employee_id,
-                        // Las 2 p. m. de ese día en la planta; el selector guarda en UTC.
-                        'scanned_at' => Carbon::parse($record->work_date->format('Y-m-d').' 14:00', AttendanceMarkActions::timezone())->utc()->toDateTimeString(),
-                    ]),
+                // Corregir el día sin firmar: la hora de sus marcas, la que faltó, sus horas
+                // a mano o anularlo. En un menú, para que la fila no se llene de botones;
+                // uno confirmado se reabre antes.
+                ActionGroup::make([
+                    AttendanceDayActions::editMarks(),
+                    AttendanceMarkActions::add('agregarMarcaDelDia')
+                        ->visible(fn (AttendanceDay $record): bool => $record->status === AttendanceDayStatus::Propuesta)
+                        ->fillForm(fn (AttendanceDay $record): array => [
+                            'employee_id' => $record->employee_id,
+                            // Las 2 p. m. de ese día en la planta; el selector guarda en UTC.
+                            'scanned_at' => Carbon::parse($record->work_date->format('Y-m-d').' 14:00', AttendanceMarkActions::timezone())->utc()->toDateTimeString(),
+                        ]),
+                    AttendanceDayActions::adjustHours(),
+                    AttendanceDayActions::voidDay(),
+                ])
+                    ->label('Corregir')
+                    ->tooltip('Corregir el día'),
 
                 Action::make('reabrir')
                     ->label('Reabrir')

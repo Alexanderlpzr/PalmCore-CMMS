@@ -12,6 +12,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -21,11 +22,27 @@ use Illuminate\Support\Facades\DB;
  * puso y por qué; la que sobra queda anulada con su motivo. En los dos casos el día se
  * vuelve a calcular en el acto, para que «Horas por confirmar» muestre ya lo corregido.
  *
+ * Desde «Horas por confirmar» también se corrige el día entero: la hora de sus marcas,
+ * sus horas a mano —el día queda «ajustado a mano» y el reloj ya no lo recalcula— o
+ * anularlo, que anula sus marcas para que no vuelva al reconstruir.
+ *
  * Un día confirmado no se toca: primero se reabre. Así nadie cambia por debajo las
  * horas que otra persona ya firmó.
  */
 class AttendanceCorrectionService
 {
+    /** Las ocho bolsas de horas de un día, en el orden en que se muestran. */
+    public const HOUR_FIELDS = [
+        'ordinary_hours',
+        'night_surcharge_hours',
+        'sunday_surcharge_hours',
+        'night_sunday_surcharge_hours',
+        'overtime_day_hours',
+        'overtime_night_hours',
+        'overtime_sunday_day_hours',
+        'overtime_sunday_night_hours',
+    ];
+
     public function __construct(
         private readonly AttendanceDayBuilder $builder,
     ) {}
@@ -90,6 +107,200 @@ class AttendanceCorrectionService
     }
 
     /**
+     * Las marcas vigentes que forman un día, emparejadas como lo hace el reloj: las
+     * entradas de esa fecha, la salida que cierra cada una aunque caiga al día siguiente
+     * (el turno de noche) y las salidas sueltas de la fecha. La salida de la madrugada que
+     * cierra el turno de la víspera no es de este día.
+     *
+     * @return Collection<int, AttendanceScan>
+     */
+    public function marksOfDay(AttendanceDay $day): Collection
+    {
+        $day->loadMissing('employee');
+        $employee = $day->employee;
+        $fecha = $day->work_date->toDateString();
+        $inicio = CarbonImmutable::parse($fecha, $this->timezoneOf($employee))->startOfDay();
+
+        $marcas = AttendanceScan::query()
+            ->forTenant($employee->tenant_id)
+            ->where('employee_id', $employee->id)
+            ->whereBetween('scanned_at', [$inicio->subDay()->utc(), $inicio->addDay()->endOfDay()->utc()])
+            ->orderBy('scanned_at')
+            ->get();
+
+        $delDia = collect();
+        $entradaAbierta = null;
+
+        foreach ($marcas as $marca) {
+            $fechaDeLaMarca = $this->local($employee, $marca->scanned_at)->toDateString();
+
+            if ($marca->isEntry()) {
+                $entradaAbierta = $marca;
+
+                if ($fechaDeLaMarca === $fecha) {
+                    $delDia->push($marca);
+                }
+
+                continue;
+            }
+
+            if ($entradaAbierta !== null) {
+                if ($this->local($employee, $entradaAbierta->scanned_at)->toDateString() === $fecha) {
+                    $delDia->push($marca);
+                }
+
+                $entradaAbierta = null;
+
+                continue;
+            }
+
+            if ($fechaDeLaMarca === $fecha) {
+                $delDia->push($marca);
+            }
+        }
+
+        return $delDia->values();
+    }
+
+    /**
+     * Corrige la hora de las marcas de un día. Cada marca cambiada se anula y se reemplaza
+     * por una a mano con la hora nueva, con el motivo en las dos: el rastro queda en
+     * «Marcas de portería». Si el día tenía horas ajustadas a mano, vuelve a calcularse
+     * desde las marcas, que es lo que se acaba de corregir.
+     *
+     * @param  array<string, CarbonInterface|string>  $times  id de la marca => hora nueva
+     */
+    public function editDayMarks(AttendanceDay $day, array $times, string $reason, User $by): AttendanceDay
+    {
+        $this->ensureProposed($day);
+        $employee = $day->employee;
+        $motivo = trim($reason);
+
+        $cambios = $this->marksOfDay($day)
+            ->filter(fn (AttendanceScan $marca): bool => isset($times[$marca->getKey()]))
+            ->map(fn (AttendanceScan $marca): array => [$marca, CarbonImmutable::parse($times[$marca->getKey()])->utc()])
+            ->filter(fn (array $par): bool => abs($par[0]->scanned_at->diffInSeconds($par[1])) >= 60);
+
+        if ($cambios->isEmpty()) {
+            throw AttendanceException::nothingChanged();
+        }
+
+        $fechas = collect([CarbonImmutable::parse($day->work_date->toDateString())]);
+
+        foreach ($cambios as [$marca, $nueva]) {
+            if ($nueva->isFuture()) {
+                throw AttendanceException::markInTheFuture();
+            }
+
+            $local = $this->local($employee, $nueva)->startOfDay();
+
+            if ($local->toDateString() !== $day->work_date->toDateString()) {
+                $this->ensureDayIsOpen($employee, $local);
+            }
+
+            $fechas->push($local, $this->local($employee, $marca->scanned_at)->startOfDay());
+        }
+
+        DB::transaction(function () use ($cambios, $employee, $motivo, $by, $day): void {
+            foreach ($cambios as [$marca, $nueva]) {
+                $antes = $this->local($employee, $marca->scanned_at)->format('d/m/Y h:i a');
+                $despues = $this->local($employee, $nueva)->format('d/m/Y h:i a');
+
+                $marca->update([
+                    'voided_at' => now(),
+                    'voided_by' => $by->id,
+                    'void_reason' => "Hora corregida a {$despues}: {$motivo}",
+                ]);
+
+                AttendanceScan::create([
+                    'tenant_id' => $employee->tenant_id,
+                    'employee_id' => $employee->id,
+                    'scanned_at' => $nueva,
+                    'direction' => $marca->direction,
+                    'source' => 'manual',
+                    'recorded_by' => $by->id,
+                    'gate' => $marca->gate,
+                    'notes' => "Corrige la marca de las {$antes}: {$motivo}",
+                ]);
+            }
+
+            // Lo que se corrige son las marcas: el día vuelve a salir de ellas.
+            $day->update(['source' => 'qr', 'adjusted_by' => null, 'adjusted_at' => null, 'adjustment_reason' => null]);
+        });
+
+        $this->rebuildRange($employee, $fechas->min(), $fechas->max());
+
+        return $day->fresh() ?? $day;
+    }
+
+    /**
+     * Ajusta a mano las horas de un día, sin tocar sus marcas: la extra que no se
+     * autorizó, el turno que se paga distinto. El día queda «ajustado a mano», con quién y
+     * por qué, y el reloj ya no lo recalcula hasta que se corrijan sus marcas.
+     *
+     * @param  array<string, float|int|string|null>  $hours  las ocho bolsas de ClassifiedHours::toArray()
+     */
+    public function adjustHours(AttendanceDay $day, array $hours, string $reason, User $by): AttendanceDay
+    {
+        $this->ensureProposed($day);
+
+        $bolsas = [];
+
+        foreach (self::HOUR_FIELDS as $campo) {
+            $valor = (float) ($hours[$campo] ?? 0);
+
+            if ($valor < 0) {
+                throw AttendanceException::hoursOutOfRange();
+            }
+
+            $bolsas[$campo] = round($valor, 4);
+        }
+
+        $total = array_sum($bolsas);
+
+        if ($total > 24) {
+            throw AttendanceException::hoursOutOfRange();
+        }
+
+        $day->update([
+            ...$bolsas,
+            'worked_hours' => round($total, 4),
+            'source' => 'manual',
+            'adjusted_by' => $by->id,
+            'adjusted_at' => now(),
+            'adjustment_reason' => trim($reason),
+        ]);
+
+        return $day->refresh();
+    }
+
+    /**
+     * Anula un día: anula sus marcas con el motivo y lo quita de «Horas por confirmar».
+     * No se paga y no vuelve al reconstruir, porque ya no tiene marcas vigentes; el
+     * rastro queda en «Marcas de portería», con quién y por qué.
+     */
+    public function voidDay(AttendanceDay $day, string $reason, User $by): void
+    {
+        $this->ensureProposed($day);
+        $employee = $day->employee;
+        $motivo = trim($reason);
+        $fecha = CarbonImmutable::parse($day->work_date->toDateString());
+
+        DB::transaction(function () use ($day, $by, $motivo): void {
+            $this->marksOfDay($day)->each(fn (AttendanceScan $marca) => $marca->update([
+                'voided_at' => now(),
+                'voided_by' => $by->id,
+                'void_reason' => "Día anulado: {$motivo}",
+            ]));
+
+            $day->delete();
+        });
+
+        // La víspera y el día siguiente pudieron emparejarse con estas marcas.
+        $this->rebuildRange($employee, $fecha->subDay(), $fecha->addDay());
+    }
+
+    /**
      * El día al que pertenece una marca es el día en que arrancó su turno: la salida de
      * las seis de la mañana es del turno de noche que empezó la víspera.
      */
@@ -121,9 +332,22 @@ class AttendanceCorrectionService
     /** La hora de la planta: ahí se decide a qué día pertenece una marca. */
     private function local(Employee $employee, CarbonInterface $at): CarbonImmutable
     {
-        $timezone = Tenant::query()->whereKey($employee->tenant_id)->first()?->plantTimezone() ?? 'America/Bogota';
+        return CarbonImmutable::instance($at)->setTimezone($this->timezoneOf($employee));
+    }
 
-        return CarbonImmutable::instance($at)->setTimezone($timezone);
+    private function timezoneOf(Employee $employee): string
+    {
+        return Tenant::query()->whereKey($employee->tenant_id)->first()?->plantTimezone() ?? 'America/Bogota';
+    }
+
+    /** Editar o anular un día exige que siga sin firmar: uno confirmado se reabre antes. */
+    private function ensureProposed(AttendanceDay $day): void
+    {
+        $day->loadMissing('employee');
+
+        if ($day->status === AttendanceDayStatus::Confirmada) {
+            throw AttendanceException::dayAlreadyConfirmed($day->work_date->format('d/m/Y'));
+        }
     }
 
     private function ensureDayIsOpen(Employee $employee, CarbonImmutable $workDate): void
@@ -146,9 +370,15 @@ class AttendanceCorrectionService
      */
     private function rebuild(Employee $employee, CarbonImmutable $workDate, CarbonImmutable $at): void
     {
-        $from = $workDate->min($at->startOfDay());
-        $to = $workDate->max($at->startOfDay());
+        $this->rebuildRange($employee, $workDate->min($at->startOfDay()), $workDate->max($at->startOfDay()));
+    }
 
+    /**
+     * Rehace los días del rango y quita las propuestas que quedaron sin marcas. Un día
+     * ajustado a mano no se quita: sus horas no salen de las marcas.
+     */
+    private function rebuildRange(Employee $employee, CarbonImmutable $from, CarbonImmutable $to): void
+    {
         $built = $this->builder->buildForEmployee($employee, $from, $to);
 
         AttendanceDay::query()
@@ -156,6 +386,7 @@ class AttendanceCorrectionService
             ->where('employee_id', $employee->id)
             ->whereBetween('work_date', [$from->toDateString(), $to->toDateString()])
             ->where('status', AttendanceDayStatus::Propuesta)
+            ->where('source', '!=', 'manual')
             ->whereKeyNot($built->map(fn (AttendanceDay $day): string => $day->getKey())->all())
             ->delete();
     }

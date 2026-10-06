@@ -52,6 +52,19 @@ class AttendanceDayPolicy
         return $user->is_super_admin || $user->hasPermissionTo('attendance.confirm');
     }
 
+    /**
+     * Corregir un día sin firmar: la hora de sus marcas, sus horas a mano o anularlo. Es
+     * de quien firma las horas; uno confirmado se reabre antes.
+     */
+    public function correct(User $user, AttendanceDay $day): bool
+    {
+        if ($day->status === AttendanceDayStatus::Confirmada) {
+            return false;
+        }
+
+        return $user->is_super_admin || $user->hasPermissionTo('attendance.confirm');
+    }
+
     /** Devolver un día firmado a propuesta, para rehacerlo. */
     public function reopen(User $user, AttendanceDay $day): bool
     {

@@ -26,6 +26,21 @@ class AttendanceException extends RuntimeException
         return new self('Esa marca ya estaba anulada.');
     }
 
+    public static function nothingChanged(): self
+    {
+        return new self('No cambió ninguna hora: no hay nada que corregir.');
+    }
+
+    public static function hoursOutOfRange(): self
+    {
+        return new self('Las horas de un día van de 0 a 24.');
+    }
+
+    public static function dayWithoutMarks(): self
+    {
+        return new self('Este día no tiene marcas de la puerta. Use «Agregar marca» para registrar la entrada o la salida.');
+    }
+
     public static function markInTheFuture(): self
     {
         return new self('La marca no puede quedar con una hora que todavía no ha pasado.');

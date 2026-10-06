@@ -214,7 +214,9 @@ class AttendanceDayBuilder
                 ->whereDate('work_date', $workDate)
                 ->first();
 
-            if ($existing && $existing->status === AttendanceDayStatus::Confirmada) {
+            // Lo firmado no se toca, y lo que talento humano ajustó a mano tampoco: el
+            // reloj lo pisaría en la próxima marca o reconstrucción.
+            if ($existing && ($existing->status === AttendanceDayStatus::Confirmada || $existing->isManuallyAdjusted())) {
                 return null;
             }
 

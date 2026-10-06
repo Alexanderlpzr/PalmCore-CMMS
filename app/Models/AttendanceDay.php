@@ -19,6 +19,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * Sin `SoftDeletes`: una propuesta se sobrescribe al reconstruir el período y una
  * confirmada no se borra, se corrige y se vuelve a confirmar.
+ *
+ * Con `source = 'manual'` las horas las ajustó talento humano a mano, con su motivo: el
+ * reloj ya no las recalcula hasta que se corrijan las marcas del día.
  */
 #[Fillable([
     'tenant_id',
@@ -38,6 +41,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'confirmed_at',
     'built_at',
     'source',
+    'adjusted_by',
+    'adjusted_at',
+    'adjustment_reason',
     'anomalies',
     'notes',
 ])]
@@ -57,6 +63,11 @@ class AttendanceDay extends Model
     public function employee(): BelongsTo
     {
         return $this->belongsTo(Employee::class);
+    }
+
+    public function adjustedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'adjusted_by');
     }
 
     public function confirmedBy(): BelongsTo
@@ -102,6 +113,12 @@ class AttendanceDay extends Model
         );
     }
 
+    /** ¿Talento humano ajustó sus horas a mano? Entonces el reloj no las recalcula. */
+    public function isManuallyAdjusted(): bool
+    {
+        return $this->source === 'manual';
+    }
+
     public function hasAnomalies(): bool
     {
         return ! empty($this->anomalies);
@@ -136,6 +153,7 @@ class AttendanceDay extends Model
             'worked_hours' => 'decimal:4',
             'status' => AttendanceDayStatus::class,
             'confirmed_at' => 'datetime',
+            'adjusted_at' => 'datetime',
             'built_at' => 'datetime',
             'anomalies' => 'array',
         ];
