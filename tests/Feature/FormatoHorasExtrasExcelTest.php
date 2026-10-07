@@ -5,8 +5,8 @@ use App\Domain\HumanResources\Services\AttendanceDayBuilder;
 use App\Domain\HumanResources\Services\AttendanceService;
 use App\Domain\HumanResources\Services\PayrollParameterService;
 use App\Domain\Reports\Excel\FormatoHorasExtrasExcel;
+use App\Filament\Pages\HorasExtras;
 use App\Filament\Resources\Employees\Pages\EditEmployee;
-use App\Filament\Resources\Employees\Pages\ListEmployees;
 use App\Filament\Resources\Employees\RelationManagers\OvertimeRelationManager;
 use App\Infrastructure\Tenancy\CurrentTenant;
 use App\Models\AttendanceDay;
@@ -122,12 +122,24 @@ it('leaves the values out for whoever does not see salaries', function (): void 
     expect($texto->filter(fn (string $v): bool => str_starts_with($v, 'Valor hora:')))->toBeEmpty();
 });
 
-it('downloads from Personal the sheets of everyone who clocked in during the period', function (): void {
-    Livewire::test(ListEmployees::class)
-        ->mountAction('formatoHoras')
-        ->assertSchemaStateSet(['periodo' => '2026-09-27|2026-10-26'], 'mountedActionSchema0')
-        ->callMountedAction()
-        ->assertFileDownloaded('formato-horas-extras-personal-2026-10.xlsx');
+it('lists in «Horas extras» everyone who clocked in, with their totals, and downloads them all', function (): void {
+    Livewire::test(HorasExtras::class)
+        ->assertCanSeeTableRecords([$this->diego, $this->ana])
+        ->assertCanNotSeeTableRecords([$this->sinMarcas])
+        ->assertSee('Horas del 27/09/2026 al 26/10/2026')
+        // Diego: 2 días; el 5 de octubre, 2 extras y 2 de bonificación; el 28, 4 de bonificación.
+        ->assertTableColumnStateSet('dias', 2, $this->diego)
+        ->assertTableColumnStateSet('extras', 2.0, $this->diego)
+        ->assertTableColumnStateSet('bono', 6.0, $this->diego)
+        ->searchTable('Medina')
+        ->assertCanSeeTableRecords([$this->diego])
+        ->assertCanNotSeeTableRecords([$this->ana])
+        ->callAction(TestAction::make('excelTodos')->table())
+        ->assertFileDownloaded('formato-horas-extras-1116616864-2026-10.xlsx');
+
+    Livewire::test(HorasExtras::class)
+        ->callAction(TestAction::make('pdf')->table($this->ana))
+        ->assertFileDownloaded("formato-horas-{$this->ana->document_number}-2026-10.pdf");
 });
 
 it('shows the format in the «Horas extras» tab of the record', function (): void {

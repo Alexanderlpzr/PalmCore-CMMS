@@ -89,7 +89,8 @@ it('encuentra las tablas del proyecto', function (): void {
     //
     // 84 con la pestaña «Carné» de la ficha del trabajador: el vigente y los anulados.
     // 85 con la pestaña «Horas extras»: el formato TH-FOR-002 en pantalla.
-    expect(tableFiles())->toHaveCount(85);
+    // 86 con la página «Horas extras»: todos los trabajadores y su formato.
+    expect(tableFiles())->toHaveCount(86);
 });
 
 it('alinea a la derecha toda columna de dinero o cantidad', function (): void {
