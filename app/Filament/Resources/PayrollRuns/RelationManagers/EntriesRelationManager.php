@@ -3,7 +3,9 @@
 namespace App\Filament\Resources\PayrollRuns\RelationManagers;
 
 use App\Domain\Reports\Services\DesprendiblePdfService;
+use App\Domain\Reports\Services\FormatoHorasExtrasPdfService;
 use App\Models\PayrollEntry;
+use App\Models\PayrollRun;
 use Filament\Actions\Action;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables\Columns\IconColumn;
@@ -52,6 +54,12 @@ class EntriesRelationManager extends RelationManager
                 TextColumn::make('surcharges_total')
                     ->label('Recargos y extras')
                     ->money('COP', 0)->alignEnd()
+                    ->summarize(Sum::make()->label('Total')->money('COP', 0)),
+
+                // Las horas que la regla del bono pagó como bonificación constitutiva.
+                TextColumn::make('hours_bonus_total')
+                    ->label('Bonificación por horas')
+                    ->money('COP', 0)->alignEnd()->toggleable()
                     ->summarize(Sum::make()->label('Total')->money('COP', 0)),
 
                 TextColumn::make('bonuses_total')
@@ -105,6 +113,25 @@ class EntriesRelationManager extends RelationManager
                         return response()->streamDownload(
                             fn () => print $service->generate($record->tenant_id, $record->id),
                             $service->filename($record->tenant_id, $record->id),
+                        );
+                    }),
+
+                // El formato de horas extras (TH-FOR-002) de las horas que liquidó esta
+                // nómina, para que el jefe inmediato lo firme.
+                Action::make('formatoHoras')
+                    ->label('Formato de horas')
+                    ->icon('heroicon-o-clock')
+                    ->color('gray')
+                    ->authorize(fn (PayrollEntry $record): bool => auth()->user()?->can('print', $record) ?? false)
+                    ->visible(fn (PayrollEntry $record): bool => $record->employee !== null)
+                    ->action(function (PayrollEntry $record): StreamedResponse {
+                        /** @var PayrollRun $run */
+                        $run = $this->getOwnerRecord();
+                        $service = app(FormatoHorasExtrasPdfService::class);
+
+                        return response()->streamDownload(
+                            fn () => print $service->generate($record->employee, $run->hoursFrom(), $run->hoursTo()),
+                            $service->filename($record->employee, $run->hoursTo()),
                         );
                     }),
             ]);

@@ -57,8 +57,8 @@ class AttendanceDayBuilder
         $from = CarbonImmutable::parse(CarbonImmutable::instance($from)->toDateString(), $timezone)->startOfDay();
         $to = CarbonImmutable::parse(CarbonImmutable::instance($to)->toDateString(), $timezone)->endOfDay();
 
-        $config = $this->resolveConfig($employee->tenant_id, $from);
         $surchargedDays = $this->surchargedDayResolver($employee->tenant_id, $from, $to);
+        $restDays = $this->restDaysWorked($employee, $from, $to);
 
         $scans = AttendanceScan::query()
             ->forTenant($employee->tenant_id)
@@ -78,15 +78,22 @@ class AttendanceDayBuilder
                 continue;
             }
 
+            // Los parámetros de ese día y no los del inicio del rango: una reconstrucción
+            // que cruce el 15 de julio de 2026 cruza también el paso a la jornada de 42 h.
+            $config = $this->resolveConfig($employee->tenant_id, CarbonImmutable::parse($workDate, $timezone));
+            $isRestDay = isset($restDays[$workDate]);
+
             $hours = $this->classifier->classify(
                 $sessions,
                 $surchargedDays,
                 $config['nightStart'],
                 $config['nightEnd'],
-                $config['ordinaryPerDay'],
+                // El descanso trabajado no tiene jornada ordinaria: todo lo que se trabajó
+                // ese día es extra.
+                $isRestDay ? 0.0 : $config['ordinaryPerDay'],
             );
 
-            $anomalies = $this->anomaliesFor($hours, $config, $openEntries[$workDate] ?? null);
+            $anomalies = $this->anomaliesFor($hours, $config, $openEntries[$workDate] ?? null, $isRestDay);
 
             // Dirección, confianza y manejo, o salario integral: trabajó las horas, pero
             // no causan recargo ni extra. Todo lo trabajado pasa a ordinario para que el
@@ -181,7 +188,7 @@ class AttendanceDayBuilder
     }
 
     /** @return array<int, string> */
-    private function anomaliesFor(ClassifiedHours $hours, array $config, ?string $openEntryAt): array
+    private function anomaliesFor(ClassifiedHours $hours, array $config, ?string $openEntryAt, bool $isRestDay = false): array
     {
         $anomalies = [];
 
@@ -191,7 +198,9 @@ class AttendanceDayBuilder
 
         $overtime = $hours->overtimeHours();
 
-        if ($overtime > $config['maxOvertimeDay']) {
+        // Pasar del tope solo es un aviso cuando nada lo resuelve: con la regla del bono el
+        // exceso ya tiene a dónde ir, y el descanso trabajado es extra entero por definición.
+        if ($overtime > $config['maxOvertimeDay'] && ! $config['excessAsBonus'] && ! $isRestDay) {
             $anomalies[] = sprintf(
                 'Horas extras del día: %s. El tope legal es %s.',
                 number_format($overtime, 2, ',', '.'),
@@ -272,12 +281,12 @@ class AttendanceDayBuilder
             ->values();
     }
 
-    /** @return array{nightStart: float, nightEnd: float, ordinaryPerDay: float, maxOvertimeDay: float} */
     private function plantTimezone(Employee $employee): string
     {
         return Tenant::query()->whereKey($employee->tenant_id)->first()?->plantTimezone() ?? 'America/Bogota';
     }
 
+    /** @return array{nightStart: float, nightEnd: float, ordinaryPerDay: float, maxOvertimeDay: float, excessAsBonus: bool} */
     private function resolveConfig(string $tenantId, CarbonImmutable $on): array
     {
         return [
@@ -285,7 +294,26 @@ class AttendanceDayBuilder
             'nightEnd' => $this->parameters->valueOn(PayrollParameter::NightWindowEnd, $on, $tenantId),
             'ordinaryPerDay' => $this->parameters->valueOn(PayrollParameter::OrdinaryHoursPerDay, $on, $tenantId),
             'maxOvertimeDay' => $this->parameters->valueOn(PayrollParameter::MaxOvertimeHoursDay, $on, $tenantId),
+            'excessAsBonus' => $this->parameters->isOn(PayrollParameter::OvertimeExcessAsBonus, $on, $tenantId),
         ];
+    }
+
+    /**
+     * Los días del rango que talento humano marcó como descanso trabajado. La marca vive
+     * en el día y sobrevive a cada reconstrucción: el reloj no la puede deducir.
+     *
+     * @return array<string, true>
+     */
+    private function restDaysWorked(Employee $employee, CarbonImmutable $from, CarbonImmutable $to): array
+    {
+        return AttendanceDay::query()
+            ->forTenant($employee->tenant_id)
+            ->where('employee_id', $employee->id)
+            ->between($from->toDateString(), $to->toDateString())
+            ->where('rest_day_worked', true)
+            ->pluck('work_date')
+            ->mapWithKeys(fn ($date): array => [$date->toDateString() => true])
+            ->all();
     }
 
     /**

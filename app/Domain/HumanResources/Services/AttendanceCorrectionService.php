@@ -275,6 +275,40 @@ class AttendanceCorrectionService
     }
 
     /**
+     * Marca o desmarca el día como descanso trabajado: el domingo o festivo que alguien
+     * vino a trabajar en su día libre. Marcado, todo lo trabajado ese día es extra y el
+     * tope diario no lo parte; el día se vuelve a calcular desde sus marcas en el acto.
+     *
+     * Un día ajustado a mano conserva sus horas —no salen de las marcas— y solo cambia
+     * la marca, que la liquidación sí mira.
+     */
+    public function setRestDayWorked(AttendanceDay $day, bool $restDayWorked): AttendanceDay
+    {
+        $this->ensureProposed($day);
+
+        $day->update(['rest_day_worked' => $restDayWorked]);
+
+        if (! $day->isManuallyAdjusted()) {
+            $fecha = CarbonImmutable::parse($day->work_date->toDateString());
+            $this->builder->buildForEmployee($day->employee, $fecha, $fecha);
+        }
+
+        return $day->refresh();
+    }
+
+    /**
+     * Marca o desmarca el día como apoyo a mantenimiento. No cambia lo que se paga, solo
+     * a qué grupo se cargan sus horas en el indicador «factor de horas»; por eso vale
+     * también en un día ya confirmado.
+     */
+    public function setMaintenanceSupport(AttendanceDay $day, bool $maintenanceSupport): AttendanceDay
+    {
+        $day->update(['maintenance_support' => $maintenanceSupport]);
+
+        return $day->refresh();
+    }
+
+    /**
      * Anula un día: anula sus marcas con el motivo y lo quita de «Horas por confirmar».
      * No se paga y no vuelve al reconstruir, porque ya no tiene marcas vigentes; el
      * rastro queda en «Marcas de portería», con quién y por qué.

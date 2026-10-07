@@ -31,7 +31,7 @@ class PayrollParameterForm
                 ->required()
                 ->step(0.000001)
                 ->minValue(0)
-                ->maxValue(fn ($get): float => self::parameterFrom($get('key'))?->unit()->maxValue() ?? 1_000_000_000)
+                ->maxValue(fn ($get): float => self::parameterFrom($get('key'))?->maxValue() ?? 1_000_000_000)
                 ->suffix(fn ($get): ?string => self::parameterFrom($get('key'))?->unit()->label())
                 ->helperText(fn ($get): ?string => self::valueHint(self::parameterFrom($get('key')))),
 
@@ -78,7 +78,10 @@ class PayrollParameterForm
             PayrollParameterUnit::Factor => 'Se escribe como factor, no como porcentaje: un recargo del 35 % es 0,35.',
             PayrollParameterUnit::HourOfDay => 'Hora del día en decimal: las 21:00 son 21, las 6:30 son 6,5.',
             PayrollParameterUnit::Money => 'En pesos, sin puntos ni separadores.',
-            PayrollParameterUnit::Number => null,
+            PayrollParameterUnit::Number => $parameter === PayrollParameter::HoursCutoffDay
+                ? 'Del 0 al 28. Con 26, la nómina de un mes toma las horas del 27 del mes anterior al 26; con 0, el mes calendario.'
+                : null,
+            PayrollParameterUnit::Toggle => 'Escriba 1 para aplicar la regla y 0 para no aplicarla.',
         };
     }
 }

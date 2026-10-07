@@ -39,6 +39,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'overtime_sunday_day_hours', 'overtime_sunday_day_amount',
     'overtime_sunday_night_hours', 'overtime_sunday_night_amount',
     'surcharges_total',
+    'hours_bonus_total',
+    'hours_bonus_breakdown',
     'novelty_breakdown',
     'absence_deduction',
     'paid_novelties_amount',
@@ -133,6 +135,28 @@ class PayrollEntry extends Model
         return $lines;
     }
 
+    /**
+     * Las horas que la regla del bono pagó como bonificación constitutiva, por clase y
+     * con su valor: el renglón de la hoja BONIFICACIONES, en el desprendible.
+     *
+     * @return array<int, array{concept: string, hours: float, rate: float, amount: float}>
+     */
+    public function hoursBonusLines(): array
+    {
+        $lines = [];
+
+        foreach ($this->hours_bonus_breakdown ?? [] as $key => $row) {
+            $lines[] = [
+                'concept' => self::BUCKETS[$key] ?? $key,
+                'hours' => (float) $row['hours'],
+                'rate' => (float) $row['rate'],
+                'amount' => (float) $row['amount'],
+            ];
+        }
+
+        return $lines;
+    }
+
     public function hasWarnings(): bool
     {
         return ! empty($this->warnings);
@@ -156,6 +180,7 @@ class PayrollEntry extends Model
             'novelty_days' => 'decimal:2',
             'total_days' => 'decimal:2',
             'novelty_breakdown' => 'array',
+            'hours_bonus_breakdown' => 'array',
             'other_deductions_breakdown' => 'array',
             'parameters_snapshot' => 'array',
             'warnings' => 'array',
@@ -167,7 +192,7 @@ class PayrollEntry extends Model
         }
 
         foreach ([
-            'surcharges_total', 'absence_deduction', 'paid_novelties_amount', 'vacation_amount',
+            'surcharges_total', 'hours_bonus_total', 'absence_deduction', 'paid_novelties_amount', 'vacation_amount',
             'basic_earned', 'earned_with_surcharges', 'bonus_housing', 'bonus_constitutive',
             'bonus_non_constitutive', 'bonuses_total', 'transport_allowance', 'total_earned',
             'ibc_health', 'ibc_pension', 'severance_base', 'vacation_base',

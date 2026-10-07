@@ -46,7 +46,11 @@ class AttendanceDaysTable
                     ->label('Trabajadas')
                     ->numeric(2)
                     ->alignEnd()
-                    ->description(fn (AttendanceDay $record): ?string => $record->isManuallyAdjusted() ? 'Ajustado a mano' : null)
+                    ->description(fn (AttendanceDay $record): ?string => collect([
+                        $record->isManuallyAdjusted() ? 'Ajustado a mano' : null,
+                        $record->rest_day_worked ? 'Descanso trabajado' : null,
+                        $record->maintenance_support ? 'Apoyo a mantenimiento' : null,
+                    ])->filter()->implode(' · ') ?: null)
                     ->tooltip(fn (AttendanceDay $record): ?string => $record->isManuallyAdjusted()
                         ? 'Ajustado por '.($record->adjustedBy?->name ?? '—').' el '.$record->adjusted_at?->format('d/m/Y').': '.$record->adjustment_reason
                         : null)
@@ -151,6 +155,9 @@ class AttendanceDaysTable
                             'scanned_at' => Carbon::parse($record->work_date->format('Y-m-d').' 14:00', AttendanceMarkActions::timezone())->utc()->toDateTimeString(),
                         ]),
                     AttendanceDayActions::adjustHours(),
+                    AttendanceDayActions::restDayWorked(),
+                    // Vale también con el día firmado: no cambia lo que se paga.
+                    AttendanceDayActions::maintenanceSupport(),
                     AttendanceDayActions::voidDay(),
                 ])
                     ->label('Corregir')

@@ -57,6 +57,28 @@ class PayrollParameterService
     }
 
     /**
+     * El valor vigente, o `$default` si la empresa no lo tiene cargado.
+     *
+     * Solo para las reglas que se prenden —el corte de horas, la regla del bono—: que
+     * falten significa «apagadas», no un recargo inventado. Los parámetros que valoran
+     * horas se leen con `valueOn`, que falla.
+     */
+    public function valueOrDefault(PayrollParameter $parameter, CarbonInterface $date, string $tenantId, float $default = 0.0): float
+    {
+        try {
+            return $this->valueOn($parameter, $date, $tenantId);
+        } catch (PayrollParameterException) {
+            return $default;
+        }
+    }
+
+    /** ¿La regla está prendida en esa fecha? */
+    public function isOn(PayrollParameter $parameter, CarbonInterface $date, string $tenantId): bool
+    {
+        return $this->valueOrDefault($parameter, $date, $tenantId) >= 0.5;
+    }
+
+    /**
      * Todos los parámetros vigentes en esa fecha, listos para pasar al clasificador de
      * horas y a la liquidación sin volver a consultar.
      *
@@ -230,7 +252,7 @@ class PayrollParameterService
 
     private function guardRange(PayrollParameter $parameter, float $value): void
     {
-        if ($value < 0 || $value > $parameter->unit()->maxValue()) {
+        if ($value < 0 || $value > $parameter->maxValue()) {
             throw PayrollParameterException::outOfRange($parameter, $value);
         }
     }

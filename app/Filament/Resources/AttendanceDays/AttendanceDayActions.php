@@ -142,6 +142,58 @@ final class AttendanceDayActions
             });
     }
 
+    /**
+     * El domingo o festivo que alguien vino a trabajar en su día de descanso. El reloj no
+     * lo distingue de un domingo de turno; talento humano sí. Se prende y se apaga con
+     * el mismo botón.
+     */
+    public static function restDayWorked(): Action
+    {
+        return Action::make('descansoTrabajado')
+            ->label(fn (AttendanceDay $record): string => $record->rest_day_worked ? 'Quitar «descanso trabajado»' : 'Descanso trabajado')
+            ->icon(Heroicon::OutlinedSun)
+            ->authorize(fn (AttendanceDay $record): bool => auth()->user()?->can('correct', $record) ?? false)
+            ->visible(fn (AttendanceDay $record): bool => $record->employee?->earnsOvertime() ?? false)
+            ->requiresConfirmation()
+            ->modalHeading(fn (AttendanceDay $record): string => ($record->rest_day_worked ? 'Quitar el descanso trabajado del ' : 'Descanso trabajado el ').$record->work_date->format('d/m/Y'))
+            ->modalDescription(fn (AttendanceDay $record): string => $record->rest_day_worked
+                ? 'El día vuelve a tener jornada ordinaria: sus primeras horas llevan solo el recargo y lo demás es extra.'
+                : 'Para el domingo o festivo que vino a trabajar en su día libre: todo lo trabajado ese día se paga como extra, y el tope de horas extras por día no lo parte.')
+            ->action(function (AttendanceDay $record, Action $action): void {
+                $marcado = ! $record->rest_day_worked;
+
+                self::run($action, fn () => self::service()->setRestDayWorked($record, $marcado));
+
+                Notification::make()
+                    ->title($marcado ? 'Día marcado como descanso trabajado' : 'El día volvió a tener jornada ordinaria')
+                    ->body('Las horas del día se recalcularon.')
+                    ->success()
+                    ->send();
+            });
+    }
+
+    /**
+     * El operario de producción que ese día trabajó para mantenimiento. No cambia lo que
+     * se le paga: cambia a qué grupo se cargan sus horas en el indicador «factor de horas».
+     */
+    public static function maintenanceSupport(): Action
+    {
+        return Action::make('apoyoMantenimiento')
+            ->label(fn (AttendanceDay $record): string => $record->maintenance_support ? 'Quitar «apoyo a mantenimiento»' : 'Apoyo a mantenimiento')
+            ->icon(Heroicon::OutlinedWrenchScrewdriver)
+            ->authorize(fn (AttendanceDay $record): bool => auth()->user()?->can('tag', $record) ?? false)
+            ->action(function (AttendanceDay $record): void {
+                $marcado = ! $record->maintenance_support;
+
+                self::service()->setMaintenanceSupport($record, $marcado);
+
+                Notification::make()
+                    ->title($marcado ? 'Horas cargadas a «Apoyo a mantenimiento»' : 'Las horas volvieron a su área')
+                    ->success()
+                    ->send();
+            });
+    }
+
     /** Las reglas viven en el servicio y ya hablan español: aquí solo se muestran. */
     private static function run(Action $action, callable $operation): void
     {

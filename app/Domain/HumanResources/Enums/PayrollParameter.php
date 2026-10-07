@@ -35,6 +35,14 @@ enum PayrollParameter: string
     case MaxOvertimeHoursDay = 'max_overtime_hours_day';
     case MaxOvertimeHoursWeek = 'max_overtime_hours_week';
 
+    /**
+     * El día del mes en que se cortan las horas. 0 es el mes calendario; 26, que la
+     * nómina de octubre paga el sueldo de octubre y las horas del 27 de septiembre al 26
+     * de octubre, como el formato de horas extras de la extractora: así queda tiempo de
+     * revisarlas antes de pagar.
+     */
+    case HoursCutoffDay = 'hours_cutoff_day';
+
     // ── Recargos y horas extras ───────────────────────────────────────────────
     case SurchargeNight = 'surcharge_night';
     case SurchargeSunday = 'surcharge_sunday';
@@ -43,6 +51,14 @@ enum PayrollParameter: string
     case OvertimeNight = 'overtime_night';
     case OvertimeSundayDay = 'overtime_sunday_day';
     case OvertimeSundayNight = 'overtime_sunday_night';
+
+    /**
+     * La regla del bono de la extractora: las horas de los días que caen en el mes
+     * anterior, y las extras de cada día por encima del tope diario, se pagan como
+     * bonificación constitutiva y no como horas extras. Mismo valor; cuenta para
+     * seguridad social y prestaciones. Ver `OvertimeBonusSplitter`.
+     */
+    case OvertimeExcessAsBonus = 'overtime_excess_as_bonus';
 
     // ── Aportes del trabajador ────────────────────────────────────────────────
     case HealthEmployeeRate = 'health_employee_rate';
@@ -62,6 +78,7 @@ enum PayrollParameter: string
             self::NightWindowEnd => 'Fin de la jornada nocturna',
             self::MaxOvertimeHoursDay => 'Tope de horas extras por día',
             self::MaxOvertimeHoursWeek => 'Tope de horas extras por semana',
+            self::HoursCutoffDay => 'Día de corte de horas',
             self::SurchargeNight => 'Recargo nocturno',
             self::SurchargeSunday => 'Recargo dominical y festivo',
             self::SurchargeNightSunday => 'Recargo nocturno dominical',
@@ -69,6 +86,7 @@ enum PayrollParameter: string
             self::OvertimeNight => 'Hora extra nocturna',
             self::OvertimeSundayDay => 'Hora extra dominical diurna',
             self::OvertimeSundayNight => 'Hora extra dominical nocturna',
+            self::OvertimeExcessAsBonus => 'Exceso de extras como bonificación',
             self::HealthEmployeeRate => 'Aporte a salud del trabajador',
             self::PensionEmployeeRate => 'Aporte a pensión del trabajador',
         };
@@ -80,10 +98,23 @@ enum PayrollParameter: string
             self::Smlmv, self::TransportAllowance, self::TransportAllowanceMaxSmlmv, self::UvtValue => 'Valores del año',
             self::MonthlyHoursDivisor, self::MonthDays, self::OrdinaryHoursPerDay,
             self::NightWindowStart, self::NightWindowEnd,
-            self::MaxOvertimeHoursDay, self::MaxOvertimeHoursWeek => 'Jornada',
+            self::MaxOvertimeHoursDay, self::MaxOvertimeHoursWeek, self::HoursCutoffDay => 'Jornada',
             self::SurchargeNight, self::SurchargeSunday, self::SurchargeNightSunday,
-            self::OvertimeDay, self::OvertimeNight, self::OvertimeSundayDay, self::OvertimeSundayNight => 'Recargos y horas extras',
+            self::OvertimeDay, self::OvertimeNight, self::OvertimeSundayDay, self::OvertimeSundayNight,
+            self::OvertimeExcessAsBonus => 'Recargos y horas extras',
             self::HealthEmployeeRate, self::PensionEmployeeRate => 'Aportes del trabajador',
+        };
+    }
+
+    /**
+     * El techo con el que se valida la captura. El de la unidad, salvo el día de corte:
+     * un 30 no existe en febrero, y la regla del corte sí tiene que existir todos los meses.
+     */
+    public function maxValue(): float
+    {
+        return match ($this) {
+            self::HoursCutoffDay => 28,
+            default => $this->unit()->maxValue(),
         };
     }
 
@@ -97,8 +128,9 @@ enum PayrollParameter: string
             self::Smlmv, self::TransportAllowance, self::UvtValue => PayrollParameterUnit::Money,
             self::TransportAllowanceMaxSmlmv, self::MonthlyHoursDivisor, self::MonthDays,
             self::OrdinaryHoursPerDay, self::MaxOvertimeHoursDay,
-            self::MaxOvertimeHoursWeek => PayrollParameterUnit::Number,
+            self::MaxOvertimeHoursWeek, self::HoursCutoffDay => PayrollParameterUnit::Number,
             self::NightWindowStart, self::NightWindowEnd => PayrollParameterUnit::HourOfDay,
+            self::OvertimeExcessAsBonus => PayrollParameterUnit::Toggle,
             default => PayrollParameterUnit::Factor,
         };
     }
@@ -122,6 +154,9 @@ enum PayrollParameter: string
             self::NightWindowEnd => 6,
             self::MaxOvertimeHoursDay => 2,
             self::MaxOvertimeHoursWeek => 12,
+            // Las dos reglas de la extractora arrancan apagadas: mes calendario y todo
+            // como horas extras, que es lo que dice la ley sin acuerdos de por medio.
+            self::HoursCutoffDay => 0,
             self::SurchargeNight => 0.35,
             self::SurchargeSunday => 0.80,
             self::SurchargeNightSunday => 1.15,
@@ -129,6 +164,7 @@ enum PayrollParameter: string
             self::OvertimeNight => 1.75,
             self::OvertimeSundayDay => 2.05,
             self::OvertimeSundayNight => 2.55,
+            self::OvertimeExcessAsBonus => 0,
             self::HealthEmployeeRate => 0.04,
             self::PensionEmployeeRate => 0.04,
         };

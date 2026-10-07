@@ -16,6 +16,9 @@ enum PayrollParameterUnit: string
     case Number = 'number';
     case HourOfDay = 'hour_of_day';
 
+    /** Una regla que se prende o se apaga: 1 es sí, 0 es no. */
+    case Toggle = 'toggle';
+
     public function label(): string
     {
         return match ($this) {
@@ -23,6 +26,7 @@ enum PayrollParameterUnit: string
             self::Factor => 'Factor',
             self::Number => 'Número',
             self::HourOfDay => 'Hora del día',
+            self::Toggle => '1 = sí, 0 = no',
         };
     }
 
@@ -34,6 +38,7 @@ enum PayrollParameterUnit: string
             self::Factor => 10,
             self::Number => 1_000,
             self::HourOfDay => 24,
+            self::Toggle => 1,
         };
     }
 
@@ -44,6 +49,7 @@ enum PayrollParameterUnit: string
             self::Factor => number_format($value, 2, ',', '.'),
             self::Number => number_format($value, 0, ',', '.'),
             self::HourOfDay => sprintf('%02d:%02d', (int) $value, (int) round(fmod($value, 1) * 60)),
+            self::Toggle => $value >= 0.5 ? 'Sí' : 'No',
         };
     }
 }

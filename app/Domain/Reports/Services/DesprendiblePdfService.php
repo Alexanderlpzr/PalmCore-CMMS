@@ -103,6 +103,17 @@ class DesprendiblePdfService implements PdfReport
             ];
         }
 
+        // Las horas que la regla del bono pagó como bonificación constitutiva: mismas
+        // horas y mismo valor, otro concepto. Van una por clase para que el trabajador
+        // las reconozca contra su formato de horas extras.
+        foreach ($entry->hoursBonusLines() as $line) {
+            $lines[] = [
+                'concept' => 'Bonificación constitutiva — '.mb_strtolower($line['concept']),
+                'detail' => $this->hours($line['hours']).' h × '.$this->money($line['rate']),
+                'amount' => $line['amount'],
+            ];
+        }
+
         foreach ($entry->novelty_breakdown ?? [] as $row) {
             if (($row['amount'] ?? 0) <= 0) {
                 continue;

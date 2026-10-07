@@ -2,6 +2,7 @@
 
 namespace App\Domain\HumanResources\Services;
 
+use App\Domain\HumanResources\DTOs\ClassifiedHours;
 use App\Domain\HumanResources\Enums\BonusType;
 use App\Domain\HumanResources\Enums\NoveltyDayBasis;
 use App\Domain\HumanResources\Enums\NoveltyType;
@@ -36,7 +37,10 @@ use Illuminate\Support\Collection;
  */
 class PayrollCalculator
 {
-    public function __construct(private readonly PayrollParameterService $parameters) {}
+    public function __construct(
+        private readonly PayrollParameterService $parameters,
+        private readonly OvertimeBonusSplitter $splitter,
+    ) {}
 
     /**
      * Liquida a un trabajador en el período de la nómina.
@@ -59,16 +63,31 @@ class PayrollCalculator
         $novelties = $this->noveltyDays($employee, $from, $to);
         $noveltyDayCount = array_sum($novelties);
 
-        $confirmedDays = $this->confirmedDays($employee, $from, $to);
+        // Las horas salen de la ventana de corte —del 27 al 26 en la extractora— y el
+        // sueldo, del mes. Sin corte, las dos cosas son el período.
+        $hoursFrom = CarbonImmutable::instance($run->hoursFrom())->startOfDay();
+        $hoursTo = CarbonImmutable::instance($run->hoursTo())->endOfDay();
+        $hasCutoff = $run->hasHoursCutoff();
 
-        // Los días laborados son los que el reloj confirmó, y las novedades ocupan el
-        // resto del mes. El libro los deduce al revés —parte de 30 y resta— porque allí
-        // nadie mide la asistencia; aquí sí, así que se toma la medición y las novedades
-        // se contrastan contra ella.
-        $workedDays = $confirmedDays->sum(fn (AttendanceDay $d): int => $d->jornal());
+        $confirmedDays = $this->confirmedDays($employee, $hoursFrom, $hoursTo);
+
+        if ($hasCutoff) {
+            // Con corte la nómina se liquida antes de que el mes termine: el sueldo no
+            // puede salir de días que todavía no ocurren. Se cuenta como el libro, del
+            // mes en que estuvo contratado se restan las novedades, y las ausencias se
+            // capturan como novedad.
+            $workedDays = max(0.0, $this->employedDays($employee, $from, $monthDays) - $noveltyDayCount);
+        } else {
+            // Los días laborados son los que el reloj confirmó, y las novedades ocupan el
+            // resto del mes. El libro los deduce al revés —parte de 30 y resta— porque allí
+            // nadie mide la asistencia; aquí sí, así que se toma la medición y las novedades
+            // se contrastan contra ella.
+            $workedDays = $confirmedDays->sum(fn (AttendanceDay $d): int => $d->jornal());
+        }
+
         $totalDays = $workedDays + $noveltyDayCount;
 
-        if (abs($totalDays - $monthDays) > 0.001) {
+        if (! $hasCutoff && abs($totalDays - $monthDays) > 0.001) {
             $warnings[] = sprintf(
                 'Los días no cuadran: %s trabajados + %s de novedad = %s, y el mes son %s. '
                 .'Falta capturar una novedad o confirmar horas.',
@@ -76,19 +95,29 @@ class PayrollCalculator
             );
         }
 
-        if ($confirmedDays->isEmpty() && $noveltyDayCount === 0) {
+        if (! $hasCutoff && $confirmedDays->isEmpty() && $noveltyDayCount === 0) {
             $warnings[] = 'No hay horas confirmadas ni novedades en el período.';
         }
 
-        $proposedCount = $this->proposedDayCount($employee, $from, $to);
+        $proposedCount = $this->proposedDayCount($employee, $hoursFrom, $hoursTo);
 
         if ($proposedCount > 0) {
             $warnings[] = "{$proposedCount} días del reloj siguen sin confirmar y no entraron a esta liquidación.";
         }
 
         // ── Recargos y horas extras ───────────────────────────────────────────
-        $buckets = $this->valueBuckets($confirmedDays, $hourValue, $p);
+        [$legalHours, $bonusHours] = $this->splitHours($confirmedDays, $from, $employee->tenant_id, $p);
+
+        $buckets = $this->valueHours($legalHours, $hourValue, $p);
         $surchargesTotal = array_sum(array_column($buckets, 'amount'));
+
+        // Lo que la regla del bono sacó de las horas extras: se paga como bonificación
+        // constitutiva, con el mismo valor, como la hoja BONIFICACIONES del formato.
+        $hoursBonus = array_filter(
+            $this->valueHours($bonusHours, $hourValue, $p),
+            fn (array $row): bool => $row['hours'] > 0,
+        );
+        $hoursBonusTotal = array_sum(array_column($hoursBonus, 'amount'));
 
         // ── Novedades valoradas ───────────────────────────────────────────────
         $smlmvDayValue = $p[PayrollParameter::Smlmv->value] / $monthDays;
@@ -146,12 +175,13 @@ class PayrollCalculator
             ? ($p[PayrollParameter::TransportAllowance->value] / $monthDays) * $workedDays
             : 0.0;
 
-        $totalEarned = $earnedWithSurcharges + $bonusesTotal + $transportAllowance;
+        $totalEarned = $earnedWithSurcharges + $bonusesTotal + $hoursBonusTotal + $transportAllowance;
 
         // ── Bases ─────────────────────────────────────────────────────────────
         // Las cuatro se calculan por separado y ninguna coincide con otra, que es
-        // exactamente lo correcto. Ver los comentarios de `NoveltyType`.
-        $ibcHealth = $earnedWithSurcharges + $bonuses[BonusType::Constitutiva->value];
+        // exactamente lo correcto. Ver los comentarios de `NoveltyType`. La bonificación
+        // por horas es constitutiva: entra a donde entran las horas extras.
+        $ibcHealth = $earnedWithSurcharges + $bonuses[BonusType::Constitutiva->value] + $hoursBonusTotal;
 
         // El día que no se paga sí cotiza a pensión: la cotización no se interrumpe
         // porque alguien faltó.
@@ -161,6 +191,7 @@ class PayrollCalculator
             + $this->sumNoveltiesWhere($noveltyValues, fn (NoveltyType $t): bool => $t->countsSeveranceBase())
             + $surchargesTotal
             + $bonuses[BonusType::Constitutiva->value]
+            + $hoursBonusTotal
             + $transportAllowance;
 
         $vacationBase = ($workedDays * $dayValue)
@@ -201,6 +232,8 @@ class PayrollCalculator
             'novelty_days' => $noveltyDayCount,
             'total_days' => $totalDays,
             'surcharges_total' => round($surchargesTotal, 2),
+            'hours_bonus_total' => round($hoursBonusTotal, 2),
+            'hours_bonus_breakdown' => $hoursBonus ?: null,
             'novelty_breakdown' => $noveltyValues ?: null,
             'absence_deduction' => round($absenceDeduction, 2),
             'paid_novelties_amount' => round($paidNovelties, 2),
@@ -254,53 +287,84 @@ class PayrollCalculator
     }
 
     /**
-     * Cada bolsa con sus horas, su tarifa y su valor.
+     * Las horas del período repartidas entre horas extras y bonificación.
      *
-     * @return array<string, array{hours: float, rate: float, amount: float}>
+     * Sin la regla del bono todo va a horas extras, como siempre. Con ella, cada día pasa
+     * por `OvertimeBonusSplitter`: los del mes anterior al período, enteros a bonificación;
+     * los demás, con el tope diario.
+     *
+     * @param  Collection<int, AttendanceDay>  $days
+     * @param  array<string, float>  $p
+     * @return array{0: ClassifiedHours, 1: ClassifiedHours} horas extras y recargos, bonificación
      */
-    private function valueBuckets(Collection $days, float $hourValue, array $p): array
+    private function splitHours(Collection $days, CarbonImmutable $periodStart, string $tenantId, array $p): array
     {
-        $totals = [];
-
-        foreach (PayrollEntry::BUCKETS as $key => $label) {
-            $totals[$key] = 0.0;
-        }
+        $legal = ClassifiedHours::empty();
+        $bonus = ClassifiedHours::empty();
+        $bonusRule = $this->parameters->isOn(PayrollParameter::OvertimeExcessAsBonus, $periodStart, $tenantId);
 
         foreach ($days as $day) {
-            $hours = $day->hours();
+            if (! $bonusRule) {
+                $legal = $legal->plus($day->hours());
 
-            $totals['night_surcharge'] += $hours->nightSurcharge;
-            $totals['sunday_surcharge'] += $hours->sundaySurcharge;
-            $totals['night_sunday_surcharge'] += $hours->nightSundaySurcharge;
-            $totals['overtime_day'] += $hours->overtimeDay;
-            $totals['overtime_night'] += $hours->overtimeNight;
-            $totals['overtime_sunday_day'] += $hours->overtimeSundayDay;
-            $totals['overtime_sunday_night'] += $hours->overtimeSundayNight;
+                continue;
+            }
+
+            $parts = $this->splitter->split(
+                $day->hours(),
+                wholeDayAsBonus: $day->work_date->toDateString() < $periodStart->toDateString(),
+                dailyCap: $p[PayrollParameter::MaxOvertimeHoursDay->value],
+                isRestDay: (bool) $day->rest_day_worked,
+            );
+
+            $legal = $legal->plus($parts['legal']);
+            $bonus = $bonus->plus($parts['bonus']);
         }
 
-        $factors = [
-            'night_surcharge' => PayrollParameter::SurchargeNight,
-            'sunday_surcharge' => PayrollParameter::SurchargeSunday,
-            'night_sunday_surcharge' => PayrollParameter::SurchargeNightSunday,
-            'overtime_day' => PayrollParameter::OvertimeDay,
-            'overtime_night' => PayrollParameter::OvertimeNight,
-            'overtime_sunday_day' => PayrollParameter::OvertimeSundayDay,
-            'overtime_sunday_night' => PayrollParameter::OvertimeSundayNight,
-        ];
+        return [$legal, $bonus];
+    }
 
+    /**
+     * Cada bolsa con sus horas, su tarifa y su valor.
+     *
+     * @param  array<string, float>  $p
+     * @return array<string, array{hours: float, rate: float, amount: float}>
+     */
+    private function valueHours(ClassifiedHours $hours, float $hourValue, array $p): array
+    {
         $result = [];
 
-        foreach ($totals as $key => $hours) {
-            $rate = $hourValue * $p[$factors[$key]->value];
+        foreach ($hours->paidBuckets() as $key => $bucket) {
+            $rate = $hourValue * $p[$bucket['parameter']->value];
 
             $result[$key] = [
-                'hours' => round($hours, 4),
+                'hours' => round($bucket['hours'], 4),
                 'rate' => round($rate, 4),
-                'amount' => round($hours * $rate, 2),
+                'amount' => round($bucket['hours'] * $rate, 2),
             ];
         }
 
         return $result;
+    }
+
+    /**
+     * Los días del mes en que la persona estuvo contratada, en meses de 30 como el libro:
+     * quien entró el 15 tiene 16; quien estuvo todo el mes, los 30.
+     */
+    private function employedDays(Employee $employee, CarbonImmutable $periodStart, float $monthDays): float
+    {
+        $month = $periodStart->startOfMonth();
+        $hired = $employee->hire_date ? CarbonImmutable::instance($employee->hire_date) : null;
+        $left = $employee->termination_date ? CarbonImmutable::instance($employee->termination_date) : null;
+
+        if (($hired && $hired->greaterThan($month->endOfMonth())) || ($left && $left->lessThan($month))) {
+            return 0.0;
+        }
+
+        $first = $hired && $hired->isSameMonth($month) ? $hired->day : 1;
+        $last = $left && $left->isSameMonth($month) ? min($left->day, (int) $monthDays) : (int) $monthDays;
+
+        return (float) max(0, $last - $first + 1);
     }
 
     /** @return array<string, float> */

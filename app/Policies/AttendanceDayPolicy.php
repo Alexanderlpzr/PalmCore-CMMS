@@ -65,6 +65,15 @@ class AttendanceDayPolicy
         return $user->is_super_admin || $user->hasPermissionTo('attendance.confirm');
     }
 
+    /**
+     * Marcar a qué grupo se cargan las horas del día en el indicador «factor de horas».
+     * No cambia lo que se paga, así que vale también sobre un día confirmado.
+     */
+    public function tag(User $user, AttendanceDay $day): bool
+    {
+        return $user->is_super_admin || $user->hasPermissionTo('attendance.confirm');
+    }
+
     /** Devolver un día firmado a propuesta, para rehacerlo. */
     public function reopen(User $user, AttendanceDay $day): bool
     {
