@@ -9,6 +9,7 @@ use App\Filament\Resources\Employees\RelationManagers\BonusesRelationManager;
 use App\Filament\Resources\Employees\RelationManagers\DeductionsRelationManager;
 use App\Filament\Resources\Employees\RelationManagers\DocumentsRelationManager;
 use App\Filament\Resources\Employees\RelationManagers\NoveltiesRelationManager;
+use App\Filament\Resources\Employees\RelationManagers\QrCodesRelationManager;
 use App\Filament\Resources\Employees\Schemas\EmployeeForm;
 use App\Filament\Resources\Employees\Tables\EmployeesTable;
 use App\Models\Employee;
@@ -60,6 +61,8 @@ class EmployeeResource extends Resource
     public static function getRelations(): array
     {
         return [
+            // El carné va primero: es lo que se busca cuando alguien no puede marcar.
+            QrCodesRelationManager::class,
             DocumentsRelationManager::class,
             NoveltiesRelationManager::class,
             BonusesRelationManager::class,

@@ -4,8 +4,8 @@ namespace App\Filament\Resources\Employees\Tables;
 
 use App\Domain\HumanResources\Enums\EmployeeDocumentType;
 use App\Domain\HumanResources\Enums\EmploymentStatus;
-use App\Domain\HumanResources\Services\EmployeeQrCodeService;
 use App\Domain\HumanResources\Support\EmployeeProfileOptions as Options;
+use App\Filament\Resources\Employees\EmployeeQrActions;
 use App\Models\Employee;
 use App\Models\EmployeeDocument;
 use Carbon\CarbonInterface;
@@ -13,7 +13,6 @@ use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
-use Filament\Notifications\Notification;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
@@ -23,8 +22,6 @@ use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 class EmployeesTable
 {
@@ -206,56 +203,16 @@ class EmployeesTable
                 EditAction::make(),
 
                 // La imagen del QR, para pegarla en el carné que ya usa la empresa.
+                // «Reemitir carné» ya no está aquí: vive en la ficha, apartado «Carné»,
+                // con motivo y cédula, lejos de este botón (ver EmployeeQrActions).
                 Action::make('descargarQr')
                     ->label('Descargar QR')
                     ->icon('heroicon-o-arrow-down-tray')
                     ->color('gray')
                     ->authorize(fn (Employee $record): bool => auth()->user()?->can('manageQrCode', $record) ?? false)
                     ->visible(fn (Employee $record): bool => $record->qrCode !== null)
-                    ->action(function (Employee $record) {
-                        $qrCode = $record->qrCode;
-                        $disk = Storage::disk(persistent_disk());
+                    ->action(fn (Employee $record) => EmployeeQrActions::downloadFor($record)),
 
-                        // Si la imagen se perdió del disco, se vuelve a dibujar del mismo
-                        // token: el carné impreso sigue sirviendo.
-                        if (! $qrCode->qr_image_path || ! $disk->exists($qrCode->qr_image_path)) {
-                            $qrCode->update([
-                                'qr_image_path' => app(EmployeeQrCodeService::class)->generateImage($qrCode->qr_token, $record->tenant_id),
-                            ]);
-                        }
-
-                        return $disk->download(
-                            $qrCode->qr_image_path,
-                            Str::slug(trim(($record->employee_code ?? '').' '.$record->fullName())).'-qr.png',
-                        );
-                    }),
-
-                Action::make('reemitirCarne')
-                    ->label('Reemitir carné')
-                    ->icon('heroicon-o-qr-code')
-                    ->color('gray')
-                    ->authorize(fn (Employee $record): bool => auth()->user()?->can('manageQrCode', $record) ?? false)
-                    ->requiresConfirmation()
-                    ->modalHeading('Reemitir el carné')
-                    ->modalDescription(
-                        'El carné anterior deja de servir de inmediato: mientras siga activo, '
-                        .'quien lo encuentre puede marcarle la entrada a su dueño.'
-                    )
-                    ->modalSubmitActionLabel('Reemitir')
-                    ->action(function (Employee $record): void {
-                        $service = app(EmployeeQrCodeService::class);
-                        $current = $record->qrCode;
-
-                        $current
-                            ? $service->regenerate($current)
-                            : $service->createForEmployee($record);
-
-                        Notification::make()
-                            ->title('Carné reemitido')
-                            ->body('El anterior quedó anulado.')
-                            ->success()
-                            ->send();
-                    }),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

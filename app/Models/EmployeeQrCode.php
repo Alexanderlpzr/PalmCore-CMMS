@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Domain\HumanResources\Enums\QrRevocationReason;
 use App\Domain\Shared\Models\BaseModel;
 use Database\Factories\EmployeeQrCodeFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -26,6 +27,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'generated_at',
     'last_scanned_at',
     'scan_count',
+    'revoked_by',
+    'revoked_at',
+    'revocation_reason',
+    'revocation_detail',
 ])]
 class EmployeeQrCode extends BaseModel
 {
@@ -39,6 +44,11 @@ class EmployeeQrCode extends BaseModel
     public function employee(): BelongsTo
     {
         return $this->belongsTo(Employee::class);
+    }
+
+    public function revokedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'revoked_by');
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -67,6 +77,8 @@ class EmployeeQrCode extends BaseModel
             'generated_at' => 'datetime',
             'last_scanned_at' => 'datetime',
             'scan_count' => 'integer',
+            'revoked_at' => 'datetime',
+            'revocation_reason' => QrRevocationReason::class,
         ];
     }
 }

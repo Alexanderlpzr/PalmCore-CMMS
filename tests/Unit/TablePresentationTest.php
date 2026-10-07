@@ -86,7 +86,9 @@ it('encuentra las tablas del proyecto', function (): void {
     // roles, ingresos, suplantaciones y cambios.
     //
     // 83 con «Marcas de portería», el historial de la puerta en Talento Humano.
-    expect(tableFiles())->toHaveCount(83);
+    //
+    // 84 con la pestaña «Carné» de la ficha del trabajador: el vigente y los anulados.
+    expect(tableFiles())->toHaveCount(84);
 });
 
 it('alinea a la derecha toda columna de dinero o cantidad', function (): void {

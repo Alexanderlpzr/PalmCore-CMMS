@@ -2,8 +2,10 @@
 
 namespace App\Domain\HumanResources\Services;
 
+use App\Domain\HumanResources\Enums\QrRevocationReason;
 use App\Models\Employee;
 use App\Models\EmployeeQrCode;
+use App\Models\User;
 use chillerlan\QRCode\Common\EccLevel;
 use chillerlan\QRCode\Output\QROutputInterface;
 use chillerlan\QRCode\QRCode;
@@ -87,14 +89,25 @@ class EmployeeQrCodeService
      * entrada a su dueño. El registro se conserva en borrado suave porque los escaneos
      * históricos apuntan a él.
      */
-    public function regenerate(EmployeeQrCode $qrCode): EmployeeQrCode
-    {
+    public function regenerate(
+        EmployeeQrCode $qrCode,
+        ?User $revokedBy = null,
+        ?QrRevocationReason $reason = null,
+        ?string $detail = null,
+    ): EmployeeQrCode {
         $qrCode->loadMissing('employee');
 
-        return DB::transaction(function () use ($qrCode): EmployeeQrCode {
+        return DB::transaction(function () use ($qrCode, $revokedBy, $reason, $detail): EmployeeQrCode {
             $oldImagePath = $qrCode->qr_image_path;
 
-            $qrCode->update(['is_active' => false]);
+            // El viejo dice quién lo anuló, cuándo y por qué: es el historial del carné.
+            $qrCode->update([
+                'is_active' => false,
+                'revoked_by' => $revokedBy?->id,
+                'revoked_at' => now(),
+                'revocation_reason' => $reason,
+                'revocation_detail' => filled($detail) ? trim($detail) : null,
+            ]);
             $qrCode->delete();
 
             $newQrCode = $this->createForEmployee($qrCode->employee);
