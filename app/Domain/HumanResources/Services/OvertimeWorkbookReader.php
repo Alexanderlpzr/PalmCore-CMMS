@@ -61,7 +61,7 @@ final class OvertimeWorkbookReader
     ];
 
     /**
-     * @return list<array{sheet: string, name: string, document: string, salary: ?float, bonusTotal: ?float, days: list<array{date: CarbonImmutable, start: ?string, scheduledEnd: ?string, exit: ?string, legal: array<string, float>, bonus: array<string, float>, notes: string}>}>
+     * @return list<array{sheet: string, name: string, document: string, supervisor: ?string, salary: ?float, bonusTotal: ?float, days: list<array{date: CarbonImmutable, start: ?string, scheduledEnd: ?string, exit: ?string, legal: array<string, float>, bonus: array<string, float>, notes: string}>}>
      */
     public function read(string $path): array
     {
@@ -209,6 +209,7 @@ final class OvertimeWorkbookReader
             'sheet' => $name,
             'name' => $this->labelValue($rows, 'NOMBRE') ?? $name,
             'document' => preg_replace('/\D/', '', (string) $this->labelValue($rows, 'IDENTIFICACI')),
+            'supervisor' => ($jefe = $this->labelValue($rows, 'JEFE INMEDIATO')) !== null ? trim((string) $jefe) : null,
             'salary' => is_numeric($salary = $this->labelValue($rows, 'SALARIO', exact: true)) ? (float) $salary : null,
             'bonusTotal' => is_numeric($bonus = $this->labelValue($rows, 'TOTAL BONO', exact: true)) ? (float) $bonus : null,
             'days' => $days,

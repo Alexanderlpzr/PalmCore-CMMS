@@ -120,6 +120,26 @@ class PayrollRun extends BaseModel
     }
 
     /**
+     * Las últimas ventanas de horas, la que corre primero, listas para un selector:
+     * «2026-09-27|2026-10-26» => «27/09/2026 al 26/10/2026».
+     *
+     * @return array<string, string>
+     */
+    public static function recentHoursWindows(int $cutoffDay, int $count = 6, ?CarbonInterface $today = null): array
+    {
+        [$from, $to] = self::hoursWindowContaining($today ?? CarbonImmutable::today(), $cutoffDay);
+        $options = [];
+
+        for ($i = 0; $i < $count; $i++) {
+            $options[$from->toDateString().'|'.$to->toDateString()] = $from->format('d/m/Y').' al '.$to->format('d/m/Y');
+            // La anterior es la que contiene el día antes de que empiece esta.
+            [$from, $to] = self::hoursWindowContaining($from->subDay(), $cutoffDay);
+        }
+
+        return $options;
+    }
+
+    /**
      * La ventana de horas que le toca a un período según el día de corte: con 26, la
      * nómina de octubre toma las horas del 27 de septiembre al 26 de octubre. Sin corte
      * (0), ninguna: las horas son las del período.

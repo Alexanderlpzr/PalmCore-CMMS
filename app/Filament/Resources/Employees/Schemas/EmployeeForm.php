@@ -183,6 +183,10 @@ class EmployeeForm
                     ->placeholder('O4092021')
                     ->maxLength(30),
                 TextInput::make('position')->label('Cargo')->maxLength(120),
+                TextInput::make('immediate_supervisor')
+                    ->label('Jefe inmediato')
+                    ->maxLength(120)
+                    ->helperText('Firma el «Vo. Bo.» del formato de horas extras.'),
                 Select::make('contract_type')
                     ->label('Tipo de contrato')
                     ->options(Options::CONTRACT_TYPES)

@@ -42,6 +42,27 @@ class FormatoHorasExtrasPdfService
         'night_sunday_surcharge' => 'RND',
     ];
 
+    /** El nombre completo de cada columna, como en el encabezado de la hoja. */
+    public const COLUMN_TITLES = [
+        'overtime_day' => 'HORAS EXTRAS DIURNAS',
+        'overtime_night' => 'HORAS EXTRAS NOCTURNAS',
+        'overtime_sunday_day' => 'HORAS EXTRAS DOMINICAL DIURNA',
+        'overtime_sunday_night' => 'HORAS EXTRAS DOMINICAL NOCTURNA',
+        'sunday_surcharge' => 'RECARGO DIURNO DOMINICAL',
+        'night_surcharge' => 'RECARGO NOCTURNO',
+        'night_sunday_surcharge' => 'RECARGO NOCTURNO DOMINICAL',
+    ];
+
+    /**
+     * El control documental del formato, tal como lo imprime la extractora en su hoja: el
+     * papel que se firma tiene que ser reconocible como el mismo formato de siempre.
+     */
+    public const FORM_CODE = 'TH-FOR-002';
+
+    public const FORM_VERSION = '02';
+
+    public const FORM_DATE = '27/11/2020';
+
     public function __construct(
         private readonly ReportBrandingService $branding,
         private readonly PayrollParameterService $parameters,
@@ -49,7 +70,11 @@ class FormatoHorasExtrasPdfService
         private readonly AttendanceCorrectionService $corrections,
     ) {}
 
-    public function generate(Employee $employee, CarbonInterface $from, CarbonInterface $to): string
+    /**
+     * @param  bool  $showValues  la calculadora con el salario y los valores; quien no ve
+     *                            sueldos recibe el formato solo con las horas
+     */
+    public function generate(Employee $employee, CarbonInterface $from, CarbonInterface $to, bool $showValues = true): string
     {
         $tenant = Tenant::withoutGlobalScopes()->find($employee->tenant_id);
         $documentNumber = sprintf('THF-%s-%s', CarbonImmutable::instance($to)->format('Ym'), $employee->document_number);
@@ -63,6 +88,7 @@ class FormatoHorasExtrasPdfService
                 $this->branding->documentIdentityPayload($documentNumber, $tenant),
             ),
             'generatedAt' => now(),
+            'showValues' => $showValues,
         ])
             ->setPaper('a4', 'landscape')
             ->setOption(['defaultFont' => 'DejaVu Sans', 'isHtml5ParserEnabled' => true, 'dpi' => 96])
@@ -174,6 +200,7 @@ class FormatoHorasExtrasPdfService
 
         return [
             'employee' => $employee,
+            'supervisor' => $employee->immediate_supervisor,
             'from' => $from,
             'to' => $to,
             'periodStart' => $periodStart,

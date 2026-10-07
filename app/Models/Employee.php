@@ -49,6 +49,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'emergency_contact_relationship',
     'emergency_contact_phone',
     'position',
+    'immediate_supervisor',
     'contract_type',
     'area',
     'area_specific',

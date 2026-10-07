@@ -88,7 +88,8 @@ it('encuentra las tablas del proyecto', function (): void {
     // 83 con «Marcas de portería», el historial de la puerta en Talento Humano.
     //
     // 84 con la pestaña «Carné» de la ficha del trabajador: el vigente y los anulados.
-    expect(tableFiles())->toHaveCount(84);
+    // 85 con la pestaña «Horas extras»: el formato TH-FOR-002 en pantalla.
+    expect(tableFiles())->toHaveCount(85);
 });
 
 it('alinea a la derecha toda columna de dinero o cantidad', function (): void {

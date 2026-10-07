@@ -9,6 +9,7 @@ use App\Filament\Resources\Employees\RelationManagers\BonusesRelationManager;
 use App\Filament\Resources\Employees\RelationManagers\DeductionsRelationManager;
 use App\Filament\Resources\Employees\RelationManagers\DocumentsRelationManager;
 use App\Filament\Resources\Employees\RelationManagers\NoveltiesRelationManager;
+use App\Filament\Resources\Employees\RelationManagers\OvertimeRelationManager;
 use App\Filament\Resources\Employees\RelationManagers\QrCodesRelationManager;
 use App\Filament\Resources\Employees\Schemas\EmployeeForm;
 use App\Filament\Resources\Employees\Tables\EmployeesTable;
@@ -63,6 +64,8 @@ class EmployeeResource extends Resource
         return [
             // El carné va primero: es lo que se busca cuando alguien no puede marcar.
             QrCodesRelationManager::class,
+            // El formato de horas extras: lo que marcó en la puerta, como lo firma su jefe.
+            OvertimeRelationManager::class,
             DocumentsRelationManager::class,
             NoveltiesRelationManager::class,
             BonusesRelationManager::class,
