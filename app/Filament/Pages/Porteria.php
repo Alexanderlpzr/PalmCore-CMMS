@@ -133,22 +133,85 @@ class Porteria extends Page
     protected function getViewData(): array
     {
         $timezone = $this->timezone();
-        $hoy = now($timezone);
-
-        $marcas = AttendanceScan::query()
-            ->forTenant($this->tenant()->id)
-            ->whereBetween('scanned_at', [$hoy->copy()->startOfDay()->utc(), $hoy->copy()->endOfDay()->utc()])
-            ->with('employee:id,first_name,last_name,document_number')
-            ->orderByDesc('scanned_at')
-            ->limit(150)
-            ->get();
 
         return [
-            'marcas' => $marcas,
+            'minuta' => $this->minuta($timezone),
             'adentro' => $this->peopleInside(),
             'timezone' => $timezone,
             'scriptUrl' => $this->scannerScriptUrl(),
         ];
+    }
+
+    /**
+     * La minuta del día: una fila por turno, con su entrada y su salida, en el orden en que
+     * llegaron. Es lo que el vigilante —de una empresa contratista— copia en la minuta que
+     * le pide su empresa.
+     *
+     * Solo el día en curso. El turno de noche que entró ayer y sale hoy aparece con su
+     * entrada marcada como «ayer»: por eso se leen también las 16 horas anteriores.
+     *
+     * @return list<array{nombre: string, documento: ?string, cargo: ?string, entrada: ?string, entradaAyer: bool, salida: ?string, horas: ?string}>
+     */
+    private function minuta(string $timezone): array
+    {
+        $inicio = now($timezone)->startOfDay();
+        $fin = $inicio->copy()->endOfDay();
+
+        $marcas = AttendanceScan::query()
+            ->forTenant($this->tenant()->id)
+            ->whereBetween('scanned_at', [$inicio->copy()->subHours(AttendanceService::MAX_OPEN_SHIFT_HOURS)->utc(), $fin->copy()->utc()])
+            ->with('employee:id,first_name,last_name,document_number,position')
+            ->orderBy('scanned_at')
+            ->get();
+
+        $turnos = [];
+
+        foreach ($marcas->groupBy('employee_id') as $delTrabajador) {
+            $abierta = null;
+
+            foreach ($delTrabajador as $marca) {
+                if ($marca->isEntry()) {
+                    if ($abierta) {
+                        $turnos[] = [$abierta, null];
+                    }
+
+                    $abierta = $marca;
+
+                    continue;
+                }
+
+                $turnos[] = [$abierta, $marca];
+                $abierta = null;
+            }
+
+            if ($abierta) {
+                $turnos[] = [$abierta, null];
+            }
+        }
+
+        $deHoy = fn (?AttendanceScan $marca): bool => $marca !== null && $marca->scanned_at->copy()->setTimezone($timezone)->gte($inicio);
+        $hora = fn (?AttendanceScan $marca): ?string => $marca?->scanned_at->copy()->setTimezone($timezone)->format('h:i a');
+
+        return collect($turnos)
+            ->filter(fn (array $turno): bool => $deHoy($turno[0]) || $deHoy($turno[1]))
+            ->sortBy(fn (array $turno) => ($turno[0] ?? $turno[1])->scanned_at)
+            ->map(function (array $turno) use ($deHoy, $hora): array {
+                [$entrada, $salida] = $turno;
+                $empleado = ($entrada ?? $salida)->employee;
+                $minutos = $entrada && $salida ? (int) $entrada->scanned_at->diffInMinutes($salida->scanned_at) : null;
+
+                return [
+                    'nombre' => $empleado?->fullName() ?? '—',
+                    'documento' => $empleado?->document_number,
+                    'cargo' => $empleado?->position,
+                    'entrada' => $hora($entrada),
+                    'entradaAyer' => $entrada !== null && ! $deHoy($entrada),
+                    'salida' => $hora($salida),
+                    'horas' => $minutos === null ? null : intdiv($minutos, 60).' h '.str_pad((string) ($minutos % 60), 2, '0', STR_PAD_LEFT).' min',
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     /**

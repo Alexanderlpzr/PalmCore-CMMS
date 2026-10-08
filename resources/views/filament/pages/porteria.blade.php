@@ -107,27 +107,61 @@
                 </div>
             </x-filament::section>
 
-            <x-filament::section :heading="'Hoy · ' . $marcas->count() . ' ' . ($marcas->count() === 1 ? 'marca' : 'marcas')">
-                @forelse ($marcas as $marca)
-                    <div class="flex items-center justify-between gap-3 border-b border-gray-100 py-2 last:border-0 dark:border-white/5">
-                        <div class="min-w-0">
-                            <p class="truncate text-sm font-medium text-gray-950 dark:text-white">{{ $marca->employee?->fullName() }}</p>
-                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ $marca->employee?->document_number }}</p>
-                        </div>
-                        <div class="shrink-0 text-right">
-                            <p @class([
-                                'text-xs font-bold',
-                                'text-success-600 dark:text-success-400' => $marca->isEntry(),
-                                'text-info-600 dark:text-info-400' => ! $marca->isEntry(),
-                            ])>{{ $marca->direction->label() }}</p>
-                            <p class="text-xs tabular-nums text-gray-500 dark:text-gray-400">{{ $marca->scanned_at->copy()->setTimezone($timezone)->format('h:i a') }}</p>
-                        </div>
-                    </div>
-                @empty
-                    <p class="py-4 text-center text-sm text-gray-500 dark:text-gray-400">Todavía nadie ha marcado hoy.</p>
-                @endforelse
-            </x-filament::section>
         </div>
+    </div>
+
+    {{-- La minuta del día: lo que el vigilante copia en la minuta de su empresa. Se refresca
+         sola cada 20 segundos, para ver también lo que se marcó desde otra puerta. --}}
+    <div wire:poll.20s>
+        <x-filament::section
+            :heading="'Minuta de hoy · ' . now($timezone)->locale('es')->translatedFormat('l j \\d\\e F')"
+            :description="count($minuta) . ' ' . (count($minuta) === 1 ? 'registro' : 'registros') . ' · se actualiza sola'"
+        >
+            @if (count($minuta))
+                <div class="-mx-4 overflow-x-auto sm:-mx-6">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b border-gray-200 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:border-white/10 dark:text-gray-400">
+                                <th class="px-3 py-2 text-end sm:px-6">#</th>
+                                <th class="px-3 py-2">Trabajador</th>
+                                <th class="hidden px-3 py-2 md:table-cell">Cargo</th>
+                                <th class="px-3 py-2 text-end">Entrada</th>
+                                <th class="px-3 py-2 text-end">Salida</th>
+                                <th class="hidden px-3 py-2 text-end sm:table-cell sm:pe-6">Tiempo</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($minuta as $i => $fila)
+                                <tr class="border-b border-gray-100 last:border-0 even:bg-gray-50 dark:border-white/5 dark:even:bg-white/5">
+                                    <td class="px-3 py-2 text-end tabular-nums text-gray-400 sm:px-6">{{ $i + 1 }}</td>
+                                    <td class="px-3 py-2">
+                                        <p class="font-medium text-gray-950 dark:text-white">{{ $fila['nombre'] }}</p>
+                                        <p class="text-xs tabular-nums text-gray-500 dark:text-gray-400">{{ $fila['documento'] }}</p>
+                                    </td>
+                                    <td class="hidden px-3 py-2 text-gray-600 md:table-cell dark:text-gray-300">{{ $fila['cargo'] ?? '—' }}</td>
+                                    <td class="whitespace-nowrap px-3 py-2 text-end font-semibold tabular-nums text-success-600 dark:text-success-400">
+                                        {{ $fila['entrada'] ?? '—' }}
+                                        @if ($fila['entradaAyer'])
+                                            <span class="block text-xs font-normal text-gray-500">ayer</span>
+                                        @endif
+                                    </td>
+                                    <td class="whitespace-nowrap px-3 py-2 text-end font-semibold tabular-nums text-info-600 dark:text-info-400">
+                                        @if ($fila['salida'])
+                                            {{ $fila['salida'] }}
+                                        @else
+                                            <span class="text-xs font-medium text-gray-500">Adentro</span>
+                                        @endif
+                                    </td>
+                                    <td class="hidden whitespace-nowrap px-3 py-2 text-end tabular-nums text-gray-600 sm:table-cell sm:pe-6 dark:text-gray-300">{{ $fila['horas'] ?? '—' }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @else
+                <p class="py-4 text-center text-sm text-gray-500 dark:text-gray-400">Todavía nadie ha marcado hoy.</p>
+            @endif
+        </x-filament::section>
     </div>
 
     @if ($scriptUrl)

@@ -144,3 +144,29 @@ it('shows the result over the camera, beeps, and keeps the last good mark after 
         ->assertSet('ultimaBuena.nombre', 'Fermín Beltrán')
         ->assertSee('Última:');
 });
+
+it('lists today\'s shifts as a log the guard can copy, with the night shift that came in yesterday', function (): void {
+    entrarALaPuertaComo($this->tenant, 'porteria');
+    $this->travelTo(Carbon\Carbon::parse('2026-10-08 16:00', 'America/Bogota'));
+    $marcar = fn (EmployeeQrCode $carne, string $hora) => app(AttendanceService::class)
+        ->record($carne, at: Carbon\Carbon::parse($hora, 'America/Bogota')->utc());
+
+    $sereno = Employee::factory()->create(['tenant_id' => $this->tenant->id, 'first_name' => 'Ramiro', 'last_name' => 'Noche']);
+    $carneSereno = EmployeeQrCode::factory()->forEmployee($sereno)->create();
+    $marcar($carneSereno, '2026-10-07 22:00');
+    $marcar($carneSereno, '2026-10-08 06:00');
+
+    $marcar($this->card, '2026-10-08 07:00');
+    $marcar($this->card, '2026-10-08 15:30');
+
+    $antier = Employee::factory()->create(['tenant_id' => $this->tenant->id, 'first_name' => 'Olga', 'last_name' => 'Ayer']);
+    $marcar(EmployeeQrCode::factory()->forEmployee($antier)->create(), '2026-10-07 07:00');
+
+    Livewire::test(Porteria::class)
+        ->assertViewHas('minuta', fn (array $minuta): bool => count($minuta) === 2
+            && $minuta[0]['nombre'] === 'Ramiro Noche' && $minuta[0]['entrada'] === '10:00 pm' && $minuta[0]['entradaAyer'] && $minuta[0]['salida'] === '06:00 am'
+            && $minuta[1]['nombre'] === 'Fermín Beltrán' && $minuta[1]['entrada'] === '07:00 am' && $minuta[1]['salida'] === '03:30 pm' && $minuta[1]['horas'] === '8 h 30 min')
+        ->assertSee('Minuta de hoy')
+        ->assertSee('wire:poll.20s', escape: false)
+        ->assertDontSee('Olga Ayer');
+});
