@@ -57,6 +57,19 @@ it('trata dos pases seguidos del mismo carné como uno solo', function (): void 
         ->and($employee->attendanceScans()->count())->toBe(1);
 });
 
+it('no marca de nuevo hasta que pasan dos minutos', function (): void {
+    [, $employee, $card] = employeeWithCard();
+
+    $entrada = attendance()->record($card, at: Carbon::parse('2026-08-10 06:00:00'));
+    $alMinuto = attendance()->record($card, at: Carbon::parse('2026-08-10 06:01:59'));
+    $salida = attendance()->record($card, at: Carbon::parse('2026-08-10 06:02:00'));
+
+    expect($alMinuto->id)->toBe($entrada->id)
+        ->and($salida->id)->not->toBe($entrada->id)
+        ->and($salida->direction)->toBe(AttendanceDirection::Salida)
+        ->and($employee->attendanceScans()->count())->toBe(2);
+});
+
 it('registra una entrada nueva cuando la anterior quedó abierta demasiado tiempo', function (): void {
     [, , $card] = employeeWithCard();
 

@@ -112,6 +112,22 @@ it('takes the guard straight to the gate when opening the panel', function (): v
     Livewire::test(Inicio::class)->assertRedirect(Porteria::getUrl());
 });
 
+it('tells the guard a second pass within two minutes did not mark', function (): void {
+    entrarALaPuertaComo($this->tenant, 'porteria');
+    $this->travelTo(now()->setTimezone('America/Bogota')->setTime(7, 0));
+
+    Livewire::test(Porteria::class)
+        ->call('registrarMarca', $this->card->qr_token)
+        ->assertSet('ultimo.repetido', false)
+        ->call('registrarMarca', $this->card->qr_token)
+        ->assertSet('ultimo.repetido', true)
+        ->assertDispatched('porteria-marca', ok: false)
+        ->assertSee('Ya marcó Entrada')
+        ->assertSee('Podrá volver a marcar desde las 07:02 am');
+
+    expect(AttendanceScan::query()->count())->toBe(1);
+});
+
 it('shows the result over the camera, beeps, and keeps the last good mark after an error', function (): void {
     entrarALaPuertaComo($this->tenant, 'porteria');
 

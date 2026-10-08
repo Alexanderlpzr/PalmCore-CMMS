@@ -30,13 +30,14 @@
                             @class([
                                 // Cubre la cámara; sin cámara, igual se lee grande.
                                 'absolute inset-x-0 top-0 z-10 flex min-h-full cursor-pointer flex-col items-center justify-center rounded-xl p-4 text-center text-white shadow-lg',
-                                'bg-success-600' => $ultimo && $ultimo['entrada'],
-                                'bg-info-600' => $ultimo && ! $ultimo['entrada'],
+                                'bg-warning-600' => $ultimo && $ultimo['repetido'],
+                                'bg-success-600' => $ultimo && ! $ultimo['repetido'] && $ultimo['entrada'],
+                                'bg-info-600' => $ultimo && ! $ultimo['repetido'] && ! $ultimo['entrada'],
                                 'bg-danger-600' => $error,
                             ])
                         >
                             @if ($ultimo)
-                                <p class="text-lg font-black uppercase tracking-widest">{{ $ultimo['sentido'] }}</p>
+                                <p class="text-lg font-black uppercase tracking-widest">{{ $ultimo['repetido'] ? 'Ya marcó '.$ultimo['sentido'] : $ultimo['sentido'] }}</p>
                                 <p class="mt-1 whitespace-nowrap text-5xl font-black tabular-nums leading-none sm:text-7xl">{{ $ultimo['hora'] }}</p>
                                 <p class="mt-3 text-2xl font-bold leading-tight">{{ $ultimo['nombre'] }}</p>
                                 <p class="text-sm opacity-90">{{ $ultimo['documento'] }}@if ($ultimo['cargo']) · {{ $ultimo['cargo'] }}@endif</p>

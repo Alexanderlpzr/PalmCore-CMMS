@@ -88,6 +88,8 @@ class Porteria extends Page
 
         $scan = $service->record($qrCode, recordedBy: auth()->id(), gate: 'Portería (panel)');
         $employee = $qrCode->employee;
+        // Dentro de la pausa el servicio devuelve la marca anterior en lugar de crear otra.
+        $repetido = ! $scan->wasRecentlyCreated;
 
         $this->ultimo = [
             'nombre' => $employee->fullName(),
@@ -96,13 +98,17 @@ class Porteria extends Page
             'entrada' => $scan->direction === AttendanceDirection::Entrada,
             'sentido' => $scan->direction->label(),
             'hora' => $scan->scanned_at->copy()->setTimezone($this->timezone())->format('h:i a'),
-            'aviso' => $scan->notes,
+            'aviso' => $repetido
+                ? 'No se marcó de nuevo. Podrá volver a marcar desde las '
+                    .$scan->scanned_at->copy()->addSeconds(AttendanceService::DEBOUNCE_SECONDS)->setTimezone($this->timezone())->format('h:i a').'.'
+                : $scan->notes,
+            'repetido' => $repetido,
         ];
 
         $this->ultimaBuena = $this->ultimo;
         $this->intento++;
-        // Pitido corto: el vigilante sabe que pasó sin tener que mirar.
-        $this->dispatch('porteria-marca', ok: true);
+        // Pitido corto si marcó; el largo con vibración si fue un pase repetido que no marcó.
+        $this->dispatch('porteria-marca', ok: ! $repetido);
     }
 
     /** Un intento que no marcó: el aviso rojo encima de la cámara, y pitido largo con vibración. */

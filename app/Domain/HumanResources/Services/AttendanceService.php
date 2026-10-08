@@ -30,9 +30,10 @@ class AttendanceService
      *
      * La pantalla del celular tarda, el vigilante no ve confirmación y vuelve a pasar el
      * carné. Sin esto, la persona entra y sale en el mismo segundo y el día le queda en
-     * cero horas.
+     * cero horas. Dos minutos, por pedido de la planta: el carné que se pasa dos veces sin
+     * querer no le marca a nadie una salida al minuto de haber entrado.
      */
-    private const DEBOUNCE_SECONDS = 90;
+    public const DEBOUNCE_SECONDS = 120;
 
     /**
      * A partir de aquí, una entrada abierta dejó de ser un turno y pasó a ser un olvido.
