@@ -11,7 +11,6 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
-use Filament\Schemas\Components\Utilities\Get;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Validation\Rules\Password;
@@ -61,9 +60,7 @@ final class UserActions
                     ->password()
                     ->revealable()
                     ->required()
-                    // Una temporal solo dura hasta el primer ingreso; la definitiva tiene
-                    // que cumplir la política completa.
-                    ->rule(fn (Get $get): Password => $get('must_change') ? Password::min(8) : Password::default())
+                    ->rule(Password::default())
                     ->same('password_confirmation'),
                 TextInput::make('password_confirmation')
                     ->label('Repita la contraseña')

@@ -216,8 +216,11 @@ class AppServiceProvider extends ServiceProvider
 
         DB::prohibitDestructiveCommands(app()->isProduction());
 
+        // Seis caracteres y nada más, por decisión de la planta: el personal entra desde el
+        // celular y las reglas de mayúsculas, números y símbolos solo traían olvidos. El
+        // ingreso ya tiene límite de intentos.
         Password::defaults(fn (): ?Password => app()->isProduction()
-            ? Password::min(12)->mixedCase()->letters()->numbers()->symbols()->uncompromised()
+            ? Password::min(6)
             : null,
         );
 
