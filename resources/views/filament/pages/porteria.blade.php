@@ -1,62 +1,95 @@
 <x-filament-panels::page>
-    <div class="grid gap-6 lg:grid-cols-5">
-        {{-- La puerta: cámara, resultado y el campo del lector --}}
-        <div class="flex flex-col gap-4 lg:col-span-3">
+    <div class="grid gap-4 lg:grid-cols-5 lg:gap-6">
+        {{-- La puerta: cámara con el resultado encima, la última marca y el campo del lector --}}
+        <div class="flex flex-col gap-3 lg:col-span-3">
             <x-filament::section>
-                {{-- `wire:ignore`: cada marca repinta la pantalla y no debe apagar el video. --}}
-                <div wire:ignore class="flex flex-col gap-3">
-                    <div id="porteria-camara" class="w-full overflow-hidden rounded-xl bg-gray-900" style="min-height: 240px;"></div>
-                    <p id="porteria-camara-aviso" hidden class="rounded-lg bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:bg-amber-500/10 dark:text-amber-300"></p>
-                </div>
+                {{-- La cámara cuadrada y compacta, para que en el celular quepa todo sin bajar.
+                     El resultado se pinta encima: es donde el vigilante ya está mirando. --}}
+                <div class="relative mx-auto w-full" style="max-width: min(100%, 46vh);">
+                    {{-- `wire:ignore`: cada marca repinta la pantalla y no debe apagar el video. --}}
+                    <div wire:ignore>
+                        <div id="porteria-camara" class="aspect-square w-full overflow-hidden rounded-xl bg-gray-900"></div>
+                        <p id="porteria-camara-aviso" hidden class="rounded-lg bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:bg-amber-500/10 dark:text-amber-300"></p>
+                    </div>
 
-                <form wire:submit="marcarDelCampo" class="mt-4 flex flex-col gap-2 sm:flex-row">
-                    <x-filament::input.wrapper class="flex-1">
-                        <x-filament::input
-                            id="porteria-token"
-                            type="text"
-                            wire:model="token"
-                            placeholder="Lector USB o código del carné"
-                            autocomplete="off"
-                            autofocus
-                        />
-                    </x-filament::input.wrapper>
-                    <x-filament::button type="submit" icon="heroicon-o-check">
-                        Marcar
-                    </x-filament::button>
-                </form>
-                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Con lector USB, deje el cursor en este campo: lee el carné y marca solo.
-                </p>
-            </x-filament::section>
-
-            @if ($ultimo)
-                <div @class([
-                    'rounded-xl border-2 p-5',
-                    'border-success-500 bg-success-50 dark:bg-success-500/10' => $ultimo['entrada'],
-                    'border-info-500 bg-info-50 dark:bg-info-500/10' => ! $ultimo['entrada'],
-                ])>
-                    <p @class([
-                        'text-sm font-bold uppercase tracking-wider',
-                        'text-success-700 dark:text-success-400' => $ultimo['entrada'],
-                        'text-info-700 dark:text-info-400' => ! $ultimo['entrada'],
-                    ])>
-                        {{ $ultimo['sentido'] }} · {{ $ultimo['hora'] }}
-                    </p>
-                    <p class="mt-1 text-2xl font-bold text-gray-950 dark:text-white">{{ $ultimo['nombre'] }}</p>
-                    <p class="text-sm text-gray-600 dark:text-gray-300">
-                        {{ $ultimo['documento'] }}@if ($ultimo['cargo']) · {{ $ultimo['cargo'] }}@endif
-                    </p>
-                    @if ($ultimo['aviso'])
-                        <p class="mt-2 text-sm font-medium text-warning-700 dark:text-warning-400">{{ $ultimo['aviso'] }}</p>
+                    @if ($ultimo || $error)
+                        {{-- Un aviso por intento: cuatro segundos encima de la cámara y se va solo. --}}
+                        <div
+                            wire:key="resultado-{{ $intento }}"
+                            x-data="{ visible: true }"
+                            x-init="setTimeout(() => visible = false, 4000)"
+                            x-show="visible"
+                            x-transition.opacity.duration.300ms
+                            @click="visible = false"
+                            style="min-height: max(100%, 16rem);"
+                            @class([
+                                // Cubre la cámara; sin cámara, igual se lee grande.
+                                'absolute inset-x-0 top-0 z-10 flex min-h-full cursor-pointer flex-col items-center justify-center rounded-xl p-4 text-center text-white shadow-lg',
+                                'bg-success-600' => $ultimo && $ultimo['entrada'],
+                                'bg-info-600' => $ultimo && ! $ultimo['entrada'],
+                                'bg-danger-600' => $error,
+                            ])
+                        >
+                            @if ($ultimo)
+                                <p class="text-lg font-black uppercase tracking-widest">{{ $ultimo['sentido'] }}</p>
+                                <p class="mt-1 whitespace-nowrap text-5xl font-black tabular-nums leading-none sm:text-7xl">{{ $ultimo['hora'] }}</p>
+                                <p class="mt-3 text-2xl font-bold leading-tight">{{ $ultimo['nombre'] }}</p>
+                                <p class="text-sm opacity-90">{{ $ultimo['documento'] }}@if ($ultimo['cargo']) · {{ $ultimo['cargo'] }}@endif</p>
+                                @if ($ultimo['aviso'])
+                                    <p class="mt-3 rounded-lg bg-white/20 px-3 py-1 text-sm font-medium">{{ $ultimo['aviso'] }}</p>
+                                @endif
+                            @else
+                                <p class="text-lg font-black uppercase tracking-widest">No se marcó</p>
+                                <p class="mt-3 text-xl font-bold leading-snug">{{ $error }}</p>
+                            @endif
+                        </div>
                     @endif
                 </div>
-            @endif
 
-            @if ($error)
-                <div class="rounded-xl border-2 border-danger-500 bg-danger-50 p-4 text-sm font-medium text-danger-700 dark:bg-danger-500/10 dark:text-danger-400">
-                    {{ $error }}
+                {{-- La última marca buena se queda a la vista hasta la siguiente. --}}
+                @if ($ultimaBuena)
+                    <div class="mx-auto mt-3 flex w-full items-center justify-between gap-3 rounded-lg bg-gray-50 px-3 py-2 dark:bg-white/5" style="max-width: min(100%, 46vh);">
+                        <p class="min-w-0 truncate text-sm text-gray-700 dark:text-gray-200">
+                            <span class="text-gray-500 dark:text-gray-400">Última:</span>
+                            <span class="font-semibold">{{ $ultimaBuena['nombre'] }}</span>
+                        </p>
+                        <p @class([
+                            'shrink-0 text-sm font-bold tabular-nums',
+                            'text-success-600 dark:text-success-400' => $ultimaBuena['entrada'],
+                            'text-info-600 dark:text-info-400' => ! $ultimaBuena['entrada'],
+                        ])>{{ $ultimaBuena['sentido'] }} {{ $ultimaBuena['hora'] }}</p>
+                    </div>
+                @endif
+
+                {{-- El lector USB: siempre a la vista en el computador; en el celular, detrás de
+                     «Escribir código», porque ahí no hay lector y el campo solo estorba. --}}
+                <div x-data="{ abierto: false }" class="mt-3">
+                    <button type="button" x-show="! abierto" @click="abierto = true; $nextTick(() => $refs.campo.focus())" class="w-full text-center text-sm font-medium text-primary-600 underline sm:hidden dark:text-primary-400">
+                        Escribir código
+                    </button>
+
+                    <div :class="abierto ? 'block' : 'hidden sm:block'">
+                        <form wire:submit="marcarDelCampo" class="flex flex-col gap-2 sm:flex-row">
+                            <x-filament::input.wrapper class="flex-1">
+                                <x-filament::input
+                                    id="porteria-token"
+                                    x-ref="campo"
+                                    type="text"
+                                    wire:model="token"
+                                    placeholder="Lector USB o código del carné"
+                                    autocomplete="off"
+                                />
+                            </x-filament::input.wrapper>
+                            <x-filament::button type="submit" icon="heroicon-o-check">
+                                Marcar
+                            </x-filament::button>
+                        </form>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            Con lector USB, deje el cursor en este campo: lee el carné y marca solo.
+                        </p>
+                    </div>
                 </div>
-            @endif
+            </x-filament::section>
         </div>
 
         {{-- Lo del día --}}

@@ -7,9 +7,9 @@ use App\Domain\HumanResources\Support\EmployeeProfileOptions as Options;
 use App\Models\AttendanceDay;
 use App\Models\Employee;
 use Carbon\CarbonInterface;
+use Filament\Facades\Filament;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
-use Rap2hpoutre\FastExcel\FastExcel;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -33,7 +33,26 @@ class PersonalExcelExport
      */
     public function download(Builder $query, CarbonInterface $month, bool $includeSalary): StreamedResponse
     {
-        return (new FastExcel($this->rows($query, $month, $includeSalary)))
+        $rows = $this->rows($query, $month, $includeSalary);
+        $headers = array_keys($rows->first() ?? ['Sin trabajadores' => '']);
+        $formats = [];
+
+        // Pesos para el salario, horas para las horas: así se suman y filtran en Excel.
+        foreach ($headers as $i => $header) {
+            $formats[$i + 1] = match (true) {
+                str_starts_with($header, 'Salario') => FrondaWorkbook::MONEY,
+                str_starts_with($header, 'Horas') => FrondaWorkbook::HOURS,
+                str_starts_with($header, 'Días') => FrondaWorkbook::INTEGER,
+                default => null,
+            };
+        }
+
+        return FrondaWorkbook::create()
+            ->sheet('Personal')
+            ->widths(array_fill(1, count($headers), 16))
+            ->banner('Personal', 'Ficha de cada trabajador y sus horas de '.$month->locale('es')->translatedFormat('F \\d\\e Y'), Filament::getTenant()?->name, count($headers))
+            ->table($headers, $rows, array_filter($formats))
+            ->footer()
             ->download($this->filename($month));
     }
 

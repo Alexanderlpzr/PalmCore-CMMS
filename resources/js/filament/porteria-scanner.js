@@ -40,7 +40,8 @@ async function iniciar() {
     try {
         await scanner.start(
             { facingMode: 'environment' },
-            { fps: 10, qrbox: { width: 240, height: 240 } },
+            // El recuadro de lectura se ajusta a la cámara, que en el celular es más chica.
+            { fps: 10, qrbox: (ancho, alto) => { const lado = Math.floor(Math.min(ancho, alto) * 0.7); return { width: lado, height: lado } } },
             async (texto) => {
                 const token = texto.trim()
 
@@ -68,6 +69,52 @@ async function iniciar() {
     }
 }
 
+/*
+ * El aviso que se oye y se siente: el vigilante sabe si el carné pasó sin tener que mirar.
+ * Pitido corto y agudo si marcó; largo y grave, con vibración, si no. Sin archivos de
+ * sonido: lo genera el navegador.
+ */
+let audio = null
+
+function pitar(ok) {
+    try {
+        audio ??= new (window.AudioContext || window.webkitAudioContext)()
+        const oscilador = audio.createOscillator()
+        const volumen = audio.createGain()
+        const duracion = ok ? 0.15 : 0.6
+
+        oscilador.type = 'sine'
+        oscilador.frequency.value = ok ? 1200 : 330
+        volumen.gain.setValueAtTime(0.25, audio.currentTime)
+        volumen.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + duracion)
+        oscilador.connect(volumen).connect(audio.destination)
+        oscilador.start()
+        oscilador.stop(audio.currentTime + duracion)
+    } catch (_) {}
+
+    if (navigator.vibrate) navigator.vibrate(ok ? 80 : [250, 120, 250])
+}
+
+// En el computador el cursor queda en el campo, para el lector USB.
+function enfocarCampo() {
+    if (!window.matchMedia('(min-width: 640px)').matches) return
+
+    document.getElementById('porteria-token')?.focus()
+}
+
+window.addEventListener('porteria-marca', (evento) => {
+    pitar(Boolean(evento.detail?.ok))
+    setTimeout(enfocarCampo, 50)
+})
+
+// El navegador solo deja sonar después de que alguien toca la pantalla: el primer toque lo habilita.
+document.addEventListener('pointerdown', () => {
+    try {
+        audio ??= new (window.AudioContext || window.webkitAudioContext)()
+        audio.resume?.()
+    } catch (_) {}
+}, { once: true })
+
 async function detener() {
     if (!scanner) return
 
@@ -76,10 +123,15 @@ async function detener() {
     scanner = null
 }
 
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', iniciar)
-} else {
+function arrancar() {
     iniciar()
+    enfocarCampo()
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', arrancar)
+} else {
+    arrancar()
 }
 
 window.addEventListener('pagehide', detener)

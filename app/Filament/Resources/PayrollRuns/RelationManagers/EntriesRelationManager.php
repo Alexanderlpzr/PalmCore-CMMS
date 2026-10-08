@@ -2,8 +2,10 @@
 
 namespace App\Filament\Resources\PayrollRuns\RelationManagers;
 
+use App\Domain\Reports\Excel\DesprendiblesExcel;
 use App\Domain\Reports\Services\DesprendiblePdfService;
 use App\Domain\Reports\Services\FormatoHorasExtrasPdfService;
+use App\Models\Employee;
 use App\Models\PayrollEntry;
 use App\Models\PayrollRun;
 use Filament\Actions\Action;
@@ -101,6 +103,20 @@ class EntriesRelationManager extends RelationManager
                 Filter::make('con_avisos')
                     ->label('Solo los que hay que revisar')
                     ->query(fn (Builder $query): Builder => $query->whereNotNull('warnings')),
+            ])
+            // Todos los desprendibles en un Excel: el resumen y una pestaña por trabajador.
+            ->headerActions([
+                Action::make('desprendiblesExcel')
+                    ->label('Desprendibles en Excel')
+                    ->icon('heroicon-o-table-cells')
+                    ->authorize(fn (): bool => auth()->user()?->can('viewAnySalary', Employee::class) ?? false)
+                    ->visible(fn (): bool => $this->getOwnerRecord()->entries()->exists())
+                    ->action(function (): StreamedResponse {
+                        /** @var PayrollRun $run */
+                        $run = $this->getOwnerRecord();
+
+                        return app(DesprendiblesExcel::class)->download($run);
+                    }),
             ])
             ->recordActions([
                 Action::make('desprendible')

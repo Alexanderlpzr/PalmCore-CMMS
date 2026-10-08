@@ -63,6 +63,7 @@ enum PayrollParameter: string
     // ── Auxilio de alimentación ───────────────────────────────────────────────
     // Se paga aparte de la nómina y no es salario: ver `MealAllowanceCalculator`.
     case MealAllowanceValue = 'meal_allowance_value';
+    case MealSnackValue = 'meal_snack_value';
     case MealNightShiftFrom = 'meal_night_shift_from';
     case MealBreakfastStart = 'meal_breakfast_start';
     case MealBreakfastEnd = 'meal_breakfast_end';
@@ -104,7 +105,8 @@ enum PayrollParameter: string
             self::OvertimeSundayDay => 'Hora extra dominical diurna',
             self::OvertimeSundayNight => 'Hora extra dominical nocturna',
             self::OvertimeExcessAsBonus => 'Exceso de extras como bonificación',
-            self::MealAllowanceValue => 'Valor de cada comida',
+            self::MealAllowanceValue => 'Valor de cada comida principal',
+            self::MealSnackValue => 'Valor de cada merienda',
             self::MealNightShiftFrom => 'Turno de noche si entra desde',
             self::MealBreakfastStart => 'Desayuno (día) desde',
             self::MealBreakfastEnd => 'Desayuno (día) hasta',
@@ -134,7 +136,7 @@ enum PayrollParameter: string
             self::OvertimeDay, self::OvertimeNight, self::OvertimeSundayDay, self::OvertimeSundayNight,
             self::OvertimeExcessAsBonus => 'Recargos y horas extras',
             self::HealthEmployeeRate, self::PensionEmployeeRate => 'Aportes del trabajador',
-            self::MealAllowanceValue, self::MealNightShiftFrom, self::MealBreakfastStart, self::MealBreakfastEnd, self::MealLunchStart, self::MealLunchEnd, self::MealSnackStart, self::MealSnackEnd, self::MealDinnerStart, self::MealDinnerEnd, self::MealNightSnackStart, self::MealNightSnackEnd, self::MealNightBreakfastStart, self::MealNightBreakfastEnd => 'Auxilio de alimentación',
+            self::MealAllowanceValue, self::MealSnackValue, self::MealNightShiftFrom, self::MealBreakfastStart, self::MealBreakfastEnd, self::MealLunchStart, self::MealLunchEnd, self::MealSnackStart, self::MealSnackEnd, self::MealDinnerStart, self::MealDinnerEnd, self::MealNightSnackStart, self::MealNightSnackEnd, self::MealNightBreakfastStart, self::MealNightBreakfastEnd => 'Auxilio de alimentación',
         };
     }
 
@@ -157,7 +159,7 @@ enum PayrollParameter: string
     public function unit(): PayrollParameterUnit
     {
         return match ($this) {
-            self::Smlmv, self::TransportAllowance, self::UvtValue, self::MealAllowanceValue => PayrollParameterUnit::Money,
+            self::Smlmv, self::TransportAllowance, self::UvtValue, self::MealAllowanceValue, self::MealSnackValue => PayrollParameterUnit::Money,
             self::TransportAllowanceMaxSmlmv, self::MonthlyHoursDivisor, self::MonthDays,
             self::OrdinaryHoursPerDay, self::MaxOvertimeHoursDay,
             self::MaxOvertimeHoursWeek, self::HoursCutoffDay => PayrollParameterUnit::Number,
@@ -200,6 +202,7 @@ enum PayrollParameter: string
             self::OvertimeExcessAsBonus => 0,
             // El auxilio arranca en 0: cada empresa pone su valor. Las franjas son las de El Pajuil.
             self::MealAllowanceValue => 0,
+            self::MealSnackValue => 0,
             self::MealNightShiftFrom => 13,
             self::MealBreakfastStart => 5.333333,
             self::MealBreakfastEnd => 7.333333,

@@ -6,6 +6,7 @@ use App\Domain\HumanResources\Services\AttendanceDayBuilder;
 use App\Domain\HumanResources\Services\AttendanceService;
 use App\Domain\HumanResources\Services\PayrollParameterService;
 use App\Domain\HumanResources\Services\PayrollRunService;
+use App\Domain\Reports\Excel\DesprendiblesExcel;
 use App\Domain\Reports\Services\FormatoHorasExtrasPdfService;
 use App\Filament\Resources\Employees\Pages\EditEmployee;
 use App\Filament\Resources\PayrollRuns\Pages\EditPayrollRun;
@@ -25,6 +26,7 @@ use Filament\Actions\Testing\TestAction;
 use Filament\Facades\Filament;
 use Illuminate\Support\Carbon;
 use Livewire\Livewire;
+use OpenSpout\Reader\XLSX\Reader as XlsxReader;
 use Spatie\Permission\PermissionRegistrar;
 
 /*
@@ -165,3 +167,44 @@ it('finds the cutoff window a day falls in', function (string $dia, int $corte, 
     'después del corte' => ['2026-10-28', 26, ['2026-10-27', '2026-11-26']],
     'sin corte' => ['2026-10-07', 0, ['2026-10-01', '2026-10-31']],
 ]);
+
+it('downloads every payslip of the payroll in one branded Excel', function (): void {
+    $rrhh = User::factory()->create(['is_active' => true]);
+    $rrhh->tenants()->attach($this->tenant->id, ['joined_at' => now()]);
+    $rrhh->assignRole('talento-humano');
+    $this->actingAs($rrhh);
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+    Filament::setTenant($this->tenant);
+
+    $nomina = PayrollRun::factory()
+        ->forPeriod('2026-10-01', '2026-10-30', 'Nómina de octubre de 2026')
+        ->create(['tenant_id' => $this->tenant->id, 'hours_from' => '2026-09-27', 'hours_to' => '2026-10-26']);
+    app(PayrollRunService::class)->calculate($nomina);
+
+    Livewire::test(EntriesRelationManager::class, ['ownerRecord' => $nomina, 'pageClass' => EditPayrollRun::class])
+        ->callAction(TestAction::make('desprendiblesExcel')->table())
+        ->assertFileDownloaded('DESPRENDIBLES-2026-10.xlsx');
+
+    // El resumen con todos y una pestaña por trabajador, con la marca de fronda.app.
+    $ruta = app(DesprendiblesExcel::class)->build($nomina)->close();
+    $lector = new XlsxReader;
+    $lector->open($ruta);
+    $hojas = [];
+
+    foreach ($lector->getSheetIterator() as $hoja) {
+        $celdas = [];
+
+        foreach ($hoja->getRowIterator() as $fila) {
+            $celdas = [...$celdas, ...$fila->toArray()];
+        }
+
+        $hojas[$hoja->getName()] = $celdas;
+    }
+
+    $lector->close();
+    unlink($ruta);
+
+    expect(array_keys($hojas))->toHaveCount(2)->and(array_key_first($hojas))->toBe('Resumen')
+        ->and($hojas['Resumen'])->toContain('fronda.app', 'Neto a pagar', $this->employee->full_name)
+        ->and(end($hojas))->toContain('Comprobante de pago de nómina', 'NETO A PAGAR', 'DEVENGADO');
+});

@@ -111,3 +111,20 @@ it('takes the guard straight to the gate when opening the panel', function (): v
 
     Livewire::test(Inicio::class)->assertRedirect(Porteria::getUrl());
 });
+
+it('shows the result over the camera, beeps, and keeps the last good mark after an error', function (): void {
+    entrarALaPuertaComo($this->tenant, 'porteria');
+
+    Livewire::test(Porteria::class)
+        ->call('registrarMarca', $this->card->qr_token)
+        ->assertDispatched('porteria-marca', ok: true)
+        ->assertSet('intento', 1)
+        ->assertSee('wire:key="resultado-1"', escape: false)
+        ->call('registrarMarca', 'no-es-un-carne')
+        ->assertDispatched('porteria-marca', ok: false)
+        ->assertSet('intento', 2)
+        ->assertSee('No se marcó')
+        // La franja de abajo sigue diciendo quién marcó bien la última vez.
+        ->assertSet('ultimaBuena.nombre', 'Fermín Beltrán')
+        ->assertSee('Última:');
+});

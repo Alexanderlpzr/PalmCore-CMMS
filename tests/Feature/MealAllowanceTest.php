@@ -41,6 +41,7 @@ beforeEach(function (): void {
     $parametros = app(PayrollParameterService::class);
     $parametros->seedDefaults($this->tenant->id, Carbon::parse('2026-01-01'));
     $parametros->setValue(PayrollParameter::MealAllowanceValue, 10_000, Carbon::parse('2026-09-27'), $this->tenant->id);
+    $parametros->setValue(PayrollParameter::MealSnackValue, 7_000, Carbon::parse('2026-09-27'), $this->tenant->id);
     $parametros->setValue(PayrollParameter::HoursCutoffDay, 26, Carbon::parse('2026-01-01'), $this->tenant->id);
 
     $this->employee = Employee::factory()->create(['tenant_id' => $this->tenant->id, 'first_name' => 'Diego', 'last_name' => 'Medina']);
@@ -93,7 +94,8 @@ it('pays only confirmed days, each meal once a day', function (): void {
     $totales = app(MealAllowanceCalculator::class)->forEmployees([$this->employee->id], $this->tenant->id, CarbonImmutable::parse('2026-09-27'), CarbonImmutable::parse('2026-10-26'));
 
     expect($totales[$this->employee->id]['meals'])->toBe(3)
-        ->and($totales[$this->employee->id]['amount'])->toBe(30_000.0)
+        // Desayuno y almuerzo a 10.000, merienda a 7.000.
+        ->and($totales[$this->employee->id]['amount'])->toBe(27_000.0)
         ->and($totales[$this->employee->id]['counts']['almuerzo'])->toBe(1)
         ->and(array_keys($totales[$this->employee->id]['days']))->toBe(['2026-10-05']);
 });
@@ -111,8 +113,8 @@ it('shows the meals of the period and downloads the payment sheet', function ():
         ->assertCanSeeTableRecords([$this->employee])
         ->assertTableColumnStateSet('total_comidas', 6, $this->employee)
         ->assertTableColumnStateSet('comida_desayuno', 2, $this->employee)
-        ->assertTableColumnStateSet('valor', 60_000.0, $this->employee)
-        ->assertSee('6 comidas por $ 60.000')
+        ->assertTableColumnStateSet('valor', 54_000.0, $this->employee)
+        ->assertSee('6 comidas por $ 54.000')
         ->callAction(TestAction::make('excelPago')->table())
         ->assertFileDownloaded('ALIMENTACION-20260927-20261026.xlsx');
 });

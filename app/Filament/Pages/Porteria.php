@@ -38,10 +38,22 @@ class Porteria extends Page
 
     private const SCANNER_ENTRY = 'resources/js/filament/porteria-scanner.js';
 
-    /** La última marca, para mostrarla grande. */
+    /** La última marca, para mostrarla grande encima de la cámara. */
     public ?array $ultimo = null;
 
     public ?string $error = null;
+
+    /**
+     * La última marca buena, para la franja de abajo: un error en el siguiente carné no
+     * borra la confirmación del anterior.
+     */
+    public ?array $ultimaBuena = null;
+
+    /**
+     * Cuenta cada intento de marcar. El aviso encima de la cámara se reinicia con cada
+     * número, así que dos marcas seguidas de la misma persona igual se ven las dos.
+     */
+    public int $intento = 0;
 
     /** El campo del lector USB o del token escrito a mano. */
     public string $token = '';
@@ -59,8 +71,7 @@ class Porteria extends Page
         $token = trim($token);
 
         if (! preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i', $token)) {
-            $this->ultimo = null;
-            $this->error = 'Ese no es el código de un carné.';
+            $this->falla('Ese no es el código de un carné.');
 
             return;
         }
@@ -70,8 +81,7 @@ class Porteria extends Page
         try {
             $qrCode = $service->resolveToken($token, $this->tenant()->id);
         } catch (AttendanceException $e) {
-            $this->ultimo = null;
-            $this->error = $e->getMessage();
+            $this->falla($e->getMessage());
 
             return;
         }
@@ -88,6 +98,20 @@ class Porteria extends Page
             'hora' => $scan->scanned_at->copy()->setTimezone($this->timezone())->format('h:i a'),
             'aviso' => $scan->notes,
         ];
+
+        $this->ultimaBuena = $this->ultimo;
+        $this->intento++;
+        // Pitido corto: el vigilante sabe que pasó sin tener que mirar.
+        $this->dispatch('porteria-marca', ok: true);
+    }
+
+    /** Un intento que no marcó: el aviso rojo encima de la cámara, y pitido largo con vibración. */
+    private function falla(string $mensaje): void
+    {
+        $this->ultimo = null;
+        $this->error = $mensaje;
+        $this->intento++;
+        $this->dispatch('porteria-marca', ok: false);
     }
 
     /** El lector USB escribe el código y da Enter; a mano es lo mismo. */

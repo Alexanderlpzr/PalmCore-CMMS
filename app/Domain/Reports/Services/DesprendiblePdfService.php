@@ -87,7 +87,7 @@ class DesprendiblePdfService implements PdfReport
      *
      * @return array<int, array{concept: string, detail: string, amount: float}>
      */
-    private function earningLines(PayrollEntry $entry): array
+    public function earningLines(PayrollEntry $entry): array
     {
         $lines = [[
             'concept' => 'Sueldo',
@@ -145,7 +145,7 @@ class DesprendiblePdfService implements PdfReport
     /**
      * @return array<int, array{concept: string, detail: string, amount: float}>
      */
-    private function deductionLines(PayrollEntry $entry): array
+    public function deductionLines(PayrollEntry $entry): array
     {
         $lines = [];
 

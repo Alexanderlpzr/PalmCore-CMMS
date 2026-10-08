@@ -11,7 +11,7 @@ use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 
 /**
- * El auxilio de alimentación de El Pajuil: una suma fija por cada comida cuya franja el
+ * El auxilio de alimentación de El Pajuil: una suma por cada comida cuya franja el
  * trabajador «cobija», es decir, en la que estuvo trabajando en algún momento.
  *
  *  - Turno de día: desayuno (5:20–7:20), almuerzo (11:20–1:20) y merienda (5:30–6:30 p. m.).
@@ -36,6 +36,9 @@ class MealAllowanceCalculator
         'cena' => 'Cenas',
         'merienda_nocturna' => 'Meriendas nocturnas',
     ];
+
+    /** Las comidas que se pagan con el valor de merienda. */
+    public const SNACKS = ['merienda', 'merienda_nocturna'];
 
     public function __construct(private readonly PayrollParameterService $parameters) {}
 
@@ -97,11 +100,9 @@ class MealAllowanceCalculator
             $amount = 0.0;
 
             foreach ($mealsByDay as $date => $meals) {
-                $value = $this->value(PayrollParameter::MealAllowanceValue, CarbonImmutable::parse($date), $tenantId);
-
                 foreach ($meals as $meal) {
                     $counts[$meal]++;
-                    $amount += $value;
+                    $amount += $this->priceOf($meal, CarbonImmutable::parse($date), $tenantId);
                 }
             }
 
@@ -184,6 +185,15 @@ class MealAllowanceCalculator
         }
 
         return $sessions;
+    }
+
+    /**
+     * Lo que vale una comida ese día: las meriendas (de día y de noche) tienen su propio
+     * valor; desayuno, almuerzo y cena, el de comida principal.
+     */
+    public function priceOf(string $meal, CarbonImmutable $on, string $tenantId): float
+    {
+        return $this->value(in_array($meal, self::SNACKS, true) ? PayrollParameter::MealSnackValue : PayrollParameter::MealAllowanceValue, $on, $tenantId);
     }
 
     private function value(PayrollParameter $parameter, CarbonImmutable $on, string $tenantId): float

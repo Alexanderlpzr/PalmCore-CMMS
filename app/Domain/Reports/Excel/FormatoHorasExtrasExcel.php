@@ -124,14 +124,18 @@ class FormatoHorasExtrasExcel
         $pad = fn (array $values): array => array_pad($values, $lastColumn, '');
 
         // ── Encabezado con el control documental ─────────────────────────────
-        $title = fn (int $column): Style => $column === $lastColumn ? $this->style(bold: true, align: CellAlignment::LEFT) : $this->style(bold: true, size: $column === 1 ? 9 : 13);
+        $title = fn (int $column): Style => match (true) {
+            $column === $lastColumn => $this->style(bold: true, fill: FrondaWorkbook::MIST, color: FrondaWorkbook::PETROL, align: CellAlignment::LEFT),
+            $column === 1 => $this->style(bold: true, fill: FrondaWorkbook::PETROL, color: 'FFFFFF', size: 9),
+            default => $this->style(bold: true, fill: FrondaWorkbook::GREEN, color: 'FFFFFF', size: 13),
+        };
         $rows[] = $line($pad([mb_strtoupper($tenant?->name ?? ''), 'FORMATO DE HORAS EXTRAS', ...array_fill(0, $lastColumn - 3, ''), 'CÓDIGO: '.Formato::FORM_CODE]), [], $title);
         $rows[] = $line($pad([...array_fill(0, $lastColumn - 1, ''), 'VERSIÓN: '.Formato::FORM_VERSION]), [], $title);
         $rows[] = $line($pad([...array_fill(0, $lastColumn - 1, ''), 'FECHA: '.Formato::FORM_DATE]), [], $title);
         $rows[] = [[], []];
 
         // ── El trabajador ────────────────────────────────────────────────────
-        $who = fn (int $column): Style => in_array($column, [1, $lastColumn - 1], true) ? $this->style(bold: true, fill: 'E6E6E6', align: CellAlignment::LEFT) : $this->style();
+        $who = fn (int $column): Style => in_array($column, [1, $lastColumn - 1], true) ? $this->style(bold: true, fill: FrondaWorkbook::MIST, color: FrondaWorkbook::PETROL, align: CellAlignment::LEFT) : $this->style();
         $rows[] = $line($pad(['NOMBRE TRABAJADOR', mb_strtoupper($employee->fullName()), ...array_fill(0, $lastColumn - 4, ''), 'IDENTIFICACIÓN', $employee->document_number]), [[2, $lastColumn - 2]], $who);
 
         foreach ([
@@ -139,7 +143,7 @@ class FormatoHorasExtrasExcel
             'JEFE INMEDIATO' => mb_strtoupper($data['supervisor'] ?? ''),
             'PERIODO' => 'Horas del '.$data['from']->format('d/m/Y').' al '.$data['to']->format('d/m/Y').' — nómina de '.$data['periodStart']->locale('es')->translatedFormat('F \d\e Y'),
         ] as $label => $value) {
-            $rows[] = $line($pad([$label, $value]), [[2, $lastColumn]], fn (int $c): Style => $c === 1 ? $this->style(bold: true, fill: 'E6E6E6', align: CellAlignment::LEFT) : $this->style());
+            $rows[] = $line($pad([$label, $value]), [[2, $lastColumn]], fn (int $c): Style => $c === 1 ? $this->style(bold: true, fill: FrondaWorkbook::MIST, color: FrondaWorkbook::PETROL, align: CellAlignment::LEFT) : $this->style());
         }
 
         $rows[] = [[], []];
@@ -152,7 +156,7 @@ class FormatoHorasExtrasExcel
             $header[] = 'BONO '.Formato::COLUMNS[$bucket];
         }
 
-        $rows[] = $line($header, [], fn (int $c): Style => $this->style(bold: true, fill: $c >= $bonusStart ? 'F2E2BF' : 'D9D9D9', size: 8));
+        $rows[] = $line($header, [], fn (int $c): Style => $this->style(bold: true, fill: $c >= $bonusStart ? FrondaWorkbook::PETROL : FrondaWorkbook::GREEN, color: 'FFFFFF', size: 8));
 
         $hour = fn ($moment): string => $moment ? $moment->format('g:ia') : '';
         $hours = fn (float $value): float|string => $value > 0 ? round($value, 2) : '';
@@ -168,7 +172,7 @@ class FormatoHorasExtrasExcel
 
             $rows[] = $line($values, [], fn (int $c): Style => match (true) {
                 $c === 1 => $this->style(color: $day['surcharged'] ? 'D00000' : null),
-                $c >= $bonusStart => $this->style(fill: 'FBF4E4'),
+                $c >= $bonusStart => $this->style(fill: FrondaWorkbook::MIST),
                 default => $this->style(),
             });
         }
@@ -178,7 +182,7 @@ class FormatoHorasExtrasExcel
             ...array_map($hours, array_values($data['legalTotals'])),
             '',
             ...array_map(fn (string $bucket) => $hours($data['bonusTotals'][$bucket]), $data['bonusColumns']),
-        ], [[1, 4]], fn (int $c): Style => $this->style(bold: true, fill: 'EFEFEF'));
+        ], [[1, 4]], fn (int $c): Style => $this->style(bold: true, fill: 'D5EBDD'));
 
         // ── La calculadora ───────────────────────────────────────────────────
         if ($showValues) {
@@ -187,7 +191,7 @@ class FormatoHorasExtrasExcel
             $rows[] = $line([
                 'Valor hora: $ '.number_format($data['salary'], 0, ',', '.').' ÷ '.number_format($data['divisor'], 0, ',', '.'),
                 'Factor', 'Valor hora', 'Horas', 'Horas extras y recargos', 'Horas bono', 'Bonificación',
-            ], [], fn (): Style => $this->style(bold: true, fill: 'D9D9D9', size: 8));
+            ], [], fn (): Style => $this->style(bold: true, fill: FrondaWorkbook::GREEN, color: 'FFFFFF', size: 8));
 
             foreach ($data['calculator'] as $row) {
                 $rows[] = $line([
@@ -197,7 +201,7 @@ class FormatoHorasExtrasExcel
                 ]);
             }
 
-            $rows[] = $line(['TOTAL', '', '', '', $money($data['legalAmount']), '', $money($data['bonusAmount'])], [], fn (): Style => $this->style(bold: true, fill: 'EFEFEF'));
+            $rows[] = $line(['TOTAL', '', '', '', $money($data['legalAmount']), '', $money($data['bonusAmount'])], [], fn (): Style => $this->style(bold: true, fill: 'D5EBDD'));
         }
 
         // ── Firmas ───────────────────────────────────────────────────────────
@@ -207,6 +211,10 @@ class FormatoHorasExtrasExcel
             'Vo. Bo. Jefe inmediato'.($data['supervisor'] ? ' — '.$data['supervisor'] : ''), '', '', '', '',
             $employee->fullName().' — Trabajador', '', '', '', '', 'Talento humano',
         ], [], fn (): Style => (new Style)->setFontSize(9)->setBorder(new Border(new BorderPart(Border::TOP, '000000', Border::WIDTH_THIN, Border::STYLE_SOLID))));
+
+        // Que quede escrito de dónde salió.
+        $rows[] = [[], []];
+        $rows[] = $line(['Generado con fronda.app el '.now()->format('d/m/Y h:i a')], [], fn (): Style => (new Style)->setFontSize(8)->setFontColor(FrondaWorkbook::GREEN));
 
         return $rows;
     }

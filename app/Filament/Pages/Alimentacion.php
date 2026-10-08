@@ -5,6 +5,7 @@ namespace App\Filament\Pages;
 use App\Domain\HumanResources\Enums\PayrollParameter;
 use App\Domain\HumanResources\Services\MealAllowanceCalculator;
 use App\Domain\HumanResources\Services\PayrollParameterService;
+use App\Domain\Reports\Excel\FrondaWorkbook;
 use App\Models\AttendanceDay;
 use App\Models\Employee;
 use App\Models\PayrollRun;
@@ -21,7 +22,6 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
-use Rap2hpoutre\FastExcel\FastExcel;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use UnitEnum;
 
@@ -141,28 +141,43 @@ class Alimentacion extends Page implements HasTable
         return [CarbonImmutable::parse($from), CarbonImmutable::parse($to)];
     }
 
-    /** @param  Collection<int, Employee>  $employees */
+    /**
+     * La lista para pagar, con la cara de fronda.app: una fila por trabajador, las comidas
+     * por tipo, el valor y el total al final.
+     *
+     * @param  Collection<int, Employee>  $employees
+     */
     private function excel($employees): StreamedResponse
     {
         [$from, $to] = $this->window();
+        $comidas = array_values(MealAllowanceCalculator::MEALS);
+        $headers = ['Código', 'Cédula', 'Trabajador', 'Cargo', ...$comidas, 'Total comidas', 'Valor a pagar'];
 
         $rows = $employees->map(function (Employee $employee): array {
-            $comidas = $this->mealsOf($employee);
-            $fila = [
-                'Código' => $employee->employee_code,
-                'Cédula' => $employee->document_number,
-                'Trabajador' => $employee->fullName(),
-                'Cargo' => $employee->position,
+            $datos = $this->mealsOf($employee);
+
+            return [
+                $employee->employee_code,
+                $employee->document_number,
+                $employee->fullName(),
+                $employee->position,
+                ...array_map(fn (string $comida): int => $datos['counts'][$comida] ?? 0, array_keys(MealAllowanceCalculator::MEALS)),
+                $datos['meals'] ?? 0,
+                (float) ($datos['amount'] ?? 0),
             ];
-
-            foreach (MealAllowanceCalculator::MEALS as $comida => $etiqueta) {
-                $fila[$etiqueta] = $comidas['counts'][$comida] ?? 0;
-            }
-
-            return $fila + ['Total comidas' => $comidas['meals'] ?? 0, 'Valor a pagar' => $comidas['amount'] ?? 0];
         });
 
-        return (new FastExcel($rows))->download('ALIMENTACION-'.$from->format('Ymd').'-'.$to->format('Ymd').'.xlsx');
+        $ultima = count($headers);
+        $formatos = array_fill(5, count($comidas) + 1, FrondaWorkbook::INTEGER) + [$ultima => FrondaWorkbook::MONEY];
+
+        return FrondaWorkbook::create()
+            ->sheet('Alimentación')
+            ->widths([1 => 10, 2 => 14, 3 => 30, 4 => 24] + array_fill(5, count($comidas) + 1, 12) + [$ultima => 16])
+            ->banner('Auxilio de alimentación', 'Días confirmados del '.$from->format('d/m/Y').' al '.$to->format('d/m/Y').' · se paga aparte de la nómina', Filament::getTenant()?->name, $ultima)
+            ->table($headers, $rows, $formatos)
+            ->totals(['Total', '', '', '', ...array_map(fn (int $i): int => $rows->sum($i + 4), array_keys($comidas)), $rows->sum($ultima - 2), $rows->sum($ultima - 1)], $formatos)
+            ->footer()
+            ->download('ALIMENTACION-'.$from->format('Ymd').'-'.$to->format('Ymd').'.xlsx');
     }
 
     /** @return array<string, string> */
