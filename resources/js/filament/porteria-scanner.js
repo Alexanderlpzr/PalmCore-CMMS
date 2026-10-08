@@ -109,7 +109,13 @@ async function iniciar() {
         region.hidden = true
 
         if (aviso) {
+            // El error técnico va debajo, en chico: con él se sabe qué pasó en ese equipo.
+            const detalle = String(e?.name ? `${e.name}: ${e.message}` : e).slice(0, 160)
             aviso.textContent = mensajeDeCamara(e)
+            const pie = document.createElement('small')
+            pie.className = 'mt-2 block font-mono text-xs opacity-70'
+            pie.textContent = `Detalle: ${detalle}`
+            aviso.appendChild(pie)
             aviso.hidden = false
         }
 
