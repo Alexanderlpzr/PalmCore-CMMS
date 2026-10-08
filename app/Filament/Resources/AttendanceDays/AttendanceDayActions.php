@@ -62,15 +62,13 @@ final class AttendanceDayActions
                         ->maxDate(now())
                         ->required())->all(),
                 Textarea::make('reason')
-                    ->label('Motivo')
+                    ->label('Justificación (opcional)')
                     ->helperText('Queda escrito en la marca anulada y en la nueva.')
-                    ->required()
-                    ->minLength(5)
                     ->rows(2),
             ])
             ->modalSubmitActionLabel('Guardar las horas')
             ->action(function (AttendanceDay $record, array $data, Action $action): void {
-                self::run($action, fn () => self::service()->editDayMarks($record, $data['marcas'] ?? [], $data['reason'], self::actor()));
+                self::run($action, fn () => self::service()->editDayMarks($record, $data['marcas'] ?? [], ($data['reason'] ?? ''), self::actor()));
 
                 Notification::make()->title('Marcas corregidas')->body('Las horas del día se recalcularon.')->success()->send();
             });
@@ -106,15 +104,13 @@ final class AttendanceDayActions
                         ->all(),
                 ),
                 Textarea::make('reason')
-                    ->label('Motivo')
+                    ->label('Justificación (opcional)')
                     ->helperText('Queda en el día, con su nombre y la fecha.')
-                    ->required()
-                    ->minLength(5)
                     ->rows(2),
             ])
             ->modalSubmitActionLabel('Guardar el ajuste')
             ->action(function (AttendanceDay $record, array $data, Action $action): void {
-                self::run($action, fn () => self::service()->adjustHours($record, $data, $data['reason'], self::actor()));
+                self::run($action, fn () => self::service()->adjustHours($record, $data, ($data['reason'] ?? ''), self::actor()));
 
                 Notification::make()->title('Horas ajustadas a mano')->success()->send();
             });
@@ -131,14 +127,12 @@ final class AttendanceDayActions
             ->modalDescription('El día se quita: no se paga y no vuelve al reconstruir, porque sus marcas quedan anuladas. Sirve también para un día ya confirmado que resultó ser una novedad. Las marcas se siguen viendo en «Marcas de portería», con su nombre y el motivo.')
             ->schema([
                 Textarea::make('reason')
-                    ->label('Motivo')
-                    ->required()
-                    ->minLength(5)
+                    ->label('Justificación (opcional)')
                     ->rows(2),
             ])
             ->modalSubmitActionLabel('Anular el día')
             ->action(function (AttendanceDay $record, array $data, Action $action): void {
-                self::run($action, fn () => self::service()->voidDay($record, $data['reason'], self::actor()));
+                self::run($action, fn () => self::service()->voidDay($record, ($data['reason'] ?? ''), self::actor()));
 
                 Notification::make()->title('Día anulado')->success()->send();
             });

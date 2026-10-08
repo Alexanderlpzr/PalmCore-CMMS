@@ -122,3 +122,21 @@ it('warns about fixed-term contracts that end within 30 days', function (): void
         ->assertCanSeeTableRecords([$vence])
         ->assertCanNotSeeTableRecords([$lejos, $this->employee]);
 });
+
+it('adjusts and voids without a justification, and keeps it when there is one', function (): void {
+    Livewire::test(HorasConfirmadas::class)
+        ->callAction(TestAction::make('ajustarHoras')->table($this->day), [
+            'ordinary_hours' => 8, 'night_surcharge_hours' => 0, 'sunday_surcharge_hours' => 0, 'night_sunday_surcharge_hours' => 0,
+            'overtime_day_hours' => 0, 'overtime_night_hours' => 0, 'overtime_sunday_day_hours' => 0, 'overtime_sunday_night_hours' => 0,
+        ])
+        ->assertHasNoFormErrors();
+
+    expect($this->day->refresh()->adjustment_reason)->toBeNull()
+        ->and($this->day->adjusted_by)->toBe($this->rrhh->id);
+
+    Livewire::test(HorasConfirmadas::class)
+        ->callAction(TestAction::make('anularDia')->table($this->day), ['reason' => 'No'])
+        ->assertHasNoFormErrors();
+
+    expect(AttendanceDay::query()->whereKey($this->day->id)->exists())->toBeFalse();
+});

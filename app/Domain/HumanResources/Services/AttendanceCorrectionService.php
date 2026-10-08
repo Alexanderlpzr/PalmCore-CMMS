@@ -75,7 +75,7 @@ class AttendanceCorrectionService
             'direction' => $direction,
             'source' => 'manual',
             'recorded_by' => $by->id,
-            'notes' => trim($reason),
+            'notes' => self::justification($reason),
         ]));
 
         $this->rebuild($employee, $workDate, $this->local($employee, $at));
@@ -100,7 +100,7 @@ class AttendanceCorrectionService
         $scan->update([
             'voided_at' => now(),
             'voided_by' => $by->id,
-            'void_reason' => trim($reason),
+            'void_reason' => self::justification($reason),
         ]);
 
         $this->rebuild($employee, $workDate, $this->local($employee, $scan->scanned_at));
@@ -211,7 +211,7 @@ class AttendanceCorrectionService
                 $marca->update([
                     'voided_at' => now(),
                     'voided_by' => $by->id,
-                    'void_reason' => "Hora corregida a {$despues}: {$motivo}",
+                    'void_reason' => "Hora corregida a {$despues}".($motivo !== '' ? ": {$motivo}" : ''),
                 ]);
 
                 AttendanceScan::create([
@@ -222,7 +222,7 @@ class AttendanceCorrectionService
                     'source' => 'manual',
                     'recorded_by' => $by->id,
                     'gate' => $marca->gate,
-                    'notes' => "Corrige la marca de las {$antes}: {$motivo}",
+                    'notes' => "Corrige la marca de las {$antes}".($motivo !== '' ? ": {$motivo}" : ''),
                 ]);
             }
 
@@ -272,7 +272,7 @@ class AttendanceCorrectionService
             'source' => 'manual',
             'adjusted_by' => $by->id,
             'adjusted_at' => now(),
-            'adjustment_reason' => trim($reason),
+            'adjustment_reason' => self::justification($reason),
         ]);
 
         return $day->refresh();
@@ -328,7 +328,7 @@ class AttendanceCorrectionService
             $this->marksOfDay($day)->each(fn (AttendanceScan $marca) => $marca->update([
                 'voided_at' => now(),
                 'voided_by' => $by->id,
-                'void_reason' => "Día anulado: {$motivo}",
+                'void_reason' => 'Día anulado'.($motivo !== '' ? ": {$motivo}" : ''),
             ]));
 
             $day->delete();
@@ -392,6 +392,17 @@ class AttendanceCorrectionService
      * Ajustar o anular vale con el día propuesto o confirmado, salvo que ya haya entrado a
      * una nómina cerrada: esa plata ya se pagó y se aportó.
      */
+    /**
+     * La justificación es opcional: si se escribe queda en el registro, y si no, el
+     * cambio igual dice quién lo hizo y cuándo.
+     */
+    private static function justification(?string $reason): ?string
+    {
+        $reason = trim((string) $reason);
+
+        return $reason === '' ? null : $reason;
+    }
+
     private function ensureEditable(AttendanceDay $day): void
     {
         $day->loadMissing('employee');

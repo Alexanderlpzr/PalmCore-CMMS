@@ -67,10 +67,8 @@ final class AttendanceMarkActions
                     ->inline()
                     ->required(),
                 Textarea::make('reason')
-                    ->label('Motivo')
+                    ->label('Justificación (opcional)')
                     ->helperText('Por qué no quedó: queda escrito junto a la marca.')
-                    ->required()
-                    ->minLength(5)
                     ->rows(2),
             ])
             ->modalSubmitActionLabel('Agregar marca')
@@ -82,7 +80,7 @@ final class AttendanceMarkActions
                         $employee,
                         Carbon::parse($data['scanned_at']),
                         AttendanceDirection::from($data['direction']),
-                        $data['reason'],
+                        ($data['reason'] ?? ''),
                         self::actor(),
                     );
                 } catch (AttendanceException $e) {
@@ -111,15 +109,13 @@ final class AttendanceMarkActions
             ->modalDescription('Deja de contar para las horas, pero no se borra: queda a la vista con su nombre y el motivo.')
             ->schema([
                 Textarea::make('reason')
-                    ->label('Motivo')
-                    ->required()
-                    ->minLength(5)
+                    ->label('Justificación (opcional)')
                     ->rows(2),
             ])
             ->modalSubmitActionLabel('Anular marca')
             ->action(function (AttendanceScan $record, array $data, Action $action): void {
                 try {
-                    app(AttendanceCorrectionService::class)->voidMark($record, $data['reason'], self::actor());
+                    app(AttendanceCorrectionService::class)->voidMark($record, ($data['reason'] ?? ''), self::actor());
                 } catch (AttendanceException $e) {
                     Notification::make()->title($e->getMessage())->danger()->send();
                     $action->halt();
