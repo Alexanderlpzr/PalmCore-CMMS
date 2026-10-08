@@ -5,6 +5,8 @@ namespace App\Models;
 use App\Domain\HumanResources\Enums\EmployeeDocumentType;
 use App\Domain\HumanResources\Enums\EmploymentStatus;
 use App\Domain\Shared\Models\BaseModel;
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Database\Factories\EmployeeFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -58,6 +60,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'excluded_from_overtime',
     'transport_allowance_override',
     'hire_date',
+    'contract_end_date',
     'termination_date',
     'status',
     'eps',
@@ -215,6 +218,28 @@ class Employee extends BaseModel
      * nómina de agosto de la extractora esto cubre a 14 de 48 personas, y es la
      * diferencia entre un reloj que informa y un reloj que inventa pasivo laboral.
      */
+    /** Los tramos del contrato a término fijo que se ofrecen al crearlo, en meses. */
+    public const FIXED_TERM_MONTHS = [3, 6, 9, 12];
+
+    /** El último día de un contrato a término fijo que arranca en esa fecha: 3 meses desde el 1/10 terminan el 31/12. */
+    public static function fixedTermEnd(CarbonInterface $start, int $months): CarbonInterface
+    {
+        $start = CarbonImmutable::instance($start);
+        $target = $start->addMonthsNoOverflow($months);
+
+        // Si el mes de llegada no tiene ese día (30/11 + 3 meses), el contrato termina el
+        // último día de ese mes: el 28 de febrero, no el 27.
+        return $start->day > $target->day ? $target : $target->subDay();
+    }
+
+    /** ¿El contrato a término fijo vence en los próximos días? Es cuando hay que avisar si no se renueva. */
+    public function contractEndsWithin(int $days): bool
+    {
+        return $this->contract_type === 'fijo'
+            && $this->contract_end_date !== null
+            && $this->contract_end_date->between(now()->startOfDay(), now()->addDays($days)->endOfDay());
+    }
+
     public function earnsOvertime(): bool
     {
         return ! $this->excluded_from_overtime && $this->salary_type !== 'integral';
@@ -250,6 +275,7 @@ class Employee extends BaseModel
             'has_children' => 'boolean',
             'children_count' => 'integer',
             'hire_date' => 'date',
+            'contract_end_date' => 'date',
             'termination_date' => 'date',
             'status' => EmploymentStatus::class,
         ];

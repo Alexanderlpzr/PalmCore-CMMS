@@ -91,7 +91,8 @@ it('encuentra las tablas del proyecto', function (): void {
     // 85 con la pestaña «Horas extras»: el formato TH-FOR-002 en pantalla.
     // 86 con la página «Horas extras»: todos los trabajadores y su formato.
     // 87 con «Alimentación»: las comidas del periodo para pagarlas.
-    expect(tableFiles())->toHaveCount(87);
+    // 88 con «Horas confirmadas»: los días firmados, para corregir novedades tardías.
+    expect(tableFiles())->toHaveCount(88);
 });
 
 it('alinea a la derecha toda columna de dinero o cantidad', function (): void {

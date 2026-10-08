@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\AttendanceDays;
 
+use App\Domain\HumanResources\Enums\AttendanceDayStatus;
 use App\Domain\HumanResources\Exceptions\AttendanceException;
 use App\Domain\HumanResources\Services\AttendanceCorrectionService;
 use App\Filament\Resources\AttendanceScans\AttendanceMarkActions;
@@ -80,7 +81,8 @@ final class AttendanceDayActions
         return Action::make('ajustarHoras')
             ->label('Ajustar horas')
             ->icon(Heroicon::OutlinedAdjustmentsHorizontal)
-            ->authorize(fn (AttendanceDay $record): bool => auth()->user()?->can('correct', $record) ?? false)
+            // Sin firmar lo corrige quien confirma; firmado, también, y sigue firmado.
+            ->authorize(fn (AttendanceDay $record): bool => self::canEdit($record))
             ->modalHeading(fn (AttendanceDay $record): string => 'Ajustar las horas de '.$record->employee?->fullName().' del '.$record->work_date->format('d/m/Y'))
             ->modalDescription('Para cambiar las horas sin tocar las marcas: una extra que no se autorizó, un turno que se paga distinto. El día queda «ajustado a mano» y el reloj ya no lo recalcula, salvo que después se corrijan sus marcas.')
             ->fillForm(fn (AttendanceDay $record): array => [
@@ -124,9 +126,9 @@ final class AttendanceDayActions
             ->label('Anular día')
             ->icon(Heroicon::OutlinedNoSymbol)
             ->color('danger')
-            ->authorize(fn (AttendanceDay $record): bool => auth()->user()?->can('correct', $record) ?? false)
+            ->authorize(fn (AttendanceDay $record): bool => self::canEdit($record))
             ->modalHeading(fn (AttendanceDay $record): string => 'Anular el '.$record->work_date->format('d/m/Y').' de '.$record->employee?->fullName())
-            ->modalDescription('El día sale de «Horas por confirmar», no se paga y no vuelve al reconstruir: sus marcas quedan anuladas. Se siguen viendo en «Marcas de portería», con su nombre y el motivo.')
+            ->modalDescription('El día se quita: no se paga y no vuelve al reconstruir, porque sus marcas quedan anuladas. Sirve también para un día ya confirmado que resultó ser una novedad. Las marcas se siguen viendo en «Marcas de portería», con su nombre y el motivo.')
             ->schema([
                 Textarea::make('reason')
                     ->label('Motivo')
@@ -192,6 +194,12 @@ final class AttendanceDayActions
                     ->success()
                     ->send();
             });
+    }
+
+    /** Propuesto: `correct`. Confirmado: `editConfirmed`. */
+    private static function canEdit(AttendanceDay $record): bool
+    {
+        return auth()->user()?->can($record->status === AttendanceDayStatus::Confirmada ? 'editConfirmed' : 'correct', $record) ?? false;
     }
 
     /** Las reglas viven en el servicio y ya hablan español: aquí solo se muestran. */

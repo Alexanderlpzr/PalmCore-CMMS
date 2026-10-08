@@ -20,6 +20,22 @@ class ListEmployees extends ListRecords
 
     protected static string $resource = EmployeeResource::class;
 
+    /** El aviso de contratos fijos que vencen en 30 días, a la vista sin filtrar. */
+    public function getSubheading(): ?string
+    {
+        $count = Employee::query()
+            ->active()
+            ->where('contract_type', 'fijo')
+            ->whereBetween('contract_end_date', [now()->toDateString(), now()->addDays(30)->toDateString()])
+            ->count();
+
+        return match ($count) {
+            0 => null,
+            1 => '1 contrato a término fijo vence en los próximos 30 días. Use el filtro «Contrato fijo vence en 30 días».',
+            default => "{$count} contratos a término fijo vencen en los próximos 30 días. Use el filtro «Contrato fijo vence en 30 días».",
+        };
+    }
+
     protected function getHeaderActions(): array
     {
         return [

@@ -106,6 +106,18 @@ class EmployeesTable
                     ->sortable()
                     ->toggleable(),
 
+                // Hasta cuándo va el contrato a término fijo; en rojo si vence en 30 días.
+                TextColumn::make('contract_end_date')
+                    ->label('Fin de contrato')
+                    ->date('d/m/Y')
+                    ->color(fn (Employee $record): ?string => $record->contractEndsWithin(30) ? 'danger' : null)
+                    ->description(fn (Employee $record): ?string => $record->contractEndsWithin(30)
+                        ? 'Vence '.$record->contract_end_date->diffForHumans()
+                        : null)
+                    ->placeholder('—')
+                    ->sortable()
+                    ->toggleable(),
+
                 TextColumn::make('phone')
                     ->label('Celular')
                     ->placeholder('—')
@@ -194,6 +206,14 @@ class EmployeesTable
 
                 // Los cumpleaños del mes: el Excel tenía dos columnas, DÍA y MES, solo
                 // para poder filtrar esto.
+                // El preaviso: un contrato fijo que no se renueva se avisa con 30 días.
+                Filter::make('contrato_por_vencer')
+                    ->label('Contrato fijo vence en 30 días')
+                    ->toggle()
+                    ->query(fn (Builder $query): Builder => $query
+                        ->where('contract_type', 'fijo')
+                        ->whereBetween('contract_end_date', [now()->toDateString(), now()->addDays(30)->toDateString()])),
+
                 Filter::make('cumple_este_mes')
                     ->label('Cumple años este mes')
                     ->toggle()

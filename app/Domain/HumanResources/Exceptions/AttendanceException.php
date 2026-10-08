@@ -21,6 +21,11 @@ class AttendanceException extends RuntimeException
         return new self(sprintf('El %s ya está confirmado: reábrelo en «Horas por confirmar» antes de corregir sus marcas.', $date));
     }
 
+    public static function dayInClosedPayroll(string $date, string $run): self
+    {
+        return new self(sprintf('El %s ya se pagó en la nómina «%s», que está cerrada: no se puede cambiar.', $date, $run));
+    }
+
     public static function alreadyVoided(): self
     {
         return new self('Esa marca ya estaba anulada.');

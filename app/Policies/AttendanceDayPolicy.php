@@ -66,6 +66,20 @@ class AttendanceDayPolicy
     }
 
     /**
+     * Ajustar las horas de un día ya confirmado o anularlo, por una novedad que llegó
+     * tarde. Sigue confirmado y el cambio queda con quién y por qué; lo que ya se pagó en
+     * una nómina cerrada lo protege el servicio.
+     */
+    public function editConfirmed(User $user, AttendanceDay $day): bool
+    {
+        if ($day->status !== AttendanceDayStatus::Confirmada) {
+            return false;
+        }
+
+        return $user->is_super_admin || $user->hasPermissionTo('attendance.confirm');
+    }
+
+    /**
      * Marcar a qué grupo se cargan las horas del día en el indicador «factor de horas».
      * No cambia lo que se paga, así que vale también sobre un día confirmado.
      */

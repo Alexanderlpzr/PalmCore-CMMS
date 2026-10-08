@@ -44,7 +44,7 @@ class Alimentacion extends Page implements HasTable
 
     protected static ?string $title = 'Auxilio de alimentación';
 
-    protected static ?int $navigationSort = 22;
+    protected static ?int $navigationSort = 23;
 
     protected static ?string $slug = 'alimentacion';
 

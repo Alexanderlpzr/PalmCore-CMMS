@@ -4,10 +4,12 @@ namespace App\Domain\HumanResources\Services;
 
 use App\Domain\HumanResources\Enums\AttendanceDayStatus;
 use App\Domain\HumanResources\Enums\AttendanceDirection;
+use App\Domain\HumanResources\Enums\PayrollRunStatus;
 use App\Domain\HumanResources\Exceptions\AttendanceException;
 use App\Models\AttendanceDay;
 use App\Models\AttendanceScan;
 use App\Models\Employee;
+use App\Models\PayrollRun;
 use App\Models\Tenant;
 use App\Models\User;
 use Carbon\CarbonImmutable;
@@ -242,7 +244,9 @@ class AttendanceCorrectionService
      */
     public function adjustHours(AttendanceDay $day, array $hours, string $reason, User $by): AttendanceDay
     {
-        $this->ensureProposed($day);
+        // Un día confirmado también se ajusta —una novedad que llegó tarde— y sigue
+        // confirmado; lo que no se toca es lo que ya se pagó en una nómina cerrada.
+        $this->ensureEditable($day);
 
         $bolsas = [];
 
@@ -315,7 +319,7 @@ class AttendanceCorrectionService
      */
     public function voidDay(AttendanceDay $day, string $reason, User $by): void
     {
-        $this->ensureProposed($day);
+        $this->ensureEditable($day);
         $employee = $day->employee;
         $motivo = trim($reason);
         $fecha = CarbonImmutable::parse($day->work_date->toDateString());
@@ -381,6 +385,28 @@ class AttendanceCorrectionService
 
         if ($day->status === AttendanceDayStatus::Confirmada) {
             throw AttendanceException::dayAlreadyConfirmed($day->work_date->format('d/m/Y'));
+        }
+    }
+
+    /**
+     * Ajustar o anular vale con el día propuesto o confirmado, salvo que ya haya entrado a
+     * una nómina cerrada: esa plata ya se pagó y se aportó.
+     */
+    private function ensureEditable(AttendanceDay $day): void
+    {
+        $day->loadMissing('employee');
+        $date = $day->work_date->toDateString();
+
+        $closed = PayrollRun::query()
+            ->forTenant($day->tenant_id)
+            ->where('status', PayrollRunStatus::Cerrada)
+            ->where(fn ($query) => $query
+                ->where(fn ($q) => $q->whereNotNull('hours_from')->whereDate('hours_from', '<=', $date)->whereDate('hours_to', '>=', $date))
+                ->orWhere(fn ($q) => $q->whereNull('hours_from')->whereDate('period_start', '<=', $date)->whereDate('period_end', '>=', $date)))
+            ->first();
+
+        if ($closed) {
+            throw AttendanceException::dayInClosedPayroll($day->work_date->format('d/m/Y'), $closed->name);
         }
     }
 

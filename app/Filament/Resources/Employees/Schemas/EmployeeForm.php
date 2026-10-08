@@ -18,6 +18,7 @@ use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Carbon;
@@ -33,6 +34,27 @@ use Illuminate\Support\Carbon;
  */
 class EmployeeForm
 {
+    /** La terminación propuesta: ingreso más la duración elegida. */
+    private static function proposeContractEnd(Get $get, Set $set, ?string $start, mixed $months): void
+    {
+        if ($get('contract_type') === 'fijo' && $start && $months) {
+            $set('contract_end_date', Employee::fixedTermEnd(Carbon::parse($start), (int) $months)->toDateString());
+        }
+    }
+
+    /** «Vence en 12 días», o «Venció hace 3 días». */
+    private static function contractEndHint(Carbon $end): string
+    {
+        $days = (int) now()->startOfDay()->diffInDays($end->copy()->startOfDay(), false);
+
+        return match (true) {
+            $days < 0 => 'Venció hace '.abs($days).' días.',
+            $days === 0 => 'Vence hoy.',
+            $days <= 30 => "Vence en {$days} días: avise con tiempo si no se renueva.",
+            default => "Vence en {$days} días.",
+        };
+    }
+
     public static function configure(Schema $schema): Schema
     {
         return $schema->components([
@@ -190,7 +212,8 @@ class EmployeeForm
                 Select::make('contract_type')
                     ->label('Tipo de contrato')
                     ->options(Options::CONTRACT_TYPES)
-                    ->native(false),
+                    ->native(false)
+                    ->live(),
                 Select::make('area')
                     ->label('Área')
                     ->options(Options::AREAS)
@@ -206,12 +229,44 @@ class EmployeeForm
                 DatePicker::make('hire_date')
                     ->label('Fecha de ingreso')
                     ->live()
+                    // Si ya eligió la duración del contrato fijo, la terminación se mueve con el ingreso.
+                    ->afterStateUpdated(fn (Get $get, Set $set, ?string $state) => self::proposeContractEnd($get, $set, $state, $get('contract_months')))
                     ->helperText(fn (?string $state): ?string => $state
                         ? 'Antigüedad: '.Carbon::parse($state)->diffForHumans(now(), [
                             'syntax' => CarbonInterface::DIFF_ABSOLUTE,
                             'parts' => 2,
                         ])
                         : null),
+                // Contrato a término fijo: la duración en tramos de 3 meses propone la fecha de
+                // terminación, que se puede corregir a mano. Con 30 días de anticipación avisa,
+                // que es el preaviso que pide la ley si no se va a renovar.
+                Select::make('contract_months')
+                    ->label('Duración del contrato')
+                    ->options(collect(Employee::FIXED_TERM_MONTHS)->mapWithKeys(fn (int $m): array => [$m => "{$m} meses"])->all())
+                    ->visible(fn (Get $get): bool => $get('contract_type') === 'fijo')
+                    ->dehydrated(false)
+                    ->native(false)
+                    ->live()
+                    ->afterStateHydrated(function (Select $component, Get $get): void {
+                        $start = $get('hire_date');
+                        $end = $get('contract_end_date');
+
+                        if ($start && $end) {
+                            foreach (Employee::FIXED_TERM_MONTHS as $months) {
+                                if (Employee::fixedTermEnd(Carbon::parse($start), $months)->isSameDay(Carbon::parse($end))) {
+                                    $component->state($months);
+                                }
+                            }
+                        }
+                    })
+                    ->afterStateUpdated(fn (Get $get, Set $set, $state) => self::proposeContractEnd($get, $set, $get('hire_date'), $state))
+                    ->helperText('Se cuenta desde la fecha de ingreso.'),
+                DatePicker::make('contract_end_date')
+                    ->label('Termina el')
+                    ->visible(fn (Get $get): bool => $get('contract_type') === 'fijo')
+                    ->afterOrEqual('hire_date')
+                    // No es obligatoria para no trabar las fichas que ya existían sin ella.
+                    ->helperText(fn (?string $state): string => $state ? self::contractEndHint(Carbon::parse($state)) : 'Sin fecha no hay aviso de vencimiento.'),
                 DatePicker::make('termination_date')->label('Fecha de retiro'),
                 Select::make('status')
                     ->label('Estado')

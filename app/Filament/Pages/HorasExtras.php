@@ -49,7 +49,7 @@ class HorasExtras extends Page implements HasTable
     protected static ?string $title = 'Horas extras';
 
     /** Justo después de «Horas por confirmar»: primero se confirma, después se mira. */
-    protected static ?int $navigationSort = 21;
+    protected static ?int $navigationSort = 22;
 
     protected static ?string $slug = 'horas-extras';
 
@@ -151,6 +151,15 @@ class HorasExtras extends Page implements HasTable
                     }),
             ])
             ->recordActions([
+                // Sus días del periodo, para ajustar horas o anular un día sin salir de aquí.
+                Action::make('dias')
+                    ->label('Días')
+                    ->icon(Heroicon::OutlinedCalendarDays)
+                    ->modalHeading(fn (Employee $record): string => 'Días de '.$record->fullName())
+                    ->modalContent(fn (Employee $record) => view('filament.pages.partials.dias-del-trabajador', ['employee' => $record]))
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Cerrar')
+                    ->modalWidth('7xl'),
                 Action::make('verFormato')
                     ->label('Ver')
                     ->icon(Heroicon::OutlinedEye)

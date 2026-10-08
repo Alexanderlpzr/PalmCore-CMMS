@@ -6,6 +6,7 @@ use App\Domain\HumanResources\Enums\PayrollParameter;
 use App\Domain\HumanResources\Services\PayrollParameterService;
 use App\Domain\Reports\Excel\FormatoHorasExtrasExcel;
 use App\Domain\Reports\Services\FormatoHorasExtrasPdfService as Formato;
+use App\Filament\Resources\AttendanceDays\AttendanceDayActions;
 use App\Models\AttendanceDay;
 use App\Models\Employee;
 use App\Models\PayrollRun;
@@ -44,9 +45,10 @@ class OvertimeRelationManager extends RelationManager
         return auth()->user()?->can('viewAny', AttendanceDay::class) ?? false;
     }
 
+    /** No se crean días a mano aquí, pero cada día se ajusta o se anula. */
     public function isReadOnly(): bool
     {
-        return true;
+        return false;
     }
 
     public function table(Table $table): Table
@@ -114,6 +116,11 @@ class OvertimeRelationManager extends RelationManager
 
                         return $query->whereBetween('work_date', [$from->toDateString(), $to->toDateString()]);
                     }),
+            ])
+            // Una novedad que llegó tarde: ajustar sus horas o anular el día, con motivo.
+            ->recordActions([
+                AttendanceDayActions::adjustHours(),
+                AttendanceDayActions::voidDay(),
             ])
             ->headerActions([
                 Action::make('formatoPdf')

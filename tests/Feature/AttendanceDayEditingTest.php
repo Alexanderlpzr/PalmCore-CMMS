@@ -12,6 +12,7 @@ use App\Models\AttendanceDay;
 use App\Models\AttendanceScan;
 use App\Models\Employee;
 use App\Models\EmployeeQrCode;
+use App\Models\PayrollRun;
 use App\Models\Tenant;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
@@ -171,15 +172,31 @@ it('voids a day: its marks are voided and it does not come back', function (): v
     expect(AttendanceDay::query()->forTenant($this->tenant->id)->count())->toBe(0);
 });
 
-it('does not correct a confirmed day until it is reopened', function (): void {
+it('adjusts a confirmed day for a late novelty and keeps it confirmed, but not its gate marks', function (): void {
     $dia = turnoPorLaPuerta($this->card, '2026-08-10 06:00', '2026-08-10 14:00');
     app(AttendanceDayConfirmer::class)->confirm($dia, $this->rrhh);
 
+    $dia = $this->correcciones->adjustHours($dia->refresh(), ['ordinary_hours' => 4], 'Medio turno: permiso en la tarde', $this->rrhh);
+
+    expect($dia->status)->toBe(AttendanceDayStatus::Confirmada)
+        ->and((float) $dia->worked_hours)->toBe(4.0)
+        ->and($dia->adjusted_by)->toBe($this->rrhh->id)
+        ->and($dia->adjustment_reason)->toBe('Medio turno: permiso en la tarde')
+        // Cambiar la hora de sus marcas sí pide reabrirlo: el reloj no pisa lo firmado.
+        ->and(fn () => $this->correcciones->editDayMarks($dia, [], 'Otra hora', $this->rrhh))
+        ->toThrow(AttendanceException::class, 'reábrelo');
+});
+
+it('does not touch a day already paid in a closed payroll', function (): void {
+    $dia = turnoPorLaPuerta($this->card, '2026-08-10 06:00', '2026-08-10 14:00');
+    app(AttendanceDayConfirmer::class)->confirm($dia, $this->rrhh);
+    PayrollRun::factory()->forPeriod('2026-08-01', '2026-08-30', 'Agosto 2026')->closed()->create(['tenant_id' => $this->tenant->id]);
+
     expect(fn () => $this->correcciones->adjustHours($dia->refresh(), ['ordinary_hours' => 4], 'Medio turno', $this->rrhh))
-        ->toThrow(AttendanceException::class, 'reábrelo')
+        ->toThrow(AttendanceException::class, 'cerrada')
         ->and(fn () => $this->correcciones->voidDay($dia->refresh(), 'No vino', $this->rrhh))
-        ->toThrow(AttendanceException::class, 'reábrelo')
-        ->and($dia->refresh()->status)->toBe(AttendanceDayStatus::Confirmada);
+        ->toThrow(AttendanceException::class, 'cerrada')
+        ->and((float) $dia->refresh()->worked_hours)->toBe(8.0);
 });
 
 // ── La pantalla ────────────────────────────────────────────────────────────────
