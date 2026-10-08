@@ -21,12 +21,30 @@ function componente(region) {
     return raiz && window.Livewire ? window.Livewire.find(raiz.getAttribute('wire:id')) : null
 }
 
-function mensajeDeCamara(e) {
-    if (e?.name === 'NotAllowedError') return 'El navegador no dio permiso para la cámara. Use el campo de abajo o un lector USB.'
-    if (e?.name === 'NotFoundError') return 'Este equipo no tiene cámara. Use el campo de abajo o un lector USB.'
-    if (e?.name === 'NotReadableError') return 'Otra aplicación está usando la cámara.'
+/*
+ * html5-qrcode no entrega el error del navegador sino un texto que lo envuelve
+ * («Error getting userMedia, error = NotAllowedError: …»), así que se busca el nombre
+ * dentro del texto y no solo en `e.name`.
+ */
+function causa(e) {
+    const texto = `${e?.name ?? ''} ${e?.message ?? ''} ${typeof e === 'string' ? e : ''}`
 
-    return 'No se pudo encender la cámara. Use el campo de abajo o un lector USB.'
+    if (/NotAllowed|Permission|denied/i.test(texto)) return 'permiso'
+    if (/NotFound|DevicesNotFound|no camera/i.test(texto)) return 'sin-camara'
+    if (/NotReadable|TrackStart|Could not start/i.test(texto)) return 'ocupada'
+    if (/secure|https/i.test(texto)) return 'inseguro'
+
+    return 'otra'
+}
+
+function mensajeDeCamara(e) {
+    switch (causa(e)) {
+        case 'permiso': return 'El navegador no dio permiso para la cámara. Toque el candado junto a la dirección → Permisos → Cámara → Permitir, y luego «Reintentar cámara».'
+        case 'sin-camara': return 'Este equipo no tiene cámara. Use «Escribir código» o un lector USB.'
+        case 'ocupada': return 'Otra aplicación está usando la cámara. Ciérrela y toque «Reintentar cámara».'
+        case 'inseguro': return 'La cámara solo funciona entrando por https://fronda.app.'
+        default: return 'No se pudo encender la cámara. Toque «Reintentar cámara»; si sigue igual, use «Escribir código».'
+    }
 }
 
 async function iniciar() {
@@ -35,30 +53,58 @@ async function iniciar() {
     if (!region || scanner) return
 
     const aviso = document.getElementById('porteria-camara-aviso')
-    scanner = new Html5Qrcode('porteria-camara')
+    const reintentar = document.getElementById('porteria-camara-reintentar')
+    region.hidden = false
+    if (aviso) aviso.hidden = true
+    if (reintentar) reintentar.hidden = true
+
+    // El recuadro de lectura se ajusta a la cámara, que en el celular es más chica. Algunos
+    // Android informan alto 0 al arrancar el video: entonces se mide por el ancho, y nunca
+    // por debajo del mínimo de 50 px de la librería, que si no aborta el arranque.
+    const config = {
+        fps: 10,
+        qrbox: (ancho, alto) => {
+            const lado = Math.max(60, Math.floor(Math.min(ancho, alto > 0 ? alto : ancho) * 0.7))
+
+            return { width: lado, height: lado }
+        },
+    }
+
+    const alLeer = async (texto) => {
+        const token = texto.trim()
+
+        if (!UUID_V4.test(token)) return
+
+        // El servidor ya ignora el pase repetido; esto evita diez peticiones por
+        // segundo mientras el carné siga frente a la cámara.
+        const ahora = Date.now()
+        if (token === ultimoToken && ahora - ultimoEn < 4000) return
+        ultimoToken = token
+        ultimoEn = ahora
+
+        await componente(region)?.call('registrarMarca', token)
+    }
 
     try {
-        await scanner.start(
-            { facingMode: 'environment' },
-            // El recuadro de lectura se ajusta a la cámara, que en el celular es más chica.
-            { fps: 10, qrbox: (ancho, alto) => { const lado = Math.floor(Math.min(ancho, alto) * 0.7); return { width: lado, height: lado } } },
-            async (texto) => {
-                const token = texto.trim()
+        scanner = new Html5Qrcode('porteria-camara')
 
-                if (!UUID_V4.test(token)) return
+        try {
+            await scanner.start({ facingMode: 'environment' }, config, alLeer, () => {})
+        } catch (primero) {
+            // Sin permiso no hay segundo intento que valga. Con otro fallo se prueba la
+            // lista de cámaras: hay equipos que no entienden «la de atrás» pero sí su id.
+            if (causa(primero) === 'permiso') throw primero
 
-                // El servidor ya ignora el pase repetido; esto evita diez peticiones por
-                // segundo mientras el carné siga frente a la cámara.
-                const ahora = Date.now()
-                if (token === ultimoToken && ahora - ultimoEn < 4000) return
-                ultimoToken = token
-                ultimoEn = ahora
+            const camaras = await Html5Qrcode.getCameras()
+            if (!camaras?.length) throw primero
 
-                await componente(region)?.call('registrarMarca', token)
-            },
-            () => {},
-        )
+            const trasera = camaras.find((c) => /back|rear|trasera|environment/i.test(c.label)) ?? camaras[camaras.length - 1]
+            try { scanner.clear() } catch (_) {}
+            await scanner.start(trasera.id, config, alLeer, () => {})
+        }
     } catch (e) {
+        console.error('Portería: la cámara no encendió', e)
+        try { scanner?.clear() } catch (_) {}
         scanner = null
         region.hidden = true
 
@@ -66,6 +112,8 @@ async function iniciar() {
             aviso.textContent = mensajeDeCamara(e)
             aviso.hidden = false
         }
+
+        if (reintentar && causa(e) !== 'sin-camara') reintentar.hidden = false
     }
 }
 
@@ -135,3 +183,9 @@ if (document.readyState === 'loading') {
 }
 
 window.addEventListener('pagehide', detener)
+
+// El botón que aparece cuando la cámara no encendió: el toque también sirve de gesto del
+// usuario, que algunos navegadores piden para volver a preguntar el permiso.
+document.addEventListener('click', (evento) => {
+    if (evento.target.closest('#porteria-camara-reintentar')) iniciar()
+})

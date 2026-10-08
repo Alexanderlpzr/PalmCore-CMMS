@@ -10,6 +10,11 @@
                     <div wire:ignore>
                         <div id="porteria-camara" class="aspect-square w-full overflow-hidden rounded-xl bg-gray-900"></div>
                         <p id="porteria-camara-aviso" hidden class="rounded-lg bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:bg-amber-500/10 dark:text-amber-300"></p>
+                        <div id="porteria-camara-reintentar" hidden class="mt-3 text-center">
+                            <x-filament::button icon="heroicon-o-camera" color="gray" size="sm">
+                                Reintentar cámara
+                            </x-filament::button>
+                        </div>
                     </div>
 
                     @if ($ultimo || $error)
