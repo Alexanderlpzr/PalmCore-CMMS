@@ -7,6 +7,7 @@ use App\Domain\HumanResources\Enums\AttendanceDayStatus;
 use App\Domain\HumanResources\Enums\AttendanceDirection;
 use App\Domain\HumanResources\Enums\PayrollParameter;
 use App\Domain\HumanResources\Services\AttendanceCorrectionService;
+use App\Domain\HumanResources\Services\AttendanceDayBuilder;
 use App\Domain\HumanResources\Services\OvertimeBonusSplitter;
 use App\Domain\HumanResources\Services\PayrollParameterService;
 use App\Models\AttendanceDay;
@@ -248,6 +249,14 @@ class FormatoHorasExtrasPdfService
     {
         $marks = $this->corrections->marksOfDay($day);
         $local = fn (?AttendanceScan $mark): ?CarbonImmutable => $mark ? CarbonImmutable::instance($mark->scanned_at)->setTimezone($timezone) : null;
+
+        // Con el redondeo encendido el formato muestra las horas en punto con que se
+        // contó el día: así las columnas cuadran con la entrada y la salida.
+        if ($this->parameters->isOn(PayrollParameter::RoundMarksToHour, CarbonImmutable::instance($day->work_date), $day->tenant_id)) {
+            $local = fn (?AttendanceScan $mark): ?CarbonImmutable => $mark
+                ? AttendanceDayBuilder::roundToHour(CarbonImmutable::instance($mark->scanned_at)->setTimezone($timezone))
+                : null;
+        }
 
         return [
             $local($marks->first(fn (AttendanceScan $m): bool => $m->direction === AttendanceDirection::Entrada)),

@@ -2,6 +2,7 @@
 
 use App\Domain\HumanResources\Enums\AttendanceDayStatus;
 use App\Domain\HumanResources\Enums\AttendanceDirection;
+use App\Domain\HumanResources\Enums\PayrollParameter;
 use App\Domain\HumanResources\Services\AttendanceDayBuilder;
 use App\Domain\HumanResources\Services\AttendanceDayConfirmer;
 use App\Domain\HumanResources\Services\PayrollParameterService;
@@ -11,6 +12,7 @@ use App\Models\Employee;
 use App\Models\Holiday;
 use App\Models\Tenant;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Carbon;
 
 /*
@@ -244,3 +246,31 @@ it('no arrastra el turno del mes anterior al período que se reconstruye', funct
     expect($dias)->toHaveCount(1)
         ->and($dias->first()->work_date->toDateString())->toBe('2026-08-03');
 });
+
+it('redondea la entrada y la salida a la hora en punto desde que se enciende el parámetro', function (): void {
+    app(PayrollParameterService::class)->setValue(PayrollParameter::RoundMarksToHour, 1, Carbon::parse('2026-08-15'), $this->tenant->id);
+
+    turno($this->employee, '2026-08-10 05:20', '2026-08-10 14:40'); // antes de la vigencia: con minutos
+    turno($this->employee, '2026-08-18 05:20', '2026-08-18 14:40'); // 5:00 → 15:00
+    turno($this->employee, '2026-08-19 05:31', '2026-08-19 14:30'); // 6:00 → 14:00
+    turno($this->employee, '2026-08-20 04:40', '2026-08-20 13:10'); // 5:00 → 13:00
+
+    $horas = construir($this->employee)->mapWithKeys(fn (AttendanceDay $d): array => [$d->work_date->toDateString() => round((float) $d->worked_hours, 2)]);
+
+    expect($horas->all())->toBe([
+        '2026-08-10' => 9.33,
+        '2026-08-18' => 10.0,
+        '2026-08-19' => 8.0,
+        '2026-08-20' => 8.0,
+    ]);
+});
+
+it('cuenta las 5:30 como 5:00 y las 5:31 como 6:00, sin mirar los segundos', function (string $marca, string $esperada): void {
+    expect(AttendanceDayBuilder::roundToHour(CarbonImmutable::parse("2026-08-18 {$marca}"))->format('H:i'))->toBe($esperada);
+})->with([
+    ['05:00:00', '05:00'],
+    ['05:30:59', '05:00'],
+    ['05:31:00', '06:00'],
+    ['04:40:00', '05:00'],
+    ['23:45:00', '00:00'],
+]);

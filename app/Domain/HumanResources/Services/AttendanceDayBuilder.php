@@ -83,6 +83,10 @@ class AttendanceDayBuilder
             $config = $this->resolveConfig($employee->tenant_id, CarbonImmutable::parse($workDate, $timezone));
             $isRestDay = isset($restDays[$workDate]);
 
+            if ($config['roundToHour']) {
+                $sessions = self::roundSessions($sessions);
+            }
+
             $hours = $this->classifier->classify(
                 $sessions,
                 $surchargedDays,
@@ -295,7 +299,37 @@ class AttendanceDayBuilder
             'ordinaryPerDay' => $this->parameters->valueOn(PayrollParameter::OrdinaryHoursPerDay, $on, $tenantId),
             'maxOvertimeDay' => $this->parameters->valueOn(PayrollParameter::MaxOvertimeHoursDay, $on, $tenantId),
             'excessAsBonus' => $this->parameters->isOn(PayrollParameter::OvertimeExcessAsBonus, $on, $tenantId),
+            'roundToHour' => $this->parameters->isOn(PayrollParameter::RoundMarksToHour, $on, $tenantId),
         ];
+    }
+
+    /**
+     * La hora en punto más cercana, como la cuenta la planta: hasta el minuto 30 baja
+     * (5:30 → 5:00) y desde el 31 sube (5:31 → 6:00). Los segundos no cuentan. Igual para
+     * la entrada y la salida, y para quien llega antes (4:40 → 5:00).
+     */
+    public static function roundToHour(CarbonImmutable $time): CarbonImmutable
+    {
+        $hour = $time->startOfHour();
+
+        return $time->minute <= 30 ? $hour : $hour->addHour();
+    }
+
+    /**
+     * Las sesiones con la entrada y la salida redondeadas. Una sesión que al redondear
+     * queda sin tiempo —entró 5:10 y salió 5:25— no suma horas y se descarta.
+     *
+     * @param  array<int, array{0: CarbonImmutable, 1: CarbonImmutable}>  $sessions
+     * @return array<int, array{0: CarbonImmutable, 1: CarbonImmutable}>
+     */
+    public static function roundSessions(array $sessions): array
+    {
+        $rounded = array_map(
+            fn (array $session): array => [self::roundToHour($session[0]), self::roundToHour($session[1])],
+            $sessions,
+        );
+
+        return array_values(array_filter($rounded, fn (array $session): bool => $session[1]->gt($session[0])));
     }
 
     /**
