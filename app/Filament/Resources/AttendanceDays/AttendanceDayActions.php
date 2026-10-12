@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\AttendanceDays;
 
 use App\Domain\HumanResources\Enums\AttendanceDayStatus;
+use App\Domain\HumanResources\Enums\AttendanceDirection;
 use App\Domain\HumanResources\Exceptions\AttendanceException;
 use App\Domain\HumanResources\Services\AttendanceCorrectionService;
 use App\Filament\Resources\AttendanceScans\AttendanceMarkActions;
@@ -12,10 +13,11 @@ use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\TimePicker;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Text;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Support\Icons\Heroicon;
 
 /**
@@ -82,27 +84,27 @@ final class AttendanceDayActions
             // Sin firmar lo corrige quien confirma; firmado, también, y sigue firmado.
             ->authorize(fn (AttendanceDay $record): bool => self::canEdit($record))
             ->modalHeading(fn (AttendanceDay $record): string => 'Ajustar las horas de '.$record->employee?->fullName().' del '.$record->work_date->format('d/m/Y'))
-            ->modalDescription('Para cambiar las horas sin tocar las marcas: una extra que no se autorizó, un turno que se paga distinto. El día queda «ajustado a mano» y el reloj ya no lo recalcula, salvo que después se corrijan sus marcas.')
+            ->modalDescription('Escriba la hora de entrada y la de salida que se pagan: las horas, recargos y extras se calculan solos. Las marcas de la puerta no cambian; el día queda «ajustado a mano».')
+            ->modalWidth('lg')
             ->fillForm(fn (AttendanceDay $record): array => [
-                ...collect(AttendanceCorrectionService::HOUR_FIELDS)
-                    ->mapWithKeys(fn (string $campo): array => [$campo => round((float) $record->{$campo}, 2)])
-                    ->all(),
+                ...self::currentTimes($record),
                 'reason' => $record->adjustment_reason,
             ])
             ->schema([
-                Grid::make(2)->schema(
-                    collect(self::HOUR_LABELS)
-                        ->map(fn (string $etiqueta, string $campo): TextInput => TextInput::make($campo)
-                            ->label($etiqueta)
-                            ->numeric()
-                            ->minValue(0)
-                            ->maxValue(24)
-                            ->step(0.25)
-                            ->suffix('h')
-                            ->required())
-                        ->values()
-                        ->all(),
-                ),
+                Grid::make(2)->schema([
+                    TimePicker::make('entrada')
+                        ->label('Entrada')
+                        ->seconds(false)
+                        ->live(onBlur: true)
+                        ->required(),
+                    TimePicker::make('salida')
+                        ->label('Salida')
+                        ->seconds(false)
+                        ->live(onBlur: true)
+                        ->helperText('Si es menor que la entrada, es del día siguiente.')
+                        ->required(),
+                ]),
+                Text::make(fn (AttendanceDay $record, Get $get): string => self::preview($record, $get('entrada'), $get('salida'))),
                 Textarea::make('reason')
                     ->label('Justificación (opcional)')
                     ->helperText('Queda en el día, con su nombre y la fecha.')
@@ -110,10 +112,51 @@ final class AttendanceDayActions
             ])
             ->modalSubmitActionLabel('Guardar el ajuste')
             ->action(function (AttendanceDay $record, array $data, Action $action): void {
-                self::run($action, fn () => self::service()->adjustHours($record, $data, ($data['reason'] ?? ''), self::actor()));
+                self::run($action, fn () => self::service()->adjustTimes($record, (string) $data['entrada'], (string) $data['salida'], ($data['reason'] ?? ''), self::actor()));
 
-                Notification::make()->title('Horas ajustadas a mano')->success()->send();
+                Notification::make()->title('Horas ajustadas')->body('Se calcularon con la entrada y la salida.')->success()->send();
             });
+    }
+
+    /**
+     * Con qué horas abre el formulario: las del último ajuste, o la primera entrada y la
+     * última salida de la puerta.
+     *
+     * @return array{entrada: ?string, salida: ?string}
+     */
+    private static function currentTimes(AttendanceDay $record): array
+    {
+        $timezone = AttendanceMarkActions::timezone();
+        $hora = fn ($momento): ?string => $momento?->copy()->setTimezone($timezone)->format('H:i');
+
+        if ($record->adjusted_entry_at && $record->adjusted_exit_at) {
+            return ['entrada' => $hora($record->adjusted_entry_at), 'salida' => $hora($record->adjusted_exit_at)];
+        }
+
+        $marcas = self::service()->marksOfDay($record);
+
+        return [
+            'entrada' => $hora($marcas->first(fn (AttendanceScan $m): bool => $m->direction === AttendanceDirection::Entrada)?->scanned_at),
+            'salida' => $hora($marcas->last(fn (AttendanceScan $m): bool => $m->direction === AttendanceDirection::Salida)?->scanned_at),
+        ];
+    }
+
+    /** Lo que daría el ajuste, en una línea: «8 h — Ordinarias 7 · Extra diurna 1». */
+    public static function preview(AttendanceDay $record, ?string $entrada, ?string $salida): string
+    {
+        if (blank($entrada) || blank($salida)) {
+            return 'Escriba la entrada y la salida para ver las horas.';
+        }
+
+        $horas = self::service()->previewTimes($record, $entrada, $salida);
+        $numero = fn (float $valor): string => rtrim(rtrim(number_format($valor, 2, ',', '.'), '0'), ',');
+
+        $partes = collect($horas->toArray())
+            ->filter(fn (float $valor): bool => $valor > 0)
+            ->map(fn (float $valor, string $campo): string => self::HOUR_LABELS[$campo].' '.$numero($valor))
+            ->values();
+
+        return 'Quedan '.$numero($horas->workedHours()).' h'.($partes->isEmpty() ? '.' : ': '.$partes->implode(' · ').'.');
     }
 
     public static function voidDay(): Action

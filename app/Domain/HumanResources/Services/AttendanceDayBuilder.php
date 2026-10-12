@@ -78,39 +78,14 @@ class AttendanceDayBuilder
                 continue;
             }
 
-            // Los parámetros de ese día y no los del inicio del rango: una reconstrucción
-            // que cruce el 15 de julio de 2026 cruza también el paso a la jornada de 42 h.
-            $config = $this->resolveConfig($employee->tenant_id, CarbonImmutable::parse($workDate, $timezone));
-            $isRestDay = isset($restDays[$workDate]);
-
-            if ($config['roundToHour']) {
-                $sessions = self::roundSessions($sessions);
-            }
-
-            $hours = $this->classifier->classify(
+            [$hours, $anomalies] = $this->classifyDay(
+                $employee,
+                CarbonImmutable::parse($workDate, $timezone),
                 $sessions,
                 $surchargedDays,
-                $config['nightStart'],
-                $config['nightEnd'],
-                // El descanso trabajado no tiene jornada ordinaria: todo lo que se trabajó
-                // ese día es extra.
-                $isRestDay ? 0.0 : $config['ordinaryPerDay'],
+                isset($restDays[$workDate]),
+                $openEntries[$workDate] ?? null,
             );
-
-            $anomalies = $this->anomaliesFor($hours, $config, $openEntries[$workDate] ?? null, $isRestDay);
-
-            // Dirección, confianza y manejo, o salario integral: trabajó las horas, pero
-            // no causan recargo ni extra. Todo lo trabajado pasa a ordinario para que el
-            // día siga cuadrando con lo que marcó el reloj.
-            if (! $employee->earnsOvertime()) {
-                $anomalies[] = sprintf(
-                    'Sin recargos ni extras: %s no las causa. Se registraron %s horas trabajadas.',
-                    $employee->salary_type === 'integral' ? 'el salario integral' : 'el cargo',
-                    number_format($hours->workedHours(), 2, ',', '.'),
-                );
-
-                $hours = new ClassifiedHours(ordinary: $hours->workedHours());
-            }
 
             $day = $this->persist($employee, $workDate, $hours, $anomalies);
 
@@ -120,6 +95,69 @@ class AttendanceDayBuilder
         }
 
         return $built;
+    }
+
+    /**
+     * Las horas de un día a partir de una entrada y una salida escritas a mano: las mismas
+     * reglas que el reloj —nocturnas, dominicales y festivos, jornada, descanso trabajado,
+     * redondeo, cargos sin extras— para que el ajuste no se clasifique a ojo.
+     */
+    public function classifyTimes(Employee $employee, CarbonInterface $workDate, CarbonImmutable $entry, CarbonImmutable $exit, bool $isRestDay = false): ClassifiedHours
+    {
+        $timezone = $this->plantTimezone($employee);
+        $day = CarbonImmutable::parse(CarbonImmutable::instance($workDate)->toDateString(), $timezone);
+
+        [$hours] = $this->classifyDay(
+            $employee,
+            $day,
+            [[$entry->setTimezone($timezone), $exit->setTimezone($timezone)]],
+            $this->surchargedDayResolver($employee->tenant_id, $day, $day->addDay()),
+            $isRestDay,
+        );
+
+        return $hours;
+    }
+
+    /**
+     * @param  array<int, array{0: CarbonImmutable, 1: CarbonImmutable}>  $sessions
+     * @return array{0: ClassifiedHours, 1: array<int, string>}
+     */
+    private function classifyDay(Employee $employee, CarbonImmutable $workDate, array $sessions, callable $surchargedDays, bool $isRestDay, ?string $openEntryAt = null): array
+    {
+        // Los parámetros de ese día y no los del inicio del rango: una reconstrucción
+        // que cruce el 15 de julio de 2026 cruza también el paso a la jornada de 42 h.
+        $config = $this->resolveConfig($employee->tenant_id, $workDate);
+
+        if ($config['roundToHour']) {
+            $sessions = self::roundSessions($sessions);
+        }
+
+        $hours = $this->classifier->classify(
+            $sessions,
+            $surchargedDays,
+            $config['nightStart'],
+            $config['nightEnd'],
+            // El descanso trabajado no tiene jornada ordinaria: todo lo que se trabajó
+            // ese día es extra.
+            $isRestDay ? 0.0 : $config['ordinaryPerDay'],
+        );
+
+        $anomalies = $this->anomaliesFor($hours, $config, $openEntryAt, $isRestDay);
+
+        // Dirección, confianza y manejo, o salario integral: trabajó las horas, pero
+        // no causan recargo ni extra. Todo lo trabajado pasa a ordinario para que el
+        // día siga cuadrando con lo que marcó el reloj.
+        if (! $employee->earnsOvertime()) {
+            $anomalies[] = sprintf(
+                'Sin recargos ni extras: %s no las causa. Se registraron %s horas trabajadas.',
+                $employee->salary_type === 'integral' ? 'el salario integral' : 'el cargo',
+                number_format($hours->workedHours(), 2, ',', '.'),
+            );
+
+            $hours = new ClassifiedHours(ordinary: $hours->workedHours());
+        }
+
+        return [$hours, $anomalies];
     }
 
     /**

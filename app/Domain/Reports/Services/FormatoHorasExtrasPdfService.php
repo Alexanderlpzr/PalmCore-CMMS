@@ -247,16 +247,26 @@ class FormatoHorasExtrasPdfService
      */
     private function entryAndExit(AttendanceDay $day, string $timezone): array
     {
-        $marks = $this->corrections->marksOfDay($day);
-        $local = fn (?AttendanceScan $mark): ?CarbonImmutable => $mark ? CarbonImmutable::instance($mark->scanned_at)->setTimezone($timezone) : null;
-
         // Con el redondeo encendido el formato muestra las horas en punto con que se
         // contó el día: así las columnas cuadran con la entrada y la salida.
-        if ($this->parameters->isOn(PayrollParameter::RoundMarksToHour, CarbonImmutable::instance($day->work_date), $day->tenant_id)) {
-            $local = fn (?AttendanceScan $mark): ?CarbonImmutable => $mark
-                ? AttendanceDayBuilder::roundToHour(CarbonImmutable::instance($mark->scanned_at)->setTimezone($timezone))
-                : null;
+        $round = $this->parameters->isOn(PayrollParameter::RoundMarksToHour, CarbonImmutable::instance($day->work_date), $day->tenant_id);
+        $show = function ($moment) use ($timezone, $round): ?CarbonImmutable {
+            if ($moment === null) {
+                return null;
+            }
+
+            $time = CarbonImmutable::instance($moment)->setTimezone($timezone);
+
+            return $round ? AttendanceDayBuilder::roundToHour($time) : $time;
+        };
+
+        // El día ajustado con entrada y salida se pagó con ellas, no con las de la puerta.
+        if ($day->adjusted_entry_at && $day->adjusted_exit_at) {
+            return [$show($day->adjusted_entry_at), $show($day->adjusted_exit_at)];
         }
+
+        $marks = $this->corrections->marksOfDay($day);
+        $local = fn (?AttendanceScan $mark): ?CarbonImmutable => $show($mark?->scanned_at);
 
         return [
             $local($marks->first(fn (AttendanceScan $m): bool => $m->direction === AttendanceDirection::Entrada)),

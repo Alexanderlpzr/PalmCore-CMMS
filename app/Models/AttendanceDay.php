@@ -46,6 +46,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'adjusted_by',
     'adjusted_at',
     'adjustment_reason',
+    'adjusted_entry_at',
+    'adjusted_exit_at',
     'anomalies',
     'notes',
 ])]
@@ -158,6 +160,8 @@ class AttendanceDay extends Model
             'status' => AttendanceDayStatus::class,
             'confirmed_at' => 'datetime',
             'adjusted_at' => 'datetime',
+            'adjusted_entry_at' => 'datetime',
+            'adjusted_exit_at' => 'datetime',
             'built_at' => 'datetime',
             'anomalies' => 'array',
         ];

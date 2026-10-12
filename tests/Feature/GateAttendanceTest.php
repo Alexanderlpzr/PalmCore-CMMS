@@ -262,3 +262,29 @@ it('lets HR download the QR of a worker', function (): void {
         ->callAction(TestAction::make('descargarQr')->table($this->employee))
         ->assertFileDownloaded();
 });
+
+it('lets HR look back over a range of days and find the entries nobody closed', function (): void {
+    $this->actingAs(personaConRol($this->tenant, 'talento-humano'));
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+    Filament::setTenant($this->tenant);
+    $this->travelTo(horaDePlanta('2026-08-12 10:00'));
+
+    $otro = Employee::factory()->create(['tenant_id' => $this->tenant->id]);
+    $carneOtro = EmployeeQrCode::factory()->forEmployee($otro)->create();
+
+    // El 10 entró y nadie marcó la salida; el otro entró de noche y salió al otro día.
+    $sinSalida = app(AttendanceService::class)->record($this->card, at: horaDePlanta('2026-08-10 06:00'));
+    $noche = app(AttendanceService::class)->record($carneOtro, at: horaDePlanta('2026-08-10 22:00'));
+    $salidaNoche = app(AttendanceService::class)->record($carneOtro, at: horaDePlanta('2026-08-11 06:00'));
+    // Hoy: sigue adentro, no es una salida olvidada.
+    $hoy = app(AttendanceService::class)->record($this->card, at: horaDePlanta('2026-08-12 07:00'));
+
+    Livewire::test(ListAttendanceScans::class)
+        ->assertCanSeeTableRecords([$hoy])
+        ->assertCanNotSeeTableRecords([$sinSalida, $noche])
+        ->filterTable('fecha', ['desde' => '2026-08-10', 'hasta' => '2026-08-12'])
+        ->assertCanSeeTableRecords([$sinSalida, $noche, $salidaNoche, $hoy])
+        ->filterTable('fecha', ['desde' => '2026-08-10', 'hasta' => '2026-08-12', 'sin_salida' => true])
+        ->assertCanSeeTableRecords([$sinSalida])
+        ->assertCanNotSeeTableRecords([$noche, $salidaNoche, $hoy]);
+});

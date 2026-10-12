@@ -5,6 +5,7 @@ use App\Domain\HumanResources\Services\AttendanceDayBuilder;
 use App\Domain\HumanResources\Services\AttendanceDayConfirmer;
 use App\Domain\HumanResources\Services\AttendanceService;
 use App\Domain\HumanResources\Services\PayrollParameterService;
+use App\Domain\Reports\Services\FormatoHorasExtrasPdfService;
 use App\Filament\Pages\HorasConfirmadas;
 use App\Filament\Pages\HorasExtras;
 use App\Filament\Resources\Employees\Pages\CreateEmployee;
@@ -65,15 +66,41 @@ it('lists the confirmed days and adjusts one without losing the signature', func
     Livewire::test(HorasConfirmadas::class)
         ->assertCanSeeTableRecords([$this->day])
         ->callAction(TestAction::make('ajustarHoras')->table($this->day), [
-            'ordinary_hours' => 8, 'night_surcharge_hours' => 0, 'sunday_surcharge_hours' => 0, 'night_sunday_surcharge_hours' => 0,
-            'overtime_day_hours' => 0, 'overtime_night_hours' => 0, 'overtime_sunday_day_hours' => 0, 'overtime_sunday_night_hours' => 0,
+            'entrada' => '06:00', 'salida' => '13:00',
             'reason' => 'Las dos extras no se autorizaron',
         ])
         ->assertHasNoFormErrors();
 
     expect($this->day->refresh()->status)->toBe(AttendanceDayStatus::Confirmada)
         ->and((float) $this->day->overtime_day_hours)->toBe(0.0)
+        ->and((float) $this->day->worked_hours)->toBe(7.0)
+        ->and($this->day->adjusted_entry_at->setTimezone('America/Bogota')->format('Y-m-d H:i'))->toBe('2026-10-05 06:00')
         ->and($this->day->adjustment_reason)->toBe('Las dos extras no se autorizaron');
+});
+
+it('adjusts a night shift with only the entry and exit, and classifies every hour by itself', function (): void {
+    // Lunes 5 de octubre, de 6 de la tarde a 4 de la mañana: la salida es del día siguiente.
+    Livewire::test(HorasConfirmadas::class)
+        ->mountAction(TestAction::make('ajustarHoras')->table($this->day))
+        ->assertSchemaStateSet(['entrada' => '06:00', 'salida' => '16:00'], 'mountedActionSchema0')
+        ->fillForm(['entrada' => '18:00', 'salida' => '04:00'], 'mountedActionSchema0')
+        ->assertMountedActionModalSee('Quedan 10 h')
+        ->callMountedAction()
+        ->assertHasNoFormErrors();
+
+    $dia = $this->day->refresh();
+
+    expect((float) $dia->worked_hours)->toBe(10.0)
+        ->and((float) $dia->night_surcharge_hours + (float) $dia->overtime_night_hours)->toBeGreaterThan(0.0)
+        ->and($dia->adjusted_exit_at->setTimezone('America/Bogota')->format('Y-m-d H:i'))->toBe('2026-10-06 04:00')
+        ->and($dia->status)->toBe(AttendanceDayStatus::Confirmada);
+
+    // El formato de horas extras muestra las horas con que se pagó, no las de la puerta.
+    $fila = collect(app(FormatoHorasExtrasPdfService::class)->data($this->employee, CarbonImmutable::parse('2026-09-27'), CarbonImmutable::parse('2026-10-26'))['rows'])
+        ->first(fn (array $r): bool => $r['date']->toDateString() === '2026-10-05');
+
+    expect($fila['entry']->format('H:i'))->toBe('18:00')
+        ->and($fila['exit']->format('H:i'))->toBe('04:00');
 });
 
 it('voids a confirmed day from «Horas confirmadas»', function (): void {
@@ -126,8 +153,7 @@ it('warns about fixed-term contracts that end within 30 days', function (): void
 it('adjusts and voids without a justification, and keeps it when there is one', function (): void {
     Livewire::test(HorasConfirmadas::class)
         ->callAction(TestAction::make('ajustarHoras')->table($this->day), [
-            'ordinary_hours' => 8, 'night_surcharge_hours' => 0, 'sunday_surcharge_hours' => 0, 'night_sunday_surcharge_hours' => 0,
-            'overtime_day_hours' => 0, 'overtime_night_hours' => 0, 'overtime_sunday_day_hours' => 0, 'overtime_sunday_night_hours' => 0,
+            'entrada' => '06:00', 'salida' => '13:00',
         ])
         ->assertHasNoFormErrors();
 

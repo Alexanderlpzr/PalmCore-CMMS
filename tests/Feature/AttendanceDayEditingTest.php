@@ -220,14 +220,14 @@ it('lets human resources edit, adjust and void a day from «Horas por confirmar�
 
     expect((float) $dia->refresh()->worked_hours)->toBe(9.0);
 
+    // Solo la entrada y la salida que se pagan: las horas se calculan solas.
     $pantalla->callAction(TestAction::make('ajustarHoras')->table($dia), [
-        'ordinary_hours' => 8, 'night_surcharge_hours' => 0, 'sunday_surcharge_hours' => 0,
-        'night_sunday_surcharge_hours' => 0, 'overtime_day_hours' => 0, 'overtime_night_hours' => 0,
-        'overtime_sunday_day_hours' => 0, 'overtime_sunday_night_hours' => 0,
+        'entrada' => '06:00', 'salida' => '14:00',
         'reason' => 'La hora extra no se autorizó',
-    ])->assertNotified('Horas ajustadas a mano');
+    ])->assertNotified('Horas ajustadas');
 
-    expect($dia->refresh()->isManuallyAdjusted())->toBeTrue();
+    expect($dia->refresh()->isManuallyAdjusted())->toBeTrue()
+        ->and((float) $dia->worked_hours)->toBe(8.0);
 
     $pantalla->callAction(TestAction::make('anularDia')->table($dia), ['reason' => 'No trabajó ese día'])
         ->assertNotified('Día anulado');

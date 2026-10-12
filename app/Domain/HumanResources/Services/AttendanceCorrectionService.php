@@ -2,6 +2,7 @@
 
 namespace App\Domain\HumanResources\Services;
 
+use App\Domain\HumanResources\DTOs\ClassifiedHours;
 use App\Domain\HumanResources\Enums\AttendanceDayStatus;
 use App\Domain\HumanResources\Enums\AttendanceDirection;
 use App\Domain\HumanResources\Enums\PayrollRunStatus;
@@ -227,7 +228,7 @@ class AttendanceCorrectionService
             }
 
             // Lo que se corrige son las marcas: el día vuelve a salir de ellas.
-            $day->update(['source' => 'qr', 'adjusted_by' => null, 'adjusted_at' => null, 'adjustment_reason' => null]);
+            $day->update(['source' => 'qr', 'adjusted_by' => null, 'adjusted_at' => null, 'adjustment_reason' => null, 'adjusted_entry_at' => null, 'adjusted_exit_at' => null]);
         });
 
         $this->rebuildRange($employee, $fechas->min(), $fechas->max());
@@ -279,6 +280,62 @@ class AttendanceCorrectionService
     }
 
     /**
+     * Ajusta un día con la entrada y la salida que se pagan: las horas se clasifican solas,
+     * con las reglas del reloj. Las marcas de la puerta no se tocan —siguen siendo la hora
+     * real— y el día queda «ajustado a mano» con esas dos horas, quién y por qué. Sirve
+     * también en un día confirmado, que sigue confirmado.
+     *
+     * La salida igual o anterior a la entrada es del día siguiente: el turno de noche.
+     */
+    public function adjustTimes(AttendanceDay $day, string $entry, string $exit, string $reason, User $by): AttendanceDay
+    {
+        [$entrada, $salida] = $this->adjustedTimes($day, $entry, $exit);
+
+        $this->adjustHours($day, $this->hoursFor($day, $entrada, $salida)->toArray(), $reason, $by);
+
+        $day->update([
+            'adjusted_entry_at' => $entrada->utc(),
+            'adjusted_exit_at' => $salida->utc(),
+        ]);
+
+        return $day->refresh();
+    }
+
+    /**
+     * Las horas que daría el ajuste, sin guardarlo: para mostrarlas mientras se escribe.
+     */
+    public function previewTimes(AttendanceDay $day, string $entry, string $exit): ClassifiedHours
+    {
+        [$entrada, $salida] = $this->adjustedTimes($day, $entry, $exit);
+
+        return $this->hoursFor($day, $entrada, $salida);
+    }
+
+    /**
+     * @return array{0: CarbonImmutable, 1: CarbonImmutable}
+     */
+    private function adjustedTimes(AttendanceDay $day, string $entry, string $exit): array
+    {
+        $day->loadMissing('employee');
+        $fecha = $day->work_date->toDateString();
+        $timezone = $this->timezoneOf($day->employee);
+
+        $entrada = CarbonImmutable::parse($fecha.' '.$entry, $timezone)->startOfMinute();
+        $salida = CarbonImmutable::parse($fecha.' '.$exit, $timezone)->startOfMinute();
+
+        if ($salida->lte($entrada)) {
+            $salida = $salida->addDay();
+        }
+
+        return [$entrada, $salida];
+    }
+
+    private function hoursFor(AttendanceDay $day, CarbonImmutable $entrada, CarbonImmutable $salida): ClassifiedHours
+    {
+        return $this->builder->classifyTimes($day->employee, $day->work_date, $entrada, $salida, (bool) $day->rest_day_worked);
+    }
+
+    /**
      * Marca o desmarca el día como descanso trabajado: el domingo o festivo que alguien
      * vino a trabajar en su día libre. Marcado, todo lo trabajado ese día es extra y el
      * tope diario no lo parte; el día se vuelve a calcular desde sus marcas en el acto.
@@ -292,7 +349,14 @@ class AttendanceCorrectionService
 
         $day->update(['rest_day_worked' => $restDayWorked]);
 
-        if (! $day->isManuallyAdjusted()) {
+        // Ajustado con entrada y salida: se vuelve a clasificar con ellas, ahora como
+        // descanso trabajado (o ya no).
+        if ($day->adjusted_entry_at && $day->adjusted_exit_at) {
+            $day->loadMissing('employee');
+            $horas = $this->builder->classifyTimes($day->employee, $day->work_date, CarbonImmutable::instance($day->adjusted_entry_at), CarbonImmutable::instance($day->adjusted_exit_at), $restDayWorked);
+            $bolsas = array_map(fn ($valor): float => round((float) $valor, 4), array_intersect_key($horas->toArray(), array_flip(self::HOUR_FIELDS)));
+            $day->update([...$bolsas, 'worked_hours' => round(array_sum($bolsas), 4)]);
+        } elseif (! $day->isManuallyAdjusted()) {
             $fecha = CarbonImmutable::parse($day->work_date->toDateString());
             $this->builder->buildForEmployee($day->employee, $fecha, $fecha);
         }
