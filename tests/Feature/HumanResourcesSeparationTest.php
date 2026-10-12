@@ -2,6 +2,7 @@
 
 use App\Filament\Pages\Inicio;
 use App\Filament\Resources\Employees\EmployeeResource;
+use App\Filament\Resources\PayrollConcepts\PayrollConceptResource;
 use App\Filament\Resources\Roles\RoleResource;
 use App\Filament\Resources\Users\UserResource;
 use App\Models\Tenant;
@@ -126,4 +127,8 @@ it('talento humano aterriza en Personal y no en el portal de mantenimiento', fun
     Livewire::test(Inicio::class)->assertRedirect(EmployeeResource::getUrl());
 
     expect(Inicio::shouldRegisterNavigation())->toBeFalse();
+});
+
+it('no muestra «Conceptos de nómina» en el menú mientras la liquidación no la use', function (): void {
+    expect(PayrollConceptResource::shouldRegisterNavigation())->toBeFalse();
 });

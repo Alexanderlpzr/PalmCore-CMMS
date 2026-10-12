@@ -34,6 +34,13 @@ class PayrollConceptResource extends Resource
 
     protected static ?int $navigationSort = 35;
 
+    /**
+     * Fuera del menú mientras la liquidación no lea esta tabla: hoy las bases salen de
+     * `PayrollCalculator` y un concepto creado aquí no cambiaba nada. Vuelve cuando se
+     * conecte, con prestaciones y nómina electrónica.
+     */
+    protected static bool $shouldRegisterNavigation = false;
+
     protected static bool $isScopedToTenant = true;
 
     public static function form(Schema $schema): Schema
