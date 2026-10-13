@@ -4,18 +4,25 @@ namespace App\Filament\Pages;
 
 use App\Domain\HumanResources\Enums\PayrollParameter;
 use App\Domain\HumanResources\Services\OvertimeSummary;
+use App\Domain\HumanResources\Services\OvertimeWorkbookImporter;
 use App\Domain\HumanResources\Services\PayrollParameterService;
 use App\Domain\Reports\Excel\FormatoHorasExtrasExcel;
 use App\Domain\Reports\Services\FormatoHorasExtrasPdfService as Formato;
 use App\Filament\Resources\Employees\EmployeeResource;
 use App\Models\AttendanceDay;
+use App\Models\AttendanceScan;
 use App\Models\Employee;
 use App\Models\PayrollRun;
+use App\Models\User;
 use BackedEnum;
 use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\FileUpload;
+use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Filament\Schemas\Components\Text;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
@@ -24,6 +31,8 @@ use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Storage;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use UnitEnum;
 
@@ -189,6 +198,45 @@ class HorasExtras extends Page implements HasTable
                     }),
             ])
             ->headerActions([
+                // El libro TH-NOM-P-001 llena los días que la portería no registró.
+                Action::make('importarLibro')
+                    ->label('Importar libro de horas')
+                    ->icon(Heroicon::OutlinedArrowUpTray)
+                    ->color('gray')
+                    ->authorize(fn (): bool => auth()->user()?->can('correct', AttendanceScan::class) ?? false)
+                    ->modalHeading('Importar el libro de horas extras (TH-NOM-P-001)')
+                    ->modalDescription('Entran la hora de entrada y de salida de los días que la portería no registró. Los días con marcas del carné, los confirmados y los que todavía no terminan no se tocan. Las horas se calculan solas.')
+                    ->schema([
+                        FileUpload::make('libro')
+                            ->label('Libro de Excel')
+                            ->disk('local')
+                            ->directory('importaciones-horas')
+                            ->acceptedFileTypes(['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'])
+                            ->maxSize(20480)
+                            ->live()
+                            ->required(),
+                        Text::make(fn (Get $get): string => self::importPreview($get('libro'))),
+                    ])
+                    ->modalSubmitActionLabel('Importar')
+                    ->action(function (array $data): void {
+                        $path = Storage::disk('local')->path((string) $data['libro']);
+
+                        try {
+                            /** @var User $user */
+                            $user = auth()->user();
+                            $result = app(OvertimeWorkbookImporter::class)->import($path, Filament::getTenant(), $user);
+                        } finally {
+                            Storage::disk('local')->delete((string) $data['libro']);
+                        }
+
+                        Notification::make()
+                            ->title($result['imported'] > 0 ? "Se cargaron {$result['imported']} días de {$result['workers']} trabajadores" : 'No había días para cargar')
+                            ->body(self::importSummary($result['counts'], $result['missingWorkers'], includeImport: false))
+                            ->success()
+                            ->persistent()
+                            ->send();
+                    }),
+
                 // Todos los de la tabla —con su búsqueda y sus filtros—, una hoja por trabajador.
                 Action::make('excelTodos')
                     ->label('Excel de todos')
@@ -202,6 +250,51 @@ class HorasExtras extends Page implements HasTable
                             : null;
                     }),
             ]);
+    }
+
+    /**
+     * Lo que haría el libro recién subido, antes de importarlo.
+     *
+     * @param  mixed  $state  el estado del campo: el archivo temporal mientras no se guarda
+     */
+    private static function importPreview(mixed $state): string
+    {
+        $file = is_array($state) ? reset($state) : $state;
+
+        if (! $file instanceof TemporaryUploadedFile) {
+            return 'Suba el libro para ver qué días entran.';
+        }
+
+        try {
+            $plan = app(OvertimeWorkbookImporter::class)->plan($file->getRealPath(), Filament::getTenant());
+        } catch (\Throwable) {
+            return 'No se pudo leer el libro. ¿Es el TH-NOM-P-001 en Excel (.xlsx)?';
+        }
+
+        return self::importSummary($plan['counts'], $plan['missingWorkers']);
+    }
+
+    /**
+     * @param  array<string, int>  $counts
+     * @param  list<string>  $missingWorkers
+     */
+    private static function importSummary(array $counts, array $missingWorkers, bool $includeImport = true): string
+    {
+        $parts = [];
+
+        foreach (OvertimeWorkbookImporter::STATUS_LABELS as $status => $label) {
+            if (($counts[$status] ?? 0) > 0 && ($includeImport || $status !== 'import')) {
+                $parts[] = $label.': '.$counts[$status];
+            }
+        }
+
+        $text = $parts === [] ? 'El libro no trae días con entrada y salida.' : implode(' · ', $parts).'.';
+
+        if ($missingWorkers !== []) {
+            $text .= ' Sin trabajador en la plataforma: '.implode(', ', array_slice($missingWorkers, 0, 6)).(count($missingWorkers) > 6 ? '…' : '').'.';
+        }
+
+        return $text;
     }
 
     /** @return array{0: CarbonImmutable, 1: CarbonImmutable} la ventana elegida en el filtro */
