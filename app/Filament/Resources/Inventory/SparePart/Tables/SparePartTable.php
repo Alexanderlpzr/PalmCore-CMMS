@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Inventory\SparePart\Tables;
 use App\Domain\Inventory\Enums\SparePartAbcClassification;
 use App\Domain\Inventory\Enums\SparePartCategoryType;
 use App\Domain\Inventory\Enums\SparePartCriticality;
+use App\Domain\Inventory\Services\WarehouseDashboard;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
@@ -16,9 +17,11 @@ use Filament\Actions\RestoreBulkAction;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class SparePartTable
 {
@@ -81,6 +84,15 @@ class SparePartTable
                 SelectFilter::make('abc_classification')
                     ->label('Clasificación ABC')
                     ->options(SparePartAbcClassification::options()),
+                // Los que abre el tablero de Almacén.
+                Filter::make('bajo_minimo')
+                    ->label('En el mínimo o por debajo')
+                    ->toggle()
+                    ->query(fn (Builder $query): Builder => WarehouseDashboard::belowMinimum($query)),
+                Filter::make('sin_existencias')
+                    ->label('Sin existencias')
+                    ->toggle()
+                    ->query(fn (Builder $query): Builder => WarehouseDashboard::outOfStock($query)),
                 TrashedFilter::make(),
             ])
             ->recordActions([

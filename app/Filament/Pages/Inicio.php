@@ -94,6 +94,13 @@ class Inicio extends Page
             return;
         }
 
+        // La cuenta de almacén, igual: a su tablero.
+        if ($user !== null && ! self::isForMaintenance() && TableroAlmacen::canAccess()) {
+            $this->redirect(TableroAlmacen::getUrl());
+
+            return;
+        }
+
         if ($user === null || session()->get(self::LANDING_REDIRECT_KEY, false)) {
             return;
         }

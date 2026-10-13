@@ -91,6 +91,16 @@ class TenantRolesSeeder extends Seeder
             'employees.view',
             'attendance.view', 'attendance.record',
         ],
+
+        // Quien lleva el almacén: repuestos, existencias, entradas, salidas, conteos,
+        // órdenes de compra y proveedores. Ningún equipo, orden de trabajo ni persona.
+        'almacen' => [
+            'spare-parts.view', 'spare-parts.create', 'spare-parts.update',
+            'warehouses.view', 'warehouses.update',
+            'inventory.view', 'inventory.entry', 'inventory.exit', 'inventory.adjust', 'inventory.transfer',
+            'suppliers.view', 'suppliers.create', 'suppliers.update',
+            'manufacturers.view',
+        ],
     ];
 
     public function run(Tenant $tenant): void

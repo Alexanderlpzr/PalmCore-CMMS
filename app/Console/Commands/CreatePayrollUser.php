@@ -33,17 +33,17 @@ class CreatePayrollUser extends Command
         {--tenant= : ID de la empresa. Si se omite, se pregunta}
         {--email= : Correo de la persona}
         {--name= : Nombre completo}
-        {--role=talento-humano : talento-humano o porteria}
+        {--role=talento-humano : talento-humano, porteria o almacen}
         {--seed-parameters : Carga además las vigencias iniciales de nómina para esa empresa}';
 
-    protected $description = 'Crea el usuario de talento humano o de portería en una empresa';
+    protected $description = 'Crea el usuario de talento humano, de portería o de almacén en una empresa';
 
     public function handle(PayrollParameterService $parameters): int
     {
         $role = $this->option('role');
 
-        if (! in_array($role, ['talento-humano', 'porteria'], true)) {
-            $this->error('El rol debe ser «talento-humano» o «porteria».');
+        if (! in_array($role, ['talento-humano', 'porteria', 'almacen'], true)) {
+            $this->error('El rol debe ser «talento-humano», «porteria» o «almacen».');
 
             return self::FAILURE;
         }
