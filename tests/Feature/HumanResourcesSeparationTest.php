@@ -1,7 +1,7 @@
 <?php
 
 use App\Filament\Pages\Inicio;
-use App\Filament\Resources\Employees\EmployeeResource;
+use App\Filament\Pages\TableroTalentoHumano;
 use App\Filament\Resources\PayrollConcepts\PayrollConceptResource;
 use App\Filament\Resources\Roles\RoleResource;
 use App\Filament\Resources\Users\UserResource;
@@ -88,7 +88,9 @@ it('talento humano sí entra a sus once pantallas', function (): void {
 
     // La séptima, desde 2026-10: «Marcas de portería», el historial de la puerta. La
     // octava, el indicador «Factor de horas»; la novena, «Horas extras»; la décima, «Alimentación»; la undécima, «Horas confirmadas».
-    expect($hr)->toHaveCount(11)
+    // La duodécima, el «Tablero» con el que abre el panel.
+    expect($hr)->toHaveCount(12)
+        ->and($hr)->toContain('Talento Humano / TableroTalentoHumano')
         ->and($hr)->toContain('Talento Humano / AttendanceScanResource')
         ->and($hr)->toContain('Talento Humano / FactorDeHoras')
         ->and($hr)->toContain('Talento Humano / HorasExtras')
@@ -121,10 +123,10 @@ it('el administrador no puede asignarse el rol de talento humano', function (): 
         ->and(RoleResource::canAccess())->toBeFalse();
 });
 
-it('talento humano aterriza en Personal y no en el portal de mantenimiento', function (): void {
+it('talento humano aterriza en su tablero y no en el portal de mantenimiento', function (): void {
     actingWithTenantRole('talento-humano', $this->tenant);
 
-    Livewire::test(Inicio::class)->assertRedirect(EmployeeResource::getUrl());
+    Livewire::test(Inicio::class)->assertRedirect(TableroTalentoHumano::getUrl());
 
     expect(Inicio::shouldRegisterNavigation())->toBeFalse();
 });

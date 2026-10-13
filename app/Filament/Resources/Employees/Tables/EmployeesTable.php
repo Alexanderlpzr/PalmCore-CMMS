@@ -207,6 +207,19 @@ class EmployeesTable
                 // Los cumpleaños del mes: el Excel tenía dos columnas, DÍA y MES, solo
                 // para poder filtrar esto.
                 // El preaviso: un contrato fijo que no se renueva se avisa con 30 días.
+                // Los dos huecos que el tablero de Talento Humano señala: sin salario no
+                // se liquida, sin carné no se marca en la puerta.
+                Filter::make('sin_salario')
+                    ->label('Sin salario')
+                    ->toggle()
+                    ->visible(fn (): bool => auth()->user()?->can('viewAnySalary', Employee::class) ?? false)
+                    ->query(fn (Builder $query): Builder => $query->where(fn (Builder $q): Builder => $q->whereNull('base_salary')->orWhere('base_salary', '<=', 0))),
+
+                Filter::make('sin_carne')
+                    ->label('Sin carné QR')
+                    ->toggle()
+                    ->query(fn (Builder $query): Builder => $query->whereDoesntHave('qrCode')),
+
                 Filter::make('contrato_por_vencer')
                     ->label('Contrato fijo vence en 30 días')
                     ->toggle()
