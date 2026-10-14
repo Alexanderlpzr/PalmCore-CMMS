@@ -54,6 +54,8 @@ class DeductionsRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
+            ->emptyStateHeading('Sin descuentos recurrentes')
+            ->emptyStateDescription('Préstamos, libranzas o embargos: regístrelos aquí y se descuentan solos en cada nómina.')
             ->defaultSort('effective_from', 'desc')
             ->columns([
                 TextColumn::make('concept')->label('Concepto')->searchable(),

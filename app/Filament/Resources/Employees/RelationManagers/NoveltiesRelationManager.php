@@ -68,6 +68,8 @@ class NoveltiesRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
+            ->emptyStateHeading('Sin novedades')
+            ->emptyStateDescription('Registre aquí las vacaciones, incapacidades, licencias y permisos: la nómina los descuenta o los paga según su tipo.')
             ->defaultSort('starts_on', 'desc')
             ->columns([
                 TextColumn::make('type')

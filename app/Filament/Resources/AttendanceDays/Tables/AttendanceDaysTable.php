@@ -4,6 +4,7 @@ namespace App\Filament\Resources\AttendanceDays\Tables;
 
 use App\Domain\HumanResources\Enums\AttendanceDayStatus;
 use App\Domain\HumanResources\Services\AttendanceDayConfirmer;
+use App\Domain\HumanResources\Support\DayTone;
 use App\Filament\Resources\AttendanceDays\AttendanceDayActions;
 use App\Filament\Resources\AttendanceScans\AttendanceMarkActions;
 use App\Models\AttendanceDay;
@@ -30,6 +31,9 @@ class AttendanceDaysTable
     public static function configure(Table $table): Table
     {
         return $table
+            ->emptyStateHeading('No hay días por confirmar')
+            ->emptyStateDescription('Todo lo de la lista está firmado. Revise la semana completa en «Revisar semana» o lo ya firmado en «Horas confirmadas».')
+            ->emptyStateIcon('heroicon-o-check-badge')
             ->defaultSort('work_date', 'desc')
             // Quién ajustó a mano: lo lee el aviso de las horas.
             ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('adjustedBy:id,name'))
@@ -63,25 +67,25 @@ class AttendanceDaysTable
                 // firmar, no para auditar: quien firma mira el total y las anomalías, y
                 // abre el detalle solo cuando algo no cuadra.
                 TextColumn::make('night_surcharge_hours')
-                    ->label('Rec. nocturno')
+                    ->label('Recargo nocturno')->wrapHeader()
                     ->formatStateUsing(fn ($state): string => Hours::format($state))->alignEnd()->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('sunday_surcharge_hours')
-                    ->label('Rec. dominical')
+                    ->label('Recargo dominical')->wrapHeader()
                     ->formatStateUsing(fn ($state): string => Hours::format($state))->alignEnd()->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('night_sunday_surcharge_hours')
-                    ->label('Rec. noct. dom.')
+                    ->label('Recargo nocturno dominical')->wrapHeader()
                     ->formatStateUsing(fn ($state): string => Hours::format($state))->alignEnd()->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('overtime_day_hours')
-                    ->label('Extra diurna')
+                    ->label('Extra diurna')->wrapHeader()
                     ->formatStateUsing(fn ($state): string => Hours::format($state))->alignEnd()->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('overtime_night_hours')
-                    ->label('Extra nocturna')
+                    ->label('Extra nocturna')->wrapHeader()
                     ->formatStateUsing(fn ($state): string => Hours::format($state))->alignEnd()->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('overtime_sunday_day_hours')
-                    ->label('Extra dom. diurna')
+                    ->label('Extra dominical diurna')->wrapHeader()
                     ->formatStateUsing(fn ($state): string => Hours::format($state))->alignEnd()->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('overtime_sunday_night_hours')
-                    ->label('Extra dom. noct.')
+                    ->label('Extra dominical nocturna')->wrapHeader()
                     ->formatStateUsing(fn ($state): string => Hours::format($state))->alignEnd()->toggleable(isToggledHiddenByDefault: true),
 
                 IconColumn::make('anomalies')
@@ -99,8 +103,9 @@ class AttendanceDaysTable
                 TextColumn::make('status')
                     ->label('Estado')
                     ->badge()
-                    ->formatStateUsing(fn (AttendanceDayStatus $state): string => $state->label())
-                    ->color(fn (AttendanceDayStatus $state): string => $state->color()),
+                    // El mismo nombre y color que en Revisar semana y en la ficha.
+                    ->formatStateUsing(fn (AttendanceDay $record): string => DayTone::label($record))
+                    ->color(fn (AttendanceDay $record): string => DayTone::color($record)),
 
                 TextColumn::make('confirmedBy.name')
                     ->label('Firmado por')

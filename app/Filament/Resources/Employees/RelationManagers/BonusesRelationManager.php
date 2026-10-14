@@ -72,6 +72,8 @@ class BonusesRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
+            ->emptyStateHeading('Sin bonificaciones')
+            ->emptyStateDescription('Las bonificaciones que registre aquí entran a la nómina del mes que corresponda.')
             ->defaultSort('effective_from', 'desc')
             ->columns([
                 TextColumn::make('concept')->label('Concepto')->searchable(),

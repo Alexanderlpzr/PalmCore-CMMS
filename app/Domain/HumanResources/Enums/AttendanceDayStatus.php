@@ -20,8 +20,8 @@ enum AttendanceDayStatus: string
     public function label(): string
     {
         return match ($this) {
-            self::Propuesta => 'Propuesta',
-            self::Confirmada => 'Confirmada',
+            self::Propuesta => 'Por confirmar',
+            self::Confirmada => 'Confirmado',
         };
     }
 

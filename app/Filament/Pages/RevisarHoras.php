@@ -6,6 +6,7 @@ use App\Domain\HumanResources\Enums\AttendanceDayStatus;
 use App\Domain\HumanResources\Enums\AttendanceDirection;
 use App\Domain\HumanResources\Services\AttendanceCorrectionService;
 use App\Domain\HumanResources\Services\AttendanceDayConfirmer;
+use App\Domain\HumanResources\Support\DayTone;
 use App\Filament\Resources\AttendanceDays\AttendanceDayActions;
 use App\Models\AttendanceDay;
 use App\Models\AttendanceScan;
@@ -212,13 +213,7 @@ class RevisarHoras extends Page
     /** Verde confirmado, azul ajustado a mano, rojo con avisos, amarillo por confirmar. */
     public static function toneOf(AttendanceDay $day): string
     {
-        return match (true) {
-            $day->status === AttendanceDayStatus::Confirmada && $day->isManuallyAdjusted() => 'adjusted',
-            $day->status === AttendanceDayStatus::Confirmada => 'confirmed',
-            $day->hasAnomalies() => 'warning',
-            $day->isManuallyAdjusted() => 'adjusted',
-            default => 'pending',
-        };
+        return DayTone::of($day);
     }
 
     /**
