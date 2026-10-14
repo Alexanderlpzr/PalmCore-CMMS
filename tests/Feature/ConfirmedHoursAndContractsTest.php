@@ -166,3 +166,9 @@ it('adjusts and voids without a justification, and keeps it when there is one', 
 
     expect(AttendanceDay::query()->whereKey($this->day->id)->exists())->toBeFalse();
 });
+
+it('downloads the confirmed hours of the period in Excel', function (): void {
+    Livewire::test(HorasConfirmadas::class)
+        ->callAction(TestAction::make('excel')->table())
+        ->assertFileDownloaded('HORAS-CONFIRMADAS-20261001-20261031.xlsx');
+});

@@ -4,12 +4,14 @@ namespace App\Filament\Pages;
 
 use App\Domain\HumanResources\Enums\PayrollParameter;
 use App\Domain\HumanResources\Services\PayrollParameterService;
+use App\Domain\Reports\Excel\HorasConfirmadasExcel;
 use App\Filament\Resources\AttendanceDays\AttendanceDayActions;
 use App\Models\AttendanceDay;
 use App\Models\Employee;
 use App\Models\PayrollRun;
 use BackedEnum;
 use Carbon\CarbonImmutable;
+use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
@@ -19,6 +21,7 @@ use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use UnitEnum;
 
 /**
@@ -108,6 +111,28 @@ class HorasConfirmadas extends Page implements HasTable
                     ->options(fn (): array => Employee::query()->active()->orderBy('first_name')->get()
                         ->mapWithKeys(fn (Employee $e): array => [$e->id => $e->fullName()])->all())
                     ->searchable(),
+            ])
+            // Las filas de la pantalla —con su periodo, su búsqueda y sus filtros— en Excel.
+            ->headerActions([
+                Action::make('excel')
+                    ->label('Excel')
+                    ->icon(Heroicon::OutlinedTableCells)
+                    ->action(function (): ?StreamedResponse {
+                        $query = $this->getFilteredSortedTableQuery();
+
+                        if (! $query) {
+                            return null;
+                        }
+
+                        $period = $this->getTableFilterState('periodo')['value'] ?? null;
+                        [$from, $to] = is_string($period) && str_contains($period, '|') ? explode('|', $period) : [null, null];
+
+                        return app(HorasConfirmadasExcel::class)->download(
+                            $query->get(),
+                            $from ? 'Del '.CarbonImmutable::parse($from)->format('d/m/Y').' al '.CarbonImmutable::parse($to)->format('d/m/Y') : 'Todos los periodos',
+                            'HORAS-CONFIRMADAS'.($from ? '-'.CarbonImmutable::parse($from)->format('Ymd').'-'.CarbonImmutable::parse($to)->format('Ymd') : '').'.xlsx',
+                        );
+                    }),
             ])
             ->recordActions([
                 AttendanceDayActions::adjustHours(),
