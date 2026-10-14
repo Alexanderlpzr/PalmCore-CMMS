@@ -1,13 +1,19 @@
 <?php
 
 use App\Domain\HumanResources\Enums\EmployeeDocumentType;
+use App\Domain\HumanResources\Enums\NoveltyType;
 use App\Filament\Resources\Employees\Pages\EditEmployee;
 use App\Filament\Resources\Employees\Pages\ListEmployees;
 use App\Filament\Resources\Employees\RelationManagers\DocumentsRelationManager;
+use App\Filament\Resources\Employees\Widgets\EmployeeMonthCalendar;
+use App\Filament\Resources\Employees\Widgets\EmployeeProfileCard;
+use App\Models\AttendanceDay;
 use App\Models\Employee;
 use App\Models\EmployeeDocument;
+use App\Models\EmployeeNovelty;
 use App\Models\Tenant;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\TenantRolesSeeder;
 use Filament\Actions\Testing\TestAction;
@@ -68,7 +74,12 @@ it('la ficha se titula con el nombre y combina la información con las pestañas
 
     $page->assertOk()
         ->assertSee('Laura Fernanda Pérez González')
-        ->assertSee('Ingeniera Residente · CC 11223718812 · Activo');
+        // La tarjeta de cabecera: cargo y cédula, estado, contrato, carné y documentos.
+        ->assertSee('Ingeniera Residente')
+        ->assertSee('C.C. 11223718812')
+        ->assertSee('Activo')
+        ->assertSee('Carné QR')
+        ->assertSee('Documentos');
 
     expect($page->instance()->hasCombinedRelationManagerTabsWithContent())->toBeTrue()
         ->and($page->instance()->getContentTabLabel())->toBe('Información');
@@ -288,4 +299,31 @@ it('el filtro «Carpeta incompleta» cuenta tipos distintos, no filas', function
         ->filterTable('carpeta_incompleta', true)
         ->assertCanSeeTableRecords([$this->employee])
         ->assertCanNotSeeTableRecords([$completo]);
+});
+
+it('muestra el mes del trabajador en un calendario con sus horas y novedades', function (): void {
+    $this->actingAs(fichaUserWithRole('talento-humano', $this->tenant));
+    $this->travelTo(Illuminate\Support\Carbon::parse('2026-10-14 10:00', 'America/Bogota'));
+
+    AttendanceDay::factory()->create([
+        'tenant_id' => $this->tenant->id, 'employee_id' => $this->employee->id,
+        'work_date' => '2026-10-05', 'worked_hours' => 10, 'ordinary_hours' => 8, 'overtime_day_hours' => 2,
+    ]);
+    EmployeeNovelty::query()->create([
+        'tenant_id' => $this->tenant->id, 'employee_id' => $this->employee->id,
+        'type' => NoveltyType::Vacaciones,
+        'starts_on' => '2026-10-19', 'ends_on' => '2026-10-23',
+    ]);
+
+    Livewire::test(EmployeeMonthCalendar::class, ['record' => $this->employee])
+        ->assertSee('Octubre de 2026')
+        ->assertSee('10 h')
+        ->assertSee('+2 h extra')
+        ->assertSee('Vacaciones')
+        ->call('mesAnterior')
+        ->assertSee('Septiembre de 2026');
+
+    expect(EmployeeProfileCard::seniority(
+        CarbonImmutable::parse('2024-07-01'), CarbonImmutable::parse('2026-10-14'),
+    ))->toBe('2 años y 3 meses');
 });

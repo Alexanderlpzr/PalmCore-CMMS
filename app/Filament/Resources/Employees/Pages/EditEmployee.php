@@ -7,6 +7,8 @@ use App\Domain\HumanResources\Services\PayrollParameterService;
 use App\Domain\Reports\Services\FormatoHorasExtrasPdfService;
 use App\Filament\Resources\Concerns\HasBackAction;
 use App\Filament\Resources\Employees\EmployeeResource;
+use App\Filament\Resources\Employees\Widgets\EmployeeMonthCalendar;
+use App\Filament\Resources\Employees\Widgets\EmployeeProfileCard;
 use App\Models\Employee;
 use App\Models\PayrollRun;
 use Carbon\CarbonImmutable;
@@ -55,14 +57,19 @@ class EditEmployee extends EditRecord
         return $this->record->fullName();
     }
 
-    /** Cargo · documento · estado, como la cabecera de la ficha en papel. */
-    public function getSubheading(): string|Htmlable|null
+    /**
+     * Arriba de las pestañas, la tarjeta de quién es y en qué está —contrato, carné,
+     * salario, documentos— y el calendario del mes con sus horas y novedades. Reemplazan
+     * la línea «cargo · documento · estado» que iba bajo el nombre.
+     */
+    protected function getHeaderWidgets(): array
     {
-        return collect([
-            $this->record->position,
-            $this->record->document_type.' '.$this->record->document_number,
-            $this->record->status?->label(),
-        ])->filter()->implode(' · ');
+        return [EmployeeProfileCard::class, EmployeeMonthCalendar::class];
+    }
+
+    public function getHeaderWidgetsColumns(): int|array
+    {
+        return 1;
     }
 
     protected function getHeaderActions(): array

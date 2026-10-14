@@ -13,6 +13,8 @@ use App\Filament\Resources\Employees\RelationManagers\OvertimeRelationManager;
 use App\Filament\Resources\Employees\RelationManagers\QrCodesRelationManager;
 use App\Filament\Resources\Employees\Schemas\EmployeeForm;
 use App\Filament\Resources\Employees\Tables\EmployeesTable;
+use App\Filament\Resources\Employees\Widgets\EmployeeMonthCalendar;
+use App\Filament\Resources\Employees\Widgets\EmployeeProfileCard;
 use App\Models\Employee;
 use BackedEnum;
 use Filament\Resources\Resource;
@@ -76,6 +78,12 @@ class EmployeeResource extends Resource
             BonusesRelationManager::class,
             DeductionsRelationManager::class,
         ];
+    }
+
+    /** @return array<class-string> */
+    public static function getWidgets(): array
+    {
+        return [EmployeeProfileCard::class, EmployeeMonthCalendar::class];
     }
 
     public static function getPages(): array
