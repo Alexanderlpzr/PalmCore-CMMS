@@ -98,6 +98,12 @@ it('pays only confirmed days, each meal once a day', function (): void {
         ->and($totales[$this->employee->id]['amount'])->toBe(27_000.0)
         ->and($totales[$this->employee->id]['counts']['almuerzo'])->toBe(1)
         ->and(array_keys($totales[$this->employee->id]['days']))->toBe(['2026-10-05']);
+
+    // El turno del día, para la hoja «Detalle por día» del Excel, en 12 horas.
+    [$entrada, $salida] = $totales[$this->employee->id]['shifts']['2026-10-05'];
+    expect($entrada->format('h:i a'))->toBe('06:00 am')
+        ->and($salida->format('h:i a'))->toBe('06:00 pm')
+        ->and(array_keys($totales[$this->employee->id]['shifts']))->toBe(['2026-10-05']);
 });
 
 it('shows the meals of the period and downloads the payment sheet', function (): void {

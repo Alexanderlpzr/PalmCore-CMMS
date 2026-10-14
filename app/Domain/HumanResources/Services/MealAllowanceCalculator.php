@@ -44,7 +44,7 @@ class MealAllowanceCalculator
 
     /**
      * @param  list<string>  $employeeIds
-     * @return array<string, array{counts: array<string, int>, meals: int, amount: float, days: array<string, list<string>>}>
+     * @return array<string, array{counts: array<string, int>, meals: int, amount: float, days: array<string, list<string>>, shifts: array<string, array{0: CarbonImmutable, 1: CarbonImmutable}>}>
      */
     public function forEmployees(array $employeeIds, string $tenantId, CarbonInterface $from, CarbonInterface $to): array
     {
@@ -81,6 +81,7 @@ class MealAllowanceCalculator
 
         foreach ($confirmed as $employeeId => $days) {
             $mealsByDay = [];
+            $shifts = [];
 
             foreach ($this->sessions($scans[$employeeId] ?? collect(), $timezone) as [$entry, $exit]) {
                 $date = $entry->toDateString();
@@ -88,6 +89,12 @@ class MealAllowanceCalculator
                 if (! isset($days[$date])) {
                     continue;
                 }
+
+                // La primera entrada y la última salida del día, para el detalle.
+                $shifts[$date] = [
+                    isset($shifts[$date]) ? $shifts[$date][0]->min($entry) : $entry,
+                    isset($shifts[$date]) ? $shifts[$date][1]->max($exit) : $exit,
+                ];
 
                 $mealsByDay[$date] = array_values(array_unique([
                     ...($mealsByDay[$date] ?? []),
@@ -111,6 +118,7 @@ class MealAllowanceCalculator
                 'meals' => array_sum($counts),
                 'amount' => round($amount, 2),
                 'days' => array_filter($mealsByDay),
+                'shifts' => $shifts,
             ];
         }
 

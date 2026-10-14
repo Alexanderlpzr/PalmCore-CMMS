@@ -170,14 +170,56 @@ class Alimentacion extends Page implements HasTable
         $ultima = count($headers);
         $formatos = array_fill(5, count($comidas) + 1, FrondaWorkbook::INTEGER) + [$ultima => FrondaWorkbook::MONEY];
 
-        return FrondaWorkbook::create()
+        $libro = FrondaWorkbook::create()
             ->sheet('Alimentación')
             ->widths([1 => 10, 2 => 14, 3 => 30, 4 => 24] + array_fill(5, count($comidas) + 1, 12) + [$ultima => 16])
             ->banner('Auxilio de alimentación', 'Días confirmados del '.$from->format('d/m/Y').' al '.$to->format('d/m/Y').' · se paga aparte de la nómina', Filament::getTenant()?->name, $ultima)
             ->table($headers, $rows, $formatos)
             ->totals(['Total', '', '', '', ...array_map(fn (int $i): int => $rows->sum($i + 4), array_keys($comidas)), $rows->sum($ultima - 2), $rows->sum($ultima - 1)], $formatos)
-            ->footer()
-            ->download('ALIMENTACION-'.$from->format('Ymd').'-'.$to->format('Ymd').'.xlsx');
+            ->footer();
+
+        $this->detailSheet($libro, $employees, $from, $to);
+
+        return $libro->download('ALIMENTACION-'.$from->format('Ymd').'-'.$to->format('Ymd').'.xlsx');
+    }
+
+    /**
+     * Segunda hoja: un día por fila con la entrada y la salida en 12 horas y las comidas
+     * que tocó ese turno, para justificar cada pago.
+     *
+     * @param  Collection<int, Employee>  $employees
+     */
+    private function detailSheet(FrondaWorkbook $libro, $employees, CarbonImmutable $from, CarbonImmutable $to): void
+    {
+        $nombres = MealAllowanceCalculator::MEALS;
+        $hora = fn (CarbonImmutable $momento): string => $momento->format('h:i a');
+        $filas = [];
+
+        foreach ($employees as $employee) {
+            $datos = $this->mealsOf($employee);
+
+            foreach ($datos['shifts'] ?? [] as $fecha => [$entrada, $salida]) {
+                $comidas = $datos['days'][$fecha] ?? [];
+                $filas[] = [
+                    CarbonImmutable::parse($fecha),
+                    $employee->fullName(),
+                    $employee->document_number,
+                    $hora($entrada),
+                    $hora($salida),
+                    $comidas === [] ? '—' : implode(', ', array_map(fn (string $c): string => mb_strtolower($nombres[$c] ?? $c), $comidas)),
+                    count($comidas),
+                ];
+            }
+        }
+
+        usort($filas, fn (array $a, array $b): int => [$a[0], $a[1]] <=> [$b[0], $b[1]]);
+        $filas = array_map(fn (array $f): array => [$f[0]->format('d/m/Y'), ...array_slice($f, 1)], $filas);
+
+        $libro->sheet('Detalle por día')
+            ->widths([1 => 12, 2 => 32, 3 => 14, 4 => 12, 5 => 12, 6 => 40, 7 => 10])
+            ->banner('Detalle por día', 'Entrada, salida y comidas de cada día confirmado del '.$from->format('d/m/Y').' al '.$to->format('d/m/Y'), Filament::getTenant()?->name, 7)
+            ->table(['Fecha', 'Trabajador', 'Cédula', 'Entrada', 'Salida', 'Comidas', 'Cantidad'], $filas, [7 => FrondaWorkbook::INTEGER])
+            ->footer();
     }
 
     /** @return array<string, string> */
