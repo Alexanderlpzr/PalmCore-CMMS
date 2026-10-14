@@ -33,9 +33,14 @@ class EmployeeResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Personal';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Talento Humano';
+    protected static string|UnitEnum|null $navigationGroup = 'Talento Humano · Personal y ajustes';
 
-    protected static ?int $navigationSort = 10;
+    protected static ?string $navigationLabel = 'Personal';
+
+    /** «Horas por confirmar», no «Horas Por Confirmar». */
+    protected static bool $hasTitleCaseModelLabel = false;
+
+    protected static ?int $navigationSort = 1;
 
     protected static bool $isScopedToTenant = true;
 

@@ -52,14 +52,14 @@ class HorasExtras extends Page implements HasTable
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClock;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Talento Humano';
+    protected static string|UnitEnum|null $navigationGroup = 'Talento Humano · Cierre del corte';
 
     protected static ?string $navigationLabel = 'Horas extras';
 
     protected static ?string $title = 'Horas extras';
 
     /** Justo después de «Horas por confirmar»: primero se confirma, después se mira. */
-    protected static ?int $navigationSort = 22;
+    protected static ?int $navigationSort = 1;
 
     protected static ?string $slug = 'horas-extras';
 

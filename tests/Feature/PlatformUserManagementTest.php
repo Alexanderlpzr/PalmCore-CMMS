@@ -89,6 +89,7 @@ it('offers only the roles of the chosen company', function (): void {
     expect(UserForm::rolesOf($this->pajuil->id))
         ->toBe([
             'administrador-general' => 'Administrador General',
+            'almacen' => 'Almacen',
             'porteria' => 'Porteria',
             'talento-humano' => 'Talento Humano',
         ])

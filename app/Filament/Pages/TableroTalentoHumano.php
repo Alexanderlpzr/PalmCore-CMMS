@@ -30,13 +30,13 @@ class TableroTalentoHumano extends Page
 {
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedSquares2x2;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Talento Humano';
+    protected static string|UnitEnum|null $navigationGroup = 'Talento Humano · Día a día';
 
     protected static ?string $navigationLabel = 'Tablero';
 
     protected static ?string $title = 'Talento Humano';
 
-    protected static ?int $navigationSort = 0;
+    protected static ?int $navigationSort = 1;
 
     protected static ?string $slug = 'talento-humano';
 

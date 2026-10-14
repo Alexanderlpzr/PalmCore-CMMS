@@ -36,14 +36,14 @@ class HorasConfirmadas extends Page implements HasTable
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCheckBadge;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Talento Humano';
+    protected static string|UnitEnum|null $navigationGroup = 'Talento Humano · Día a día';
 
     protected static ?string $navigationLabel = 'Horas confirmadas';
 
     protected static ?string $title = 'Horas confirmadas';
 
     /** Entre «Horas por confirmar» y «Horas extras»: el orden en que se trabajan. */
-    protected static ?int $navigationSort = 21;
+    protected static ?int $navigationSort = 4;
 
     protected static ?string $slug = 'horas-confirmadas';
 

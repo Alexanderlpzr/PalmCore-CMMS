@@ -32,9 +32,14 @@ class PayrollParameterResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Parámetros de nómina';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Talento Humano';
+    protected static string|UnitEnum|null $navigationGroup = 'Talento Humano · Personal y ajustes';
 
-    protected static ?int $navigationSort = 30;
+    protected static ?string $navigationLabel = 'Parámetros de nómina';
+
+    /** «Horas por confirmar», no «Horas Por Confirmar». */
+    protected static bool $hasTitleCaseModelLabel = false;
+
+    protected static ?int $navigationSort = 2;
 
     protected static bool $isScopedToTenant = true;
 

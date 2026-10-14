@@ -30,9 +30,12 @@ class PayrollConceptResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Conceptos de nómina';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Talento Humano';
+    protected static string|UnitEnum|null $navigationGroup = 'Talento Humano · Personal y ajustes';
 
-    protected static ?int $navigationSort = 35;
+    /** «Horas por confirmar», no «Horas Por Confirmar». */
+    protected static bool $hasTitleCaseModelLabel = false;
+
+    protected static ?int $navigationSort = 4;
 
     /**
      * Fuera del menú mientras la liquidación no lea esta tabla: hoy las bases salen de

@@ -37,14 +37,14 @@ class RevisarHoras extends Page
 {
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendarDays;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Talento Humano';
+    protected static string|UnitEnum|null $navigationGroup = 'Talento Humano · Día a día';
 
     protected static ?string $navigationLabel = 'Revisar semana';
 
     protected static ?string $title = 'Revisar horas de la semana';
 
     /** Justo antes de «Horas por confirmar»: es su vista rápida. */
-    protected static ?int $navigationSort = 19;
+    protected static ?int $navigationSort = 2;
 
     protected static ?string $slug = 'revisar-horas';
 

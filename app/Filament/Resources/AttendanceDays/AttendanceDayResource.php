@@ -29,9 +29,14 @@ class AttendanceDayResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Horas por confirmar';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Talento Humano';
+    protected static string|UnitEnum|null $navigationGroup = 'Talento Humano · Día a día';
 
-    protected static ?int $navigationSort = 20;
+    protected static ?string $navigationLabel = 'Horas por confirmar';
+
+    /** «Horas por confirmar», no «Horas Por Confirmar». */
+    protected static bool $hasTitleCaseModelLabel = false;
+
+    protected static ?int $navigationSort = 3;
 
     protected static bool $isScopedToTenant = true;
 

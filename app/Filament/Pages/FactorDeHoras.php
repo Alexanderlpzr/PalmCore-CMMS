@@ -22,14 +22,14 @@ class FactorDeHoras extends Page
 {
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedChartBar;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Talento Humano';
+    protected static string|UnitEnum|null $navigationGroup = 'Talento Humano · Cierre del corte';
 
     protected static ?string $navigationLabel = 'Factor de horas';
 
     protected static ?string $title = 'Factor de horas';
 
     /** Justo después de «Nóminas»: es su lectura. */
-    protected static ?int $navigationSort = 26;
+    protected static ?int $navigationSort = 4;
 
     protected static ?string $slug = 'factor-de-horas';
 

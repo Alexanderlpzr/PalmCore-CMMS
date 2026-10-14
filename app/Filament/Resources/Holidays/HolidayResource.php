@@ -27,9 +27,14 @@ class HolidayResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Festivos';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Talento Humano';
+    protected static string|UnitEnum|null $navigationGroup = 'Talento Humano · Personal y ajustes';
 
-    protected static ?int $navigationSort = 40;
+    protected static ?string $navigationLabel = 'Festivos';
+
+    /** «Horas por confirmar», no «Horas Por Confirmar». */
+    protected static bool $hasTitleCaseModelLabel = false;
+
+    protected static ?int $navigationSort = 3;
 
     protected static bool $isScopedToTenant = true;
 

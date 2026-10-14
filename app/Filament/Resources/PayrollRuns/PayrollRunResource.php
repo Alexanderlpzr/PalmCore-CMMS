@@ -33,9 +33,14 @@ class PayrollRunResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Nóminas';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Talento Humano';
+    protected static string|UnitEnum|null $navigationGroup = 'Talento Humano · Cierre del corte';
 
-    protected static ?int $navigationSort = 25;
+    protected static ?string $navigationLabel = 'Nóminas';
+
+    /** «Horas por confirmar», no «Horas Por Confirmar». */
+    protected static bool $hasTitleCaseModelLabel = false;
+
+    protected static ?int $navigationSort = 3;
 
     protected static bool $isScopedToTenant = true;
 

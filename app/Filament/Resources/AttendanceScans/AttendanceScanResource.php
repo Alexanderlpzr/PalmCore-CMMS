@@ -31,9 +31,11 @@ class AttendanceScanResource extends Resource
 
     protected static bool $hasTitleCaseModelLabel = false;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Talento Humano';
+    protected static string|UnitEnum|null $navigationGroup = 'Talento Humano · Día a día';
 
-    protected static ?int $navigationSort = 21;
+    protected static ?string $navigationLabel = 'Marcas de portería';
+
+    protected static ?int $navigationSort = 5;
 
     protected static bool $isScopedToTenant = true;
 

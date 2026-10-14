@@ -74,7 +74,7 @@ it('talento humano solo entra a las pantallas de Talento Humano', function (): v
     $outside = array_values(array_filter(
         accessibleNavigationGroups(),
         // Inicio es la raíz del panel y tiene que dejar entrar para redirigir a Personal.
-        fn (string $screen): bool => ! str_starts_with($screen, 'Talento Humano / ')
+        fn (string $screen): bool => ! str_starts_with($screen, 'Talento Humano')
             && $screen !== 'Sin grupo / Inicio',
     ));
 
@@ -84,26 +84,26 @@ it('talento humano solo entra a las pantallas de Talento Humano', function (): v
 it('talento humano sí entra a sus once pantallas', function (): void {
     actingWithTenantRole('talento-humano', $this->tenant);
 
-    $hr = array_filter(accessibleNavigationGroups(), fn (string $screen): bool => str_starts_with($screen, 'Talento Humano / '));
+    $hr = array_filter(accessibleNavigationGroups(), fn (string $screen): bool => str_starts_with($screen, 'Talento Humano'));
 
     // La séptima, desde 2026-10: «Marcas de portería», el historial de la puerta. La
     // octava, el indicador «Factor de horas»; la novena, «Horas extras»; la décima, «Alimentación»; la undécima, «Horas confirmadas».
     // La duodécima, el «Tablero» con el que abre el panel.
     // La decimotercera, «Revisar semana»: la cuadrícula para confirmar rápido.
     expect($hr)->toHaveCount(13)
-        ->and($hr)->toContain('Talento Humano / RevisarHoras')
-        ->and($hr)->toContain('Talento Humano / TableroTalentoHumano')
-        ->and($hr)->toContain('Talento Humano / AttendanceScanResource')
-        ->and($hr)->toContain('Talento Humano / FactorDeHoras')
-        ->and($hr)->toContain('Talento Humano / HorasExtras')
-        ->and($hr)->toContain('Talento Humano / Alimentacion')
-        ->and($hr)->toContain('Talento Humano / HorasConfirmadas');
+        ->and($hr)->toContain('Talento Humano · Día a día / RevisarHoras')
+        ->and($hr)->toContain('Talento Humano · Día a día / TableroTalentoHumano')
+        ->and($hr)->toContain('Talento Humano · Día a día / AttendanceScanResource')
+        ->and($hr)->toContain('Talento Humano · Cierre del corte / FactorDeHoras')
+        ->and($hr)->toContain('Talento Humano · Cierre del corte / HorasExtras')
+        ->and($hr)->toContain('Talento Humano · Cierre del corte / Alimentacion')
+        ->and($hr)->toContain('Talento Humano · Día a día / HorasConfirmadas');
 });
 
 it('el administrador no entra a ninguna pantalla de Talento Humano', function (): void {
     actingWithTenantRole('administrador-general', $this->tenant);
 
-    $hr = array_filter(accessibleNavigationGroups(), fn (string $screen): bool => str_starts_with($screen, 'Talento Humano / '));
+    $hr = array_filter(accessibleNavigationGroups(), fn (string $screen): bool => str_starts_with($screen, 'Talento Humano'));
 
     expect($hr)->toBe([]);
 });

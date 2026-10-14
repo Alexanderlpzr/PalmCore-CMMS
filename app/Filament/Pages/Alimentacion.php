@@ -38,13 +38,13 @@ class Alimentacion extends Page implements HasTable
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCake;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Talento Humano';
+    protected static string|UnitEnum|null $navigationGroup = 'Talento Humano · Cierre del corte';
 
     protected static ?string $navigationLabel = 'Alimentación';
 
     protected static ?string $title = 'Auxilio de alimentación';
 
-    protected static ?int $navigationSort = 23;
+    protected static ?int $navigationSort = 2;
 
     protected static ?string $slug = 'alimentacion';
 
