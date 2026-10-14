@@ -86,7 +86,7 @@ function libroParaImportar(array $hojas): string
         $writer->addRow(Row::fromValues([]));
         $writer->addRow(Row::fromValues([]));
         $writer->addRow(Row::fromValues([]));
-        $writer->addRow(Row::fromValues(['NOMBRE TRABAJADOR', $nombre, '', '', '', '', '', '', '', '', '', '', 'IDENTIFICACIÓN', '', $documento]));
+        $writer->addRow(Row::fromValues(['NOMBRE TRABAJADOR', str_replace(['JHONATAN C.', 'ADRIANA A.'], ['JHONATAN CONDIA', 'ADRIANA ARAGUA'], $nombre), '', '', '', '', '', '', '', '', '', '', 'IDENTIFICACIÓN', '', $documento]));
         $writer->addRow(Row::fromValues(['CARGO', 'OPERARIO']));
         $writer->addRow(Row::fromValues(['JEFE INMEDIATO', 'JEFE']));
         $writer->addRow(Row::fromValues([]));
@@ -144,4 +144,25 @@ it('imports from «Horas extras» with the uploaded workbook', function (): void
         ->assertNotified('Se cargaron 2 días de 1 trabajadores');
 
     expect(AttendanceScan::query()->where('notes', OvertimeWorkbookImporter::NOTE)->count())->toBe(4);
+});
+
+it('does not load one worker\'s hours onto another when a copied sheet kept someone else\'s ID', function (): void {
+    $elias = Employee::factory()->create(['tenant_id' => $this->tenant->id, 'document_number' => '1193126906', 'first_name' => 'Elías José', 'last_name' => 'García']);
+    $jhonatan = Employee::factory()->create(['tenant_id' => $this->tenant->id, 'document_number' => '1006000111', 'first_name' => 'Jhonatan', 'last_name' => 'Condia Ruiz']);
+
+    // Las dos hojas copiadas conservan la cédula de Elías.
+    $libro = libroParaImportar([
+        'JHONATAN C.' => [1193126906, [['lunes, 28 de septiembre de 2026', '7:00am', '3:00pm']]],
+        'ADRIANA A.' => [1193126906, [['martes, 29 de septiembre de 2026', '7:00am', '3:00pm']]],
+    ]);
+    // El reader toma el nombre de la fila «NOMBRE TRABAJADOR»: el de la hoja.
+    $plan = app(OvertimeWorkbookImporter::class)->plan($libro, $this->tenant);
+    @unlink($libro);
+
+    $porHoja = collect($plan['rows'])->keyBy(fn (array $r): string => $r['date']->toDateString());
+
+    expect($porHoja['2026-09-28']['employee']?->is($jhonatan))->toBeTrue()
+        ->and($porHoja['2026-09-29']['employee'])->toBeNull()
+        ->and($porHoja['2026-09-29']['status'])->toBe('unknown_employee')
+        ->and(collect($plan['rows'])->contains(fn (array $r): bool => $r['employee']?->is($elias) ?? false))->toBeFalse();
 });

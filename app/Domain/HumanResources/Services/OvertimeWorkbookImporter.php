@@ -10,7 +10,9 @@ use App\Models\Employee;
 use App\Models\Tenant;
 use App\Models\User;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Carga a la plataforma la entrada y la salida de cada día del libro de horas extras
@@ -36,7 +38,7 @@ class OvertimeWorkbookImporter
         'has_marks' => 'Ya tiene marcas de la portería',
         'confirmed' => 'Día ya confirmado',
         'future' => 'Todavía no termina',
-        'unknown_employee' => 'Trabajador no encontrado',
+        'unknown_employee' => 'Trabajador no encontrado (ni por cédula con su nombre ni por nombre)',
     ];
 
     public function __construct(
@@ -53,12 +55,12 @@ class OvertimeWorkbookImporter
     {
         $timezone = $tenant->plantTimezone();
         $now = CarbonImmutable::now($timezone);
-        $employees = $this->employeesByDocument($tenant);
+        $employees = Employee::query()->forTenant($tenant->id)->get();
         $rows = [];
         $missing = [];
 
         foreach ($this->reader->read($path) as $sheet) {
-            $employee = $employees[self::digits($sheet['document'])] ?? null;
+            $employee = self::match($employees, $sheet['document'], $sheet['name']);
 
             if (! $employee) {
                 $missing[] = trim($sheet['name']) !== '' ? trim($sheet['name']) : $sheet['sheet'];
@@ -186,15 +188,48 @@ class OvertimeWorkbookImporter
         return $confirmed ? 'confirmed' : 'import';
     }
 
-    /** @return array<string, Employee> cédula sin puntos ni espacios → trabajador */
-    private function employeesByDocument(Tenant $tenant): array
+    /**
+     * El trabajador de una hoja. La cédula sola no basta: en el libro hay hojas copiadas
+     * que conservan la cédula de otra persona —la misma en cuatro hojas—, y cargar por ella
+     * le pondría a uno las horas de otros. Se acepta la cédula solo si el nombre de la hoja
+     * coincide con el del trabajador; si no, se busca por el nombre, y solo si hay uno.
+     *
+     * @param  Collection<int, Employee>  $employees
+     */
+    public static function match($employees, ?string $document, ?string $name): ?Employee
     {
-        return Employee::query()
-            ->forTenant($tenant->id)
-            ->get()
-            ->filter(fn (Employee $employee): bool => self::digits($employee->document_number) !== '')
-            ->keyBy(fn (Employee $employee): string => self::digits($employee->document_number))
-            ->all();
+        $digits = self::digits($document);
+        $byDocument = $digits === '' ? null : $employees->first(fn (Employee $e): bool => self::digits($e->document_number) === $digits);
+
+        if ($byDocument && self::sameName($name, $byDocument->fullName())) {
+            return $byDocument;
+        }
+
+        $byName = $employees->filter(fn (Employee $e): bool => self::sameName($name, $e->fullName()));
+
+        return $byName->count() === 1 ? $byName->first() : null;
+    }
+
+    /**
+     * ¿El nombre escrito en la hoja es el de este trabajador? Basta con que dos de sus
+     * palabras —o la única, si es una— estén en el nombre completo, sin tildes: la hoja
+     * dice «ERNESTO RINCÓN» y el trabajador es «Ernesto Rincón Vargas».
+     */
+    private static function sameName(?string $sheetName, string $fullName): bool
+    {
+        $words = fn (?string $text): array => array_values(array_filter(
+            preg_split('/\s+/', Str::upper(Str::ascii((string) $text))) ?: [],
+            fn (string $word): bool => mb_strlen($word) >= 3,
+        ));
+
+        $sheet = $words($sheetName);
+        $employee = $words($fullName);
+
+        if ($sheet === []) {
+            return false;
+        }
+
+        return count(array_intersect($sheet, $employee)) >= min(2, count($sheet));
     }
 
     private static function digits(?string $value): string
