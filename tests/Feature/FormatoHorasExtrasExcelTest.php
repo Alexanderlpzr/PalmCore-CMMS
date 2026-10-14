@@ -109,7 +109,7 @@ it('writes one sheet per worker with the heading, the worker and the days of the
         ->and($hoja[10])->toContain('HORAS EXTRAS DIURNAS', 'RECARGO NOCTURNO', 'JUSTIFICACIÓN', 'BONO HED')
         // Treinta días del corte, una fila cada uno.
         ->and($texto)->toContain('domingo, 27 de septiembre de 2026', 'lunes, 26 de octubre de 2026')
-        ->and($texto)->toContain('7:00am', '2:00pm', '6:00pm')
+        ->and($texto)->toContain('07:00 am', '02:00 pm', '06:00 pm')
         ->and($texto->filter(fn (string $v): bool => str_starts_with($v, 'Valor hora:')))->toHaveCount(1)
         ->and($texto->filter(fn (string $v): bool => str_starts_with($v, 'Vo. Bo. Jefe inmediato — Edwin Marsiglia')))->toHaveCount(1);
 });

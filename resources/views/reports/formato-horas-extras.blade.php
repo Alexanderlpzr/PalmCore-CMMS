@@ -5,7 +5,7 @@
     $titulos = Formato::COLUMN_TITLES;
     $h = fn (float $horas): string => $horas > 0 ? rtrim(rtrim(number_format($horas, 2, ',', '.'), '0'), ',') : '';
     $pesos = fn (float $valor): string => '$ '.number_format($valor, 0, ',', '.');
-    $hora = fn ($momento): string => $momento ? $momento->format('g:ia') : '';
+    $hora = fn ($momento): string => $momento ? $momento->format('h:i a') : '';
 @endphp
 <!DOCTYPE html>
 <html lang="es">

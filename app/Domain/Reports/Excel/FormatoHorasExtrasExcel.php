@@ -158,7 +158,8 @@ class FormatoHorasExtrasExcel
 
         $rows[] = $line($header, [], fn (int $c): Style => $this->style(bold: true, fill: $c >= $bonusStart ? FrondaWorkbook::PETROL : FrondaWorkbook::GREEN, color: 'FFFFFF', size: 8));
 
-        $hour = fn ($moment): string => $moment ? $moment->format('g:ia') : '';
+        // En 12 horas, igual que el Excel de horas confirmadas: «06:00 pm».
+        $hour = fn ($moment): string => $moment ? $moment->format('h:i a') : '';
         $hours = fn (float $value): float|string => $value > 0 ? round($value, 2) : '';
 
         foreach ($data['rows'] as $day) {
