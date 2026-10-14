@@ -7,7 +7,9 @@ use App\Domain\HumanResources\Services\AttendanceDayConfirmer;
 use App\Filament\Resources\AttendanceDays\AttendanceDayActions;
 use App\Filament\Resources\AttendanceScans\AttendanceMarkActions;
 use App\Models\AttendanceDay;
+use App\Models\AttendanceScan;
 use App\Models\Employee;
+use App\Support\Hours;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkAction;
@@ -15,6 +17,7 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -44,7 +47,7 @@ class AttendanceDaysTable
 
                 TextColumn::make('worked_hours')
                     ->label('Trabajadas')
-                    ->numeric(2)
+                    ->formatStateUsing(fn ($state): string => Hours::format($state))
                     ->alignEnd()
                     ->description(fn (AttendanceDay $record): ?string => collect([
                         $record->isManuallyAdjusted() ? 'Ajustado a mano' : null,
@@ -61,25 +64,25 @@ class AttendanceDaysTable
                 // abre el detalle solo cuando algo no cuadra.
                 TextColumn::make('night_surcharge_hours')
                     ->label('Rec. nocturno')
-                    ->numeric(2)->alignEnd()->toggleable(isToggledHiddenByDefault: true),
+                    ->formatStateUsing(fn ($state): string => Hours::format($state))->alignEnd()->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('sunday_surcharge_hours')
                     ->label('Rec. dominical')
-                    ->numeric(2)->alignEnd()->toggleable(isToggledHiddenByDefault: true),
+                    ->formatStateUsing(fn ($state): string => Hours::format($state))->alignEnd()->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('night_sunday_surcharge_hours')
                     ->label('Rec. noct. dom.')
-                    ->numeric(2)->alignEnd()->toggleable(isToggledHiddenByDefault: true),
+                    ->formatStateUsing(fn ($state): string => Hours::format($state))->alignEnd()->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('overtime_day_hours')
                     ->label('Extra diurna')
-                    ->numeric(2)->alignEnd()->toggleable(isToggledHiddenByDefault: true),
+                    ->formatStateUsing(fn ($state): string => Hours::format($state))->alignEnd()->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('overtime_night_hours')
                     ->label('Extra nocturna')
-                    ->numeric(2)->alignEnd()->toggleable(isToggledHiddenByDefault: true),
+                    ->formatStateUsing(fn ($state): string => Hours::format($state))->alignEnd()->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('overtime_sunday_day_hours')
                     ->label('Extra dom. diurna')
-                    ->numeric(2)->alignEnd()->toggleable(isToggledHiddenByDefault: true),
+                    ->formatStateUsing(fn ($state): string => Hours::format($state))->alignEnd()->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('overtime_sunday_night_hours')
                     ->label('Extra dom. noct.')
-                    ->numeric(2)->alignEnd()->toggleable(isToggledHiddenByDefault: true),
+                    ->formatStateUsing(fn ($state): string => Hours::format($state))->alignEnd()->toggleable(isToggledHiddenByDefault: true),
 
                 IconColumn::make('anomalies')
                     ->label('Revisar')
@@ -124,6 +127,25 @@ class AttendanceDaysTable
                 Filter::make('con_anomalias')
                     ->label('Solo los que hay que revisar')
                     ->query(fn (Builder $query): Builder => $query->withAnomalies()),
+            ])
+            // Los de la lista —con sus filtros— que no tienen ningún aviso, de una vez. Los
+            // que tienen avisos quedan para revisarlos uno por uno.
+            ->headerActions([
+                Action::make('confirmarBuenos')
+                    ->label('Confirmar lo que está bien')
+                    ->icon('heroicon-o-check-badge')
+                    ->color('success')
+                    ->authorize(fn (): bool => auth()->user()?->can('correct', AttendanceScan::class) ?? false)
+                    ->requiresConfirmation()
+                    ->modalHeading('Confirmar los días sin avisos')
+                    ->modalDescription(fn (HasTable $livewire): string => ($n = self::cleanProposed($livewire)->count()) > 0
+                        ? "Se confirman {$n} ".($n === 1 ? 'día' : 'días').' de la lista sin ningún aviso, hasta hoy. Los que tienen avisos quedan para revisarlos uno por uno.'
+                        : 'No hay días sin avisos por confirmar en la lista.')
+                    ->action(function (HasTable $livewire): void {
+                        $n = app(AttendanceDayConfirmer::class)->confirmMany(self::cleanProposed($livewire), auth()->user());
+
+                        Notification::make()->title($n > 0 ? "Se confirmaron {$n} días" : 'No había días para confirmar')->success()->send();
+                    }),
             ])
             ->recordActions([
                 Action::make('confirmar')
@@ -202,5 +224,20 @@ class AttendanceDaysTable
                         ->deselectRecordsAfterCompletion(),
                 ]),
             ]);
+    }
+
+    /**
+     * Los por confirmar de la lista filtrada, sin avisos y de hasta hoy.
+     *
+     * @return Collection<int, AttendanceDay>
+     */
+    private static function cleanProposed(HasTable $livewire): Collection
+    {
+        return ($livewire->getFilteredTableQuery() ?? AttendanceDay::query())
+            ->clone()
+            ->where('status', AttendanceDayStatus::Propuesta)
+            ->whereNull('anomalies')
+            ->whereDate('work_date', '<=', now(AttendanceMarkActions::timezone())->toDateString())
+            ->get();
     }
 }

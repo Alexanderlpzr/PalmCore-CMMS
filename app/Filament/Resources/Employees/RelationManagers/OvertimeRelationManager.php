@@ -10,6 +10,7 @@ use App\Filament\Resources\AttendanceDays\AttendanceDayActions;
 use App\Models\AttendanceDay;
 use App\Models\Employee;
 use App\Models\PayrollRun;
+use App\Support\Hours;
 use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
 use Filament\Resources\RelationManagers\RelationManager;
@@ -62,7 +63,7 @@ class OvertimeRelationManager extends RelationManager
                 ->label($sigla)
                 ->tooltip(Formato::COLUMN_TITLES[$bolsa])
                 ->getStateUsing($horas($bolsa))
-                ->numeric(2)
+                ->formatStateUsing(fn ($state): string => Hours::format($state))
                 ->placeholder('')
                 ->alignEnd();
         }
@@ -80,13 +81,13 @@ class OvertimeRelationManager extends RelationManager
                     ->color(fn (AttendanceDay $record): ?string => ($this->row($record)['surcharged'] ?? false) ? 'danger' : null),
                 TextColumn::make('inicio')
                     ->label('Hora inicio')
-                    ->getStateUsing(fn (AttendanceDay $record): ?string => $this->row($record)['entry']?->format('g:i a')),
+                    ->getStateUsing(fn (AttendanceDay $record): ?string => $this->row($record)['entry']?->format('h:i a')),
                 TextColumn::make('fin_horario')
                     ->label('Fin horario laboral')
-                    ->getStateUsing(fn (AttendanceDay $record): ?string => $this->row($record)['scheduledEnd']?->format('g:i a')),
+                    ->getStateUsing(fn (AttendanceDay $record): ?string => $this->row($record)['scheduledEnd']?->format('h:i a')),
                 TextColumn::make('salida')
                     ->label('Hora salida')
-                    ->getStateUsing(fn (AttendanceDay $record): ?string => $this->row($record)['exit']?->format('g:i a')),
+                    ->getStateUsing(fn (AttendanceDay $record): ?string => $this->row($record)['exit']?->format('h:i a')),
                 ...$columnas,
                 TextColumn::make('bono')
                     ->label('Bono')
@@ -95,7 +96,7 @@ class OvertimeRelationManager extends RelationManager
                         ->filter(fn (float $h): bool => $h > 0)
                         ->map(fn (float $h, string $bolsa): string => Formato::COLUMNS[$bolsa].' '.rtrim(rtrim(number_format($h, 2, ',', '.'), '0'), ','))
                         ->implode(' · ') ?: null)
-                    ->numeric(2)
+                    ->formatStateUsing(fn ($state): string => Hours::format($state))
                     ->placeholder('')
                     ->alignEnd(),
                 TextColumn::make('justificacion')

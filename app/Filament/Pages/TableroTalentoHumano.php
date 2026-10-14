@@ -3,7 +3,6 @@
 namespace App\Filament\Pages;
 
 use App\Domain\HumanResources\Services\HumanResourcesDashboard;
-use App\Filament\Resources\AttendanceDays\AttendanceDayResource;
 use App\Filament\Resources\AttendanceScans\AttendanceScanResource;
 use App\Filament\Resources\Employees\EmployeeResource;
 use App\Filament\Resources\PayrollRuns\PayrollRunResource;
@@ -115,7 +114,7 @@ class TableroTalentoHumano extends Page
                 'detail' => 'Del corte en curso, hasta hoy',
                 'icon' => 'heroicon-o-clipboard-document-check',
                 'tone' => $attention['toConfirm'] > 0 ? 'warning' : 'ok',
-                'url' => AttendanceDayResource::getUrl('index'),
+                'url' => RevisarHoras::getUrl(),
             ] : null,
             $canSeeEmployees ? [
                 'label' => 'Contratos por vencer',
@@ -145,7 +144,7 @@ class TableroTalentoHumano extends Page
 
         $shortcuts = array_values(array_filter([
             $canSeeHours ? ['label' => 'Agregar marca', 'icon' => 'heroicon-o-plus-circle', 'url' => AttendanceScanResource::getUrl('index')] : null,
-            $canSeeHours ? ['label' => 'Confirmar horas', 'icon' => 'heroicon-o-check-badge', 'url' => AttendanceDayResource::getUrl('index')] : null,
+            $canSeeHours ? ['label' => 'Revisar semana', 'icon' => 'heroicon-o-calendar-days', 'url' => RevisarHoras::getUrl()] : null,
             HorasConfirmadas::canAccess() ? ['label' => 'Horas confirmadas', 'icon' => 'heroicon-o-calendar-days', 'url' => HorasConfirmadas::getUrl()] : null,
             HorasExtras::canAccess() ? ['label' => 'Horas extras', 'icon' => 'heroicon-o-clock', 'url' => HorasExtras::getUrl()] : null,
             PayrollRunResource::canViewAny() ? ['label' => 'Nómina', 'icon' => 'heroicon-o-banknotes', 'url' => PayrollRunResource::getUrl('index')] : null,

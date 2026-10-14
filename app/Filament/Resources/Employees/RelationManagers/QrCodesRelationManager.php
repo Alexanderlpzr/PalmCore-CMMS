@@ -69,7 +69,7 @@ class QrCodesRelationManager extends RelationManager
                 TextColumn::make('last_scanned_at')
                     ->label('Último uso')
                     ->since($timezone)
-                    ->dateTimeTooltip('d/m/Y H:i', $timezone)
+                    ->dateTimeTooltip('d/m/Y h:i a', $timezone)
                     ->placeholder('Nunca'),
                 TextColumn::make('scan_count')
                     ->label('Marcas')

@@ -32,7 +32,7 @@ class AttendanceScansTable
             ->columns([
                 TextColumn::make('scanned_at')
                     ->label('Fecha y hora')
-                    ->dateTime('D d/m/Y H:i', $timezone)
+                    ->dateTime('D d/m/Y h:i a', $timezone)
                     ->sortable(),
                 TextColumn::make('employee.last_name')
                     ->label('Trabajador')

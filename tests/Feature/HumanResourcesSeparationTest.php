@@ -89,7 +89,9 @@ it('talento humano sí entra a sus once pantallas', function (): void {
     // La séptima, desde 2026-10: «Marcas de portería», el historial de la puerta. La
     // octava, el indicador «Factor de horas»; la novena, «Horas extras»; la décima, «Alimentación»; la undécima, «Horas confirmadas».
     // La duodécima, el «Tablero» con el que abre el panel.
-    expect($hr)->toHaveCount(12)
+    // La decimotercera, «Revisar semana»: la cuadrícula para confirmar rápido.
+    expect($hr)->toHaveCount(13)
+        ->and($hr)->toContain('Talento Humano / RevisarHoras')
         ->and($hr)->toContain('Talento Humano / TableroTalentoHumano')
         ->and($hr)->toContain('Talento Humano / AttendanceScanResource')
         ->and($hr)->toContain('Talento Humano / FactorDeHoras')

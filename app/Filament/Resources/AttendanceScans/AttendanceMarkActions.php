@@ -58,7 +58,7 @@ final class AttendanceMarkActions
                     ->timezone(self::timezone())
                     ->seconds(false)
                     ->native(false)
-                    ->displayFormat('d/m/Y H:i')
+                    ->displayFormat('d/m/Y h:i a')
                     ->maxDate(now())
                     ->required(),
                 ToggleButtons::make('direction')
@@ -104,7 +104,7 @@ final class AttendanceMarkActions
                 'Anular la %s de %s de las %s',
                 mb_strtolower($record->direction->label()),
                 $record->employee?->fullName() ?? 'este trabajador',
-                $record->scanned_at->copy()->setTimezone(self::timezone())->format('d/m/Y H:i'),
+                $record->scanned_at->copy()->setTimezone(self::timezone())->format('d/m/Y h:i a'),
             ))
             ->modalDescription('Deja de contar para las horas, pero no se borra: queda a la vista con su nombre y el motivo.')
             ->schema([

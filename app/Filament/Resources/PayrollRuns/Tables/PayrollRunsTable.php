@@ -44,7 +44,7 @@ class PayrollRunsTable
 
                 TextColumn::make('calculated_at')
                     ->label('Liquidada')
-                    ->dateTime('d/m/Y H:i')
+                    ->dateTime('d/m/Y h:i a')
                     ->placeholder('Sin liquidar')
                     ->toggleable(),
             ])

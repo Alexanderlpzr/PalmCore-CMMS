@@ -198,7 +198,7 @@ class AttendanceDayBuilder
                 if ($openScan) {
                     // Dos entradas seguidas: la primera nunca se cerró. `AttendanceService`
                     // ya lo anota en la marca; aquí se traduce en un día sin horas.
-                    $openEntries[$local($openScan)->toDateString()] = $local($openScan)->format('d/m/Y H:i');
+                    $openEntries[$local($openScan)->toDateString()] = $local($openScan)->format('d/m/Y h:i a');
                     $sessionsByDate[$local($openScan)->toDateString()] ??= [];
                 }
 
@@ -220,7 +220,7 @@ class AttendanceDayBuilder
 
         if ($openScan) {
             $date = $local($openScan)->toDateString();
-            $openEntries[$date] = $local($openScan)->format('d/m/Y H:i');
+            $openEntries[$date] = $local($openScan)->format('d/m/Y h:i a');
             $sessionsByDate[$date] ??= [];
         }
 

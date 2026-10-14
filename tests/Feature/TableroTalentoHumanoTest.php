@@ -123,7 +123,7 @@ it('opens for human resources with its cards, shortcuts and charts', function ()
         ->assertSee('Corte en curso')
         ->assertSee('Faltan 14 días para el corte')
         ->assertSee('Accesos rápidos')
-        ->assertSee('Confirmar horas')
+        ->assertSee('Revisar semana')
         ->assertSee('Nuevo trabajador');
 
     Livewire::test(OvertimeByGroupChart::class)->assertOk();

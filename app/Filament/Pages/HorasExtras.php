@@ -14,6 +14,7 @@ use App\Models\AttendanceScan;
 use App\Models\Employee;
 use App\Models\PayrollRun;
 use App\Models\User;
+use App\Support\Hours;
 use BackedEnum;
 use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
@@ -117,21 +118,21 @@ class HorasExtras extends Page implements HasTable
                     ->label('Extras')
                     ->getStateUsing($horas('overtime'))
                     ->tooltip($detalle(['overtime_day', 'overtime_night', 'overtime_sunday_day', 'overtime_sunday_night']))
-                    ->numeric(2)
+                    ->formatStateUsing(fn ($state): string => Hours::format($state))
                     ->placeholder('—')
                     ->alignEnd(),
                 TextColumn::make('recargos')
                     ->label('Recargos')
                     ->getStateUsing($horas('surcharges'))
                     ->tooltip($detalle(OvertimeSummary::SURCHARGES))
-                    ->numeric(2)
+                    ->formatStateUsing(fn ($state): string => Hours::format($state))
                     ->placeholder('—')
                     ->alignEnd(),
                 TextColumn::make('bono')
                     ->label('Bonificación')
                     ->getStateUsing($horas('bonusHours'))
                     ->tooltip($detalle(array_keys(Formato::COLUMNS), 'bonus'))
-                    ->numeric(2)
+                    ->formatStateUsing(fn ($state): string => Hours::format($state))
                     ->placeholder('—')
                     ->alignEnd(),
                 TextColumn::make('sin_confirmar')

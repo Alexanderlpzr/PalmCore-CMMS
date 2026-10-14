@@ -156,7 +156,7 @@ class AttendanceService
                 AttendanceDirection::Entrada,
                 sprintf(
                     'Entrada nueva: la anterior del %s quedó sin salida (%d horas abiertas).',
-                    $previous->scanned_at->copy()->setTimezone($timezone)->format('d/m/Y H:i'),
+                    $previous->scanned_at->copy()->setTimezone($timezone)->format('d/m/Y h:i a'),
                     $openHours,
                 ),
             ];

@@ -9,6 +9,7 @@ use App\Filament\Resources\AttendanceDays\AttendanceDayActions;
 use App\Models\AttendanceDay;
 use App\Models\Employee;
 use App\Models\PayrollRun;
+use App\Support\Hours;
 use BackedEnum;
 use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
@@ -73,19 +74,19 @@ class HorasConfirmadas extends Page implements HasTable
                         ->orWhere('document_number', 'like', "%{$search}%"))),
                 TextColumn::make('worked_hours')
                     ->label('Trabajadas')
-                    ->numeric(2)
+                    ->formatStateUsing(fn ($state): string => Hours::format($state))
                     ->alignEnd()
                     ->description(fn (AttendanceDay $record): ?string => $record->isManuallyAdjusted() ? 'Ajustado a mano' : null)
                     ->tooltip(fn (AttendanceDay $record): ?string => $record->isManuallyAdjusted()
                         ? 'Ajustado por '.($record->adjustedBy?->name ?? '—').' el '.$record->adjusted_at?->format('d/m/Y').': '.$record->adjustment_reason
                         : null),
-                TextColumn::make('night_surcharge_hours')->label('Rec. nocturno')->numeric(2)->alignEnd()->toggleable(),
-                TextColumn::make('sunday_surcharge_hours')->label('Rec. dominical')->numeric(2)->alignEnd()->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('night_sunday_surcharge_hours')->label('Rec. noct. dom.')->numeric(2)->alignEnd()->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('overtime_day_hours')->label('Extra diurna')->numeric(2)->alignEnd()->toggleable(),
-                TextColumn::make('overtime_night_hours')->label('Extra nocturna')->numeric(2)->alignEnd()->toggleable(),
-                TextColumn::make('overtime_sunday_day_hours')->label('Extra dom. diurna')->numeric(2)->alignEnd()->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('overtime_sunday_night_hours')->label('Extra dom. noct.')->numeric(2)->alignEnd()->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('night_surcharge_hours')->label('Rec. nocturno')->formatStateUsing(fn ($state): string => Hours::format($state))->alignEnd()->toggleable(),
+                TextColumn::make('sunday_surcharge_hours')->label('Rec. dominical')->formatStateUsing(fn ($state): string => Hours::format($state))->alignEnd()->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('night_sunday_surcharge_hours')->label('Rec. noct. dom.')->formatStateUsing(fn ($state): string => Hours::format($state))->alignEnd()->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('overtime_day_hours')->label('Extra diurna')->formatStateUsing(fn ($state): string => Hours::format($state))->alignEnd()->toggleable(),
+                TextColumn::make('overtime_night_hours')->label('Extra nocturna')->formatStateUsing(fn ($state): string => Hours::format($state))->alignEnd()->toggleable(),
+                TextColumn::make('overtime_sunday_day_hours')->label('Extra dom. diurna')->formatStateUsing(fn ($state): string => Hours::format($state))->alignEnd()->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('overtime_sunday_night_hours')->label('Extra dom. noct.')->formatStateUsing(fn ($state): string => Hours::format($state))->alignEnd()->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('confirmedBy.name')
                     ->label('Firmado por')
                     ->description(fn (AttendanceDay $record): ?string => $record->confirmed_at?->format('d/m/Y'))
