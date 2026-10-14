@@ -87,7 +87,8 @@ class HorasConfirmadasExcel
      */
     private function entryAndExit(AttendanceDay $day, string $timezone): array
     {
-        $time = fn ($moment): string => $moment ? $moment->copy()->setTimezone($timezone)->format('H:i') : '';
+        // En 12 horas, como se lee en la planta: «06:00 pm», no «18:00».
+        $time = fn ($moment): string => $moment ? $moment->copy()->setTimezone($timezone)->format('h:i a') : '';
 
         if ($day->adjusted_entry_at && $day->adjusted_exit_at) {
             return [$time($day->adjusted_entry_at), $time($day->adjusted_exit_at)];
