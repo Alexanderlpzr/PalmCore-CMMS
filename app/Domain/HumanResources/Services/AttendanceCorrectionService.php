@@ -403,6 +403,80 @@ class AttendanceCorrectionService
     }
 
     /**
+     * Borra las horas de un trabajador en un período para volver a cargarlas: anula sus
+     * marcas —quedan a la vista en «Marcas de portería» con el motivo— y quita sus días,
+     * aun confirmados. La salida del turno de noche del último día, que cae al día
+     * siguiente, también se anula; la del turno que entró antes del período, no.
+     *
+     * @return array{days: int, marks: int}
+     */
+    public function clearPeriod(Employee $employee, CarbonImmutable $from, CarbonImmutable $to, string $reason, User $by): array
+    {
+        $this->ensurePeriodOpen($employee, $from, $to);
+
+        $timezone = $this->timezoneOf($employee);
+        $start = CarbonImmutable::parse($from->toDateString(), $timezone);
+        $end = CarbonImmutable::parse($to->toDateString(), $timezone)->endOfDay();
+        $motivo = trim($reason);
+
+        $scans = AttendanceScan::query()
+            ->forTenant($employee->tenant_id)
+            ->where('employee_id', $employee->id)
+            ->whereBetween('scanned_at', [$start->subHours(AttendanceService::MAX_OPEN_SHIFT_HOURS)->utc(), $end->addHours(AttendanceService::MAX_OPEN_SHIFT_HOURS)->utc()])
+            ->orderBy('scanned_at')
+            ->get();
+
+        $toVoid = collect();
+        $previous = null;
+
+        foreach ($scans as $scan) {
+            $at = $this->local($employee, $scan->scanned_at);
+            $previousAt = $previous ? $this->local($employee, $previous->scanned_at) : null;
+            $closes = $scan->direction === AttendanceDirection::Salida && $previous?->direction === AttendanceDirection::Entrada;
+
+            if ($at->gte($start) && $at->lte($end) && ! ($closes && $previousAt?->lt($start))) {
+                $toVoid->push($scan);
+            } elseif ($at->gt($end) && $closes && $previousAt?->gte($start) && $previousAt->lte($end)) {
+                $toVoid->push($scan);
+            }
+
+            $previous = $scan;
+        }
+
+        return DB::transaction(function () use ($toVoid, $employee, $from, $to, $by, $motivo): array {
+            $toVoid->each(fn (AttendanceScan $scan) => $scan->update([
+                'voided_at' => now(),
+                'voided_by' => $by->id,
+                'void_reason' => 'Horas borradas del período'.($motivo !== '' ? ": {$motivo}" : ''),
+            ]));
+
+            $days = AttendanceDay::query()
+                ->forTenant($employee->tenant_id)
+                ->where('employee_id', $employee->id)
+                ->between($from->toDateString(), $to->toDateString())
+                ->delete();
+
+            return ['days' => $days, 'marks' => $toVoid->count()];
+        });
+    }
+
+    /** Ninguna nómina cerrada puede cubrir el período que se borra. */
+    private function ensurePeriodOpen(Employee $employee, CarbonImmutable $from, CarbonImmutable $to): void
+    {
+        $closed = PayrollRun::query()
+            ->forTenant($employee->tenant_id)
+            ->where('status', PayrollRunStatus::Cerrada)
+            ->where(fn ($query) => $query
+                ->where(fn ($q) => $q->whereNotNull('hours_from')->whereDate('hours_from', '<=', $to->toDateString())->whereDate('hours_to', '>=', $from->toDateString()))
+                ->orWhere(fn ($q) => $q->whereNull('hours_from')->whereDate('period_start', '<=', $to->toDateString())->whereDate('period_end', '>=', $from->toDateString())))
+            ->first();
+
+        if ($closed) {
+            throw AttendanceException::dayInClosedPayroll($from->format('d/m/Y'), $closed->name);
+        }
+    }
+
+    /**
      * El día al que pertenece una marca es el día en que arrancó su turno: la salida de
      * las seis de la mañana es del turno de noche que empezó la víspera.
      */

@@ -162,18 +162,18 @@ final class AttendanceDayActions
     public static function voidDay(): Action
     {
         return Action::make('anularDia')
-            ->label('Anular día')
+            ->label('Borrar día')
             ->icon(Heroicon::OutlinedNoSymbol)
             ->color('danger')
             ->authorize(fn (AttendanceDay $record): bool => self::canEdit($record))
-            ->modalHeading(fn (AttendanceDay $record): string => 'Anular el '.$record->work_date->format('d/m/Y').' de '.$record->employee?->fullName())
-            ->modalDescription('El día se quita: no se paga y no vuelve al reconstruir, porque sus marcas quedan anuladas. Sirve también para un día ya confirmado que resultó ser una novedad. Las marcas se siguen viendo en «Marcas de portería», con su nombre y el motivo.')
+            ->modalHeading(fn (AttendanceDay $record): string => 'Borrar el '.$record->work_date->format('d/m/Y').' de '.$record->employee?->fullName())
+            ->modalDescription('El día se quita: no se paga y no vuelve al recalcular, porque sus marcas quedan anuladas. Sirve también para un día ya confirmado que resultó ser una novedad. Las marcas se siguen viendo en «Marcas de portería», con su nombre y el motivo.')
             ->schema([
                 Textarea::make('reason')
                     ->label('Justificación (opcional)')
                     ->rows(2),
             ])
-            ->modalSubmitActionLabel('Anular el día')
+            ->modalSubmitActionLabel('Borrar el día')
             ->action(function (AttendanceDay $record, array $data, Action $action): void {
                 self::run($action, fn () => self::service()->voidDay($record, ($data['reason'] ?? ''), self::actor()));
 

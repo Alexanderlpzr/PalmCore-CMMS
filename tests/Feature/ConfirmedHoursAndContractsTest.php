@@ -14,6 +14,7 @@ use App\Filament\Resources\Employees\Pages\ListEmployees;
 use App\Filament\Resources\Employees\RelationManagers\OvertimeRelationManager;
 use App\Infrastructure\Tenancy\CurrentTenant;
 use App\Models\AttendanceDay;
+use App\Models\AttendanceScan;
 use App\Models\Employee;
 use App\Models\EmployeeQrCode;
 use App\Models\Tenant;
@@ -171,4 +172,23 @@ it('downloads the confirmed hours of the period in Excel', function (): void {
     Livewire::test(HorasConfirmadas::class)
         ->callAction(TestAction::make('excel')->table())
         ->assertFileDownloaded('HORAS-CONFIRMADAS-20261001-20261031.xlsx');
+});
+
+it('deletes the hours of a worker in the period to load them again, even confirmed ones', function (): void {
+    Livewire::test(HorasExtras::class)
+        ->callAction(TestAction::make('borrarHoras')->table($this->employee), ['reason' => 'Se cargan del libro'])
+        ->assertNotified('Se borró 1 día');
+
+    expect(AttendanceDay::query()->whereKey($this->day->id)->exists())->toBeFalse()
+        ->and(AttendanceScan::query()->where('employee_id', $this->employee->id)->count())->toBe(0)
+        ->and(AttendanceScan::query()->withoutGlobalScopes()->where('employee_id', $this->employee->id)->where('void_reason', 'like', 'Horas borradas del período%')->count())->toBe(2);
+});
+
+it('deletes the hours of the selected workers at once', function (): void {
+    Livewire::test(HorasExtras::class)
+        ->selectTableRecords([$this->employee->getKey()])
+        ->callAction(TestAction::make('borrarHorasSeleccionados')->table()->bulk())
+        ->assertNotified('Se borró 1 día');
+
+    expect(AttendanceDay::query()->whereKey($this->day->id)->exists())->toBeFalse();
 });

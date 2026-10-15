@@ -3,6 +3,8 @@
 namespace App\Filament\Pages;
 
 use App\Domain\HumanResources\Enums\PayrollParameter;
+use App\Domain\HumanResources\Exceptions\AttendanceException;
+use App\Domain\HumanResources\Services\AttendanceCorrectionService;
 use App\Domain\HumanResources\Services\OvertimeSummary;
 use App\Domain\HumanResources\Services\OvertimeWorkbookImporter;
 use App\Domain\HumanResources\Services\PayrollParameterService;
@@ -18,8 +20,10 @@ use App\Support\Hours;
 use BackedEnum;
 use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
+use Filament\Actions\BulkAction;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -33,6 +37,7 @@ use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -176,6 +181,23 @@ class HorasExtras extends Page implements HasTable
                     ->icon(Heroicon::OutlinedEye)
                     ->tooltip('El formato en la ficha del trabajador')
                     ->url(fn (Employee $record): string => EmployeeResource::getUrl('edit', ['record' => $record, 'relation' => 1])),
+                // Todas sus horas del período, para volver a cargarlas (a mano o con el libro).
+                Action::make('borrarHoras')
+                    ->label('Borrar horas')
+                    ->icon(Heroicon::OutlinedTrash)
+                    ->color('danger')
+                    ->authorize(fn (): bool => auth()->user()?->can('correct', AttendanceScan::class) ?? false)
+                    ->modalHeading(fn (Employee $record): string => 'Borrar las horas de '.$record->fullName())
+                    ->modalDescription(fn (): string => self::clearDescription($this->window()))
+                    ->schema([
+                        Textarea::make('reason')
+                            ->label('Justificación (opcional)')
+                            ->rows(2),
+                    ])
+                    ->modalSubmitActionLabel('Borrar las horas')
+                    ->action(function (Employee $record, array $data, Action $action): void {
+                        $this->clearHours(collect([$record]), (string) ($data['reason'] ?? ''), $action);
+                    }),
                 Action::make('pdf')
                     ->label('PDF')
                     ->icon(Heroicon::OutlinedDocumentArrowDown)
@@ -198,6 +220,25 @@ class HorasExtras extends Page implements HasTable
 
                         return app(FormatoHorasExtrasExcel::class)->download(collect([$record]), $from, $to, auth()->user()?->can('viewSalary', $record) ?? false);
                     }),
+            ])
+            ->toolbarActions([
+                BulkAction::make('borrarHorasSeleccionados')
+                    ->label('Borrar horas de los seleccionados')
+                    ->icon(Heroicon::OutlinedTrash)
+                    ->color('danger')
+                    ->authorize(fn (): bool => auth()->user()?->can('correct', AttendanceScan::class) ?? false)
+                    ->modalHeading('Borrar las horas de los trabajadores seleccionados')
+                    ->modalDescription(fn (): string => self::clearDescription($this->window()))
+                    ->schema([
+                        Textarea::make('reason')
+                            ->label('Justificación (opcional)')
+                            ->rows(2),
+                    ])
+                    ->modalSubmitActionLabel('Borrar las horas')
+                    ->action(function (Collection $records, array $data, BulkAction $action): void {
+                        $this->clearHours($records, (string) ($data['reason'] ?? ''), $action);
+                    })
+                    ->deselectRecordsAfterCompletion(),
             ])
             ->headerActions([
                 // El libro TH-NOM-P-001 llena los días que la portería no registró.
@@ -308,6 +349,47 @@ class HorasExtras extends Page implements HasTable
         }
 
         return $text;
+    }
+
+    /**
+     * Borra las horas del período de cada trabajador y avisa cuántos días y marcas quitó.
+     *
+     * @param  \Illuminate\Support\Collection<int, Employee>  $employees
+     */
+    private function clearHours($employees, string $reason, Action|BulkAction $action): void
+    {
+        [$from, $to] = $this->window();
+        /** @var User $user */
+        $user = auth()->user();
+        $days = 0;
+        $marks = 0;
+
+        try {
+            foreach ($employees as $employee) {
+                $result = app(AttendanceCorrectionService::class)->clearPeriod($employee, $from, $to, $reason, $user);
+                $days += $result['days'];
+                $marks += $result['marks'];
+            }
+        } catch (AttendanceException $e) {
+            Notification::make()->title('No se borraron las horas')->body($e->getMessage())->danger()->send();
+            $action->halt();
+
+            return;
+        }
+
+        Notification::make()
+            ->title($days === 1 ? 'Se borró 1 día' : "Se borraron {$days} días")
+            ->body(($marks === 1 ? '1 marca quedó anulada' : "{$marks} marcas quedaron anuladas").' en «Marcas de portería». Puede volver a cargarlas a mano o con «Importar libro de horas».')
+            ->success()
+            ->send();
+    }
+
+    /** @param  array{0: CarbonImmutable, 1: CarbonImmutable}  $window */
+    private static function clearDescription(array $window): string
+    {
+        return 'Se quitan los días del '.$window[0]->format('d/m/Y').' al '.$window[1]->format('d/m/Y')
+            .', aun confirmados, y sus marcas quedan anuladas: no se borran del todo, se siguen viendo en «Marcas de portería» con el motivo. '
+            .'Después puede volver a cargar las horas a mano o con «Importar libro de horas».';
     }
 
     /** @return array{0: CarbonImmutable, 1: CarbonImmutable} la ventana elegida en el filtro */
