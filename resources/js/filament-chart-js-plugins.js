@@ -1,3 +1,4 @@
+import { ArcElement } from 'chart.js'
 import ChartDataLabels from 'chartjs-plugin-datalabels'
 
 /*
@@ -13,3 +14,14 @@ import ChartDataLabels from 'chartjs-plugin-datalabels'
  */
 window.filamentChartJsPlugins ??= []
 window.filamentChartJsPlugins.push(ChartDataLabels)
+
+/*
+ * El complemento trae su propia copia de Chart.js y Filament dibuja con otra, así que
+ * `porción instanceof ArcElement` daba falso: el complemento ubicaba la etiqueta de cada
+ * porción de una torta como si fuera una barra, buscando un eje que las tortas no tienen,
+ * y la gráfica entera se caía sin dibujar nada. Se compara por el `id` de la clase, que
+ * es el mismo en las dos copias.
+ */
+Object.defineProperty(ArcElement, Symbol.hasInstance, {
+    value: (element) => element?.constructor?.id === ArcElement.id,
+})

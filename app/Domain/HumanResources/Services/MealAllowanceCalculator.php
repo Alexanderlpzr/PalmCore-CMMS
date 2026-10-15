@@ -43,10 +43,14 @@ class MealAllowanceCalculator
     public function __construct(private readonly PayrollParameterService $parameters) {}
 
     /**
+     * Con `$includeUnconfirmed` es una estimación, la del tablero de costo de personal:
+     * cuentan también los días sin confirmar y, si se da `$openUntil`, el turno que sigue
+     * abierto se toma como si terminara a esa hora.
+     *
      * @param  list<string>  $employeeIds
      * @return array<string, array{counts: array<string, int>, meals: int, amount: float, days: array<string, list<string>>, shifts: array<string, array{0: CarbonImmutable, 1: CarbonImmutable}>}>
      */
-    public function forEmployees(array $employeeIds, string $tenantId, CarbonInterface $from, CarbonInterface $to): array
+    public function forEmployees(array $employeeIds, string $tenantId, CarbonInterface $from, CarbonInterface $to, bool $includeUnconfirmed = false, ?CarbonInterface $openUntil = null): array
     {
         if ($employeeIds === []) {
             return [];
@@ -60,10 +64,18 @@ class MealAllowanceCalculator
             ->forTenant($tenantId)
             ->whereIn('employee_id', $employeeIds)
             ->between($from->toDateString(), $to->toDateString())
-            ->confirmed()
+            ->unless($includeUnconfirmed, fn ($query) => $query->confirmed())
             ->get(['employee_id', 'work_date'])
             ->groupBy('employee_id')
             ->map(fn ($days) => $days->mapWithKeys(fn (AttendanceDay $d): array => [$d->work_date->toDateString() => true])->all());
+
+        // En la estimación cuenta todo turno del rango, aunque el día no se haya armado
+        // todavía: el que sigue adentro no tiene día hasta que marque la salida.
+        if ($includeUnconfirmed) {
+            $confirmed = collect(array_fill_keys($employeeIds, []))->replace($confirmed->all());
+        }
+
+        $openUntil = $openUntil ? CarbonImmutable::instance($openUntil)->setTimezone($timezone) : null;
 
         // Un día de margen a cada lado: el turno de noche del 26 sale el 27.
         $scans = AttendanceScan::query()
@@ -83,10 +95,10 @@ class MealAllowanceCalculator
             $mealsByDay = [];
             $shifts = [];
 
-            foreach ($this->sessions($scans[$employeeId] ?? collect(), $timezone) as [$entry, $exit]) {
+            foreach ($this->sessions($scans[$employeeId] ?? collect(), $timezone, $openUntil) as [$entry, $exit]) {
                 $date = $entry->toDateString();
 
-                if (! isset($days[$date])) {
+                if ($includeUnconfirmed ? ($date < $from->toDateString() || $date > $to->toDateString()) : ! isset($days[$date])) {
                     continue;
                 }
 
@@ -168,11 +180,12 @@ class MealAllowanceCalculator
 
     /**
      * Entradas emparejadas con su salida, en la hora de la planta. Una entrada sin salida
-     * no es un turno: no se sabe hasta cuándo trabajó.
+     * no es un turno: no se sabe hasta cuándo trabajó. Salvo con `$openUntil`: la última
+     * entrada, si es de las últimas horas, se toma como un turno que llega hasta ahí.
      *
      * @return list<array{0: CarbonImmutable, 1: CarbonImmutable}>
      */
-    private function sessions(iterable $scans, string $timezone): array
+    private function sessions(iterable $scans, string $timezone, ?CarbonImmutable $openUntil = null): array
     {
         $sessions = [];
         $open = null;
@@ -190,6 +203,10 @@ class MealAllowanceCalculator
                 $sessions[] = [$open, $at];
                 $open = null;
             }
+        }
+
+        if ($open && $openUntil && $open->lessThan($openUntil) && $open->diffInHours($openUntil) < AttendanceService::MAX_OPEN_SHIFT_HOURS) {
+            $sessions[] = [$open, $openUntil];
         }
 
         return $sessions;

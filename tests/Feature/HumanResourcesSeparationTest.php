@@ -90,7 +90,9 @@ it('talento humano sí entra a sus once pantallas', function (): void {
     // octava, el indicador «Factor de horas»; la novena, «Horas extras»; la décima, «Alimentación»; la undécima, «Horas confirmadas».
     // La duodécima, el «Tablero» con el que abre el panel.
     // La decimotercera, «Revisar semana»: la cuadrícula para confirmar rápido.
-    expect($hr)->toHaveCount(13)
+    // La decimocuarta, «Costo de personal»: el costo del día y del corte en tortas.
+    expect($hr)->toHaveCount(14)
+        ->and($hr)->toContain('Talento Humano · Día a día / CostoDePersonal')
         ->and($hr)->toContain('Talento Humano · Día a día / RevisarHoras')
         ->and($hr)->toContain('Talento Humano · Día a día / TableroTalentoHumano')
         ->and($hr)->toContain('Talento Humano · Día a día / AttendanceScanResource')
