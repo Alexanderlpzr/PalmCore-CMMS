@@ -110,7 +110,10 @@ it('writes one sheet per worker with the heading, the worker and the days of the
         // Treinta días del corte, una fila cada uno.
         ->and($texto)->toContain('domingo, 27 de septiembre de 2026', 'lunes, 26 de octubre de 2026')
         ->and($texto)->toContain('07:00 am', '02:00 pm', '06:00 pm')
-        ->and($texto->filter(fn (string $v): bool => str_starts_with($v, 'Valor hora:')))->toHaveCount(1)
+        // La calculadora completa: salario y valor de la hora a la vista, y sin la columna
+        // del recargo diurno dominical, que este período no tiene.
+        ->and($texto)->toContain('SALARIO', 'VALOR HORA', 'Valor horas extras y recargos')
+        ->and($hoja[10])->not->toContain('RECARGO DIURNO DOMINICAL')
         ->and($texto->filter(fn (string $v): bool => str_starts_with($v, 'Vo. Bo. Jefe inmediato — Edwin Marsiglia')))->toHaveCount(1);
 });
 
@@ -119,7 +122,7 @@ it('leaves the values out for whoever does not see salaries', function (): void 
     $texto = collect(leerLibroDelFormato($ruta))->flatten()->filter()->map(fn ($v) => (string) $v);
     @unlink($ruta);
 
-    expect($texto->filter(fn (string $v): bool => str_starts_with($v, 'Valor hora:')))->toBeEmpty();
+    expect($texto)->not->toContain('VALOR HORA')->not->toContain('SALARIO');
 });
 
 it('lists in «Horas extras» everyone who clocked in, with their totals, and downloads them all', function (): void {

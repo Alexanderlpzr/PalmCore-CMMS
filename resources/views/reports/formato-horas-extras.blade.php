@@ -1,7 +1,7 @@
 @php
     use App\Domain\Reports\Services\FormatoHorasExtrasPdfService as Formato;
 
-    $columnas = Formato::COLUMNS;
+    $columnas = $columns;
     $titulos = Formato::COLUMN_TITLES;
     $h = fn (float $horas): string => $horas > 0 ? rtrim(rtrim(number_format($horas, 2, ',', '.'), '0'), ',') : '';
     $pesos = fn (float $valor): string => '$ '.number_format($valor, 0, ',', '.');

@@ -180,9 +180,22 @@ class FormatoHorasExtrasPdfService
             ];
         }
 
+        // El recargo diurno dominical solo sale si el período tiene horas en él: en la
+        // planta el domingo trabajado se paga como extra dominical, y la columna vacía
+        // solo estorbaba. Si alguna vez hay horas, aparece: nunca se esconde lo que se paga.
+        $columns = self::COLUMNS;
+
+        if (($this->columns($legalTotal)['sunday_surcharge'] ?? 0) <= 0 && ($this->columns($bonusTotal)['sunday_surcharge'] ?? 0) <= 0) {
+            unset($columns['sunday_surcharge']);
+        }
+
         $calculator = [];
 
         foreach ($legalTotal->paidBuckets() as $bucket => $paid) {
+            if (! isset($columns[$bucket])) {
+                continue;
+            }
+
             $factor = (float) ($p[$paid['parameter']->value] ?? 0);
             $rate = $hourValue * $factor;
             $bonusHours = $this->columns($bonusTotal)[$bucket];
@@ -206,6 +219,7 @@ class FormatoHorasExtrasPdfService
             'to' => $to,
             'periodStart' => $periodStart,
             'rows' => $rows,
+            'columns' => $columns,
             'legalTotals' => $this->columns($legalTotal),
             'bonusTotals' => $this->columns($bonusTotal),
             'bonusColumns' => array_keys(array_filter($this->columns($bonusTotal), fn (float $hours): bool => $hours > 0)),
