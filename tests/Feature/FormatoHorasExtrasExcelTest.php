@@ -112,7 +112,7 @@ it('writes one sheet per worker with the heading, the worker and the days of the
         ->and($texto)->toContain('07:00 am', '02:00 pm', '06:00 pm')
         // La calculadora completa: salario y valor de la hora a la vista, y sin la columna
         // del recargo diurno dominical, que este período no tiene.
-        ->and($texto)->toContain('SALARIO', 'VALOR HORA', 'Valor horas extras y recargos')
+        ->and($texto)->toContain('SALARIO (COP)', 'VALOR HORA (COP)', 'Valor horas extras y recargos (COP)')
         ->and($hoja[10])->not->toContain('RECARGO DIURNO DOMINICAL')
         ->and($texto->filter(fn (string $v): bool => str_starts_with($v, 'Vo. Bo. Jefe inmediato — Edwin Marsiglia')))->toHaveCount(1);
 });
@@ -122,7 +122,7 @@ it('leaves the values out for whoever does not see salaries', function (): void 
     $texto = collect(leerLibroDelFormato($ruta))->flatten()->filter()->map(fn ($v) => (string) $v);
     @unlink($ruta);
 
-    expect($texto)->not->toContain('VALOR HORA')->not->toContain('SALARIO');
+    expect($texto)->not->toContain('VALOR HORA (COP)')->not->toContain('SALARIO (COP)');
 });
 
 it('lists in «Horas extras» everyone who clocked in, with their totals, and downloads them all', function (): void {

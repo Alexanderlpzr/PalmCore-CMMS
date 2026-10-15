@@ -69,6 +69,10 @@ class FormatoHorasExtrasExcel
         $writer = new Writer($options);
         $writer->openToFile($path);
         $usedNames = [];
+        $tenant = $employees->isNotEmpty() ? Tenant::withoutGlobalScopes()->find($employees->first()->tenant_id) : null;
+        // El logo de la empresa va arriba a la izquierda, en la celda fundida A1:A3, como
+        // en la hoja del libro.
+        $logo = XlsxLogo::forTenant($tenant);
 
         foreach ($employees->values() as $index => $employee) {
             $sheet = $index === 0 ? $writer->getCurrentSheet() : $writer->addNewSheetAndMakeItCurrent();
@@ -84,8 +88,15 @@ class FormatoHorasExtrasExcel
             $sheet->setColumnWidthForRange(14, 5, self::LEAD_COLUMNS + count($data['columns']));
             $sheet->setColumnWidth(30, self::LEAD_COLUMNS + count($data['columns']) + 1);
 
-            foreach ($this->rows($data, $tenant, $showValues, $lastColumn) as [$cells, $merges]) {
-                $writer->addRow(new Row($cells));
+            foreach ($this->rows($data, $tenant, $showValues, $lastColumn, $logo !== null) as $n => [$cells, $merges]) {
+                $row = new Row($cells);
+
+                // Las tres filas del encabezado, altas para que quepa el logo.
+                if ($logo && $n < 3) {
+                    $row->setHeight(26);
+                }
+
+                $writer->addRow($row);
 
                 foreach ($merges as [$fromColumn, $toColumn]) {
                     $row = $sheet->getWrittenRowCount();
@@ -104,6 +115,10 @@ class FormatoHorasExtrasExcel
 
         $writer->close();
 
+        if ($logo) {
+            XlsxLogo::stamp($path, $logo, heightPx: 84);
+        }
+
         return $path;
     }
 
@@ -113,7 +128,7 @@ class FormatoHorasExtrasExcel
      * @param  array<string, mixed>  $data
      * @return list<array{0: list<Cell>, 1: list<array{0: int, 1: int}>}>
      */
-    private function rows(array $data, ?Tenant $tenant, bool $showValues, int $lastColumn): array
+    private function rows(array $data, ?Tenant $tenant, bool $showValues, int $lastColumn, bool $withLogo = false): array
     {
         $employee = $data['employee'];
         $rows = [];
@@ -126,10 +141,11 @@ class FormatoHorasExtrasExcel
         // ── Encabezado con el control documental ─────────────────────────────
         $title = fn (int $column): Style => match (true) {
             $column === $lastColumn => $this->style(bold: true, fill: FrondaWorkbook::MIST, color: FrondaWorkbook::PETROL, align: CellAlignment::LEFT),
+            $column === 1 && $withLogo => $this->style(),
             $column === 1 => $this->style(bold: true, fill: FrondaWorkbook::PETROL, color: 'FFFFFF', size: 9),
             default => $this->style(bold: true, fill: FrondaWorkbook::GREEN, color: 'FFFFFF', size: 13),
         };
-        $rows[] = $line($pad([mb_strtoupper($tenant?->name ?? ''), 'FORMATO DE HORAS EXTRAS', ...array_fill(0, $lastColumn - 3, ''), 'CÓDIGO: '.Formato::FORM_CODE]), [], $title);
+        $rows[] = $line($pad([$withLogo ? '' : mb_strtoupper($tenant?->name ?? ''), 'FORMATO DE HORAS EXTRAS', ...array_fill(0, $lastColumn - 3, ''), 'CÓDIGO: '.Formato::FORM_CODE]), [], $title);
         $rows[] = $line($pad([...array_fill(0, $lastColumn - 1, ''), 'VERSIÓN: '.Formato::FORM_VERSION]), [], $title);
         $rows[] = $line($pad([...array_fill(0, $lastColumn - 1, ''), 'FECHA: '.Formato::FORM_DATE]), [], $title);
         $rows[] = [[], []];
@@ -195,7 +211,7 @@ class FormatoHorasExtrasExcel
             $peso = fn (int $c): Style => $this->style(bold: true, format: FrondaWorkbook::MONEY);
 
             $rows[] = $line(
-                ['SALARIO', $money($data['salary']), 'VALOR HORA', $money($data['hourValue']), 'Salario ÷ '.number_format($data['divisor'], 0, ',', '.').' horas'],
+                ['SALARIO (COP)', $money($data['salary']), 'VALOR HORA (COP)', $money($data['hourValue']), 'Salario ÷ '.number_format($data['divisor'], 0, ',', '.').' horas'],
                 [],
                 fn (int $c): Style => match ($c) {
                     1, 3 => $this->style(bold: true, fill: FrondaWorkbook::MIST, color: FrondaWorkbook::PETROL),
@@ -205,7 +221,7 @@ class FormatoHorasExtrasExcel
             );
 
             $rows[] = $line(
-                ['Concepto', 'Factor', 'Valor hora', 'Horas', 'Valor horas extras y recargos', 'Horas bono', 'Bonificación'],
+                ['Concepto', 'Factor', 'Valor hora (COP)', 'Horas', 'Valor horas extras y recargos (COP)', 'Horas bono', 'Bonificación (COP)'],
                 [],
                 fn (): Style => $this->style(bold: true, fill: FrondaWorkbook::GREEN, color: 'FFFFFF', size: 8),
             );

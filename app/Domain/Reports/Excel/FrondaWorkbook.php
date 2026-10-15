@@ -2,6 +2,8 @@
 
 namespace App\Domain\Reports\Excel;
 
+use App\Models\Tenant;
+use Filament\Facades\Filament;
 use OpenSpout\Common\Entity\Cell;
 use OpenSpout\Common\Entity\Row;
 use OpenSpout\Common\Entity\Style\Border;
@@ -42,6 +44,9 @@ final class FrondaWorkbook
 
     private int $sheetIndex = -1;
 
+    /** @var array{0: string, 1: string}|null el logo de la empresa, que va arriba a la izquierda */
+    private ?array $logo = null;
+
     /** @var array<string, true> */
     private array $usedNames = [];
 
@@ -52,9 +57,17 @@ final class FrondaWorkbook
         $this->writer->openToFile($path);
     }
 
-    public static function create(): self
+    /**
+     * Un libro nuevo con el logo de la empresa —la de la pantalla si no se dice otra— en
+     * la esquina superior izquierda de cada hoja.
+     */
+    public static function create(?Tenant $tenant = null): self
     {
-        return new self(tempnam(sys_get_temp_dir(), 'fronda').'.xlsx');
+        $book = new self(tempnam(sys_get_temp_dir(), 'fronda').'.xlsx');
+        $tenant ??= Filament::getTenant() instanceof Tenant ? Filament::getTenant() : null;
+        $book->logo = XlsxLogo::forTenant($tenant);
+
+        return $book;
     }
 
     /** Una pestaña nueva. Excel no acepta más de 31 caracteres ni algunos signos, ni nombres repetidos. */
@@ -92,11 +105,16 @@ final class FrondaWorkbook
      */
     public function banner(string $title, ?string $detail, ?string $company, int $width): self
     {
-        $width = max(2, $width);
+        $width = max(3, $width);
+        // Con logo, la columna A de las tres filas queda en blanco para él, y las filas
+        // crecen para que quepa.
+        $first = $this->logo ? 2 : 1;
+        $lead = $this->logo ? [''] : [];
+        $blank = fn (int $c, Style $style): Style => $c < $first ? $this->style(border: false) : $style;
 
-        $this->merged(['fronda.app', ...array_fill(0, $width - 2, ''), $company ?? ''], 1, $width - 1, fn (int $c): Style => $this->style(bold: true, fill: self::PETROL, color: 'FFFFFF', size: 10, align: $c === $width ? CellAlignment::RIGHT : CellAlignment::LEFT, border: false));
-        $this->merged([$title, ...array_fill(0, $width - 1, '')], 1, $width, fn (): Style => $this->style(bold: true, fill: self::GREEN, color: 'FFFFFF', size: 14, align: CellAlignment::LEFT, border: false));
-        $this->merged([trim(($detail ? $detail.' · ' : '').'Generado el '.now()->format('d/m/Y h:i a')), ...array_fill(0, $width - 1, '')], 1, $width, fn (): Style => $this->style(fill: self::MIST, color: self::PETROL, size: 9, align: CellAlignment::LEFT, border: false));
+        $this->merged([...$lead, 'fronda.app', ...array_fill(0, $width - $first - 1, ''), $company ?? ''], $first, $width - 1, fn (int $c): Style => $blank($c, $this->style(bold: true, fill: self::PETROL, color: 'FFFFFF', size: 10, align: $c === $width ? CellAlignment::RIGHT : CellAlignment::LEFT, border: false)), $this->logo ? 22 : null);
+        $this->merged([...$lead, $title, ...array_fill(0, $width - $first, '')], $first, $width, fn (int $c): Style => $blank($c, $this->style(bold: true, fill: self::GREEN, color: 'FFFFFF', size: 14, align: CellAlignment::LEFT, border: false)), $this->logo ? 26 : null);
+        $this->merged([...$lead, trim(($detail ? $detail.' · ' : '').'Generado el '.now()->format('d/m/Y h:i a')), ...array_fill(0, $width - $first, '')], $first, $width, fn (int $c): Style => $blank($c, $this->style(fill: self::MIST, color: self::PETROL, size: 9, align: CellAlignment::LEFT, border: false)), $this->logo ? 22 : null);
 
         return $this->blank();
     }
@@ -132,7 +150,7 @@ final class FrondaWorkbook
     }
 
     /** Una fila cualquiera, con el estilo que diga la función por columna. */
-    public function row(array $values, ?callable $style = null): self
+    public function row(array $values, ?callable $style = null, ?float $height = null): self
     {
         $style ??= fn (): Style => $this->style();
         $cells = [];
@@ -141,15 +159,21 @@ final class FrondaWorkbook
             $cells[] = Cell::fromValue(is_bool($value) ? ($value ? 'Sí' : 'No') : $value, $style($i + 1));
         }
 
-        $this->writer->addRow(new Row($cells));
+        $row = new Row($cells);
+
+        if ($height) {
+            $row->setHeight($height);
+        }
+
+        $this->writer->addRow($row);
 
         return $this;
     }
 
     /** Una fila con celdas fundidas de la columna `$from` a la `$to` (base 1). */
-    public function merged(array $values, int $from, int $to, ?callable $style = null): self
+    public function merged(array $values, int $from, int $to, ?callable $style = null, ?float $height = null): self
     {
-        $this->row($values, $style);
+        $this->row($values, $style, $height);
 
         if ($to > $from) {
             $row = $this->writer->getCurrentSheet()->getWrittenRowCount();
@@ -219,6 +243,10 @@ final class FrondaWorkbook
     public function close(): string
     {
         $this->writer->close();
+
+        if ($this->logo) {
+            XlsxLogo::stamp($this->path, $this->logo);
+        }
 
         return $this->path;
     }

@@ -36,11 +36,12 @@ class DesprendiblesExcel
     public function build(PayrollRun $run): FrondaWorkbook
     {
         $entries = $run->entries()->orderBy('employee_name')->get();
-        $company = Tenant::withoutGlobalScopes()->find($run->tenant_id)?->name;
+        $tenant = Tenant::withoutGlobalScopes()->find($run->tenant_id);
+        $company = $tenant?->name;
         $period = 'Del '.$run->period_start->format('d/m/Y').' al '.$run->period_end->format('d/m/Y')
             .($run->hasHoursCutoff() ? ' · horas del '.$run->hoursFrom()->format('d/m/Y').' al '.$run->hoursTo()->format('d/m/Y') : '');
 
-        $book = FrondaWorkbook::create();
+        $book = FrondaWorkbook::create($tenant);
         $this->summary($book, $entries, $run, $company, $period);
 
         foreach ($entries as $entry) {
