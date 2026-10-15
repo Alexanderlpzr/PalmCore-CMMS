@@ -141,7 +141,7 @@ it('imports from «Horas extras» with the uploaded workbook', function (): void
             'libro' => UploadedFile::fake()->createWithContent('TH-NOM-P-001.xlsx', file_get_contents($this->libro)),
         ])
         ->assertHasNoFormErrors()
-        ->assertNotified('Se cargaron 2 días de 1 trabajadores');
+        ->assertNotified('Se cargaron 2 días de 1 trabajador');
 
     expect(AttendanceScan::query()->where('notes', OvertimeWorkbookImporter::NOTE)->count())->toBe(4);
 });

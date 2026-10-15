@@ -107,7 +107,7 @@ class EntriesRelationManager extends RelationManager
             // Todos los desprendibles en un Excel: el resumen y una pestaña por trabajador.
             ->headerActions([
                 Action::make('desprendiblesExcel')
-                    ->label('Desprendibles en Excel')
+                    ->label('Descargar desprendibles en Excel')
                     ->icon('heroicon-o-table-cells')
                     ->authorize(fn (): bool => auth()->user()?->can('viewAnySalary', Employee::class) ?? false)
                     ->visible(fn (): bool => $this->getOwnerRecord()->entries()->exists())

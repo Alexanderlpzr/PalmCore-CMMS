@@ -95,7 +95,7 @@ class EditEmployee extends EditRecord
             // desprendible.
             ->authorize(fn (): bool => auth()->user()?->can('viewSalary', $this->record) ?? false)
             ->modalHeading('Formato de horas extras')
-            ->modalDescription('Las horas del reloj en el formato TH-FOR-002, repartidas como las liquida la nómina, para que el jefe inmediato lo firme.')
+            ->modalDescription('Las horas de la portería en el formato TH-FOR-002, repartidas como las liquida la nómina, para que el jefe inmediato lo firme.')
             ->fillForm(function (): array {
                 $cutoffDay = (int) app(PayrollParameterService::class)->valueOrDefault(
                     PayrollParameter::HoursCutoffDay,

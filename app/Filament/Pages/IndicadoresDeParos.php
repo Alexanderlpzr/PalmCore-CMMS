@@ -81,7 +81,7 @@ class IndicadoresDeParos extends BaseDashboard
                 ->selectablePlaceholder(false),
 
             Select::make('preset')
-                ->label('Periodo')
+                ->label('Período')
                 ->options([
                     'month' => 'Un mes',
                     'year' => 'Año completo',

@@ -51,7 +51,7 @@ class ListPayrollParameters extends ListRecords
                     );
 
                     Notification::make()
-                        ->title("Se cargaron {$created} parámetros")
+                        ->title($created === 1 ? 'Se cargó 1 parámetro' : "Se cargaron {$created} parámetros")
                         ->body('Revise el divisor de horas mensuales y el recargo dominical antes de liquidar.')
                         ->success()
                         ->send();

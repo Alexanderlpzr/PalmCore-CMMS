@@ -72,7 +72,7 @@ it('confirms at once only the days without warnings', function (): void {
 
     Livewire::test(RevisarHoras::class)
         ->callAction('confirmarBuenos')
-        ->assertNotified('Se confirmaron 1 días');
+        ->assertNotified('Se confirmó 1 día');
 
     expect($this->limpio->refresh()->status)->toBe(AttendanceDayStatus::Confirmada)
         ->and($this->conAviso->refresh()->status)->toBe(AttendanceDayStatus::Propuesta);
@@ -92,7 +92,7 @@ it('opens a day on the side and confirms it from there', function (): void {
 it('confirms the clean days from «Horas por confirmar» too', function (): void {
     Livewire::test(ListAttendanceDays::class)
         ->callAction(TestAction::make('confirmarBuenos')->table())
-        ->assertNotified('Se confirmaron 1 días');
+        ->assertNotified('Se confirmó 1 día');
 
     expect($this->limpio->refresh()->status)->toBe(AttendanceDayStatus::Confirmada)
         ->and($this->conAviso->refresh()->status)->toBe(AttendanceDayStatus::Propuesta);

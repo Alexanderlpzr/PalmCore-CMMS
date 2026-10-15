@@ -149,7 +149,9 @@ class AttendanceDaysTable
                     ->action(function (HasTable $livewire): void {
                         $n = app(AttendanceDayConfirmer::class)->confirmMany(self::cleanProposed($livewire), auth()->user());
 
-                        Notification::make()->title($n > 0 ? "Se confirmaron {$n} días" : 'No había días para confirmar')->success()->send();
+                        Notification::make()->title(match (true) {
+                            $n === 0 => 'No había días para confirmar', $n === 1 => 'Se confirmó 1 día', default => "Se confirmaron {$n} días"
+                        })->success()->send();
                     }),
             ])
             ->recordActions([
@@ -166,7 +168,7 @@ class AttendanceDaysTable
                     ->action(function (AttendanceDay $record): void {
                         app(AttendanceDayConfirmer::class)->confirm($record, auth()->user());
 
-                        Notification::make()->title('Horas confirmadas')->success()->send();
+                        Notification::make()->title('Día confirmado')->success()->send();
                     }),
 
                 // Corregir el día sin firmar: la hora de sus marcas, la que faltó, sus horas
@@ -196,8 +198,8 @@ class AttendanceDaysTable
                     ->color('gray')
                     ->authorize(fn (AttendanceDay $record): bool => auth()->user()?->can('reopen', $record) ?? false)
                     ->requiresConfirmation()
-                    ->modalHeading('Devolver el día a propuesta')
-                    ->modalDescription('Se borra la firma y el día vuelve a poder reconstruirse desde las marcas del reloj.')
+                    ->modalHeading('Devolver el día a «Por confirmar»')
+                    ->modalDescription('Se borra la firma y el día se vuelve a calcular con las marcas de la portería.')
                     ->action(function (AttendanceDay $record): void {
                         app(AttendanceDayConfirmer::class)->reopen($record);
 
@@ -222,7 +224,7 @@ class AttendanceDaysTable
                                 ->confirmMany($records, auth()->user());
 
                             Notification::make()
-                                ->title("Se confirmaron {$count} días")
+                                ->title($count === 1 ? 'Se confirmó 1 día' : "Se confirmaron {$count} días")
                                 ->success()
                                 ->send();
                         })

@@ -60,8 +60,8 @@ class HorasConfirmadas extends Page implements HasTable
         return $table
             ->query(AttendanceDay::query()->confirmed()->with(['employee', 'confirmedBy:id,name', 'adjustedBy:id,name']))
             ->defaultSort('work_date', 'desc')
-            ->emptyStateHeading('Sin días confirmados en el periodo')
-            ->emptyStateDescription('Confirme los días en «Revisar semana» o en «Horas por confirmar», o cambie el periodo en los filtros.')
+            ->emptyStateHeading('Sin días confirmados en el período')
+            ->emptyStateDescription('Confirme los días en «Revisar semana» o en «Horas por confirmar», o cambie el período en los filtros.')
             ->columns([
                 TextColumn::make('work_date')
                     ->label('Fecha')
@@ -102,7 +102,7 @@ class HorasConfirmadas extends Page implements HasTable
             ])
             ->filters([
                 SelectFilter::make('periodo')
-                    ->label('Periodo')
+                    ->label('Período')
                     ->options(fn (): array => $this->windowOptions())
                     ->default(fn (): ?string => array_key_first($this->windowOptions()))
                     ->query(function (Builder $query, array $data): Builder {
@@ -123,7 +123,7 @@ class HorasConfirmadas extends Page implements HasTable
             // Las filas de la pantalla —con su periodo, su búsqueda y sus filtros— en Excel.
             ->headerActions([
                 Action::make('excel')
-                    ->label('Excel')
+                    ->label('Descargar Excel')
                     ->icon(Heroicon::OutlinedTableCells)
                     ->action(function (): ?StreamedResponse {
                         $query = $this->getFilteredSortedTableQuery();
@@ -137,7 +137,7 @@ class HorasConfirmadas extends Page implements HasTable
 
                         return app(HorasConfirmadasExcel::class)->download(
                             $query->get(),
-                            $from ? 'Del '.CarbonImmutable::parse($from)->format('d/m/Y').' al '.CarbonImmutable::parse($to)->format('d/m/Y') : 'Todos los periodos',
+                            $from ? 'Del '.CarbonImmutable::parse($from)->format('d/m/Y').' al '.CarbonImmutable::parse($to)->format('d/m/Y') : 'Todos los períodos',
                             'HORAS-CONFIRMADAS'.($from ? '-'.CarbonImmutable::parse($from)->format('Ymd').'-'.CarbonImmutable::parse($to)->format('Ymd') : '').'.xlsx',
                         );
                     }),

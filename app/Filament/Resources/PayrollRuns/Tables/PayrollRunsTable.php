@@ -71,7 +71,7 @@ class PayrollRunsTable
                         $conAvisos = $run->entriesWithWarnings()->count();
 
                         Notification::make()
-                            ->title("Se liquidaron {$run->employee_count} trabajadores")
+                            ->title($run->employee_count === 1 ? 'Se liquidó 1 trabajador' : "Se liquidaron {$run->employee_count} trabajadores")
                             ->body($conAvisos > 0
                                 ? "{$conAvisos} renglones tienen avisos por revisar antes de cerrar."
                                 : 'Neto del período: $ '.number_format((float) $run->total_net, 0, ',', '.'))

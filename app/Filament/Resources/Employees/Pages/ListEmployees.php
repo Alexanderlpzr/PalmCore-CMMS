@@ -55,11 +55,11 @@ class ListEmployees extends ListRecords
     private function exportarExcelAction(): Action
     {
         return Action::make('exportarExcel')
-            ->label('Exportar a Excel')
+            ->label('Descargar Excel')
             ->tooltip('El personal que muestra la tabla, con su ficha, salario y horas del mes')
             ->icon(Heroicon::OutlinedTableCells)
             ->color('gray')
-            ->modalHeading('Exportar personal a Excel')
+            ->modalHeading('Descargar el personal en Excel')
             ->modalDescription('Sale con los filtros que tiene la tabla ahora mismo. Elija el mes de las horas.')
             ->modalSubmitActionLabel('Descargar Excel')
             ->schema([

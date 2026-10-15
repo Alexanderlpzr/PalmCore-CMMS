@@ -85,8 +85,8 @@ class HorasExtras extends Page implements HasTable
             ->query(Employee::query()->active())
             ->defaultSort('first_name')
             ->description(fn (): string => 'Horas del '.$this->window()[0]->format('d/m/Y').' al '.$this->window()[1]->format('d/m/Y').'. Extras y recargos como horas extras; lo que pasa del tope diario y los días del mes anterior, como bonificación.')
-            ->emptyStateHeading('Nadie marcó en este periodo')
-            ->emptyStateDescription('Cambie el periodo o quite el filtro «Solo los que marcaron».')
+            ->emptyStateHeading('Nadie marcó en este período')
+            ->emptyStateDescription('Cambie el período o quite el filtro «Solo los que marcaron».')
             ->columns([
                 TextColumn::make('employee_code')
                     ->label('Código')
@@ -144,7 +144,7 @@ class HorasExtras extends Page implements HasTable
             ])
             ->filters([
                 SelectFilter::make('periodo')
-                    ->label('Periodo')
+                    ->label('Período')
                     ->options(fn (): array => $this->windowOptions())
                     ->default(fn (): ?string => array_key_first($this->windowOptions()))
                     ->selectablePlaceholder(false)
@@ -231,7 +231,7 @@ class HorasExtras extends Page implements HasTable
                         }
 
                         Notification::make()
-                            ->title($result['imported'] > 0 ? "Se cargaron {$result['imported']} días de {$result['workers']} trabajadores" : 'No había días para cargar')
+                            ->title($result['imported'] > 0 ? ($result['imported'] === 1 ? 'Se cargó 1 día' : "Se cargaron {$result['imported']} días").($result['workers'] === 1 ? ' de 1 trabajador' : " de {$result['workers']} trabajadores") : 'No había días para cargar')
                             ->body(self::importSummary($result['counts'], $result['missingWorkers'], includeImport: false))
                             ->success()
                             ->persistent()
@@ -240,7 +240,7 @@ class HorasExtras extends Page implements HasTable
 
                 // Todos los de la tabla —con su búsqueda y sus filtros—, una hoja por trabajador.
                 Action::make('excelTodos')
-                    ->label('Excel de todos')
+                    ->label('Descargar Excel de todos')
                     ->icon(Heroicon::OutlinedTableCells)
                     ->action(function (): ?StreamedResponse {
                         [$from, $to] = $this->window();

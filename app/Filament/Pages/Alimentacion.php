@@ -82,7 +82,7 @@ class Alimentacion extends Page implements HasTable
             })
             ->defaultSort('first_name')
             ->description(fn (): string => $this->summary())
-            ->emptyStateHeading('Sin comidas en el periodo')
+            ->emptyStateHeading('Sin comidas en el período')
             ->emptyStateDescription('Solo cuentan los días confirmados en «Horas por confirmar».')
             ->columns([
                 TextColumn::make('first_name')
@@ -113,7 +113,7 @@ class Alimentacion extends Page implements HasTable
             ])
             ->filters([
                 SelectFilter::make('periodo')
-                    ->label('Periodo')
+                    ->label('Período')
                     ->options(fn (): array => $this->windowOptions())
                     ->default(fn (): ?string => array_key_first($this->windowOptions()))
                     ->selectablePlaceholder(false)
@@ -121,7 +121,7 @@ class Alimentacion extends Page implements HasTable
             ])
             ->headerActions([
                 Action::make('excelPago')
-                    ->label('Excel para pagar')
+                    ->label('Descargar Excel para pagar')
                     ->icon(Heroicon::OutlinedTableCells)
                     ->action(function (): ?StreamedResponse {
                         $query = $this->getFilteredSortedTableQuery();

@@ -72,7 +72,7 @@ class OvertimeRelationManager extends RelationManager
             ->defaultSort('work_date')
             ->paginated(false)
             ->description(fn (): string => $this->summary())
-            ->emptyStateHeading('Sin horas en el periodo')
+            ->emptyStateHeading('Sin horas en el período')
             ->emptyStateDescription('El trabajador no marcó en la puerta en estas fechas.')
             ->columns([
                 TextColumn::make('work_date')
@@ -108,7 +108,7 @@ class OvertimeRelationManager extends RelationManager
             ])
             ->filters([
                 SelectFilter::make('periodo')
-                    ->label('Periodo')
+                    ->label('Período')
                     ->options(fn (): array => $this->windowOptions())
                     ->default(fn (): string => array_key_first($this->windowOptions()))
                     ->selectablePlaceholder(false)

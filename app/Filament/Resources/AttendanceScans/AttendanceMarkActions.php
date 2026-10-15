@@ -40,7 +40,7 @@ final class AttendanceMarkActions
             ->label('Agregar marca')
             ->icon(Heroicon::OutlinedPlusCircle)
             ->authorize(fn (): bool => auth()->user()?->can('correct', AttendanceScan::class) ?? false)
-            ->modalHeading('Agregar una marca que no quedó')
+            ->modalHeading('Agregar una marca que faltó')
             ->modalDescription('La salida olvidada, la entrada sin carné. Queda como marca manual, con su nombre y el motivo, y el día se recalcula.')
             ->schema([
                 Select::make('employee_id')
@@ -95,7 +95,7 @@ final class AttendanceMarkActions
     public static function void(): Action
     {
         return Action::make('anular')
-            ->label('Anular')
+            ->label('Anular marca')
             ->icon(Heroicon::OutlinedNoSymbol)
             ->color('danger')
             ->authorize(fn (): bool => auth()->user()?->can('correct', AttendanceScan::class) ?? false)

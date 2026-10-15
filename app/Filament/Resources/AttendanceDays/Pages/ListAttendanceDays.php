@@ -38,12 +38,12 @@ class ListAttendanceDays extends ListRecords
                         ->default(now()->endOfMonth())
                         ->afterOrEqual('desde'),
                 ])
-                ->modalHeading('Reconstruir las horas desde el reloj')
+                ->modalHeading('Volver a calcular las horas desde la portería')
                 ->modalDescription(
-                    'Vuelve a leer las marcas de portería y rehace las propuestas del período. '
+                    'Vuelve a leer las marcas de portería y recalcula los días por confirmar del período. '
                     .'Los días que ya firmó alguien no se tocan.'
                 )
-                ->modalSubmitActionLabel('Reconstruir')
+                ->modalSubmitActionLabel('Recalcular')
                 ->action(function (array $data): void {
                     $built = app(AttendanceDayBuilder::class)->buildForTenant(
                         Filament::getTenant()->id,
@@ -54,7 +54,7 @@ class ListAttendanceDays extends ListRecords
                     $conAvisos = $built->filter(fn (AttendanceDay $day): bool => $day->hasAnomalies())->count();
 
                     Notification::make()
-                        ->title("Se reconstruyeron {$built->count()} días")
+                        ->title($built->count() === 1 ? 'Se recalculó 1 día' : "Se recalcularon {$built->count()} días")
                         ->body($conAvisos > 0
                             ? "{$conAvisos} tienen avisos por revisar antes de firmar."
                             : 'Ninguno tiene avisos.')
@@ -72,7 +72,7 @@ class ListAttendanceDays extends ListRecords
             return null;
         }
 
-        return "El reloj propuso {$pending} días que nadie ha firmado todavía. "
+        return ($pending === 1 ? 'Hay 1 día por confirmar. ' : "Hay {$pending} días por confirmar. ")
             .'Solo lo confirmado entra a la liquidación.';
     }
 }

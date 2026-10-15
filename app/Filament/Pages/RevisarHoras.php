@@ -102,7 +102,9 @@ class RevisarHoras extends Page
                     $user = auth()->user();
                     $n = app(AttendanceDayConfirmer::class)->confirmMany($this->cleanProposedDays(), $user);
 
-                    Notification::make()->title($n > 0 ? "Se confirmaron {$n} días" : 'No había días para confirmar')->success()->send();
+                    Notification::make()->title(match (true) {
+                        $n === 0 => 'No había días para confirmar', $n === 1 => 'Se confirmó 1 día', default => "Se confirmaron {$n} días"
+                    })->success()->send();
                 }),
         ];
     }
