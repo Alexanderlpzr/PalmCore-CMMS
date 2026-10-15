@@ -24,7 +24,6 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Support\Carbon;
 
 class AttendanceDaysTable
 {
@@ -180,8 +179,9 @@ class AttendanceDaysTable
                         ->visible(fn (AttendanceDay $record): bool => $record->status === AttendanceDayStatus::Propuesta)
                         ->fillForm(fn (AttendanceDay $record): array => [
                             'employee_id' => $record->employee_id,
-                            // Las 2 p. m. de ese día en la planta; el selector guarda en UTC.
-                            'scanned_at' => Carbon::parse($record->work_date->format('Y-m-d').' 14:00', AttendanceMarkActions::timezone())->utc()->toDateTimeString(),
+                            // Ese día a las 2 p. m., para corregir solo la hora.
+                            'fecha' => $record->work_date->format('Y-m-d'),
+                            'hora' => '14:00',
                         ]),
                     AttendanceDayActions::adjustHours(),
                     AttendanceDayActions::restDayWorked(),

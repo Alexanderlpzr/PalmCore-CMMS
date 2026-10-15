@@ -214,7 +214,7 @@ it('lets human resources edit, adjust and void a day from «Horas por confirmar�
     // El selector trabaja en la hora de la planta, como la escribe talento humano, y la
     // guarda en UTC al enviar.
     $pantalla->callAction(TestAction::make('editarMarcas')->table($dia), [
-        'marcas' => [$salida->id => '2026-08-10 15:00:00'],
+        'marcas' => [$salida->id => ['fecha' => '2026-08-10', 'hora' => '15:00']],
         'reason' => 'Salió a las 3',
     ])->assertNotified('Marcas corregidas');
 

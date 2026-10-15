@@ -6,19 +6,20 @@ use App\Domain\HumanResources\Enums\AttendanceDayStatus;
 use App\Domain\HumanResources\Enums\AttendanceDirection;
 use App\Domain\HumanResources\Exceptions\AttendanceException;
 use App\Domain\HumanResources\Services\AttendanceCorrectionService;
+use App\Filament\Forms\Components\TwelveHourTimePicker;
 use App\Filament\Resources\AttendanceScans\AttendanceMarkActions;
 use App\Models\AttendanceDay;
 use App\Models\AttendanceScan;
 use App\Models\User;
 use Filament\Actions\Action;
-use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TimePicker;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Text;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Support\Carbon;
 
 /**
  * Corregir un día desde «Horas por confirmar»: la hora de sus marcas, sus horas a mano o
@@ -49,20 +50,26 @@ final class AttendanceDayActions
             ->modalDescription('Cambie la hora que esté mal. La marca vieja queda anulada con el motivo y la nueva entra a mano; las horas del día se recalculan solas.')
             ->fillForm(fn (AttendanceDay $record): array => [
                 'marcas' => self::service()->marksOfDay($record)
-                    ->mapWithKeys(fn (AttendanceScan $marca): array => [$marca->getKey() => $marca->scanned_at->copy()->utc()->toDateTimeString()])
+                    ->mapWithKeys(function (AttendanceScan $marca): array {
+                        $local = $marca->scanned_at->copy()->setTimezone(AttendanceMarkActions::timezone());
+
+                        return [$marca->getKey() => ['fecha' => $local->format('Y-m-d'), 'hora' => $local->format('H:i')]];
+                    })
                     ->all(),
             ])
             ->schema(fn (AttendanceDay $record): array => [
                 ...self::service()->marksOfDay($record)->isEmpty()
                     ? [Text::make('Este día no tiene marcas de la puerta. Use «Agregar marca» para registrar la entrada o la salida.')]
-                    : self::service()->marksOfDay($record)->map(fn (AttendanceScan $marca): DateTimePicker => DateTimePicker::make('marcas.'.$marca->getKey())
-                        ->label($marca->direction->label().($marca->source === 'manual' ? ' (a mano)' : ''))
-                        ->timezone(AttendanceMarkActions::timezone())
-                        ->seconds(false)
-                        ->native(false)
-                        ->displayFormat('d/m/Y h:i a')
-                        ->maxDate(now())
-                        ->required())->all(),
+                    : self::service()->marksOfDay($record)->map(fn (AttendanceScan $marca): Grid => Grid::make(2)->schema([
+                        DatePicker::make('marcas.'.$marca->getKey().'.fecha')
+                            ->label($marca->direction->label().($marca->source === 'manual' ? ' (a mano)' : '').': fecha')
+                            ->native(false)
+                            ->displayFormat('d/m/Y')
+                            ->required(),
+                        TwelveHourTimePicker::make('marcas.'.$marca->getKey().'.hora')
+                            ->label('Hora')
+                            ->required(),
+                    ]))->all(),
                 Textarea::make('reason')
                     ->label('Justificación (opcional)')
                     ->helperText('Queda escrito en la marca anulada y en la nueva.')
@@ -70,7 +77,12 @@ final class AttendanceDayActions
             ])
             ->modalSubmitActionLabel('Guardar las horas')
             ->action(function (AttendanceDay $record, array $data, Action $action): void {
-                self::run($action, fn () => self::service()->editDayMarks($record, $data['marcas'] ?? [], ($data['reason'] ?? ''), self::actor()));
+                // Fecha y hora de la planta → el instante en UTC que espera el servicio.
+                $times = collect($data['marcas'] ?? [])
+                    ->map(fn (array $marca): string => Carbon::parse($marca['fecha'].' '.$marca['hora'], AttendanceMarkActions::timezone())->utc()->toDateTimeString())
+                    ->all();
+
+                self::run($action, fn () => self::service()->editDayMarks($record, $times, ($data['reason'] ?? ''), self::actor()));
 
                 Notification::make()->title('Marcas corregidas')->body('Las horas del día se recalcularon.')->success()->send();
             });
@@ -92,15 +104,13 @@ final class AttendanceDayActions
             ])
             ->schema([
                 Grid::make(2)->schema([
-                    TimePicker::make('entrada')
+                    TwelveHourTimePicker::make('entrada')
                         ->label('Entrada')
-                        ->seconds(false)
-                        ->live(onBlur: true)
+                        ->live()
                         ->required(),
-                    TimePicker::make('salida')
+                    TwelveHourTimePicker::make('salida')
                         ->label('Salida')
-                        ->seconds(false)
-                        ->live(onBlur: true)
+                        ->live()
                         ->helperText('Si es menor que la entrada, es del día siguiente.')
                         ->required(),
                 ]),

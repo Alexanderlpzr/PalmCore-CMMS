@@ -5,17 +5,19 @@ namespace App\Filament\Resources\AttendanceScans;
 use App\Domain\HumanResources\Enums\AttendanceDirection;
 use App\Domain\HumanResources\Exceptions\AttendanceException;
 use App\Domain\HumanResources\Services\AttendanceCorrectionService;
+use App\Filament\Forms\Components\TwelveHourTimePicker;
 use App\Models\AttendanceScan;
 use App\Models\Employee;
 use App\Models\Tenant;
 use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
-use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\ToggleButtons;
 use Filament\Notifications\Notification;
+use Filament\Schemas\Components\Grid;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Carbon;
 
@@ -53,14 +55,19 @@ final class AttendanceMarkActions
                         ->all())
                     ->searchable()
                     ->required(),
-                DateTimePicker::make('scanned_at')
-                    ->label('Fecha y hora')
-                    ->timezone(self::timezone())
-                    ->seconds(false)
-                    ->native(false)
-                    ->displayFormat('d/m/Y h:i a')
-                    ->maxDate(now())
-                    ->required(),
+                // La fecha y la hora por separado: la hora en 12 horas, como se lee en la planta.
+                Grid::make(2)->schema([
+                    DatePicker::make('fecha')
+                        ->label('Fecha')
+                        ->native(false)
+                        ->displayFormat('d/m/Y')
+                        ->maxDate(fn (): string => now(self::timezone())->toDateString())
+                        ->default(fn (): string => now(self::timezone())->toDateString())
+                        ->required(),
+                    TwelveHourTimePicker::make('hora')
+                        ->label('Hora')
+                        ->required(),
+                ]),
                 ToggleButtons::make('direction')
                     ->label('Sentido')
                     ->options(AttendanceDirection::options())
@@ -78,7 +85,8 @@ final class AttendanceMarkActions
                 try {
                     app(AttendanceCorrectionService::class)->addManualMark(
                         $employee,
-                        Carbon::parse($data['scanned_at']),
+                        // La hora de la planta; el servicio la guarda en UTC.
+                        Carbon::parse($data['fecha'].' '.$data['hora'], self::timezone()),
                         AttendanceDirection::from($data['direction']),
                         ($data['reason'] ?? ''),
                         self::actor(),

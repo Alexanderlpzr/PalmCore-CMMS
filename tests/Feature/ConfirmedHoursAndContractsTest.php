@@ -84,6 +84,8 @@ it('adjusts a night shift with only the entry and exit, and classifies every hou
     Livewire::test(HorasConfirmadas::class)
         ->mountAction(TestAction::make('ajustarHoras')->table($this->day))
         ->assertSchemaStateSet(['entrada' => '06:00', 'salida' => '16:00'], 'mountedActionSchema0')
+        // El selector de hora va en 12 horas: hora, minutos y a. m. o p. m.
+        ->assertMountedActionModalSee('p. m.')
         ->fillForm(['entrada' => '18:00', 'salida' => '04:00'], 'mountedActionSchema0')
         ->assertMountedActionModalSee('Quedan 10 h')
         ->callMountedAction()

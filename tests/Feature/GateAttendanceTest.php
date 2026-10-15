@@ -236,8 +236,9 @@ it('shows the gate marks to HR and lets them add and void one', function (): voi
         ->assertCanSeeTableRecords([$marca])
         ->callAction(TestAction::make('agregarMarca'), [
             'employee_id' => $this->employee->id,
-            // El selector trabaja en la hora de la planta, como la escribe talento humano.
-            'scanned_at' => '2026-08-10 14:00:00',
+            // La fecha y la hora de la planta, como las escribe talento humano.
+            'fecha' => '2026-08-10',
+            'hora' => '14:00',
             'direction' => AttendanceDirection::Salida->value,
             'reason' => 'Olvidó marcar la salida',
         ])
