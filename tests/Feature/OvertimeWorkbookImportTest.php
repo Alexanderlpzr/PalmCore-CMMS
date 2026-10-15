@@ -166,3 +166,28 @@ it('does not load one worker\'s hours onto another when a copied sheet kept some
         ->and($porHoja['2026-09-29']['status'])->toBe('unknown_employee')
         ->and(collect($plan['rows'])->contains(fn (array $r): bool => $r['employee']?->is($elias) ?? false))->toBeFalse();
 });
+
+it('replaces with the workbook only the days it brings: voids what was there and rebuilds them', function (): void {
+    // Una marca de la portería después de los días del libro: no se toca.
+    $carne = $this->employee->qrCodes()->first();
+    $despues = app(AttendanceService::class)->record($carne, at: Carbon::parse('2026-10-08 07:00', 'America/Bogota')->utc());
+
+    $importador = app(OvertimeWorkbookImporter::class);
+    $plan = $importador->plan($this->libro, $this->tenant, replace: true);
+
+    expect($plan['window'][0]->toDateString())->toBe('2026-09-28')
+        ->and($plan['window'][1]->toDateString())->toBe('2026-10-05')
+        ->and($plan['toVoid'])->toBe(2)
+        ->and($plan['counts']['import'])->toBe(3);
+
+    $resultado = $importador->import($this->libro, $this->tenant, $this->rrhh, replace: true);
+
+    expect($resultado['voided'])->toBe(2)
+        ->and($resultado['imported'])->toBe(3)
+        ->and(AttendanceScan::query()->withoutGlobalScopes()->where('void_reason', OvertimeWorkbookImporter::REPLACED_REASON)->count())->toBe(2)
+        ->and($despues->refresh()->voided_at)->toBeNull();
+
+    // El 5 de octubre ahora es el del libro: de 7 a 6, once horas.
+    $dia = AttendanceDay::query()->where('employee_id', $this->employee->id)->whereDate('work_date', '2026-10-05')->sole();
+    expect((float) $dia->worked_hours)->toBe(11.0);
+});

@@ -20,6 +20,7 @@ use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Schemas\Components\Text;
@@ -206,7 +207,7 @@ class HorasExtras extends Page implements HasTable
                     ->color('gray')
                     ->authorize(fn (): bool => auth()->user()?->can('correct', AttendanceScan::class) ?? false)
                     ->modalHeading('Importar el libro de horas extras (TH-NOM-P-001)')
-                    ->modalDescription('Entran la hora de entrada y de salida de los días que la portería no registró. Los días con marcas del carné, los confirmados y los que todavía no terminan no se tocan. Las horas se calculan solas.')
+                    ->modalDescription('Entran la hora de entrada y de salida de cada día del libro, y las horas se calculan solas. Por omisión solo llena los días que la portería no registró; con «Reemplazar», el libro manda en los días que trae.')
                     ->schema([
                         FileUpload::make('libro')
                             ->label('Libro de Excel')
@@ -216,7 +217,11 @@ class HorasExtras extends Page implements HasTable
                             ->maxSize(20480)
                             ->live()
                             ->required(),
-                        Text::make(fn (Get $get): string => self::importPreview($get('libro'))),
+                        Toggle::make('reemplazar')
+                            ->label('Reemplazar lo que ya hay en esos días')
+                            ->helperText('Las marcas de los días que trae el libro, de cada trabajador del libro, se anulan con el motivo «Reemplazada por el libro» y esos días —aun confirmados— se rehacen con el libro. Antes y después de esos días no se toca nada.')
+                            ->live(),
+                        Text::make(fn (Get $get): string => self::importPreview($get('libro'), (bool) $get('reemplazar'))),
                     ])
                     ->modalSubmitActionLabel('Importar')
                     ->action(function (array $data): void {
@@ -225,14 +230,18 @@ class HorasExtras extends Page implements HasTable
                         try {
                             /** @var User $user */
                             $user = auth()->user();
-                            $result = app(OvertimeWorkbookImporter::class)->import($path, Filament::getTenant(), $user);
+                            $result = app(OvertimeWorkbookImporter::class)->import($path, Filament::getTenant(), $user, (bool) ($data['reemplazar'] ?? false));
+                        } catch (\RuntimeException $e) {
+                            Notification::make()->title('No se importó el libro')->body($e->getMessage())->danger()->persistent()->send();
+
+                            return;
                         } finally {
                             Storage::disk('local')->delete((string) $data['libro']);
                         }
 
                         Notification::make()
                             ->title($result['imported'] > 0 ? ($result['imported'] === 1 ? 'Se cargó 1 día' : "Se cargaron {$result['imported']} días").($result['workers'] === 1 ? ' de 1 trabajador' : " de {$result['workers']} trabajadores") : 'No había días para cargar')
-                            ->body(self::importSummary($result['counts'], $result['missingWorkers'], includeImport: false))
+                            ->body(($result['voided'] > 0 ? ($result['voided'] === 1 ? 'Se anuló 1 marca anterior. ' : "Se anularon {$result['voided']} marcas anteriores. ") : '').self::importSummary($result['counts'], $result['missingWorkers'], includeImport: false))
                             ->success()
                             ->persistent()
                             ->send();
@@ -258,7 +267,7 @@ class HorasExtras extends Page implements HasTable
      *
      * @param  mixed  $state  el estado del campo: el archivo temporal mientras no se guarda
      */
-    private static function importPreview(mixed $state): string
+    private static function importPreview(mixed $state, bool $replace = false): string
     {
         $file = is_array($state) ? reset($state) : $state;
 
@@ -267,12 +276,15 @@ class HorasExtras extends Page implements HasTable
         }
 
         try {
-            $plan = app(OvertimeWorkbookImporter::class)->plan($file->getRealPath(), Filament::getTenant());
+            $plan = app(OvertimeWorkbookImporter::class)->plan($file->getRealPath(), Filament::getTenant(), $replace);
         } catch (\Throwable) {
             return 'No se pudo leer el libro. ¿Es el TH-NOM-P-001 en Excel (.xlsx)?';
         }
 
-        return self::importSummary($plan['counts'], $plan['missingWorkers']);
+        $window = $plan['window'] ? 'El libro trae del '.$plan['window'][0]->format('d/m/Y').' al '.$plan['window'][1]->format('d/m/Y').'. ' : '';
+        $voids = $replace ? ($plan['toVoid'] === 1 ? 'Se anula 1 marca anterior. ' : "Se anulan {$plan['toVoid']} marcas anteriores. ") : '';
+
+        return $window.$voids.self::importSummary($plan['counts'], $plan['missingWorkers']);
     }
 
     /**

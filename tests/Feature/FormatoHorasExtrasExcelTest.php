@@ -102,7 +102,8 @@ it('writes one sheet per worker with the heading, the worker and the days of the
     $hoja = $libro['DIEGO MEDINA'];
     $texto = collect($hoja)->flatten()->filter()->map(fn ($v) => (string) $v);
 
-    expect($hoja[1][2])->toBe('FORMATO DE HORAS EXTRAS')
+    // Como la plantilla: el logo en A1:B3 y el título desde la C.
+    expect($hoja[1][3])->toBe('FORMATO DE HORAS EXTRAS')
         ->and($texto)->toContain('CÓDIGO: TH-FOR-002', 'VERSIÓN: 02', 'FECHA: 27/11/2020')
         ->and($hoja[5][2])->toBe('DIEGO MEDINA ROJAS')
         ->and($texto)->toContain('1116616864', 'OPERARIO DE PROCESO I', 'EDWIN MARSIGLIA')
@@ -114,6 +115,9 @@ it('writes one sheet per worker with the heading, the worker and the days of the
         // del recargo diurno dominical, que este período no tiene.
         ->and($texto)->toContain('SALARIO (COP)', 'VALOR HORA (COP)', 'Valor horas extras y recargos (COP)')
         ->and($hoja[10])->not->toContain('RECARGO DIURNO DOMINICAL')
+        // La calculadora va a la derecha de la cuadrícula, en la misma fila del encabezado.
+        ->and($hoja[10])->toContain('SALARIO (COP)')
+        ->and($texto)->toContain('Total horas extras diurnas', 'Recargo nocturno dominical')
         ->and($texto->filter(fn (string $v): bool => str_starts_with($v, 'Vo. Bo. Jefe inmediato — Edwin Marsiglia')))->toHaveCount(1);
 });
 

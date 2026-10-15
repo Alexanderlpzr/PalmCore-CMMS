@@ -4,9 +4,11 @@ namespace App\Domain\HumanResources\Services;
 
 use App\Domain\HumanResources\Enums\AttendanceDayStatus;
 use App\Domain\HumanResources\Enums\AttendanceDirection;
+use App\Domain\HumanResources\Enums\PayrollRunStatus;
 use App\Models\AttendanceDay;
 use App\Models\AttendanceScan;
 use App\Models\Employee;
+use App\Models\PayrollRun;
 use App\Models\Tenant;
 use App\Models\User;
 use Carbon\CarbonImmutable;
@@ -25,10 +27,17 @@ use Illuminate\Support\Str;
  * Cada día que entra queda como dos marcas manuales —entrada y salida— con la nota «Del
  * libro TH-NOM-P-001», y el día se arma con las mismas reglas del reloj. Volver a subir el
  * mismo libro no duplica nada: esos días ya tienen marcas.
+ *
+ * Con «reemplazar», el libro manda en los días que trae: las marcas de esos días de cada
+ * trabajador del libro se anulan —no se borran: quedan a la vista con el motivo— y sus
+ * días, aun confirmados, se rehacen con el libro. Lo de antes y lo de después de esos días
+ * no se toca. Una nómina cerrada sobre esos días lo impide.
  */
 class OvertimeWorkbookImporter
 {
     public const NOTE = 'Del libro TH-NOM-P-001';
+
+    public const REPLACED_REASON = 'Reemplazada por el libro TH-NOM-P-001';
 
     /** Marcas a menos de este margen del turno del libro se toman como el mismo turno. */
     private const OVERLAP_HOURS = 3;
@@ -49,9 +58,9 @@ class OvertimeWorkbookImporter
     /**
      * Qué pasaría con cada día del libro, sin escribir nada.
      *
-     * @return array{rows: list<array{employee: ?Employee, name: string, date: CarbonImmutable, entry: CarbonImmutable, exit: CarbonImmutable, status: string}>, counts: array<string, int>, missingWorkers: list<string>}
+     * @return array{rows: list<array{employee: ?Employee, name: string, date: CarbonImmutable, entry: CarbonImmutable, exit: CarbonImmutable, status: string}>, counts: array<string, int>, missingWorkers: list<string>, window: ?array{0: CarbonImmutable, 1: CarbonImmutable}, toVoid: int}
      */
-    public function plan(string $path, Tenant $tenant): array
+    public function plan(string $path, Tenant $tenant, bool $replace = false): array
     {
         $timezone = $tenant->plantTimezone();
         $now = CarbonImmutable::now($timezone);
@@ -85,7 +94,7 @@ class OvertimeWorkbookImporter
                     $exit = $exit->addDay();
                 }
 
-                $status = $this->statusOf($employee, $entry, $exit, $now);
+                $status = $this->statusOf($employee, $entry, $exit, $now, $replace);
 
                 // El mismo turno escrito dos veces en el libro entra una sola vez.
                 if ($status === 'import' && collect($rows)->contains(fn (array $row): bool => $row['status'] === 'import'
@@ -111,20 +120,56 @@ class OvertimeWorkbookImporter
             $counts[$row['status']]++;
         }
 
-        return ['rows' => $rows, 'counts' => $counts, 'missingWorkers' => array_values(array_unique($missing))];
+        $window = $this->window($rows);
+        $toVoid = $replace && $window
+            ? collect($rows)->pluck('employee')->filter()->unique('id')->sum(fn (Employee $e): int => $this->scansToReplace($e, $window, $timezone)->count())
+            : 0;
+
+        return [
+            'rows' => $rows,
+            'counts' => $counts,
+            'missingWorkers' => array_values(array_unique($missing)),
+            'window' => $window,
+            'toVoid' => $toVoid,
+        ];
     }
 
     /**
      * Carga los días que entran: dos marcas manuales por día y el día armado con ellas.
      *
-     * @return array{imported: int, workers: int, counts: array<string, int>, missingWorkers: list<string>}
+     * @return array{imported: int, workers: int, voided: int, counts: array<string, int>, missingWorkers: list<string>}
      */
-    public function import(string $path, Tenant $tenant, User $by): array
+    public function import(string $path, Tenant $tenant, User $by, bool $replace = false): array
     {
-        $plan = $this->plan($path, $tenant);
+        $plan = $this->plan($path, $tenant, $replace);
         $toImport = collect($plan['rows'])->where('status', 'import');
+        $timezone = $tenant->plantTimezone();
+        $window = $plan['window'];
+        $workers = collect($plan['rows'])->pluck('employee')->filter()->unique('id')->values();
 
-        DB::transaction(function () use ($toImport, $by): void {
+        if ($replace && $window) {
+            $this->ensureNoClosedPayroll($tenant, $window);
+        }
+
+        $voided = 0;
+
+        DB::transaction(function () use ($toImport, $by, $replace, $window, $workers, $timezone, &$voided): void {
+            // Lo de antes se anula y sus días se quitan: el libro los rehace.
+            if ($replace && $window) {
+                foreach ($workers as $employee) {
+                    foreach ($this->scansToReplace($employee, $window, $timezone) as $scan) {
+                        $scan->update(['voided_at' => now(), 'voided_by' => $by->id, 'void_reason' => self::REPLACED_REASON]);
+                        $voided++;
+                    }
+
+                    AttendanceDay::query()
+                        ->forTenant($employee->tenant_id)
+                        ->where('employee_id', $employee->id)
+                        ->between($window[0]->toDateString(), $window[1]->toDateString())
+                        ->delete();
+                }
+            }
+
             foreach ($toImport as $row) {
                 foreach ([[AttendanceDirection::Entrada, $row['entry']], [AttendanceDirection::Salida, $row['exit']]] as [$direction, $at]) {
                     AttendanceScan::create([
@@ -153,12 +198,85 @@ class OvertimeWorkbookImporter
         return [
             'imported' => $toImport->count(),
             'workers' => $toImport->pluck('employee.id')->unique()->count(),
+            'voided' => $voided,
             'counts' => $plan['counts'],
             'missingWorkers' => $plan['missingWorkers'],
         ];
     }
 
-    private function statusOf(?Employee $employee, CarbonImmutable $entry, CarbonImmutable $exit, CarbonImmutable $now): string
+    /**
+     * Los días que trae el libro: del primero al último con entrada y salida.
+     *
+     * @param  list<array{date: CarbonImmutable, status: string}>  $rows
+     * @return array{0: CarbonImmutable, 1: CarbonImmutable}|null
+     */
+    private function window(array $rows): ?array
+    {
+        // Solo los días que entran o chocan con lo que hay; los que todavía no terminan no.
+        $dates = collect($rows)->whereNotIn('status', ['unknown_employee', 'future'])->pluck('date');
+
+        return $dates->isEmpty() ? null : [$dates->min()->startOfDay(), $dates->max()->startOfDay()];
+    }
+
+    /**
+     * Las marcas vigentes del trabajador en los días del libro. El turno de noche del último
+     * día sale al siguiente: esa salida también es del libro. El que entró la noche antes
+     * del primer día y sale ese día no lo es.
+     *
+     * @param  array{0: CarbonImmutable, 1: CarbonImmutable}  $window
+     * @return Collection<int, AttendanceScan>
+     */
+    private function scansToReplace(Employee $employee, array $window, string $timezone): Collection
+    {
+        [$from, $to] = $window;
+        $start = CarbonImmutable::parse($from->toDateString(), $timezone);
+        $end = CarbonImmutable::parse($to->toDateString(), $timezone)->endOfDay();
+
+        $scans = AttendanceScan::query()
+            ->forTenant($employee->tenant_id)
+            ->where('employee_id', $employee->id)
+            ->whereBetween('scanned_at', [$start->subHours(AttendanceService::MAX_OPEN_SHIFT_HOURS)->utc(), $end->addHours(AttendanceService::MAX_OPEN_SHIFT_HOURS)->utc()])
+            ->orderBy('scanned_at')
+            ->get();
+
+        $result = collect();
+        $previous = null;
+
+        foreach ($scans as $scan) {
+            $at = CarbonImmutable::instance($scan->scanned_at)->setTimezone($timezone);
+            $inside = $at->gte($start) && $at->lte($end);
+            $closesInside = $scan->direction === AttendanceDirection::Salida && $previous?->direction === AttendanceDirection::Entrada;
+            $previousAt = $previous ? CarbonImmutable::instance($previous->scanned_at)->setTimezone($timezone) : null;
+
+            if ($inside && ! ($closesInside && $previousAt?->lt($start))) {
+                $result->push($scan);
+            } elseif ($at->gt($end) && $closesInside && $previousAt?->gte($start) && $previousAt->lte($end)) {
+                $result->push($scan);
+            }
+
+            $previous = $scan;
+        }
+
+        return $result;
+    }
+
+    /** @param  array{0: CarbonImmutable, 1: CarbonImmutable}  $window */
+    private function ensureNoClosedPayroll(Tenant $tenant, array $window): void
+    {
+        $closed = PayrollRun::query()
+            ->forTenant($tenant->id)
+            ->where('status', PayrollRunStatus::Cerrada)
+            ->where(fn ($query) => $query
+                ->where(fn ($q) => $q->whereNotNull('hours_from')->whereDate('hours_from', '<=', $window[1]->toDateString())->whereDate('hours_to', '>=', $window[0]->toDateString()))
+                ->orWhere(fn ($q) => $q->whereNull('hours_from')->whereDate('period_start', '<=', $window[1]->toDateString())->whereDate('period_end', '>=', $window[0]->toDateString())))
+            ->first();
+
+        if ($closed) {
+            throw new \RuntimeException("La nómina «{$closed->name}» ya está cerrada sobre esos días: reábrala antes de reemplazar las horas.");
+        }
+    }
+
+    private function statusOf(?Employee $employee, CarbonImmutable $entry, CarbonImmutable $exit, CarbonImmutable $now, bool $replace = false): string
     {
         if (! $employee) {
             return 'unknown_employee';
@@ -166,6 +284,11 @@ class OvertimeWorkbookImporter
 
         if ($exit->gt($now)) {
             return 'future';
+        }
+
+        // Reemplazando, el libro manda: lo que hay en esos días se anula.
+        if ($replace) {
+            return 'import';
         }
 
         $hasMarks = AttendanceScan::query()

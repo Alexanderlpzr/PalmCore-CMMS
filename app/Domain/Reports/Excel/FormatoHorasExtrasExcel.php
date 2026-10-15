@@ -26,8 +26,10 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * Cada hoja sale de los mismos datos que el PDF, así que el papel y el Excel no pueden
  * decir cosas distintas. Lleva el control documental del formato (código, versión, fecha),
  * los datos del trabajador, una fila por día con domingos y festivos en rojo y, al lado,
- * las columnas de bonificación que tengan horas. El logo no va: la librería que escribe el
- * libro no inserta imágenes, y el nombre de la empresa ocupa su lugar.
+ * las columnas de bonificación que tengan horas, y la calculadora a la derecha. La hoja
+ * sigue la plantilla que dio talento humano (la de Adrián Suárez en el libro de octubre):
+ * el logo de la empresa en A1:B3, la justificación en tres columnas y los totales por clase
+ * al pie. Sin la columna de recargo diurno dominical, por decisión de la planta.
  */
 class FormatoHorasExtrasExcel
 {
@@ -70,8 +72,7 @@ class FormatoHorasExtrasExcel
         $writer->openToFile($path);
         $usedNames = [];
         $tenant = $employees->isNotEmpty() ? Tenant::withoutGlobalScopes()->find($employees->first()->tenant_id) : null;
-        // El logo de la empresa va arriba a la izquierda, en la celda fundida A1:A3, como
-        // en la hoja del libro.
+        // El logo de la empresa va arriba a la izquierda, en A1:B3, como en la hoja del libro.
         $logo = XlsxLogo::forTenant($tenant);
 
         foreach ($employees->values() as $index => $employee) {
@@ -79,20 +80,25 @@ class FormatoHorasExtrasExcel
             $sheet->setName($this->sheetName($employee, $usedNames));
 
             $data = $this->formato->data($employee, $from, $to);
-            $tenant = Tenant::withoutGlobalScopes()->find($employee->tenant_id);
-            // Fecha, horas, las siete bolsas, la justificación y los bonos con horas.
-            $lastColumn = self::LEAD_COLUMNS + count($data['columns']) + 1 + count($data['bonusColumns']);
+            $layout = $this->layout($data);
 
             $sheet->setColumnWidth(34, 1);
-            $sheet->setColumnWidthForRange(13, 2, 4);
-            $sheet->setColumnWidthForRange(14, 5, self::LEAD_COLUMNS + count($data['columns']));
-            $sheet->setColumnWidth(30, self::LEAD_COLUMNS + count($data['columns']) + 1);
+            $sheet->setColumnWidthForRange(13, 2, self::LEAD_COLUMNS);
+            $sheet->setColumnWidthForRange(14, self::LEAD_COLUMNS + 1, $layout['justification'] - 1);
+            $sheet->setColumnWidthForRange(12, $layout['justification'], $layout['last']);
 
-            foreach ($this->rows($data, $tenant, $showValues, $lastColumn, $logo !== null) as $n => [$cells, $merges]) {
+            if ($showValues) {
+                $calc = $layout['last'] + 2;
+                $sheet->setColumnWidth(3, $layout['last'] + 1);
+                $sheet->setColumnWidth(34, $calc);
+                $sheet->setColumnWidthForRange(13, $calc + 1, $calc + 6);
+            }
+
+            foreach ($this->rows($data, $tenant, $showValues, $layout, $logo !== null) as $n => [$cells, $merges]) {
                 $row = new Row($cells);
 
                 // Las tres filas del encabezado, altas para que quepa el logo.
-                if ($logo && $n < 3) {
+                if ($n < 3) {
                     $row->setHeight(26);
                 }
 
@@ -104,13 +110,13 @@ class FormatoHorasExtrasExcel
                 }
             }
 
-            // El encabezado ocupa tres filas: la empresa y el título van fundidos en alto.
-            $options->mergeCells(0, 1, 0, 3, $index);
-            $options->mergeCells(1, 1, $lastColumn - 2, 3, $index);
+            // El encabezado de la plantilla: el logo en A1:B3 y el título fundido en alto.
+            $options->mergeCells(0, 1, 1, 3, $index);
+            $options->mergeCells(2, 1, $layout['last'] - 2, 3, $index);
         }
 
         if ($employees->isEmpty()) {
-            $writer->addRow(Row::fromValues(['No hay trabajadores con horas en el periodo.']));
+            $writer->addRow(Row::fromValues(['No hay trabajadores con horas en el período.']));
         }
 
         $writer->close();
@@ -123,14 +129,42 @@ class FormatoHorasExtrasExcel
     }
 
     /**
+     * Dónde va cada cosa en la hoja, como en la plantilla (hoja de Adrián Suárez del libro
+     * de octubre): fecha y horas, las bolsas, la justificación en tres columnas, los bonos
+     * con horas y, a la derecha, la calculadora.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array{buckets: list<string>, justification: int, bonusStart: int, last: int}
+     */
+    private function layout(array $data): array
+    {
+        $buckets = array_keys($data['columns']);
+        $justification = self::LEAD_COLUMNS + count($buckets) + 1;
+        $bonusStart = $justification + 3;
+
+        return [
+            'buckets' => $buckets,
+            'justification' => $justification,
+            'bonusStart' => $bonusStart,
+            'last' => max($bonusStart - 1 + count($data['bonusColumns']), $justification + 2),
+        ];
+    }
+
+    /**
      * Las filas de una hoja, cada una con las celdas que se funden.
      *
      * @param  array<string, mixed>  $data
+     * @param  array{buckets: list<string>, justification: int, bonusStart: int, last: int}  $layout
      * @return list<array{0: list<Cell>, 1: list<array{0: int, 1: int}>}>
      */
-    private function rows(array $data, ?Tenant $tenant, bool $showValues, int $lastColumn, bool $withLogo = false): array
+    private function rows(array $data, ?Tenant $tenant, bool $showValues, array $layout, bool $withLogo = false): array
     {
         $employee = $data['employee'];
+        $lastColumn = $layout['last'];
+        $justification = $layout['justification'];
+        $bonusStart = $layout['bonusStart'];
+        $visible = $layout['buckets'];
+        $justMerge = [$justification, $justification + 2];
         $rows = [];
         $line = fn (array $values, array $merges = [], ?callable $style = null): array => [
             array_map(fn ($value, int $i): Cell => Cell::fromValue($value, ($style ?? fn () => $this->style())($i + 1)), $values, array_keys($values)),
@@ -141,11 +175,11 @@ class FormatoHorasExtrasExcel
         // ── Encabezado con el control documental ─────────────────────────────
         $title = fn (int $column): Style => match (true) {
             $column === $lastColumn => $this->style(bold: true, fill: FrondaWorkbook::MIST, color: FrondaWorkbook::PETROL, align: CellAlignment::LEFT),
-            $column === 1 && $withLogo => $this->style(),
-            $column === 1 => $this->style(bold: true, fill: FrondaWorkbook::PETROL, color: 'FFFFFF', size: 9),
+            $column <= 2 && $withLogo => $this->style(),
+            $column <= 2 => $this->style(bold: true, fill: FrondaWorkbook::PETROL, color: 'FFFFFF', size: 9),
             default => $this->style(bold: true, fill: FrondaWorkbook::GREEN, color: 'FFFFFF', size: 13),
         };
-        $rows[] = $line($pad([$withLogo ? '' : mb_strtoupper($tenant?->name ?? ''), 'FORMATO DE HORAS EXTRAS', ...array_fill(0, $lastColumn - 3, ''), 'CÓDIGO: '.Formato::FORM_CODE]), [], $title);
+        $rows[] = $line($pad([$withLogo ? '' : mb_strtoupper($tenant?->name ?? ''), '', 'FORMATO DE HORAS EXTRAS', ...array_fill(0, $lastColumn - 4, ''), 'CÓDIGO: '.Formato::FORM_CODE]), [], $title);
         $rows[] = $line($pad([...array_fill(0, $lastColumn - 1, ''), 'VERSIÓN: '.Formato::FORM_VERSION]), [], $title);
         $rows[] = $line($pad([...array_fill(0, $lastColumn - 1, ''), 'FECHA: '.Formato::FORM_DATE]), [], $title);
         $rows[] = [[], []];
@@ -157,7 +191,7 @@ class FormatoHorasExtrasExcel
         foreach ([
             'CARGO' => mb_strtoupper($employee->position ?? ''),
             'JEFE INMEDIATO' => mb_strtoupper($data['supervisor'] ?? ''),
-            'PERIODO' => 'Horas del '.$data['from']->format('d/m/Y').' al '.$data['to']->format('d/m/Y').' — nómina de '.$data['periodStart']->locale('es')->translatedFormat('F \d\e Y'),
+            'PERÍODO' => 'Horas del '.$data['from']->format('d/m/Y').' al '.$data['to']->format('d/m/Y').' — nómina de '.$data['periodStart']->locale('es')->translatedFormat('F \d\e Y'),
         ] as $label => $value) {
             $rows[] = $line($pad([$label, $value]), [[2, $lastColumn]], fn (int $c): Style => $c === 1 ? $this->style(bold: true, fill: FrondaWorkbook::MIST, color: FrondaWorkbook::PETROL, align: CellAlignment::LEFT) : $this->style());
         }
@@ -165,92 +199,121 @@ class FormatoHorasExtrasExcel
         $rows[] = [[], []];
 
         // ── La cuadrícula ────────────────────────────────────────────────────
-        $bonusStart = self::LEAD_COLUMNS + count($data['columns']) + 2;
-        $visible = array_keys($data['columns']);
-        $header = ['FECHA', 'HORA INICIO', 'FIN HORARIO LABORAL', 'HORA SALIDA', ...array_map(fn (string $bucket): string => Formato::COLUMN_TITLES[$bucket], $visible), 'JUSTIFICACIÓN'];
-
-        foreach ($data['bonusColumns'] as $bucket) {
-            $header[] = 'BONO '.Formato::COLUMNS[$bucket];
-        }
-
-        $rows[] = $line($header, [], fn (int $c): Style => $this->style(bold: true, fill: $c >= $bonusStart ? FrondaWorkbook::PETROL : FrondaWorkbook::GREEN, color: 'FFFFFF', size: 8));
+        $header = [
+            'FECHA', 'HORA INICIO', 'FIN HORARIO LABORAL', 'HORA SALIDA',
+            ...array_map(fn (string $bucket): string => Formato::COLUMN_TITLES[$bucket], $visible),
+            'JUSTIFICACIÓN', '', '',
+            ...array_map(fn (string $bucket): string => 'BONO '.Formato::COLUMNS[$bucket], $data['bonusColumns']),
+        ];
+        $gridHeader = count($rows);
+        $rows[] = $line($pad($header), [$justMerge], fn (int $c): Style => $this->style(bold: true, fill: $c >= $bonusStart ? FrondaWorkbook::PETROL : FrondaWorkbook::GREEN, color: 'FFFFFF', size: 8));
 
         // En 12 horas, igual que el Excel de horas confirmadas: «06:00 pm».
         $hour = fn ($moment): string => $moment ? $moment->format('h:i a') : '';
         $hours = fn (float $value): float|string => $value > 0 ? round($value, 2) : '';
 
         foreach ($data['rows'] as $day) {
-            $values = [
+            $values = $pad([
                 $day['date']->locale('es')->translatedFormat('l, j \d\e F \d\e Y'),
                 $hour($day['entry']), $hour($day['scheduledEnd']), $hour($day['exit']),
                 ...array_map(fn (string $bucket) => $hours($day['legal'][$bucket]), $visible),
-                $day['notes'],
+                $day['notes'], '', '',
                 ...array_map(fn (string $bucket) => $hours($day['bonus'][$bucket]), $data['bonusColumns']),
-            ];
+            ]);
 
-            $rows[] = $line($values, [], fn (int $c): Style => match (true) {
+            $rows[] = $line($values, [$justMerge], fn (int $c): Style => match (true) {
                 $c === 1 => $this->style(color: $day['surcharged'] ? 'D00000' : null),
+                $c === $justification => $this->style(align: CellAlignment::LEFT),
                 $c >= $bonusStart => $this->style(fill: FrondaWorkbook::MIST),
                 default => $this->style(),
             });
         }
 
-        $rows[] = $line([
+        $rows[] = $line($pad([
             'TOTAL HORAS', '', '', '',
             ...array_map(fn (string $bucket) => $hours($data['legalTotals'][$bucket]), $visible),
-            '',
+            '', '', '',
             ...array_map(fn (string $bucket) => $hours($data['bonusTotals'][$bucket]), $data['bonusColumns']),
-        ], [[1, 4]], fn (int $c): Style => $this->style(bold: true, fill: 'D5EBDD'));
+        ]), [[1, 4], $justMerge], fn (int $c): Style => $this->style(bold: true, fill: 'D5EBDD'));
 
-        // ── La calculadora ───────────────────────────────────────────────────
-        // Completa, como la del libro: el salario y el valor de la hora a la vista, y cada
-        // clase con su factor, su valor hora, sus horas y lo que suma, aunque sea cero.
-        if ($showValues) {
-            $rows[] = [[], []];
-            $money = fn (float $value): float => round($value, 0);
-            $peso = fn (int $c): Style => $this->style(bold: true, format: FrondaWorkbook::MONEY);
+        // ── Los totales por clase, como al pie de la plantilla ───────────────
+        $rows[] = [[], []];
+        $total = fn (string $bucket): float => round((float) ($data['legalTotals'][$bucket] ?? 0) + (float) ($data['bonusTotals'][$bucket] ?? 0), 2);
+        $labelStyle = fn (int $c): Style => in_array($c, [1, 5], true)
+            ? $this->style(bold: true, fill: FrondaWorkbook::MIST, color: FrondaWorkbook::PETROL, align: CellAlignment::LEFT)
+            : $this->style(bold: true);
 
+        foreach ([
+            ['Total horas extras diurnas', 'overtime_day', 'Total horas extras nocturnas', 'overtime_night'],
+            ['Total horas extras dominicales diurnas', 'overtime_sunday_day', 'Total horas extras dominicales nocturnas', 'overtime_sunday_night'],
+            ['Recargo nocturno', 'night_surcharge', 'Recargo nocturno dominical', 'night_sunday_surcharge'],
+        ] as [$leftLabel, $leftBucket, $rightLabel, $rightBucket]) {
             $rows[] = $line(
+                [$leftLabel, $total($leftBucket), '', '', $rightLabel, ...array_fill(0, max(0, $justification - 6), ''), $total($rightBucket)],
+                [[2, 4], [5, $justification - 1]],
+                $labelStyle,
+            );
+        }
+
+        // ── La calculadora, a la derecha de los días, como en la plantilla ───
+        if ($showValues) {
+            $money = fn (float $value): float => round($value, 0);
+            $calc = [];
+            $calc[] = [
                 ['SALARIO (COP)', $money($data['salary']), 'VALOR HORA (COP)', $money($data['hourValue']), 'Salario ÷ '.number_format($data['divisor'], 0, ',', '.').' horas'],
-                [],
                 fn (int $c): Style => match ($c) {
                     1, 3 => $this->style(bold: true, fill: FrondaWorkbook::MIST, color: FrondaWorkbook::PETROL),
-                    2, 4 => $peso($c),
+                    2, 4 => $this->style(bold: true, format: FrondaWorkbook::MONEY),
                     default => $this->style(size: 8),
                 },
-            );
-
-            $rows[] = $line(
+            ];
+            $calc[] = [
                 ['Concepto', 'Factor', 'Valor hora (COP)', 'Horas', 'Valor horas extras y recargos (COP)', 'Horas bono', 'Bonificación (COP)'],
-                [],
                 fn (): Style => $this->style(bold: true, fill: FrondaWorkbook::GREEN, color: 'FFFFFF', size: 8),
-            );
+            ];
 
             foreach ($data['calculator'] as $row) {
-                $rows[] = $line(
+                $calc[] = [
                     [
                         $row['label'].' — '.$row['concept'], $row['factor'], $money($row['rate']),
                         round($row['legalHours'], 2), $money($row['legalAmount']),
                         round($row['bonusHours'], 2), $money($row['bonusAmount']),
                     ],
-                    [],
                     fn (int $c): Style => match ($c) {
                         1 => $this->style(align: CellAlignment::LEFT),
                         3, 5, 7 => $this->style(format: FrondaWorkbook::MONEY),
                         default => $this->style(),
                     },
-                );
+                ];
             }
 
-            $rows[] = $line(
+            $calc[] = [
                 [
                     'TOTAL', '', '',
                     round(array_sum(array_column($data['calculator'], 'legalHours')), 2), $money($data['legalAmount']),
                     round(array_sum(array_column($data['calculator'], 'bonusHours')), 2), $money($data['bonusAmount']),
                 ],
-                [],
                 fn (int $c): Style => $this->style(bold: true, fill: 'D5EBDD', format: in_array($c, [5, 7], true) ? FrondaWorkbook::MONEY : null),
-            );
+            ];
+
+            // Cada línea de la calculadora se pega a la derecha de una fila de la cuadrícula,
+            // desde la del encabezado, con una columna de aire en medio.
+            foreach ($calc as $i => [$values, $style]) {
+                $target = $gridHeader + $i;
+
+                if (! isset($rows[$target])) {
+                    break;
+                }
+
+                [$cells, $merges] = $rows[$target];
+                $cells = array_pad($cells, $lastColumn + 1, Cell::fromValue(''));
+
+                foreach (array_values($values) as $k => $value) {
+                    $cells[] = Cell::fromValue($value, $style($k + 1));
+                }
+
+                $rows[$target] = [$cells, $merges];
+            }
         }
 
         // ── Firmas ───────────────────────────────────────────────────────────

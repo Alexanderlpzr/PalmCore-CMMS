@@ -180,14 +180,11 @@ class FormatoHorasExtrasPdfService
             ];
         }
 
-        // El recargo diurno dominical solo sale si el período tiene horas en él: en la
-        // planta el domingo trabajado se paga como extra dominical, y la columna vacía
-        // solo estorbaba. Si alguna vez hay horas, aparece: nunca se esconde lo que se paga.
+        // Sin la columna de recargo diurno dominical, por decisión de la planta (2026-10-15):
+        // el domingo trabajado se paga como extra dominical. La nómina sigue pagando esas
+        // horas si las hubiera; el formato no las muestra.
         $columns = self::COLUMNS;
-
-        if (($this->columns($legalTotal)['sunday_surcharge'] ?? 0) <= 0 && ($this->columns($bonusTotal)['sunday_surcharge'] ?? 0) <= 0) {
-            unset($columns['sunday_surcharge']);
-        }
+        unset($columns['sunday_surcharge']);
 
         $calculator = [];
 
