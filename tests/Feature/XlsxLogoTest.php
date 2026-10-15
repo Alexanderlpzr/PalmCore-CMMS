@@ -33,7 +33,9 @@ it('puts the company logo on the top left of every sheet and keeps the workbook 
     expect($media)->toBeTrue()
         ->and($drawings)->toBeTrue()
         ->and($sheet)->toContain('<drawing r:id="rIdLogo"/>')
-        ->and($types)->toContain('drawingLogo1.xml');
+        ->and($types)->toContain('drawingLogo1.xml')
+        // Cada tipo una sola vez: repetido, Excel da el libro por dañado.
+        ->and(substr_count($types, 'Extension="png"') + substr_count($types, 'Extension="jpeg"'))->toBe(1);
 
     // Sigue abriéndose: la banda deja la columna A para el logo.
     $reader = new Reader;

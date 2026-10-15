@@ -89,7 +89,8 @@ final class XlsxLogo
             $ext = $extension === 'png' ? 'png' : 'jpeg';
 
             if (! str_contains($types, 'Extension="'.$ext.'"')) {
-                $types = str_replace('<Default ', '<Default Extension="'.$ext.'" ContentType="'.$mime.'"/><Default ', $types);
+                // Una sola vez: repetida, Excel da el libro por dañado.
+                $types = preg_replace('#<Default #', '<Default Extension="'.$ext.'" ContentType="'.$mime.'"/><Default ', $types, 1) ?? $types;
             }
 
             foreach ($sheets as $index => $sheetPath) {
