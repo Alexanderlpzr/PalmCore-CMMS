@@ -22,7 +22,7 @@ use Livewire\Livewire;
 use Spatie\Permission\PermissionRegistrar;
 
 /*
- * El tablero «Costo de personal»: jornal (salario ÷ 30) de todo activo, marque o no;
+ * El tablero «Costo de personal»: jornal (salario ÷ 30) por cada día que la persona entró;
  * recargos y extras valorados como en la nómina, con lo sin confirmar como estimado; y
  * alimentación. Acumulado del corte del 27 al 26.
  *
@@ -101,7 +101,7 @@ function filaDe(array $informe, Employee $trabajador): array
     return collect($informe['rows'])->firstWhere('employee_id', $trabajador->id);
 }
 
-it('charges the daily wage of every active worker, whether they marked or not', function (): void {
+it('starts the day at zero while nobody has come in', function (): void {
     Employee::factory()->create([
         'tenant_id' => $this->tenant->id,
         'base_salary' => 2_000_000,
@@ -111,13 +111,30 @@ it('charges the daily wage of every active worker, whether they marked or not', 
 
     $informe = app(LaborCostReport::class)->forRange($this->tenant, Carbon::parse('2026-10-13'), Carbon::parse('2026-10-13'));
 
+    // Dos en nómina —el retirado no cuenta—, ninguno entró: nada cuesta todavía.
     expect($informe['totals']['people'])->toBe(2)
         ->and($informe['totals']['present'])->toBe(0)
-        ->and($informe['totals']['jornal'])->toEqual(150_000.0)
-        ->and($informe['totals']['total'])->toEqual(150_000.0)
-        ->and($informe['areas']['procesos']['total'])->toEqual(100_000.0)
-        ->and($informe['areas']['mantenimiento']['total'])->toEqual(50_000.0)
-        ->and($informe['estimated'])->toBeFalse();
+        ->and($informe['totals']['total'])->toEqual(0.0)
+        ->and($informe['rows'])->toBe([])
+        ->and($informe['areas'])->toBe([])
+        ->and($informe['entries'])->toBe([]);
+});
+
+it('charges the daily wage only of whoever comes in, as they come in', function (): void {
+    app(AttendanceService::class)->record($this->carneAna, at: Carbon::parse('2026-10-14 06:10', 'America/Bogota')->utc());
+
+    $informe = app(LaborCostReport::class)->forRange($this->tenant, Carbon::parse('2026-10-14'), Carbon::parse('2026-10-14'));
+
+    // Ana entró: su jornal (3.000.000 ÷ 30). Beto no ha llegado: no cuesta.
+    expect($informe['totals']['present'])->toBe(1)
+        ->and($informe['totals']['jornal'])->toEqual(100_000.0)
+        ->and($informe['areas'])->toHaveKeys(['procesos'])
+        ->and($informe['areas'])->not->toHaveKey('mantenimiento')
+        ->and($informe['entries'])->toHaveCount(1)
+        ->and($informe['entries'][0]['name'])->toBe($this->ana->fullName())
+        ->and($informe['entries'][0]['at']->format('H:i'))->toBe('06:10')
+        ->and($informe['entries'][0]['jornal'])->toEqual(100_000.0)
+        ->and($informe['entries'][0]['inside'])->toBeTrue();
 });
 
 it('values the surcharges and overtime like the payroll and adds the meals', function (): void {
@@ -166,15 +183,26 @@ it('counts whoever is still inside up to now', function (): void {
         ->and($informe['totals']['inside'])->toBe(1);
 });
 
-it('accumulates the cutoff from the 27th and charges wages only from the hire date', function (): void {
+it('accumulates the cutoff from the 27th, one daily wage per day each person came in', function (): void {
     $this->beto->update(['hire_date' => '2026-10-10']);
+    $carneBeto = EmployeeQrCode::factory()->forEmployee($this->beto)->create();
+
+    turnoDeCosto($this->carneAna, '2026-09-28 06:00', '2026-09-28 13:00');
+    turnoDeCosto($this->carneAna, '2026-10-05 06:00', '2026-10-05 13:00');
+    // Dos entradas el mismo día: un solo jornal.
+    turnoDeCosto($this->carneAna, '2026-10-13 06:00', '2026-10-13 09:00');
+    app(AttendanceService::class)->record($this->carneAna, at: Carbon::parse('2026-10-13 10:00', 'America/Bogota')->utc());
+    app(AttendanceService::class)->record($this->carneAna, at: Carbon::parse('2026-10-13 13:00', 'America/Bogota')->utc());
+    turnoDeCosto($carneBeto, '2026-10-12 06:00', '2026-10-12 13:00');
 
     $informe = app(LaborCostReport::class)->forRange($this->tenant, Carbon::parse('2026-09-27'), Carbon::parse('2026-10-14'));
 
     expect(filaDe($informe, $this->ana)['days'])->toBe(18)
-        ->and(filaDe($informe, $this->ana)['jornal'])->toEqual(1_800_000.0)
+        ->and(filaDe($informe, $this->ana)['present'])->toBe(3)
+        ->and(filaDe($informe, $this->ana)['jornal'])->toEqual(300_000.0)
         ->and(filaDe($informe, $this->beto)['days'])->toBe(5)
-        ->and(filaDe($informe, $this->beto)['jornal'])->toEqual(250_000.0);
+        ->and(filaDe($informe, $this->beto)['present'])->toBe(1)
+        ->and(filaDe($informe, $this->beto)['jornal'])->toEqual(50_000.0);
 });
 
 it('shows the dashboard to human resources, by day and by cutoff', function (): void {
@@ -190,13 +218,59 @@ it('shows the dashboard to human resources, by day and by cutoff', function (): 
         ->assertSee('Horas extras y recargos por área')
         ->assertSee('Alimentación por área')
         ->assertSee('Procesos')
-        ->assertSee('Mantenimiento')
+        // Beto no entró el 13: mantenimiento no costó nada ese día.
+        ->assertDontSee('Beto')
         ->set('vista', 'corte')
         ->assertOk()
         ->assertSee('Del 27/09 al 13/10')
         // El futuro no cuesta todavía: un día después de hoy vuelve a hoy.
         ->set('fecha', '2026-10-20')
-        ->assertSet('fecha', '2026-10-14');
+        ->assertSet('fecha', '2026-10-14')
+        // Hoy nadie ha entrado: el día arranca en cero, sin tortas, y se refresca solo.
+        ->set('vista', 'dia')
+        ->assertSee('El día arranca en $ 0')
+        ->assertSee('Todavía no ha entrado nadie')
+        ->assertSee('En vivo')
+        ->assertDontSee('Costo por área');
+});
+
+it('shows only overtime and surcharges when asked, without the fixed cost', function (): void {
+    $dia = turnoDeCosto($this->carneAna, '2026-10-13 06:00', '2026-10-13 20:00');
+    // Beto entra una jornada corta: tiene jornal pero ni extras ni recargos.
+    turnoDeCosto(EmployeeQrCode::factory()->forEmployee($this->beto)->create(), '2026-10-13 06:00', '2026-10-13 12:00');
+    $horas = valorDeLasHoras($dia, 3_000_000, $this->tenant->id);
+
+    $completo = app(LaborCostReport::class)->forRange($this->tenant, Carbon::parse('2026-10-13'), Carbon::parse('2026-10-13'));
+    $soloExtras = LaborCostReport::onlyConcepts($completo, LaborCostReport::SCOPES['extras']);
+
+    expect($completo['rows'])->toHaveCount(2)
+        ->and($soloExtras['rows'])->toHaveCount(1)
+        ->and($soloExtras['rows'][0]['employee_id'])->toBe($this->ana->id)
+        ->and($soloExtras['rows'][0]['jornal'])->toEqual(0.0)
+        ->and($soloExtras['rows'][0]['meals'])->toEqual(0.0)
+        ->and($soloExtras['totals']['total'])->toEqualWithDelta($horas, 0.05)
+        ->and($soloExtras['totals']['jornal'])->toEqual(0.0)
+        ->and($soloExtras['totals']['meals'])->toEqual(0.0)
+        ->and($soloExtras['areas'])->toHaveKeys(['procesos'])
+        ->and($soloExtras['areas'])->not->toHaveKey('mantenimiento')
+        ->and($soloExtras['areas']['procesos']['total'])->toEqualWithDelta($horas, 0.05);
+
+    $this->actingAs($this->rrhh);
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+    Filament::setTenant($this->tenant);
+
+    Livewire::test(CostoDePersonal::class, ['fecha' => '2026-10-13'])
+        ->set('contar', 'extras')
+        ->assertOk()
+        ->assertSee('Solo extras y recargos')
+        ->assertSee('Horas extras y recargos por área')
+        ->assertSee('Recargos contra horas extras')
+        ->assertDontSee('Alimentación por área')
+        // En «solo extras» las entradas se listan sin el jornal.
+        ->assertDontSee('+ $ 50.000')
+        // Un valor raro en la dirección vuelve al costo completo.
+        ->set('contar', 'cualquiera')
+        ->assertSet('contar', 'todo');
 });
 
 it('keeps the dashboard away from whoever cannot see salaries', function (): void {

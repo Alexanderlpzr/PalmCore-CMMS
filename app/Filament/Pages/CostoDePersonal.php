@@ -49,6 +49,13 @@ class CostoDePersonal extends Page
     #[Url]
     public string $vista = 'dia';
 
+    /**
+     * Qué se cuenta: el costo completo, o solo las extras y los recargos —lo que talento
+     * humano mira para controlar las horas, sin el costo fijo del jornal—.
+     */
+    #[Url]
+    public string $contar = 'todo';
+
     public static function canAccess(): bool
     {
         $user = auth()->user();
@@ -112,7 +119,10 @@ class CostoDePersonal extends Page
     #[Computed]
     public function dayReport(): array
     {
-        return app(LaborCostReport::class)->forRange($this->tenant(), $this->day(), $this->day());
+        return LaborCostReport::onlyConcepts(
+            app(LaborCostReport::class)->forRange($this->tenant(), $this->day(), $this->day()),
+            $this->concepts(),
+        );
     }
 
     /** @return array<string, mixed> */
@@ -121,7 +131,25 @@ class CostoDePersonal extends Page
     {
         [$from, $until] = $this->cutoffWindow;
 
-        return app(LaborCostReport::class)->forRange($this->tenant(), $from, $until);
+        return LaborCostReport::onlyConcepts(
+            app(LaborCostReport::class)->forRange($this->tenant(), $from, $until),
+            $this->concepts(),
+        );
+    }
+
+    /**
+     * Los conceptos que se cuentan con el selector elegido.
+     *
+     * @return list<string>
+     */
+    public function concepts(): array
+    {
+        return LaborCostReport::SCOPES[$this->contar];
+    }
+
+    public function onlyOvertime(): bool
+    {
+        return $this->contar === 'extras';
     }
 
     /** @return array<string, mixed> */
@@ -131,7 +159,8 @@ class CostoDePersonal extends Page
     }
 
     /**
-     * Las cuatro tortas de la vista elegida.
+     * Las tortas de la vista elegida: cuatro con el costo completo; dos con solo extras y
+     * recargos, donde «por área» ya es lo de las extras y la alimentación no cuenta.
      *
      * @return array<string, array{heading: string, description: ?string, slices: list<array{label: string, value: float, color: string}>}>
      */
@@ -145,6 +174,25 @@ class CostoDePersonal extends Page
         ));
         $periodo = $this->vista === 'corte' ? 'lo que va del corte' : 'el día';
         $deLoQue = $this->vista === 'corte' ? 'de lo que va del corte' : 'del día';
+        $porConcepto = fn (): array => array_map(
+            fn (string $key): array => ['label' => LaborCostReport::CONCEPTS[$key], 'value' => (float) $report['totals'][$key], 'color' => LaborCostReport::CONCEPT_COLORS[$key]],
+            $this->concepts(),
+        );
+
+        if ($this->onlyOvertime()) {
+            return [
+                'por_area' => [
+                    'heading' => 'Horas extras y recargos por área',
+                    'description' => 'Lo que se pagó por encima del jornal '.$deLoQue.'.',
+                    'slices' => $byArea(fn (array $area): float => $area['total']),
+                ],
+                'por_concepto' => [
+                    'heading' => 'Recargos contra horas extras',
+                    'description' => 'Cuánto es recargo nocturno o dominical y cuánto hora extra.',
+                    'slices' => $porConcepto(),
+                ],
+            ];
+        }
 
         return [
             'por_area' => [
@@ -155,10 +203,7 @@ class CostoDePersonal extends Page
             'por_concepto' => [
                 'heading' => 'En qué se va',
                 'description' => 'El costo '.$deLoQue.' por concepto.',
-                'slices' => array_map(
-                    fn (string $key): array => ['label' => LaborCostReport::CONCEPTS[$key], 'value' => (float) $report['totals'][$key], 'color' => LaborCostReport::CONCEPT_COLORS[$key]],
-                    array_keys(LaborCostReport::CONCEPTS),
-                ),
+                'slices' => $porConcepto(),
             ],
             'extras_por_area' => [
                 'heading' => 'Horas extras y recargos por área',
@@ -186,6 +231,7 @@ class CostoDePersonal extends Page
         // El futuro no cuesta todavía.
         $this->fecha = $day->greaterThan($today) ? $today->toDateString() : $day->toDateString();
         $this->vista = in_array($this->vista, ['dia', 'corte'], true) ? $this->vista : 'dia';
+        $this->contar = array_key_exists($this->contar, LaborCostReport::SCOPES) ? $this->contar : 'todo';
 
         unset($this->cutoffWindow, $this->dayReport, $this->cutoffReport);
     }
