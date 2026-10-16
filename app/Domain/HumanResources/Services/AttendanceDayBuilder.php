@@ -29,11 +29,6 @@ use Illuminate\Support\Facades\DB;
  * excede el tope legal, pero el trabajo ya ocurrió: no anotarlo no lo deshace, y no
  * pagarlo tampoco. Lo que corresponde es que quede escrito y que el supervisor lo vea
  * antes de firmar.
- *
- * Con la jornada semanal encendida (`WeeklyOrdinaryHours` > 0) un día ya no se clasifica
- * solo: sus horas ordinarias son lo que le queda de la semana —lunes a domingo— después
- * de los días anteriores, y es extra únicamente lo que pasa de ese total. Por eso se
- * rehace hasta el domingo: una hora de más el lunes cambia el resto de la semana.
  */
 class AttendanceDayBuilder
 {
@@ -52,23 +47,15 @@ class AttendanceDayBuilder
     /**
      * Reconstruye los días de un empleado en un rango.
      *
-     * Con `$includeConfirmed` también rehace los días ya firmados —solo sus horas: la firma,
-     * quién y cuándo, se conserva— y los ajustados a mano que tienen su entrada y su salida.
-     * Es para recalcular un corte cuando cambia la regla, no para el día a día.
-     *
      * @return Collection<int, AttendanceDay>
      */
-    public function buildForEmployee(Employee $employee, CarbonInterface $from, CarbonInterface $to, bool $includeConfirmed = false): Collection
+    public function buildForEmployee(Employee $employee, CarbonInterface $from, CarbonInterface $to): Collection
     {
         // Los días se cuentan en la hora de la planta, no en la UTC con que se guardan las
         // marcas: si no, la ventana nocturna y la medianoche quedan corridas cinco horas.
         $timezone = $this->plantTimezone($employee);
         $from = CarbonImmutable::parse(CarbonImmutable::instance($from)->toDateString(), $timezone)->startOfDay();
         $to = CarbonImmutable::parse(CarbonImmutable::instance($to)->toDateString(), $timezone)->endOfDay();
-
-        if ($this->weeklyHours($employee->tenant_id, $from) > 0 || $this->weeklyHours($employee->tenant_id, $to) > 0) {
-            $to = self::weekStart($to)->addDays(6)->endOfDay();
-        }
 
         $surchargedDays = $this->surchargedDayResolver($employee->tenant_id, $from, $to);
         $restDays = $this->restDaysWorked($employee, $from, $to);
@@ -80,129 +67,34 @@ class AttendanceDayBuilder
             ->orderBy('scanned_at')
             ->get();
 
-        [$sessionsByDate, $openEntries, $scheduledHours] = $this->pairIntoSessions($scans, $timezone);
-
-        // Los días ya guardados desde el lunes de la primera semana: los de antes del rango
-        // descuentan su parte de la semana, y los del rango que no se rehacen también.
-        $stored = AttendanceDay::query()
-            ->forTenant($employee->tenant_id)
-            ->where('employee_id', $employee->id)
-            ->between(self::weekStart($from)->toDateString(), $to->toDateString())
-            ->get()
-            ->keyBy(fn (AttendanceDay $day): string => $day->work_date->toDateString());
-
-        $consumed = [];
-
-        foreach ($stored as $date => $day) {
-            if ($date < $from->toDateString()) {
-                $week = self::weekStart(CarbonImmutable::parse($date))->toDateString();
-                $consumed[$week] = ($consumed[$week] ?? 0.0) + self::ordinaryConsumed($day->hours());
-            }
-        }
-
-        // El día que solo existe por la mirada hacia atrás no se escribe: su turno ya se
-        // contabilizó en la reconstrucción del período anterior.
-        $dates = collect(array_keys($sessionsByDate))
-            ->merge($stored->keys())
-            ->filter(fn (string $date): bool => $date >= $from->toDateString() && $date <= $to->toDateString())
-            ->unique()
-            ->sort()
-            ->values();
+        [$sessionsByDate, $openEntries] = $this->pairIntoSessions($scans, $timezone);
 
         $built = collect();
 
-        foreach ($dates as $workDate) {
-            $date = CarbonImmutable::parse($workDate, $timezone);
-            $week = self::weekStart($date)->toDateString();
-            $weekly = $this->weeklyHours($employee->tenant_id, $date);
-            $allowance = $weekly > 0 ? max(0.0, $weekly - ($consumed[$week] ?? 0.0)) : null;
-            /** @var AttendanceDay|null $existing */
-            $existing = $stored[$workDate] ?? null;
-            $hours = $existing?->hours();
-
-            if ($existing?->isManuallyAdjusted()) {
-                // Lo ajustado a mano no lo pisa el reloj. Al recalcular la regla sí se
-                // reclasifica, con la misma entrada y salida que escribió talento humano.
-                if ($includeConfirmed && $existing->adjusted_entry_at && $existing->adjusted_exit_at) {
-                    [$hours] = $this->classifyDay(
-                        $employee,
-                        $date,
-                        [[CarbonImmutable::instance($existing->adjusted_entry_at)->setTimezone($timezone), CarbonImmutable::instance($existing->adjusted_exit_at)->setTimezone($timezone)]],
-                        $surchargedDays,
-                        (bool) $existing->rest_day_worked,
-                        null,
-                        $allowance,
-                    );
-                    $existing->update($hours->toArray() + ['worked_hours' => round($hours->workedHours(), 4)]);
-                    $built->push($existing->refresh());
-                }
-            } elseif (array_key_exists($workDate, $sessionsByDate) && ($includeConfirmed || $existing?->status !== AttendanceDayStatus::Confirmada)) {
-                [$hours, $anomalies] = $this->classifyDay(
-                    $employee,
-                    $date,
-                    $sessionsByDate[$workDate],
-                    $surchargedDays,
-                    isset($restDays[$workDate]),
-                    $openEntries[$workDate] ?? null,
-                    // El turno que trae su fin de horario (el libro de horas extras) es
-                    // ordinario hasta ahí; los demás, con la jornada.
-                    $scheduledHours[$workDate] ?? $allowance,
-                );
-
-                $day = $this->persist($employee, $workDate, $hours, $anomalies, $includeConfirmed);
-
-                if ($day) {
-                    $built->push($day);
-                }
+        foreach ($sessionsByDate as $workDate => $sessions) {
+            // El día que solo existe por la mirada hacia atrás no se escribe: su turno ya
+            // se contabilizó en la reconstrucción del período anterior.
+            if ($workDate < $from->toDateString()) {
+                continue;
             }
 
-            if ($hours) {
-                $consumed[$week] = ($consumed[$week] ?? 0.0) + self::ordinaryConsumed($hours);
+            [$hours, $anomalies] = $this->classifyDay(
+                $employee,
+                CarbonImmutable::parse($workDate, $timezone),
+                $sessions,
+                $surchargedDays,
+                isset($restDays[$workDate]),
+                $openEntries[$workDate] ?? null,
+            );
+
+            $day = $this->persist($employee, $workDate, $hours, $anomalies);
+
+            if ($day) {
+                $built->push($day);
             }
         }
 
         return $built;
-    }
-
-    /** El lunes de la semana del día: la semana de la jornada va de lunes a domingo. */
-    public static function weekStart(CarbonInterface $date): CarbonImmutable
-    {
-        return CarbonImmutable::instance($date)->startOfWeek(CarbonInterface::MONDAY)->startOfDay();
-    }
-
-    /** Lo que el día gastó de la jornada de la semana: lo trabajado que no fue extra. */
-    private static function ordinaryConsumed(ClassifiedHours $hours): float
-    {
-        return max(0.0, $hours->workedHours() - $hours->overtimeHours());
-    }
-
-    /** La jornada semanal vigente ese día; 0 si la empresa cuenta por día. */
-    private function weeklyHours(string $tenantId, CarbonInterface $on): float
-    {
-        return $this->parameters->valueOrDefault(PayrollParameter::WeeklyOrdinaryHours, CarbonImmutable::instance($on), $tenantId);
-    }
-
-    /**
-     * Lo que le queda de la jornada de la semana a un día, después de los días anteriores
-     * que ya están guardados. Null si la empresa cuenta por día.
-     */
-    private function weeklyAllowance(Employee $employee, CarbonImmutable $day): ?float
-    {
-        $weekly = $this->weeklyHours($employee->tenant_id, $day);
-
-        if ($weekly <= 0) {
-            return null;
-        }
-
-        $consumed = AttendanceDay::query()
-            ->forTenant($employee->tenant_id)
-            ->where('employee_id', $employee->id)
-            ->whereDate('work_date', '>=', self::weekStart($day)->toDateString())
-            ->whereDate('work_date', '<', $day->toDateString())
-            ->get()
-            ->sum(fn (AttendanceDay $d): float => self::ordinaryConsumed($d->hours()));
-
-        return max(0.0, $weekly - $consumed);
     }
 
     /**
@@ -221,8 +113,6 @@ class AttendanceDayBuilder
             [[$entry->setTimezone($timezone), $exit->setTimezone($timezone)]],
             $this->surchargedDayResolver($employee->tenant_id, $day, $day->addDay()),
             $isRestDay,
-            null,
-            $this->weeklyAllowance($employee, $day),
         );
 
         return $hours;
@@ -232,7 +122,7 @@ class AttendanceDayBuilder
      * @param  array<int, array{0: CarbonImmutable, 1: CarbonImmutable}>  $sessions
      * @return array{0: ClassifiedHours, 1: array<int, string>}
      */
-    private function classifyDay(Employee $employee, CarbonImmutable $workDate, array $sessions, callable $surchargedDays, bool $isRestDay, ?string $openEntryAt = null, ?float $ordinaryAllowance = null): array
+    private function classifyDay(Employee $employee, CarbonImmutable $workDate, array $sessions, callable $surchargedDays, bool $isRestDay, ?string $openEntryAt = null): array
     {
         // Los parámetros de ese día y no los del inicio del rango: una reconstrucción
         // que cruce el 15 de julio de 2026 cruza también el paso a la jornada de 42 h.
@@ -248,9 +138,8 @@ class AttendanceDayBuilder
             $config['nightStart'],
             $config['nightEnd'],
             // El descanso trabajado no tiene jornada ordinaria: todo lo que se trabajó
-            // ese día es extra. Con jornada semanal, lo ordinario es lo que le queda a la
-            // semana; si no, la jornada diaria.
-            $isRestDay ? 0.0 : ($ordinaryAllowance ?? $config['ordinaryPerDay']),
+            // ese día es extra.
+            $isRestDay ? 0.0 : $config['ordinaryPerDay'],
         );
 
         $anomalies = $this->anomaliesFor($hours, $config, $openEntryAt, $isRestDay);
@@ -295,14 +184,13 @@ class AttendanceDayBuilder
      * día en que **arrancó** —así cuenta el jornal el libro de Excel— aunque sus horas
      * después se repartan entre dos días.
      *
-     * @return array{0: array<string, array<int, array{0: CarbonImmutable, 1: CarbonImmutable}>>, 1: array<string, string>, 2: array<string, float>}
+     * @return array{0: array<string, array<int, array{0: CarbonImmutable, 1: CarbonImmutable}>>, 1: array<string, string>}
      */
     private function pairIntoSessions(Collection $scans, string $timezone): array
     {
         $local = fn (AttendanceScan $scan): CarbonImmutable => CarbonImmutable::instance($scan->scanned_at)->setTimezone($timezone);
         $sessionsByDate = [];
         $openEntries = [];
-        $scheduledHours = [];
         $openScan = null;
 
         foreach ($scans as $scan) {
@@ -327,15 +215,6 @@ class AttendanceDayBuilder
             $date = $local($openScan)->toDateString();
             $sessionsByDate[$date][] = [$local($openScan), $local($scan)];
 
-            // La entrada que trae el fin de su horario: lo ordinario del día llega hasta ahí.
-            if ($openScan->scheduled_end_at && ! isset($scheduledHours[$date])) {
-                $end = CarbonImmutable::instance($openScan->scheduled_end_at)->setTimezone($timezone);
-
-                if ($end->gt($local($openScan))) {
-                    $scheduledHours[$date] = round($local($openScan)->diffInMinutes($end) / 60, 4);
-                }
-            }
-
             $openScan = null;
         }
 
@@ -347,7 +226,7 @@ class AttendanceDayBuilder
 
         ksort($sessionsByDate);
 
-        return [$sessionsByDate, $openEntries, $scheduledHours];
+        return [$sessionsByDate, $openEntries];
     }
 
     /** @return array<int, string> */
@@ -375,35 +254,21 @@ class AttendanceDayBuilder
     }
 
     /**
-     * Escribe la propuesta. Devuelve null si la fila ya estaba confirmada, salvo que se
-     * pida recalcular las confirmadas: entonces cambian sus horas y la firma se queda.
+     * Escribe la propuesta. Devuelve null si la fila ya estaba confirmada.
      */
-    private function persist(Employee $employee, string $workDate, ClassifiedHours $hours, array $anomalies, bool $includeConfirmed = false): ?AttendanceDay
+    private function persist(Employee $employee, string $workDate, ClassifiedHours $hours, array $anomalies): ?AttendanceDay
     {
-        return DB::transaction(function () use ($employee, $workDate, $hours, $anomalies, $includeConfirmed): ?AttendanceDay {
+        return DB::transaction(function () use ($employee, $workDate, $hours, $anomalies): ?AttendanceDay {
             $existing = AttendanceDay::query()
                 ->forTenant($employee->tenant_id)
                 ->where('employee_id', $employee->id)
                 ->whereDate('work_date', $workDate)
                 ->first();
 
-            // Lo que talento humano ajustó a mano no se toca: el reloj lo pisaría en la
-            // próxima marca o reconstrucción. Lo firmado tampoco, salvo al recalcular.
-            if ($existing && $existing->isManuallyAdjusted()) {
+            // Lo firmado no se toca, y lo que talento humano ajustó a mano tampoco: el
+            // reloj lo pisaría en la próxima marca o reconstrucción.
+            if ($existing && ($existing->status === AttendanceDayStatus::Confirmada || $existing->isManuallyAdjusted())) {
                 return null;
-            }
-
-            if ($existing && $existing->status === AttendanceDayStatus::Confirmada) {
-                if (! $includeConfirmed) {
-                    return null;
-                }
-
-                $existing->update($hours->toArray() + [
-                    'worked_hours' => round($hours->workedHours(), 4),
-                    'anomalies' => $anomalies ?: null,
-                ]);
-
-                return $existing->refresh();
             }
 
             $attributes = $hours->toArray() + [

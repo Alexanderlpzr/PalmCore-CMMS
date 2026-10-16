@@ -58,7 +58,7 @@ class OvertimeWorkbookImporter
     /**
      * Qué pasaría con cada día del libro, sin escribir nada.
      *
-     * @return array{rows: list<array{employee: ?Employee, name: string, date: CarbonImmutable, entry: CarbonImmutable, exit: CarbonImmutable, scheduledEnd: ?CarbonImmutable, status: string}>, counts: array<string, int>, missingWorkers: list<string>, window: ?array{0: CarbonImmutable, 1: CarbonImmutable}, toVoid: int}
+     * @return array{rows: list<array{employee: ?Employee, name: string, date: CarbonImmutable, entry: CarbonImmutable, exit: CarbonImmutable, status: string}>, counts: array<string, int>, missingWorkers: list<string>, window: ?array{0: CarbonImmutable, 1: CarbonImmutable}, toVoid: int}
      */
     public function plan(string $path, Tenant $tenant, bool $replace = false): array
     {
@@ -94,7 +94,6 @@ class OvertimeWorkbookImporter
                     $exit = $exit->addDay();
                 }
 
-                $scheduledEnd = self::scheduledEnd($day['scheduledEnd'] ?? null, $entry, $exit, $timezone);
                 $status = $this->statusOf($employee, $entry, $exit, $now, $replace);
 
                 // El mismo turno escrito dos veces en el libro entra una sola vez.
@@ -110,7 +109,6 @@ class OvertimeWorkbookImporter
                     'date' => $day['date'],
                     'entry' => $entry,
                     'exit' => $exit,
-                    'scheduledEnd' => $scheduledEnd,
                     'status' => $status,
                 ];
             }
@@ -178,8 +176,6 @@ class OvertimeWorkbookImporter
                         'tenant_id' => $row['employee']->tenant_id,
                         'employee_id' => $row['employee']->id,
                         'scanned_at' => $at->utc(),
-                        // El fin del horario del libro va en la entrada: lo ordinario llega hasta ahí.
-                        'scheduled_end_at' => $direction === AttendanceDirection::Entrada ? $row['scheduledEnd']?->utc() : null,
                         'direction' => $direction,
                         'source' => 'manual',
                         'recorded_by' => $by->id,
@@ -206,41 +202,6 @@ class OvertimeWorkbookImporter
             'counts' => $plan['counts'],
             'missingWorkers' => $plan['missingWorkers'],
         ];
-    }
-
-    /**
-     * El «FIN HORARIO LABORAL» del libro como instante, o null si no sirve.
-     *
-     * Va entre la entrada y la salida: después de la entrada y, a lo sumo, en la salida
-     * (el turno de noche que el libro anota con el fin igual a la salida no tiene extras).
-     * El libro se llena a mano y trae errores de a. m. y p. m. —«2:00am» por «2:00pm» en
-     * un turno de 7 a 6—: si el fin no cae en el turno se prueba al revés, y si tampoco,
-     * se descarta y el día se cuenta con la jornada.
-     */
-    public static function scheduledEnd(?string $time, CarbonImmutable $entry, CarbonImmutable $exit, string $timezone): ?CarbonImmutable
-    {
-        if (blank($time)) {
-            return null;
-        }
-
-        $base = CarbonImmutable::parse($entry->toDateString().' '.$time, $timezone);
-
-        foreach ([$base, $base->addHours(12), $base->subHours(12)] as $candidate) {
-            // Antes de la entrada, es del día siguiente (turno de noche).
-            if ($candidate->lte($entry)) {
-                $candidate = $candidate->addDay();
-            }
-
-            // Un horario de menos de 4 horas no es un horario: es un error de a. m. y p. m.
-            // que no se pudo corregir. Salvo que termine justo con la salida.
-            $plausible = $candidate->eq($exit) || $entry->diffInMinutes($candidate) >= 240;
-
-            if ($candidate->gt($entry) && $candidate->lte($exit) && $plausible) {
-                return $candidate;
-            }
-        }
-
-        return null;
     }
 
     /**

@@ -11,7 +11,6 @@ use App\Models\Employee;
 use App\Models\EmployeeQrCode;
 use App\Models\Tenant;
 use App\Models\User;
-use Carbon\CarbonImmutable;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\TenantRolesSeeder;
 use Filament\Actions\Testing\TestAction;
@@ -93,10 +92,8 @@ function libroParaImportar(array $hojas): string
         $writer->addRow(Row::fromValues([]));
         $writer->addRow(Row::fromValues(['FECHA', 'HORA INICIO', 'FIN HORARIO LABORAL', 'HORA      SALIDA', 'HORAS EXTRAS DIURNAS', 'HORAS EXTRAS NOCTURNAS', 'HORAS EXTRAS DOMINICAL DIURNA', 'HORAS EXTRAS DOMINICAL NOCTURNA', 'HORA DOMINICAL', 'RECARGO NOCTURNO', 'RECARGO NOCTURNO DOMINICAL', 'JUSTIFICACIÓN ']));
 
-        // Fecha, inicio, salida y, si viene, el fin del horario laboral.
-        foreach ($dias as $dia) {
-            [$fecha, $inicio, $salida] = $dia;
-            $writer->addRow(Row::fromValues([$fecha, $inicio, $dia[3] ?? '', $salida, '', '', '', '', '', '', '', 'Turno']));
+        foreach ($dias as [$fecha, $inicio, $salida]) {
+            $writer->addRow(Row::fromValues([$fecha, $inicio, '', $salida, '', '', '', '', '', '', '', 'Turno']));
         }
     }
 
@@ -194,42 +191,3 @@ it('replaces with the workbook only the days it brings: voids what was there and
     $dia = AttendanceDay::query()->where('employee_id', $this->employee->id)->whereDate('work_date', '2026-10-05')->sole();
     expect((float) $dia->worked_hours)->toBe(11.0);
 });
-
-it('counts as ordinary what the workbook schedules: no overtime on the night shift that ends on schedule', function (): void {
-    // 6 p. m. a 6 a. m. con el fin del horario a las 6 a. m.: todo ordinario, con recargo nocturno.
-    // 7 a. m. a 6 p. m. con «2:00am», que es 2:00 pm: siete ordinarias y cuatro extras.
-    $libro = libroParaImportar([
-        'PEDRO' => [1116615860, [
-            ['martes, 29 de septiembre de 2026', '6:00pm', '6:00am', '6:00am'],
-            ['sábado, 3 de octubre de 2026', '7:00am', '6:00pm', '2:00am'],
-        ]],
-    ]);
-
-    app(OvertimeWorkbookImporter::class)->import($libro, $this->tenant, $this->rrhh);
-    @unlink($libro);
-
-    $dia = fn (string $fecha): AttendanceDay => AttendanceDay::query()->where('employee_id', $this->employee->id)->whereDate('work_date', $fecha)->sole();
-    $noche = $dia('2026-09-29');
-    $sabado = $dia('2026-10-03');
-
-    expect((float) $noche->worked_hours)->toBe(12.0)
-        ->and($noche->hours()->overtimeHours())->toBe(0.0)
-        ->and((float) $noche->night_surcharge_hours)->toBeGreaterThan(0.0)
-        ->and((float) $sabado->worked_hours)->toBe(11.0)
-        ->and(round($sabado->hours()->overtimeHours(), 2))->toBe(4.0);
-});
-
-it('reads the scheduled end of the workbook, fixing a. m. and p. m. mixed up', function (string $fin, string $entrada, string $salida, ?string $esperado): void {
-    $tz = 'America/Bogota';
-    $e = CarbonImmutable::parse("2026-10-03 {$entrada}", $tz);
-    $x = CarbonImmutable::parse("2026-10-03 {$salida}", $tz);
-    $x = $x->lte($e) ? $x->addDay() : $x;
-
-    expect(OvertimeWorkbookImporter::scheduledEnd($fin, $e, $x, $tz)?->format('Y-m-d H:i'))->toBe($esperado);
-})->with([
-    'noche, fin igual a la salida' => ['06:00', '18:00', '06:00', '2026-10-04 06:00'],
-    'día normal' => ['14:00', '07:00', '18:00', '2026-10-03 14:00'],
-    '«2:00am» que es 2:00 pm' => ['02:00', '07:00', '18:00', '2026-10-03 14:00'],
-    'fin después de la salida' => ['20:00', '07:00', '15:00', null],
-    'sin fin' => ['', '07:00', '15:00', null],
-]);
