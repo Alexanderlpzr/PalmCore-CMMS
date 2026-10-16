@@ -36,6 +36,14 @@ enum PayrollParameter: string
     case MaxOvertimeHoursWeek = 'max_overtime_hours_week';
 
     /**
+     * La jornada contada por semana (lunes a domingo): todo es ordinario hasta completar
+     * estas horas en la semana y solo lo que pase es extra, sin tope diario. 0 apaga la
+     * regla y vale la jornada ordinaria diaria. Lo pidió la extractora el 2026-10-16: quien
+     * hace turnos largos pero no completa las 42 h no debe cobrar extras.
+     */
+    case WeeklyOrdinaryHours = 'weekly_ordinary_hours';
+
+    /**
      * El día del mes en que se cortan las horas. 0 es el mes calendario; 26, que la
      * nómina de octubre paga el sueldo de octubre y las horas del 27 de septiembre al 26
      * de octubre, como el formato de horas extras de la extractora: así queda tiempo de
@@ -99,6 +107,7 @@ enum PayrollParameter: string
             self::NightWindowEnd => 'Fin de la jornada nocturna',
             self::MaxOvertimeHoursDay => 'Tope de horas extras por día',
             self::MaxOvertimeHoursWeek => 'Tope de horas extras por semana',
+            self::WeeklyOrdinaryHours => 'Jornada ordinaria semanal (0 = por día)',
             self::HoursCutoffDay => 'Día de corte de horas',
             self::SurchargeNight => 'Recargo nocturno',
             self::SurchargeSunday => 'Recargo dominical y festivo',
@@ -135,7 +144,7 @@ enum PayrollParameter: string
             self::Smlmv, self::TransportAllowance, self::TransportAllowanceMaxSmlmv, self::UvtValue => 'Valores del año',
             self::MonthlyHoursDivisor, self::MonthDays, self::OrdinaryHoursPerDay,
             self::NightWindowStart, self::NightWindowEnd,
-            self::MaxOvertimeHoursDay, self::MaxOvertimeHoursWeek, self::HoursCutoffDay => 'Jornada',
+            self::MaxOvertimeHoursDay, self::MaxOvertimeHoursWeek, self::HoursCutoffDay, self::WeeklyOrdinaryHours => 'Jornada',
             self::SurchargeNight, self::SurchargeSunday, self::SurchargeNightSunday,
             self::OvertimeDay, self::OvertimeNight, self::OvertimeSundayDay, self::OvertimeSundayNight,
             self::OvertimeExcessAsBonus => 'Recargos y horas extras',
@@ -167,7 +176,7 @@ enum PayrollParameter: string
             self::Smlmv, self::TransportAllowance, self::UvtValue, self::MealAllowanceValue, self::MealSnackValue => PayrollParameterUnit::Money,
             self::TransportAllowanceMaxSmlmv, self::MonthlyHoursDivisor, self::MonthDays,
             self::OrdinaryHoursPerDay, self::MaxOvertimeHoursDay,
-            self::MaxOvertimeHoursWeek, self::HoursCutoffDay => PayrollParameterUnit::Number,
+            self::MaxOvertimeHoursWeek, self::HoursCutoffDay, self::WeeklyOrdinaryHours => PayrollParameterUnit::Number,
             self::NightWindowStart, self::NightWindowEnd => PayrollParameterUnit::HourOfDay,
             self::MealNightShiftFrom, self::MealBreakfastStart, self::MealBreakfastEnd, self::MealLunchStart, self::MealLunchEnd, self::MealSnackStart, self::MealSnackEnd, self::MealDinnerStart, self::MealDinnerEnd, self::MealNightSnackStart, self::MealNightSnackEnd, self::MealNightBreakfastStart, self::MealNightBreakfastEnd => PayrollParameterUnit::HourOfDay,
             self::OvertimeExcessAsBonus, self::RoundMarksToHour => PayrollParameterUnit::Toggle,
@@ -197,6 +206,8 @@ enum PayrollParameter: string
             // Las dos reglas de la extractora arrancan apagadas: mes calendario y todo
             // como horas extras, que es lo que dice la ley sin acuerdos de por medio.
             self::HoursCutoffDay => 0,
+            // Apagada: vale la jornada diaria hasta que la empresa decida contar por semana.
+            self::WeeklyOrdinaryHours => 0,
             self::SurchargeNight => 0.35,
             self::SurchargeSunday => 0.80,
             self::SurchargeNightSunday => 1.15,
