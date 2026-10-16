@@ -5,6 +5,7 @@ namespace App\Filament\Resources\AttendanceDays\Pages;
 use App\Domain\HumanResources\Services\AttendanceDayBuilder;
 use App\Filament\Resources\AttendanceDays\AttendanceDayResource;
 use App\Filament\Resources\Concerns\HasBackAction;
+use App\Filament\Widgets\Lists\AttendanceDayKpis;
 use App\Models\AttendanceDay;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
@@ -18,6 +19,12 @@ class ListAttendanceDays extends ListRecords
     use HasBackAction;
 
     protected static string $resource = AttendanceDayResource::class;
+
+    /** Lo que dice la tabla en cuatro tarjetas; cada una filtra la lista al tocarla. */
+    protected function getHeaderWidgets(): array
+    {
+        return [AttendanceDayKpis::class];
+    }
 
     protected function getHeaderActions(): array
     {

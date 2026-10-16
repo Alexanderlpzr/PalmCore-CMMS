@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Inventory\PurchaseOrder\Pages;
 
 use App\Domain\Inventory\Services\PurchaseOrderService;
 use App\Filament\Resources\Inventory\PurchaseOrder\PurchaseOrderResource;
+use App\Filament\Widgets\Lists\PurchaseOrderKpis;
 use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
 use Filament\Facades\Filament;
@@ -14,6 +15,12 @@ use Filament\Support\Icons\Heroicon;
 class ListPurchaseOrders extends ListRecords
 {
     protected static string $resource = PurchaseOrderResource::class;
+
+    /** Lo que dice la tabla en cuatro tarjetas; cada una filtra la lista al tocarla. */
+    protected function getHeaderWidgets(): array
+    {
+        return [PurchaseOrderKpis::class];
+    }
 
     protected function getHeaderActions(): array
     {

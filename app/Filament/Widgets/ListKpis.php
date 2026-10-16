@@ -58,6 +58,11 @@ abstract class ListKpis extends Widget
         ]));
 
         $tiles = array_map(function (array $kpi) use ($current): array {
+            // Una tarjeta que lleva a otra lista (los repuestos desde los almacenes).
+            if (isset($kpi['url'])) {
+                return $kpi + ['href' => $kpi['url'], 'active' => false];
+            }
+
             $link = $kpi['link'] ?? null;
 
             if ($link === null) {

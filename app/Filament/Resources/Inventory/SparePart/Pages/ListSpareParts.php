@@ -8,6 +8,7 @@ use App\Domain\Reports\Enums\ReportType;
 use App\Domain\Reports\Excel\ExcelReportManager;
 use App\Domain\Reports\Services\ReportManager;
 use App\Filament\Resources\Inventory\SparePart\SparePartResource;
+use App\Filament\Widgets\Lists\SparePartKpis;
 use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
 use Filament\Facades\Filament;
@@ -18,6 +19,12 @@ use Filament\Support\Icons\Heroicon;
 class ListSpareParts extends ListRecords
 {
     protected static string $resource = SparePartResource::class;
+
+    /** Lo que dice la tabla en cuatro tarjetas; cada una filtra la lista al tocarla. */
+    protected function getHeaderWidgets(): array
+    {
+        return [SparePartKpis::class];
+    }
 
     protected function getHeaderActions(): array
     {

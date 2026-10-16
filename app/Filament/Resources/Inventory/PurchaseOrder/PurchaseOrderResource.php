@@ -25,6 +25,8 @@ use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use UnitEnum;
@@ -168,6 +170,20 @@ class PurchaseOrderResource extends Resource
                 TextColumn::make('total')->label('Total')->money('COP')
                     ->alignEnd()->sortable(),
                 TextColumn::make('expected_at')->label('Esperada')->date('d/m/Y')->placeholder('—')->sortable(),
+            ])
+            // Los de las tarjetas de arriba, y el estado.
+            ->filters([
+                Filter::make('abiertas')
+                    ->label('Abiertas')
+                    ->toggle()
+                    ->query(fn (Builder $query): Builder => $query->open()),
+                Filter::make('vencidas')
+                    ->label('Entrega vencida')
+                    ->toggle()
+                    ->query(fn (Builder $query): Builder => $query->open()->whereNotNull('expected_at')->whereDate('expected_at', '<', today())),
+                SelectFilter::make('status')
+                    ->label('Estado')
+                    ->options(collect(PurchaseOrderStatus::cases())->mapWithKeys(fn (PurchaseOrderStatus $s): array => [$s->value => $s->label()])->all()),
             ])
             ->defaultSort('created_at', 'desc');
     }

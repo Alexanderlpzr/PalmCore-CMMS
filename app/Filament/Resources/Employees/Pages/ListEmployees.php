@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Employees\Pages;
 use App\Domain\Reports\Excel\PersonalExcelExport;
 use App\Filament\Resources\Concerns\HasBackAction;
 use App\Filament\Resources\Employees\EmployeeResource;
+use App\Filament\Widgets\Lists\EmployeeKpis;
 use App\Models\Employee;
 use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
@@ -19,6 +20,12 @@ class ListEmployees extends ListRecords
     use HasBackAction;
 
     protected static string $resource = EmployeeResource::class;
+
+    /** Lo que dice la tabla en cuatro tarjetas; cada una filtra la lista al tocarla. */
+    protected function getHeaderWidgets(): array
+    {
+        return [EmployeeKpis::class];
+    }
 
     /** El aviso de contratos fijos que vencen en 30 días, a la vista sin filtrar. */
     public function getSubheading(): ?string
