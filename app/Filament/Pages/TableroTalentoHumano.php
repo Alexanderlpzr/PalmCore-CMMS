@@ -22,9 +22,10 @@ use UnitEnum;
 /**
  * El tablero de Talento Humano: lo primero que ve la cuenta de RRHH al entrar.
  *
- * Arriba, lo que requiere atención hoy —cada número lleva a la lista ya filtrada donde se
- * resuelve—; después el corte de horas en curso, los accesos a lo que se hace a diario y
- * dos gráficos: horas extras por grupo en los últimos cortes y días de novedad del corte.
+ * Arriba, el corte de horas en curso en la tarjeta principal y los accesos a lo que se hace
+ * a diario; después lo que requiere atención hoy —cada número lleva a la lista ya filtrada
+ * donde se resuelve— y dos gráficos: horas extras por grupo en los últimos cortes y días de
+ * novedad del corte.
  */
 class TableroTalentoHumano extends Page
 {

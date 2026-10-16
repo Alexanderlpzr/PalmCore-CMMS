@@ -21,15 +21,38 @@
         </div>
     </div>
 
-    <div class="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-gray-600 dark:text-gray-300">
-        <span><strong class="tabular-nums text-gray-950 dark:text-white">{{ $counts['pending'] }}</strong> por confirmar</span>
-        @if ($counts['warnings'] > 0)
-            <span class="text-danger-600 dark:text-danger-400"><strong class="tabular-nums">{{ $counts['warnings'] }}</strong> con avisos</span>
-        @endif
-        <span><strong class="tabular-nums text-gray-950 dark:text-white">{{ $counts['confirmed'] }}</strong> confirmados</span>
-        <span class="mx-1 hidden h-4 w-px bg-gray-300 sm:block dark:bg-white/20"></span>
+    {{-- Cómo va la semana: lo que falta, lo que tiene avisos y lo ya firmado. --}}
+    @php
+        $totalSemana = $counts['pending'] + $counts['confirmed'];
+    @endphp
+    <div class="grid grid-cols-2 gap-3 lg:grid-cols-3">
+        <x-fronda.kpi
+            label="Por confirmar"
+            :value="$counts['pending']"
+            icon="heroicon-o-clipboard-document-check"
+            :tone="$counts['pending'] > 0 ? 'warning' : 'ok'"
+            :detail="$counts['pending'] > 0 ? 'Toque un día amarillo para revisarlo' : 'Nada pendiente esta semana'"
+        />
+        <x-fronda.kpi
+            label="Con avisos"
+            :value="$counts['warnings']"
+            icon="heroicon-o-exclamation-triangle"
+            :tone="$counts['warnings'] > 0 ? 'danger' : 'ok'"
+            :detail="$counts['warnings'] > 0 ? 'Marcas sin cerrar o turnos raros' : 'Sin avisos'"
+        />
+        <x-fronda.kpi
+            class="col-span-2 lg:col-span-1"
+            label="Confirmados"
+            :value="$counts['confirmed']"
+            :color="\App\Support\FrondaPalette::Brand[600]"
+            :percent="$totalSemana > 0 ? $counts['confirmed'] * 100 / $totalSemana : 0"
+            :detail="'De '.$totalSemana.' '.($totalSemana === 1 ? 'día' : 'días').' de la semana'"
+        />
+    </div>
+
+    <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-gray-600 dark:text-gray-300">
         @foreach (['pending' => ['bg-warning-100 ring-warning-300 dark:bg-warning-500/20', 'Por confirmar'], 'warning' => ['bg-danger-100 ring-danger-300 dark:bg-danger-500/20', 'Con avisos'], 'confirmed' => ['bg-success-100 ring-success-300 dark:bg-success-500/20', 'Confirmado'], 'adjusted' => ['bg-info-100 ring-info-300 dark:bg-info-500/20', 'Ajustado a mano']] as [$clase, $texto])
-            <span class="flex items-center gap-1.5 text-xs"><span class="h-3 w-3 rounded ring-1 {{ $clase }}"></span>{{ $texto }}</span>
+            <span class="flex items-center gap-1.5"><span class="h-3 w-3 rounded ring-1 {{ $clase }}"></span>{{ $texto }}</span>
         @endforeach
     </div>
 

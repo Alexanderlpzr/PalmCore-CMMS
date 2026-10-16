@@ -55,6 +55,25 @@ class HorasConfirmadas extends Page implements HasTable
         return auth()->user()?->can('viewAny', AttendanceDay::class) ?? false;
     }
 
+    /**
+     * Lo de los días que muestra la tabla —con sus filtros—, para las tarjetas de arriba.
+     *
+     * @return array{days: int, people: int, worked: float, surcharges: float, overtime: float, adjusted: int}
+     */
+    public function resumen(): array
+    {
+        $dias = $this->getFilteredTableQuery()?->get() ?? collect();
+
+        return [
+            'days' => $dias->count(),
+            'people' => $dias->pluck('employee_id')->unique()->count(),
+            'worked' => round((float) $dias->sum('worked_hours'), 2),
+            'surcharges' => round((float) $dias->sum(fn (AttendanceDay $d): float => (float) $d->night_surcharge_hours + (float) $d->sunday_surcharge_hours + (float) $d->night_sunday_surcharge_hours), 2),
+            'overtime' => round((float) $dias->sum(fn (AttendanceDay $d): float => (float) $d->overtime_day_hours + (float) $d->overtime_night_hours + (float) $d->overtime_sunday_day_hours + (float) $d->overtime_sunday_night_hours), 2),
+            'adjusted' => $dias->filter(fn (AttendanceDay $d): bool => $d->isManuallyAdjusted())->count(),
+        ];
+    }
+
     public function table(Table $table): Table
     {
         return $table

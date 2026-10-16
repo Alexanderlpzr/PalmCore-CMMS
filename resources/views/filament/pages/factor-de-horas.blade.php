@@ -7,11 +7,9 @@
 
 <x-filament-panels::page>
     @if ($runs->isEmpty())
-        <x-filament::section>
-            <p class="text-sm text-gray-500 dark:text-gray-400">
-                Todavía no hay nóminas liquidadas. El indicador sale de la nómina: liquide una en «Nóminas» y vuelva aquí.
-            </p>
-        </x-filament::section>
+        <x-fronda.empty-state icon="heroicon-o-chart-bar" heading="Todavía no hay nóminas liquidadas">
+            El indicador sale de la nómina: liquide una en «Nóminas» y vuelva aquí.
+        </x-fronda.empty-state>
     @else
         <div class="max-w-md">
             <x-filament::input.wrapper>
@@ -28,7 +26,45 @@
                 $run = $informe['run'];
                 $anterior = $informe['previous']['groups'] ?? [];
                 $totalAnterior = $informe['previous']['total'] ?? null;
+                $total = $informe['current']['total'];
+                $variacionTotal = $totalAnterior && $totalAnterior['amount'] > 0 ? ($total['amount'] - $totalAnterior['amount']) / $totalAnterior['amount'] : null;
+                $coloresGrupo = [\App\Support\FrondaPalette::Brand[600], \App\Support\FrondaPalette::Petrol[600], \App\Support\FrondaPalette::Petrol[400], \App\Support\FrondaPalette::Brand[300], '#d97706', '#94a3b8'];
+                $porciones = fn (string $campo): array => collect($informe['current']['groups'])->values()
+                    ->map(fn (array $grupo, int $i): array => ['label' => $grupo['label'], 'value' => (float) $grupo[$campo], 'color' => $coloresGrupo[$i % count($coloresGrupo)]])
+                    ->all();
             @endphp
+
+            <div class="grid gap-4 lg:grid-cols-3">
+                <x-fronda.hero
+                    class="lg:col-span-2"
+                    :label="'Recargos y horas extras · '.$run->name"
+                    :value="$total['amount']"
+                    prefix="$ "
+                    :badge="$total['factor'] === null ? null : 'Factor '.number_format($total['factor'] * 100, 1, ',', '.').' %'"
+                    icon="heroicon-o-chart-bar"
+                >
+                    <p class="text-sm text-white/80">
+                        Por cada $ 100 de sueldo ordinario se pagaron
+                        <span class="font-semibold text-white">{{ $total['factor'] === null ? '—' : '$ '.number_format($total['factor'] * 100, 1, ',', '.') }}</span>
+                        en recargos y horas extras.
+                    </p>
+
+                    <x-slot name="stats">
+                        <x-fronda.hero-stat label="Horas pagadas" :value="$horas($total['hours']).' h'" :detail="$horas($total['surcharge_hours']).' h con recargo · '.$horas($total['overtime_hours']).' h extras'" />
+                        <x-fronda.hero-stat
+                            :label="'Contra '.($informe['previousRun']?->name ?? 'el mes anterior')"
+                            :value="$variacionTotal === null ? '—' : ($variacionTotal > 0 ? '+' : '').number_format($variacionTotal * 100, 1, ',', '.').' %'"
+                            :detail="$totalAnterior ? $pesos($totalAnterior['amount']).' el mes anterior' : 'Sin nómina anterior para comparar'"
+                        />
+                    </x-slot>
+                </x-fronda.hero>
+
+                @livewire(\App\Filament\Widgets\HumanResources\LaborCostPieChart::class, [
+                    'chartHeading' => 'Por grupo',
+                    'chartDescription' => 'Recargos y horas extras de cada grupo, en pesos.',
+                    'slices' => $porciones('amount'),
+                ], key('factor-por-grupo-'.$run->getKey()))
+            </div>
 
             {{--
                 El informe TH-INF-F-002, con las cifras de la nómina en vez de tecleadas. Las

@@ -250,6 +250,28 @@ class Alimentacion extends Page implements HasTable
         );
     }
 
+    /**
+     * Lo del periodo para las tarjetas de arriba de la tabla.
+     *
+     * @return array{amount: float, meals: int, people: int, counts: array<string, int>}
+     */
+    public function resumen(): array
+    {
+        $todas = collect($this->allMeals())->filter(fn (array $m): bool => $m['meals'] > 0);
+        $counts = [];
+
+        foreach (array_keys(MealAllowanceCalculator::MEALS) as $comida) {
+            $counts[$comida] = (int) $todas->sum(fn (array $m): int => $m['counts'][$comida] ?? 0);
+        }
+
+        return [
+            'amount' => round($todas->sum('amount'), 2),
+            'meals' => (int) $todas->sum('meals'),
+            'people' => $todas->count(),
+            'counts' => $counts,
+        ];
+    }
+
     /** El total del periodo, en la descripción de la tabla. */
     private function summary(): string
     {

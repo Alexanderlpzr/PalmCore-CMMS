@@ -64,7 +64,14 @@ beforeEach(function (): void {
 });
 
 it('lists the confirmed days and adjusts one without losing the signature', function (): void {
-    Livewire::test(HorasConfirmadas::class)
+    $pantalla = Livewire::test(HorasConfirmadas::class);
+
+    // Las tarjetas de arriba resumen lo que muestra la tabla: un día de 6 a. m. a 4 p. m.
+    expect($pantalla->instance()->resumen())->toMatchArray(['days' => 1, 'people' => 1, 'worked' => 10.0, 'adjusted' => 0]);
+
+    $pantalla
+        ->assertSee('Días confirmados')
+        ->assertSee('Ajustados a mano')
         ->assertCanSeeTableRecords([$this->day])
         ->callAction(TestAction::make('ajustarHoras')->table($this->day), [
             'entrada' => '06:00', 'salida' => '13:00',
@@ -116,6 +123,8 @@ it('voids a confirmed day from «Horas confirmadas»', function (): void {
 
 it('opens the days of a worker from «Horas extras» and edits them from the record tab', function (): void {
     Livewire::test(HorasExtras::class)
+        ->assertSee('Trabajadores con horas')
+        ->assertSee('Días por confirmar')
         ->mountAction(TestAction::make('dias')->table($this->employee))
         ->assertMountedActionModalSee('Días de Diego Medina');
 

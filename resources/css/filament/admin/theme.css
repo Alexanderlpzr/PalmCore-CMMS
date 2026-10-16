@@ -12,6 +12,8 @@
 
 @source '../../../../app/Filament/**/*.php';
 @source '../../../../resources/views/filament/**/*.blade.php';
+/* Los componentes compartidos de los tableros (x-fronda.hero, x-fronda.kpi…). */
+@source '../../../../resources/views/components/fronda/*.blade.php';
 
 /* Los render hooks del panel escriben HTML con clases de Tailwind directamente
    dentro del provider (el enlace «→ Panel de Plataforma»), y esta ruta no

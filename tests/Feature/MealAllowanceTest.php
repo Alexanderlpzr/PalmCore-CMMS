@@ -121,6 +121,8 @@ it('shows the meals of the period and downloads the payment sheet', function ():
         ->assertTableColumnStateSet('comida_desayuno', 2, $this->employee)
         ->assertTableColumnStateSet('valor', 54_000.0, $this->employee)
         ->assertSee('6 comidas por $ 54.000')
+        // La tarjeta de arriba dice lo mismo que la tabla.
+        ->assertSee('Valor a pagar')
         ->callAction(TestAction::make('excelPago')->table())
         ->assertFileDownloaded('ALIMENTACION-20260927-20261026.xlsx');
 });

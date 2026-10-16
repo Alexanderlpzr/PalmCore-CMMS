@@ -20,7 +20,7 @@ trait MuestraLosValores
 {
     protected function getOptions(): RawJs
     {
-        return RawJs::make(<<<'JS'
+        return RawJs::make(str_replace('__UNIDAD__', $this->valueUnit(), <<<'JS'
             {
                 plugins: {
                     datalabels: {
@@ -82,7 +82,7 @@ trait MuestraLosValores
                                     });
 
                                     return {
-                                        text: etiqueta + ' — ' + horas + ' h',
+                                        text: etiqueta + ' — ' + horas + ' __UNIDAD__',
                                         fillStyle: Array.isArray(colores) ? colores[i] : colores,
                                         strokeStyle: Array.isArray(colores) ? colores[i] : colores,
                                         lineWidth: 0,
@@ -95,6 +95,12 @@ trait MuestraLosValores
                     },
                 },
             }
-        JS);
+        JS));
+    }
+
+    /** La unidad que acompaña al valor en la leyenda: horas en los paros, días en las novedades. */
+    protected function valueUnit(): string
+    {
+        return 'h';
     }
 }

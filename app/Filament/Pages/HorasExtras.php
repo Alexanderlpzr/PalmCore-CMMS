@@ -410,20 +410,43 @@ class HorasExtras extends Page implements HasTable
         );
     }
 
+    /**
+     * Lo de todos en la ventana elegida, para las tarjetas de arriba de la tabla.
+     *
+     * @return array{people: int, active: int, overtime: float, surcharges: float, bonus: float, unconfirmed: int}
+     */
+    public function resumen(): array
+    {
+        $todos = collect($this->allTotals());
+
+        return [
+            'people' => $todos->filter(fn (array $t): bool => $t['days'] > 0)->count(),
+            'active' => Employee::query()->active()->count(),
+            'overtime' => round($todos->sum('overtime'), 2),
+            'surcharges' => round($todos->sum('surcharges'), 2),
+            'bonus' => round($todos->sum('bonusHours'), 2),
+            'unconfirmed' => (int) $todos->sum('unconfirmed'),
+        ];
+    }
+
     /** @return array<string, mixed> los totales del trabajador en la ventana elegida */
     private function totalsOf(Employee $employee): array
+    {
+        return $this->allTotals()[$employee->getKey()] ?? [];
+    }
+
+    /** @return array<string, array<string, mixed>> los totales de todos los activos en la ventana elegida */
+    private function allTotals(): array
     {
         [$from, $to] = $this->window();
         $key = $from->toDateString().'|'.$to->toDateString();
 
-        $this->totales[$key] ??= app(OvertimeSummary::class)->forEmployees(
+        return $this->totales[$key] ??= app(OvertimeSummary::class)->forEmployees(
             Employee::query()->active()->pluck('id')->all(),
-            $employee->tenant_id,
+            (string) Filament::getTenant()?->getKey(),
             $from,
             $to,
         );
-
-        return $this->totales[$key][$employee->getKey()] ?? [];
     }
 
     private function hours(float $value): string

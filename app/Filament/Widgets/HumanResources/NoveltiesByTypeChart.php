@@ -58,6 +58,11 @@ class NoveltiesByTypeChart extends ChartWidget
         ];
     }
 
+    protected function valueUnit(): string
+    {
+        return 'días';
+    }
+
     protected function getType(): string
     {
         return 'doughnut';

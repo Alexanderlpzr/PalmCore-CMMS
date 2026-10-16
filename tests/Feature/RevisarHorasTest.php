@@ -61,7 +61,7 @@ it('shows the week as a grid of workers by days, with readable hours', function 
         ->assertSee('Del 12/10 al 18/10/2026')
         ->assertSee('Ana Ruiz')
         ->assertSee('8 h')
-        ->assertSee('con avisos')
+        ->assertSee('Con avisos')
         ->call('semanaAnterior')
         ->assertSee('Del 05/10 al 11/10/2026')
         ->assertSee('No hay días por confirmar en esta semana');

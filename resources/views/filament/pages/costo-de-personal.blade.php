@@ -74,60 +74,33 @@
 
     <div class="grid gap-4 lg:grid-cols-3">
         {{-- La cifra del día, con quiénes van entrando contra los que están en nómina. --}}
-        <div class="relative flex flex-col overflow-hidden rounded-2xl bg-gradient-to-br from-[#1a7e42] via-[#0d5a4a] to-[#00384c] p-6 text-white shadow-lg lg:col-span-2">
-            <x-filament::icon icon="heroicon-o-banknotes" class="pointer-events-none absolute -bottom-6 -right-6 h-40 w-40 text-white/10" />
+        <x-fronda.hero
+            class="lg:col-span-2"
+            :label="$soloExtras ? ($enVivo ? 'Extras y recargos de hoy' : 'Extras y recargos del '.$fechaLarga) : ($enVivo ? 'Lo que va costando hoy' : 'Costo del '.$fechaLarga)"
+            :value="round($dia['totals']['total'])"
+            prefix="$ "
+            :badge="$dia['estimated'] ? 'Estimado' : null"
+            icon="heroicon-o-banknotes"
+        >
+            <x-fronda.progress
+                light
+                :percent="$avance"
+                :label="$entraron.' de '.$dia['totals']['people'].' '.($entraron === 1 ? 'persona entró' : 'personas entraron').($dia['totals']['inside'] > 0 ? ' · '.$dia['totals']['inside'].' '.($dia['totals']['inside'] === 1 ? 'sigue' : 'siguen').' adentro' : '')"
+            />
 
-            <div class="relative flex flex-wrap items-start justify-between gap-2">
-                <p class="text-sm font-medium text-white/80">{{ $soloExtras ? ($enVivo ? 'Extras y recargos de hoy' : 'Extras y recargos del '.$fechaLarga) : ($enVivo ? 'Lo que va costando hoy' : 'Costo del '.$fechaLarga) }}</p>
-                @if ($dia['estimated'])
-                    <span class="rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-medium text-white ring-1 ring-white/25">Estimado</span>
-                @endif
-            </div>
-
-            <p
-                wire:key="costo-dia-{{ (int) $dia['totals']['total'] }}"
-                x-data="{ valor: {{ round($dia['totals']['total'] * 0.85) }}, fin: {{ round($dia['totals']['total']) }} }"
-                x-init="
-                    const inicio = valor, arranque = performance.now();
-                    const paso = (ahora) => {
-                        const t = Math.min(1, (ahora - arranque) / 800);
-                        valor = inicio + (fin - inicio) * (1 - Math.pow(1 - t, 3));
-                        if (t < 1) requestAnimationFrame(paso);
-                    };
-                    requestAnimationFrame(paso);
-                "
-                x-text="'$ ' + Math.round(valor).toLocaleString('es-CO')"
-                class="relative mt-1 whitespace-nowrap text-4xl font-bold tabular-nums tracking-tight sm:text-5xl"
-            >{{ $pesos($dia['totals']['total']) }}</p>
-
-            <div class="relative mt-5">
-                <div class="mb-1.5 flex justify-between text-xs text-white/80">
-                    <span>
-                        <span class="font-semibold text-white">{{ $entraron }}</span> de {{ $dia['totals']['people'] }} {{ $entraron === 1 ? 'persona entró' : 'personas entraron' }}
-                        @if ($dia['totals']['inside'] > 0)
-                            · {{ $dia['totals']['inside'] }} {{ $dia['totals']['inside'] === 1 ? 'sigue' : 'siguen' }} adentro
-                        @endif
-                    </span>
-                    <span>{{ $avance }} %</span>
-                </div>
-                <div class="h-2 overflow-hidden rounded-full bg-white/20">
-                    <div class="h-full rounded-full bg-white transition-all duration-700" style="width: {{ $avance }}%"></div>
-                </div>
-            </div>
-
-            <div class="relative mt-auto grid grid-cols-2 gap-3 pt-5">
-                <div class="rounded-xl bg-white/10 p-3 ring-1 ring-white/15">
-                    <p class="text-xs text-white/70">Acumulado del corte</p>
-                    <p class="whitespace-nowrap text-lg font-bold tabular-nums sm:text-2xl">{{ $pesos($corte['totals']['total']) }}</p>
-                    <p class="text-xs text-white/70">Del {{ $desde->format('d/m') }} al {{ $hasta->format('d/m') }} · día {{ $diasCorte }} de {{ $desde->diffInDays($finCorte) + 1 }}</p>
-                </div>
-                <div class="rounded-xl bg-white/10 p-3 ring-1 ring-white/15">
-                    <p class="text-xs text-white/70">Promedio por día</p>
-                    <p class="whitespace-nowrap text-lg font-bold tabular-nums sm:text-2xl">{{ $pesos($corte['totals']['total'] / max(1, $diasCorte)) }}</p>
-                    <p class="text-xs text-white/70">Corte al {{ $finCorte->format('d/m') }}: {{ $pesos($corte['totals']['total'] / max(1, $diasCorte) * ($desde->diffInDays($finCorte) + 1)) }}</p>
-                </div>
-            </div>
-        </div>
+            <x-slot name="stats">
+                <x-fronda.hero-stat
+                    label="Acumulado del corte"
+                    :value="$pesos($corte['totals']['total'])"
+                    :detail="'Del '.$desde->format('d/m').' al '.$hasta->format('d/m').' · día '.$diasCorte.' de '.($desde->diffInDays($finCorte) + 1)"
+                />
+                <x-fronda.hero-stat
+                    label="Promedio por día"
+                    :value="$pesos($corte['totals']['total'] / max(1, $diasCorte))"
+                    :detail="'Corte al '.$finCorte->format('d/m').': '.$pesos($corte['totals']['total'] / max(1, $diasCorte) * ($desde->diffInDays($finCorte) + 1))"
+                />
+            </x-slot>
+        </x-fronda.hero>
 
         {{-- Quién va entrando: cada fila es un jornal que se encendió. --}}
         <div class="flex flex-col rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-white/10 dark:bg-gray-900">
@@ -180,48 +153,30 @@
             ['key' => 'overtime', 'detail' => $horas($informe['totals']['overtime_hours']).' h extras'],
             ['key' => 'meals', 'detail' => $informe['totals']['meal_count'].' '.($informe['totals']['meal_count'] === 1 ? 'comida' : 'comidas')],
         ], fn (array $concepto): bool => in_array($concepto['key'], $conceptos, true)) as $concepto)
-            @php
-                $color = \App\Domain\HumanResources\Services\LaborCostReport::CONCEPT_COLORS[$concepto['key']];
-                $parte = $hayCosto ? round($informe['totals'][$concepto['key']] * 100 / $informe['totals']['total']) : 0;
-            @endphp
-            <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-gray-900">
-                <div class="flex items-center justify-between gap-2">
-                    <div class="flex items-center gap-2">
-                        <span class="h-2.5 w-2.5 rounded-full" style="background-color: {{ $color }}"></span>
-                        <p class="text-sm font-medium text-gray-600 dark:text-gray-300">{{ \App\Domain\HumanResources\Services\LaborCostReport::CONCEPTS[$concepto['key']] }}</p>
-                    </div>
-                    <span class="text-xs tabular-nums text-gray-400">{{ $parte }} %</span>
-                </div>
-                <p class="mt-1 whitespace-nowrap text-lg font-bold tabular-nums text-gray-950 sm:text-2xl dark:text-white">{{ $pesos($informe['totals'][$concepto['key']]) }}</p>
-                <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-white/10">
-                    <div class="h-full rounded-full transition-all duration-700" style="width: {{ $parte }}%; background-color: {{ $color }}"></div>
-                </div>
-                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">{{ $concepto['detail'] }}</p>
-            </div>
+            <x-fronda.kpi
+                :label="\App\Domain\HumanResources\Services\LaborCostReport::CONCEPTS[$concepto['key']]"
+                :value="$pesos($informe['totals'][$concepto['key']])"
+                :color="\App\Domain\HumanResources\Services\LaborCostReport::CONCEPT_COLORS[$concepto['key']]"
+                :percent="$hayCosto ? $informe['totals'][$concepto['key']] * 100 / $informe['totals']['total'] : 0"
+                :detail="$concepto['detail']"
+            />
         @endforeach
     </div>
 
     @if (! $hayCosto)
         {{-- Sin nadie adentro no hay tortas que dibujar: se dice qué va a pasar. --}}
-        <div class="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-14 text-center dark:border-white/15 dark:bg-gray-900">
-            <span class="flex h-16 w-16 items-center justify-center rounded-full bg-primary-50 dark:bg-primary-500/10">
-                <x-filament::icon icon="heroicon-o-chart-pie" class="h-8 w-8 text-primary-600 dark:text-primary-400" />
-            </span>
-            <p class="text-lg font-semibold text-gray-950 dark:text-white">
-                @if ($soloExtras)
-                    {{ $esCorte ? 'El corte todavía no tiene extras ni recargos' : ($enVivo ? 'Todavía no hay extras ni recargos hoy' : 'Este día no tuvo extras ni recargos') }}
-                @else
-                    {{ $esCorte ? 'El corte todavía no tiene costo' : ($enVivo ? 'El día arranca en $ 0' : 'Este día no tuvo costo') }}
-                @endif
-            </p>
-            <p class="max-w-md text-sm text-gray-500 dark:text-gray-400">
-                @if ($soloExtras)
-                    Aparecen cuando alguien pasa de su jornada o trabaja de noche o en domingo: al marcar la salida, o en vivo para quien sigue adentro{{ $enVivo ? '. Esta pantalla se actualiza sola' : '' }}.
-                @else
-                    El costo crece con cada carné que se escanea en portería: el jornal de quien entra, sus recargos y horas extras, y sus comidas. Las tortas por área aparecen con la primera entrada{{ $enVivo ? ', y esta pantalla se actualiza sola' : '' }}.
-                @endif
-            </p>
-        </div>
+        <x-fronda.empty-state
+            icon="heroicon-o-chart-pie"
+            :heading="$soloExtras
+                ? ($esCorte ? 'El corte todavía no tiene extras ni recargos' : ($enVivo ? 'Todavía no hay extras ni recargos hoy' : 'Este día no tuvo extras ni recargos'))
+                : ($esCorte ? 'El corte todavía no tiene costo' : ($enVivo ? 'El día arranca en $ 0' : 'Este día no tuvo costo'))"
+        >
+            @if ($soloExtras)
+                Aparecen cuando alguien pasa de su jornada o trabaja de noche o en domingo: al marcar la salida, o en vivo para quien sigue adentro{{ $enVivo ? '. Esta pantalla se actualiza sola' : '' }}.
+            @else
+                El costo crece con cada carné que se escanea en portería: el jornal de quien entra, sus recargos y horas extras, y sus comidas. Las tortas por área aparecen con la primera entrada{{ $enVivo ? ', y esta pantalla se actualiza sola' : '' }}.
+            @endif
+        </x-fronda.empty-state>
     @else
     {{-- Las tortas. --}}
     <div class="grid gap-4 lg:grid-cols-2">
