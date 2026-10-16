@@ -3,6 +3,7 @@
 use App\Domain\Assets\Enums\EquipmentCriticality;
 use App\Domain\Assets\Enums\EquipmentStatus;
 use App\Domain\Inventory\Enums\PurchaseOrderStatus;
+use App\Filament\Resources\Alerts\Alert\Pages\ListAlerts;
 use App\Filament\Resources\AttendanceDays\Pages\ListAttendanceDays;
 use App\Filament\Resources\AttendanceScans\Pages\ListAttendanceScans;
 use App\Filament\Resources\Downtime\Pages\ListDowntimeEvents;
@@ -15,15 +16,18 @@ use App\Filament\Resources\Maintenance\IssueReport\Pages\ListIssueReports;
 use App\Filament\Resources\Maintenance\MaintenancePlan\Pages\ListMaintenancePlans;
 use App\Filament\Resources\Maintenance\MaintenanceRequest\Pages\ListMaintenanceRequests;
 use App\Filament\Resources\Maintenance\WorkOrder\Pages\ListWorkOrders;
+use App\Filament\Resources\MaintenanceBudgets\Pages\ListMaintenanceBudgets;
 use App\Filament\Resources\MeterReadings\Pages\ListMeterReadings;
 use App\Filament\Resources\PayrollRuns\Pages\ListPayrollRuns;
 use App\Filament\Resources\ProductionCalendar\Pages\ListProductionCalendarDays;
+use App\Filament\Widgets\Lists\AlertKpis;
 use App\Filament\Widgets\Lists\AttendanceDayKpis;
 use App\Filament\Widgets\Lists\AttendanceScanKpis;
 use App\Filament\Widgets\Lists\DowntimeKpis;
 use App\Filament\Widgets\Lists\EmployeeKpis;
 use App\Filament\Widgets\Lists\EquipmentKpis;
 use App\Filament\Widgets\Lists\IssueReportKpis;
+use App\Filament\Widgets\Lists\MaintenanceBudgetKpis;
 use App\Filament\Widgets\Lists\MaintenancePlanKpis;
 use App\Filament\Widgets\Lists\MaintenanceRequestKpis;
 use App\Filament\Widgets\Lists\MeterReadingKpis;
@@ -87,6 +91,8 @@ it('shows its cards on top of every maintenance list', function (string $page, s
     'nóminas' => [ListPayrollRuns::class, PayrollRunKpis::class, 'Última nómina cerrada'],
     'horas por confirmar' => [ListAttendanceDays::class, AttendanceDayKpis::class, 'Días por confirmar'],
     'marcas de portería' => [ListAttendanceScans::class, AttendanceScanKpis::class, 'Entradas sin salida'],
+    'alertas' => [ListAlerts::class, AlertKpis::class, 'Críticas abiertas'],
+    'presupuestos' => [ListMaintenanceBudgets::class, MaintenanceBudgetKpis::class, 'Asignado este mes'],
     'personal' => [ListEmployees::class, EmployeeKpis::class, 'Sin carné'],
 ]);
 
