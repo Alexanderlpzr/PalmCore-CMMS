@@ -10,6 +10,7 @@ use App\Domain\HumanResources\Services\OvertimeWorkbookImporter;
 use App\Domain\HumanResources\Services\PayrollParameterService;
 use App\Domain\Reports\Excel\FormatoHorasExtrasExcel;
 use App\Domain\Reports\Services\FormatoHorasExtrasPdfService as Formato;
+use App\Filament\Resources\AttendanceDays\EmployeeDetailAction;
 use App\Filament\Resources\Employees\EmployeeResource;
 use App\Models\AttendanceDay;
 use App\Models\AttendanceScan;
@@ -166,7 +167,10 @@ class HorasExtras extends Page implements HasTable
                         return $query->whereHas('attendanceDays', fn (Builder $days) => $days->whereBetween('work_date', [$from->toDateString(), $to->toDateString()]));
                     }),
             ])
+            // Tocar la fila abre todo lo del trabajador en el corte.
+            ->recordAction('detalleTrabajador')
             ->recordActions([
+                EmployeeDetailAction::make(fn (Employee $record): Employee => $record, fn (): array => $this->window()),
                 // Sus días del periodo, para ajustar horas o anular un día sin salir de aquí.
                 Action::make('dias')
                     ->label('Días')

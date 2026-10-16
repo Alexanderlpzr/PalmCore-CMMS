@@ -6,6 +6,7 @@ use App\Domain\HumanResources\Enums\PayrollParameter;
 use App\Domain\HumanResources\Services\MealAllowanceCalculator;
 use App\Domain\HumanResources\Services\PayrollParameterService;
 use App\Domain\Reports\Excel\FrondaWorkbook;
+use App\Filament\Resources\AttendanceDays\EmployeeDetailAction;
 use App\Models\AttendanceDay;
 use App\Models\Employee;
 use App\Models\PayrollRun;
@@ -118,6 +119,11 @@ class Alimentacion extends Page implements HasTable
                     ->default(fn (): ?string => array_key_first($this->windowOptions()))
                     ->selectablePlaceholder(false)
                     ->query(fn (Builder $query): Builder => $query),
+            ])
+            // Tocar la fila abre todo lo del trabajador en el corte, con sus comidas día a día.
+            ->recordAction('detalleTrabajador')
+            ->recordActions([
+                EmployeeDetailAction::make(fn (Employee $record): Employee => $record, fn (): array => $this->window()),
             ])
             ->headerActions([
                 Action::make('excelPago')

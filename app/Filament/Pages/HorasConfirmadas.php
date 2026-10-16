@@ -7,6 +7,7 @@ use App\Domain\HumanResources\Services\PayrollParameterService;
 use App\Domain\HumanResources\Support\DayTone;
 use App\Domain\Reports\Excel\HorasConfirmadasExcel;
 use App\Filament\Resources\AttendanceDays\AttendanceDayActions;
+use App\Filament\Resources\AttendanceDays\EmployeeDetailAction;
 use App\Models\AttendanceDay;
 use App\Models\Employee;
 use App\Models\PayrollRun;
@@ -161,13 +162,33 @@ class HorasConfirmadas extends Page implements HasTable
                         );
                     }),
             ])
+            // Tocar la fila abre todo lo del trabajador en el corte.
+            ->recordAction('detalleTrabajador')
             ->recordActions([
+                EmployeeDetailAction::make(
+                    fn (AttendanceDay $record): ?Employee => $record->employee,
+                    fn (): array => $this->window(),
+                ),
                 AttendanceDayActions::adjustHours(),
                 AttendanceDayActions::voidDay(),
             ]);
     }
 
     /** @return array<string, string> */
+    /**
+     * El corte elegido en el filtro; sin filtro, el que corre.
+     *
+     * @return array{0: CarbonImmutable, 1: CarbonImmutable}
+     */
+    public function window(): array
+    {
+        $value = $this->getTableFilterState('periodo')['value'] ?? null;
+        $value = is_string($value) && str_contains($value, '|') ? $value : array_key_first($this->windowOptions());
+        [$from, $to] = explode('|', $value);
+
+        return [CarbonImmutable::parse($from), CarbonImmutable::parse($to)];
+    }
+
     private function windowOptions(): array
     {
         return PayrollRun::recentHoursWindows(

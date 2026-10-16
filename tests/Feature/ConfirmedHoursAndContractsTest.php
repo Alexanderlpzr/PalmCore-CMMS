@@ -1,9 +1,11 @@
 <?php
 
 use App\Domain\HumanResources\Enums\AttendanceDayStatus;
+use App\Domain\HumanResources\Enums\NoveltyType;
 use App\Domain\HumanResources\Services\AttendanceDayBuilder;
 use App\Domain\HumanResources\Services\AttendanceDayConfirmer;
 use App\Domain\HumanResources\Services\AttendanceService;
+use App\Domain\HumanResources\Services\EmployeePeriodSummary;
 use App\Domain\HumanResources\Services\PayrollParameterService;
 use App\Domain\Reports\Services\FormatoHorasExtrasPdfService;
 use App\Filament\Pages\HorasConfirmadas;
@@ -16,6 +18,7 @@ use App\Infrastructure\Tenancy\CurrentTenant;
 use App\Models\AttendanceDay;
 use App\Models\AttendanceScan;
 use App\Models\Employee;
+use App\Models\EmployeeNovelty;
 use App\Models\EmployeeQrCode;
 use App\Models\Tenant;
 use App\Models\User;
@@ -202,4 +205,51 @@ it('deletes the hours of the selected workers at once', function (): void {
         ->assertNotified('Se borró 1 día');
 
     expect(AttendanceDay::query()->whereKey($this->day->id)->exists())->toBeFalse();
+});
+
+it('gathers everything about a worker in the cutoff: days, meals, cost and novelties', function (): void {
+    $this->employee->update(['base_salary' => 3_000_000]);
+    EmployeeNovelty::query()->create([
+        'tenant_id' => $this->tenant->id,
+        'employee_id' => $this->employee->id,
+        'type' => NoveltyType::Vacaciones,
+        'starts_on' => '2026-10-06',
+        'ends_on' => '2026-10-07',
+    ]);
+
+    $resumen = app(EmployeePeriodSummary::class)->for($this->employee, Carbon::parse('2026-10-01'), Carbon::parse('2026-10-31'), withMoney: true);
+    $lunes = collect($resumen['days'])->first(fn (array $d): bool => $d['date']->toDateString() === '2026-10-05');
+
+    // El corte en curso llega hasta hoy, el 8: los días que no han pasado no salen.
+    expect($resumen['until']->toDateString())->toBe('2026-10-08')
+        ->and($resumen['days'])->toHaveCount(8)
+        ->and($lunes['entry']->format('H:i'))->toBe('06:00')
+        ->and($lunes['exit']->format('H:i'))->toBe('16:00')
+        ->and($lunes['worked'])->toBe(10.0)
+        ->and($lunes['status'])->toBe(AttendanceDayStatus::Confirmada)
+        ->and($lunes['meals'])->toBe(['Desayuno', 'Almuerzo'])
+        ->and($resumen['totals']['worked_days'])->toBe(1)
+        ->and($resumen['totals']['overtime'] + $resumen['totals']['surcharges'])->toBeGreaterThan(0.0)
+        ->and($resumen['totals']['meal_count'])->toBe(2)
+        ->and($resumen['totals']['novelty_days'])->toBe(2)
+        ->and($resumen['novelties'][0]['type'])->toBe('Vacaciones')
+        ->and($resumen['cost']['jornal'])->toEqual(100_000.0);
+
+    // Sin permiso para ver salarios, nada de pesos.
+    expect(app(EmployeePeriodSummary::class)->for($this->employee, Carbon::parse('2026-10-01'), Carbon::parse('2026-10-31'))['cost'])->toBeNull();
+});
+
+it('opens the worker detail from «Horas confirmadas» and «Horas extras»', function (): void {
+    Livewire::test(HorasConfirmadas::class)
+        ->mountAction(TestAction::make('detalleTrabajador')->table($this->day))
+        ->assertMountedActionModalSee('Diego Medina')
+        ->assertMountedActionModalSee('Horas extras y recargos del corte')
+        ->assertMountedActionModalSee('Calendario del corte')
+        ->assertMountedActionModalSee('Día a día')
+        ->assertMountedActionModalSee('Lo que costó');
+
+    Livewire::test(HorasExtras::class)
+        ->mountAction(TestAction::make('detalleTrabajador')->table($this->employee))
+        ->assertMountedActionModalSee('Diego Medina')
+        ->assertMountedActionModalSee('Novedades');
 });
