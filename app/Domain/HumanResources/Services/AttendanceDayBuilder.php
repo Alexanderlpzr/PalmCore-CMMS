@@ -67,7 +67,7 @@ class AttendanceDayBuilder
             ->orderBy('scanned_at')
             ->get();
 
-        [$sessionsByDate, $openEntries] = $this->pairIntoSessions($scans, $timezone);
+        [$sessionsByDate, $openEntries, $scheduledHours] = $this->pairIntoSessions($scans, $timezone);
 
         $built = collect();
 
@@ -85,6 +85,9 @@ class AttendanceDayBuilder
                 $surchargedDays,
                 isset($restDays[$workDate]),
                 $openEntries[$workDate] ?? null,
+                // El turno que trae su fin de horario (el libro de horas extras) es
+                // ordinario hasta ahí; los demás, con la jornada.
+                $scheduledHours[$workDate] ?? null,
             );
 
             $day = $this->persist($employee, $workDate, $hours, $anomalies);
@@ -122,7 +125,7 @@ class AttendanceDayBuilder
      * @param  array<int, array{0: CarbonImmutable, 1: CarbonImmutable}>  $sessions
      * @return array{0: ClassifiedHours, 1: array<int, string>}
      */
-    private function classifyDay(Employee $employee, CarbonImmutable $workDate, array $sessions, callable $surchargedDays, bool $isRestDay, ?string $openEntryAt = null): array
+    private function classifyDay(Employee $employee, CarbonImmutable $workDate, array $sessions, callable $surchargedDays, bool $isRestDay, ?string $openEntryAt = null, ?float $ordinaryOverride = null): array
     {
         // Los parámetros de ese día y no los del inicio del rango: una reconstrucción
         // que cruce el 15 de julio de 2026 cruza también el paso a la jornada de 42 h.
@@ -139,7 +142,7 @@ class AttendanceDayBuilder
             $config['nightEnd'],
             // El descanso trabajado no tiene jornada ordinaria: todo lo que se trabajó
             // ese día es extra.
-            $isRestDay ? 0.0 : $config['ordinaryPerDay'],
+            $isRestDay ? 0.0 : ($ordinaryOverride ?? $config['ordinaryPerDay']),
         );
 
         $anomalies = $this->anomaliesFor($hours, $config, $openEntryAt, $isRestDay);
@@ -184,13 +187,14 @@ class AttendanceDayBuilder
      * día en que **arrancó** —así cuenta el jornal el libro de Excel— aunque sus horas
      * después se repartan entre dos días.
      *
-     * @return array{0: array<string, array<int, array{0: CarbonImmutable, 1: CarbonImmutable}>>, 1: array<string, string>}
+     * @return array{0: array<string, array<int, array{0: CarbonImmutable, 1: CarbonImmutable}>>, 1: array<string, string>, 2: array<string, float>}
      */
     private function pairIntoSessions(Collection $scans, string $timezone): array
     {
         $local = fn (AttendanceScan $scan): CarbonImmutable => CarbonImmutable::instance($scan->scanned_at)->setTimezone($timezone);
         $sessionsByDate = [];
         $openEntries = [];
+        $scheduledHours = [];
         $openScan = null;
 
         foreach ($scans as $scan) {
@@ -215,6 +219,15 @@ class AttendanceDayBuilder
             $date = $local($openScan)->toDateString();
             $sessionsByDate[$date][] = [$local($openScan), $local($scan)];
 
+            // La entrada que trae el fin de su horario: lo ordinario del día llega hasta ahí.
+            if ($openScan->scheduled_end_at && ! isset($scheduledHours[$date])) {
+                $end = CarbonImmutable::instance($openScan->scheduled_end_at)->setTimezone($timezone);
+
+                if ($end->gt($local($openScan))) {
+                    $scheduledHours[$date] = round($local($openScan)->diffInMinutes($end) / 60, 4);
+                }
+            }
+
             $openScan = null;
         }
 
@@ -226,7 +239,7 @@ class AttendanceDayBuilder
 
         ksort($sessionsByDate);
 
-        return [$sessionsByDate, $openEntries];
+        return [$sessionsByDate, $openEntries, $scheduledHours];
     }
 
     /** @return array<int, string> */

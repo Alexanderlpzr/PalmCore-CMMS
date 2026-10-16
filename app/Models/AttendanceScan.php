@@ -27,6 +27,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'employee_id',
     'employee_qr_code_id',
     'scanned_at',
+    'scheduled_end_at',
     'direction',
     'source',
     'recorded_by',
@@ -101,6 +102,7 @@ class AttendanceScan extends Model
     {
         return [
             'scanned_at' => 'datetime',
+            'scheduled_end_at' => 'datetime',
             'voided_at' => 'datetime',
             'direction' => AttendanceDirection::class,
         ];
