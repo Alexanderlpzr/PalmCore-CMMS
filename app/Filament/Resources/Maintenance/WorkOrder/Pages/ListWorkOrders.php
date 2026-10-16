@@ -6,6 +6,7 @@ use App\Domain\Reports\Enums\ExcelReportType;
 use App\Domain\Reports\Excel\ExcelReportManager;
 use App\Domain\Reports\Services\OrdenesTrabajoPdfService;
 use App\Filament\Resources\Maintenance\WorkOrder\WorkOrderResource;
+use App\Filament\Widgets\Lists\WorkOrderKpis;
 use App\Models\WorkOrder;
 use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
@@ -20,6 +21,12 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class ListWorkOrders extends ListRecords
 {
     protected static string $resource = WorkOrderResource::class;
+
+    /** Lo que dice la tabla en cuatro tarjetas; cada una filtra la lista al tocarla. */
+    protected function getHeaderWidgets(): array
+    {
+        return [WorkOrderKpis::class];
+    }
 
     /**
      * Abiertas (por defecto) vs Histórico (cerradas/canceladas): antes convivían

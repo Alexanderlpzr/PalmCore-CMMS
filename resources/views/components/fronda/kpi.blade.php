@@ -14,6 +14,7 @@
     'icon' => null,
     'tone' => 'neutral',
     'href' => null,
+    'active' => false,
 ])
 
 @php
@@ -25,6 +26,8 @@
     {{ $attributes->class([
         'group flex flex-col gap-1 rounded-xl border bg-white p-4 shadow-sm dark:bg-gray-900',
         'transition hover:-translate-y-0.5 hover:shadow-md' => $href,
+        // Su filtro es el que está puesto en la tabla: se toca otra vez para quitarlo.
+        'ring-2 ring-primary-500' => $active,
         'border-gray-200 dark:border-white/10' => in_array($tone, ['neutral', 'ok'], true),
         'border-warning-300 dark:border-warning-500/40' => $tone === 'warning',
         'border-danger-300 dark:border-danger-500/40' => $tone === 'danger',

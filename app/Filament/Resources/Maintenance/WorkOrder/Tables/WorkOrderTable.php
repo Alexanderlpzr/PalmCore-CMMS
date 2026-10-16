@@ -212,6 +212,11 @@ class WorkOrderTable
                     // de la rejilla quedaba desalineado alrededor.
                     ->columnSpan(2)
                     ->columns(2),
+                // La tarjeta «Vencidas» de arriba lo pone.
+                Filter::make('vencidas')
+                    ->label('Vencidas')
+                    ->toggle()
+                    ->query(fn (Builder $query): Builder => $query->whereNotNull('planned_end_at')->where('planned_end_at', '<', now())),
                 SelectFilter::make('work_order_type')
                     ->label('Tipo')
                     ->options(WorkOrderType::options()),

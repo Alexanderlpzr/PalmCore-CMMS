@@ -21,11 +21,13 @@ use Filament\Notifications\Notification;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Builder;
 
 class EquipmentTable
 {
@@ -102,6 +104,11 @@ class EquipmentTable
                     ->toggleable(),
             ])
             ->filters([
+                // La tarjeta «Sin plan preventivo» de arriba lo pone.
+                Filter::make('sin_plan')
+                    ->label('Sin plan preventivo')
+                    ->toggle()
+                    ->query(fn (Builder $query): Builder => $query->whereDoesntHave('maintenancePlans', fn (Builder $q) => $q->where('is_active', true))),
                 SelectFilter::make('area_id')
                     ->label('Sección')
                     ->options(fn (): array => ReferenceDataService::allAreas(Filament::getTenant()?->id ?? ''))

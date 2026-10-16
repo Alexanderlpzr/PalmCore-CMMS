@@ -12,6 +12,7 @@ use App\Filament\Resources\MeterReadings\Concerns\InteractsWithMaintenanceContro
 use App\Filament\Resources\MeterReadings\Concerns\InteractsWithMeterMatrix;
 use App\Filament\Resources\MeterReadings\Concerns\InteractsWithWorkedHoursReport;
 use App\Filament\Resources\MeterReadings\MeterReadingResource;
+use App\Filament\Widgets\Lists\MeterReadingKpis;
 use App\Models\Area;
 use App\Models\Equipment;
 use App\Models\EquipmentComponent;
@@ -45,6 +46,12 @@ class ListMeterReadings extends ListRecords
     use InteractsWithWorkedHoursReport;
 
     protected static string $resource = MeterReadingResource::class;
+
+    /** Lo que dice la tabla en cuatro tarjetas; cada una filtra la lista al tocarla. */
+    protected function getHeaderWidgets(): array
+    {
+        return [MeterReadingKpis::class];
+    }
 
     protected string $view = 'filament.resources.meter-readings.list-hub';
 

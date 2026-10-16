@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Maintenance\IssueReport\Pages;
 
 use App\Filament\Resources\Maintenance\IssueReport\IssueReportResource;
+use App\Filament\Widgets\Lists\IssueReportKpis;
 use App\Models\EquipmentIssueReport;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Schemas\Components\Tabs\Tab;
@@ -11,6 +12,12 @@ use Illuminate\Database\Eloquent\Builder;
 class ListIssueReports extends ListRecords
 {
     protected static string $resource = IssueReportResource::class;
+
+    /** Lo que dice la tabla en cuatro tarjetas; cada una filtra la lista al tocarla. */
+    protected function getHeaderWidgets(): array
+    {
+        return [IssueReportKpis::class];
+    }
 
     /**
      * Los reportes que nadie ha mirado van aparte de los ya atendidos. Antes

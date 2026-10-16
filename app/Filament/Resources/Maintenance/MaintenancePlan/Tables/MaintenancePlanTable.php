@@ -13,6 +13,7 @@ use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
@@ -96,6 +97,15 @@ class MaintenancePlanTable
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                // Los de las tarjetas de arriba.
+                Filter::make('vencidos')
+                    ->label('Vencidos')
+                    ->toggle()
+                    ->query(fn (Builder $query): Builder => $query->where('is_active', true)->whereHas('schedule', fn (Builder $q) => $q->where('next_due_at', '<', now()))),
+                Filter::make('proximos')
+                    ->label('Próximos 7 días')
+                    ->toggle()
+                    ->query(fn (Builder $query): Builder => $query->where('is_active', true)->whereHas('schedule', fn (Builder $q) => $q->whereBetween('next_due_at', [now(), now()->addDays(7)]))),
                 SelectFilter::make('trigger_source')
                     ->label('Disparador')
                     ->options(MaintenanceTriggerSource::options()),

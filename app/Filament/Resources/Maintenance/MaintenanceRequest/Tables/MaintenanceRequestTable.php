@@ -11,8 +11,10 @@ use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class MaintenanceRequestTable
 {
@@ -65,6 +67,15 @@ class MaintenanceRequestTable
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                // Los de las tarjetas de arriba.
+                Filter::make('por_revisar')
+                    ->label('Por revisar')
+                    ->toggle()
+                    ->query(fn (Builder $query): Builder => $query->whereIn('status', [MaintenanceRequestStatus::Submitted->value, MaintenanceRequestStatus::UnderReview->value])),
+                Filter::make('aprobadas_sin_ot')
+                    ->label('Aprobadas sin OT')
+                    ->toggle()
+                    ->query(fn (Builder $query): Builder => $query->where('status', MaintenanceRequestStatus::Approved->value)->whereNull('work_order_id')),
                 SelectFilter::make('request_type')
                     ->label('Tipo')
                     ->options(MaintenanceRequestType::options()),

@@ -4,6 +4,7 @@ namespace App\Filament\Resources\ProductionCalendar\Pages;
 
 use App\Domain\Analytics\Services\ProductionCalendarService;
 use App\Filament\Resources\ProductionCalendar\ProductionCalendarResource;
+use App\Filament\Widgets\Lists\ProductionKpis;
 use App\Models\Plant;
 use App\Models\ProductionCalendarDay;
 use Filament\Actions\Action;
@@ -18,6 +19,12 @@ use Filament\Resources\Pages\ListRecords;
 class ListProductionCalendarDays extends ListRecords
 {
     protected static string $resource = ProductionCalendarResource::class;
+
+    /** Lo que dice la tabla en cuatro tarjetas; cada una filtra la lista al tocarla. */
+    protected function getHeaderWidgets(): array
+    {
+        return [ProductionKpis::class];
+    }
 
     protected function getHeaderActions(): array
     {

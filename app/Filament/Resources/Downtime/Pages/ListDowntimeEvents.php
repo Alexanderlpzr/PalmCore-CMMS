@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Downtime\Pages;
 
 use App\Domain\Reports\Services\ParadasPdfService;
 use App\Filament\Resources\Downtime\DowntimeEventResource;
+use App\Filament\Widgets\Lists\DowntimeKpis;
 use App\Models\Plant;
 use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
@@ -15,6 +16,12 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class ListDowntimeEvents extends ListRecords
 {
     protected static string $resource = DowntimeEventResource::class;
+
+    /** Lo que dice la tabla en cuatro tarjetas; cada una filtra la lista al tocarla. */
+    protected function getHeaderWidgets(): array
+    {
+        return [DowntimeKpis::class];
+    }
 
     protected function getHeaderActions(): array
     {
