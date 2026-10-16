@@ -154,9 +154,17 @@ class FormatoHorasExtrasPdfService
             [$legal, $bonus] = $day ? $this->split($day, $key < $periodStart->toDateString(), $bonusRule, $p) : [ClassifiedHours::empty(), ClassifiedHours::empty()];
             [$entry, $exit] = $day ? $this->entryAndExit($day, $timezone) : [null, null];
 
-            $scheduledEnd = $entry && ! $day->rest_day_worked
-                ? $entry->addMinutes((int) round($this->parameters->valueOn(PayrollParameter::OrdinaryHoursPerDay, $date, $tenantId) * 60))
-                : null;
+            // El fin del horario que trajo el libro, si el día salió de él; si no, la entrada
+            // más la jornada del día.
+            $fromBook = $day ? $this->corrections->marksOfDay($day)
+                ->first(fn (AttendanceScan $m): bool => $m->direction === AttendanceDirection::Entrada && $m->scheduled_end_at !== null)
+                ?->scheduled_end_at : null;
+
+            $scheduledEnd = match (true) {
+                $entry === null || (bool) $day?->rest_day_worked => null,
+                $fromBook !== null => CarbonImmutable::instance($fromBook)->setTimezone($timezone),
+                default => $entry->addMinutes((int) round($this->parameters->valueOn(PayrollParameter::OrdinaryHoursPerDay, $date, $tenantId) * 60)),
+            };
 
             $legalTotal = $legalTotal->plus($legal);
             $bonusTotal = $bonusTotal->plus($bonus);
