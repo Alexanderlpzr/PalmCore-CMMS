@@ -6,24 +6,39 @@
 @endphp
 
 <x-filament-panels::page>
-    @if ($runs->isEmpty())
-        <x-fronda.empty-state icon="heroicon-o-chart-bar" heading="Todavía no hay nóminas liquidadas">
-            El indicador sale de la nómina: liquide una en «Nóminas» y vuelva aquí.
-        </x-fronda.empty-state>
-    @else
-        <div class="max-w-md">
-            <x-filament::input.wrapper>
+    {{-- A la fecha: el «semana 1, 2…» de talento humano, sin esperar a liquidar. Por nómina: la ya liquidada. --}}
+    <div class="flex flex-wrap items-center gap-3">
+        <x-filament::tabs>
+            <x-filament::tabs.item :active="$this->mode === 'fecha'" wire:click="$set('mode', 'fecha')" icon="heroicon-m-calendar-days">
+                A la fecha
+            </x-filament::tabs.item>
+            <x-filament::tabs.item :active="$this->mode === 'nomina'" wire:click="$set('mode', 'nomina')" icon="heroicon-m-banknotes">
+                Por nómina
+            </x-filament::tabs.item>
+        </x-filament::tabs>
+
+        @if ($this->mode === 'fecha')
+            <x-filament::input.wrapper class="w-44">
+                <x-filament::input type="date" wire:model.live="until" :max="$this->today()->toDateString()" aria-label="Hasta el día" />
+            </x-filament::input.wrapper>
+        @elseif ($runs->isNotEmpty())
+            <x-filament::input.wrapper class="w-full max-w-md">
                 <x-filament::input.select wire:model.live="runId" aria-label="Nómina">
                     @foreach ($runs as $id => $nombre)
                         <option value="{{ $id }}">{{ $nombre }}</option>
                     @endforeach
                 </x-filament::input.select>
             </x-filament::input.wrapper>
-        </div>
+        @endif
+    </div>
 
+    @if ($this->mode === 'nomina' && $runs->isEmpty())
+        <x-fronda.empty-state icon="heroicon-o-chart-bar" heading="Todavía no hay nóminas liquidadas">
+            Liquide una en «Nóminas» y vuelva aquí, o mire «A la fecha» lo que va del corte.
+        </x-fronda.empty-state>
+    @else
         @if ($informe)
             @php
-                $run = $informe['run'];
                 $anterior = $informe['previous']['groups'] ?? [];
                 $totalAnterior = $informe['previous']['total'] ?? null;
                 $total = $informe['current']['total'];
@@ -37,7 +52,7 @@
             <div class="grid gap-4 lg:grid-cols-3">
                 <x-fronda.hero
                     class="lg:col-span-2"
-                    :label="'Recargos y horas extras · '.$run->name"
+                    :label="'Recargos y horas extras · '.$informe['title']"
                     :value="$total['amount']"
                     prefix="$ "
                     :badge="$total['factor'] === null ? null : 'Factor '.number_format($total['factor'] * 100, 1, ',', '.').' %'"
@@ -52,9 +67,9 @@
                     <x-slot name="stats">
                         <x-fronda.hero-stat label="Horas pagadas" :value="$horas($total['hours']).' h'" :detail="$horas($total['surcharge_hours']).' h con recargo · '.$horas($total['overtime_hours']).' h extras'" />
                         <x-fronda.hero-stat
-                            :label="'Contra '.($informe['previousRun']?->name ?? 'el mes anterior')"
+                            :label="'Contra '.($informe['previousLabel'] ?? 'el mes anterior')"
                             :value="$variacionTotal === null ? '—' : ($variacionTotal > 0 ? '+' : '').number_format($variacionTotal * 100, 1, ',', '.').' %'"
-                            :detail="$totalAnterior ? $pesos($totalAnterior['amount']).' el mes anterior' : 'Sin nómina anterior para comparar'"
+                            :detail="$totalAnterior ? $pesos($totalAnterior['amount']).' en ese periodo' : 'Sin periodo anterior para comparar'"
                         />
                     </x-slot>
                 </x-fronda.hero>
@@ -63,7 +78,7 @@
                     'chartHeading' => 'Por grupo',
                     'chartDescription' => 'Recargos y horas extras de cada grupo, en pesos.',
                     'slices' => $porciones('amount'),
-                ], key('factor-por-grupo-'.$run->getKey()))
+                ], key('factor-por-grupo-'.$informe['key']))
             </div>
 
             {{--
@@ -77,8 +92,14 @@
                 </x-slot>
 
                 <x-slot name="description">
-                    Horas del {{ $run->hoursFrom()->format('d/m/Y') }} al {{ $run->hoursTo()->format('d/m/Y') }}.
-                    Los recargos pagan solo el recargo, porque la hora ya va en el sueldo; las extras pagan la hora completa. El factor es cuánto se pagó en recargos y extras por cada peso ordinario.
+                    Horas del {{ $informe['from']->format('d/m/Y') }} al {{ $informe['to']->format('d/m/Y') }}.
+                    Los recargos pagan solo el recargo, porque la hora ya va en el sueldo; las extras pagan la hora completa. «Extras» son las «horas sin recargos» del Excel y «Recargos y extras», las «horas con recargos». El factor es cuánto se pagó en recargos y extras por cada peso ordinario.
+                    @if ($this->mode === 'fecha')
+                        El ordinario es el sueldo del mes de quien está contratado, como en el Excel.
+                    @endif
+                    @if ($informe['estimated'])
+                        <span class="font-medium text-warning-600 dark:text-warning-400">Estimado: incluye horas sin confirmar.</span>
+                    @endif
                 </x-slot>
 
                 <div class="overflow-x-auto -mx-2 px-2">
@@ -92,7 +113,7 @@
                                 <th colspan="2" class="text-center font-semibold px-3 py-1 border-b border-l border-gray-200 dark:border-white/10">Recargos y extras</th>
                                 <th rowspan="2" class="text-right font-semibold px-3 py-2 border-b border-l border-gray-200 dark:border-white/10 align-bottom">Factor</th>
                                 <th colspan="2" class="text-center font-semibold px-3 py-1 border-b border-l border-gray-200 dark:border-white/10">
-                                    {{ $informe['previousRun']?->name ?? 'Mes anterior' }}
+                                    {{ $informe['previousLabel'] ?? 'Mes anterior' }}
                                 </th>
                             </tr>
                             <tr class="text-xs text-gray-500 dark:text-gray-400">
@@ -142,7 +163,7 @@
                 </div>
 
                 <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">
-                    «Apoyo a mantenimiento» son las horas de producción en los días marcados así en «Horas por confirmar»: salen de Producción y su sueldo se queda allá.
+                    «Apoyo a mantenimiento» son las horas de producción en los días marcados así en «Horas por confirmar»: salen de Producción y su sueldo se queda allá. Desde el corte de octubre de 2026, MOPE va dentro de Mantenimiento.
                 </p>
             </x-filament::section>
         @endif

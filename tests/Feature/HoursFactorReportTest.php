@@ -86,8 +86,15 @@ it('adds up each group with what was paid as bonus', function (): void {
         ->and($produccion['overtime_hours'])->toBe(4.0)
         ->and($produccion['overtime_amount'])->toBe(50_000.0)
         ->and($produccion['factor'])->toBe(round(50_000 / 2_100_000, 4))
-        ->and($informe['groups']['mantenimiento']['overtime_amount'])->toBe(164_000.0)
-        ->and($informe['groups']['mope']['amount'])->toBe(0.0);
+        ->and($informe['groups']['mantenimiento']['overtime_amount'])->toBe(164_000.0);
+});
+
+it('counts MOPE inside maintenance from the October 2026 cut on', function (): void {
+    $informe = app(HoursFactorReport::class)->forRun($this->run);
+
+    expect($informe['groups'])->not->toHaveKey('mope')
+        ->and($informe['groups']['mantenimiento']['workers'])->toBe(2)
+        ->and($informe['groups']['mantenimiento']['ordinary'])->toBe(4_200_000.0);
 });
 
 it('moves the production days marked as maintenance support to their own row', function (): void {
@@ -122,6 +129,61 @@ it('maps each area of the record to a group of the report', function (?string $a
     [null, 'sin_area'],
 ]);
 
+it('joins MOPE with maintenance only from the cut the company joined them', function (string $inicio, string $grupo): void {
+    expect(HoursFactorReport::groupOf('mope', Carbon::parse($inicio)))->toBe($grupo);
+})->with([
+    ['2026-08-27', 'mope'],
+    ['2026-09-27', 'mantenimiento'],
+    ['2026-10-27', 'mantenimiento'],
+]);
+
+it('adds up what goes of the cut up to a day, with the monthly salary as ordinary', function (): void {
+    app(PayrollParameterService::class)->setValue(PayrollParameter::HoursCutoffDay, 26, Carbon::parse('2026-01-01'), $this->tenant->id);
+
+    // Al 10 de octubre: los días 5 y 6, no el domingo 11.
+    $informe = app(HoursFactorReport::class)->toDate($this->tenant, Carbon::parse('2026-10-10'));
+
+    expect($informe['from']->toDateString())->toBe('2026-09-27')
+        ->and($informe['until']->toDateString())->toBe('2026-10-10')
+        ->and($informe['estimated'])->toBeFalse()
+        ->and($informe['groups']['produccion']['ordinary'])->toBe(2_100_000.0)
+        ->and($informe['groups']['produccion']['overtime_hours'])->toBe(4.0)
+        ->and($informe['groups']['produccion']['overtime_amount'])->toBe(50_000.0)
+        ->and($informe['groups']['produccion']['surcharge_hours'])->toBe(0.0)
+        ->and($informe['groups']['apoyo_mantenimiento']['surcharge_hours'])->toBe(6.0)
+        ->and($informe['groups']['apoyo_mantenimiento']['surcharge_amount'])->toBe(21_000.0)
+        ->and($informe['groups']['apoyo_mantenimiento']['workers'])->toBe(1)
+        ->and($informe['groups']['mantenimiento']['ordinary'])->toBe(4_200_000.0)
+        ->and($informe['groups']['mantenimiento']['amount'])->toBe(0.0)
+        ->and($informe['groups'])->not->toHaveKey('mope')
+        ->and($informe['total']['amount'])->toBe(71_000.0)
+        ->and($informe['total']['ordinary'])->toBe(6_300_000.0);
+});
+
+it('counts the hours still to confirm and marks the report as estimated', function (): void {
+    app(PayrollParameterService::class)->setValue(PayrollParameter::HoursCutoffDay, 26, Carbon::parse('2026-01-01'), $this->tenant->id);
+
+    AttendanceDay::factory()->forEmployee($this->operario)->create([
+        'work_date' => '2026-10-07',
+        'ordinary_hours' => 7,
+        'overtime_day_hours' => 2,
+        'worked_hours' => 9,
+    ]);
+
+    $informe = app(HoursFactorReport::class)->toDate($this->tenant, Carbon::parse('2026-10-10'));
+
+    expect($informe['estimated'])->toBeTrue()
+        ->and($informe['groups']['produccion']['overtime_hours'])->toBe(6.0);
+});
+
+it('compares with the same stretch of the previous cut', function (): void {
+    $informe = app(HoursFactorReport::class)->sameStretchBefore($this->tenant, Carbon::parse('2026-09-27')->toImmutable(), Carbon::parse('2026-10-10')->toImmutable());
+
+    expect($informe['from']->toDateString())->toBe('2026-08-27')
+        ->and($informe['until']->toDateString())->toBe('2026-09-09')
+        ->and($informe['total']['amount'])->toBe(0.0);
+});
+
 it('shows the report to human resources', function (): void {
     $rrhh = User::factory()->create(['is_active' => true]);
     $rrhh->tenants()->attach($this->tenant->id, ['joined_at' => now()]);
@@ -132,10 +194,34 @@ it('shows the report to human resources', function (): void {
     Filament::setTenant($this->tenant);
 
     Livewire::test(FactorDeHoras::class)
+        ->set('mode', 'nomina')
         ->assertSet('runId', $this->run->id)
         ->assertSee('Producción')
         ->assertSee('Apoyo a mantenimiento')
         ->assertSee('Mantenimiento')
         ->assertSee('$ 235.000')
         ->assertSee('Horas del 27/09/2026 al 26/10/2026');
+});
+
+it('shows what goes of the cut by default, without a settled payroll', function (): void {
+    app(PayrollParameterService::class)->setValue(PayrollParameter::HoursCutoffDay, 26, Carbon::parse('2026-01-01'), $this->tenant->id);
+    $this->travelTo(Carbon::parse('2026-10-20 12:00', 'America/Bogota'));
+
+    $rrhh = User::factory()->create(['is_active' => true]);
+    $rrhh->tenants()->attach($this->tenant->id, ['joined_at' => now()]);
+    $rrhh->assignRole('talento-humano');
+    $this->actingAs($rrhh);
+
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+    Filament::setTenant($this->tenant);
+
+    Livewire::test(FactorDeHoras::class)
+        ->assertSet('mode', 'fecha')
+        ->set('until', '2026-10-10')
+        ->assertSee('Corte al 10/10/2026')
+        ->assertSee('Horas del 27/09/2026 al 10/10/2026')
+        ->assertSee('$ 71.000')
+        // Un día futuro vuelve a hoy.
+        ->set('until', '2026-12-01')
+        ->assertSee('Corte al 20/10/2026');
 });

@@ -149,7 +149,7 @@ class HumanResourcesDashboard
                     continue;
                 }
 
-                $group = $day->maintenance_support ? 'apoyo_mantenimiento' : HoursFactorReport::groupOf($day->employee?->area_specific);
+                $group = $day->maintenance_support ? 'apoyo_mantenimiento' : HoursFactorReport::groupOf($day->employee?->area_specific, CarbonImmutable::parse($from));
                 $groups[$group] ??= array_fill(0, count($ranges), 0.0);
                 $groups[$group][$index] += $this->sum(collect([$day]), self::OVERTIME_COLUMNS);
             }
