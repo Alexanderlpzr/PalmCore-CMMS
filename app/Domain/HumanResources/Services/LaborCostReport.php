@@ -291,7 +291,8 @@ class LaborCostReport
 
     /**
      * Las entradas en portería del rango: cada una enciende el jornal de su día. Devuelve
-     * las últimas, para el «quién va entrando» del tablero.
+     * todas, de la más reciente a la más vieja, para el «quién va entrando» del tablero
+     * —que se recorre con scroll y tiene buscador—.
      *
      * @param  array<string, array<string, mixed>>  $rows
      * @return list<array{employee_id: string, name: string, area: string, area_label: string, at: CarbonImmutable}>
@@ -315,15 +316,13 @@ class LaborCostReport
             $at = CarbonImmutable::instance($scan->scanned_at)->setTimezone($timezone);
             $rows[$scan->employee_id]['present_dates'][$at->toDateString()] = true;
 
-            if (count($latest) < 8) {
-                $latest[] = [
-                    'employee_id' => $scan->employee_id,
-                    'name' => $rows[$scan->employee_id]['name'],
-                    'area' => $rows[$scan->employee_id]['area'],
-                    'area_label' => $rows[$scan->employee_id]['area_label'],
-                    'at' => $at,
-                ];
-            }
+            $latest[] = [
+                'employee_id' => $scan->employee_id,
+                'name' => $rows[$scan->employee_id]['name'],
+                'area' => $rows[$scan->employee_id]['area'],
+                'area_label' => $rows[$scan->employee_id]['area_label'],
+                'at' => $at,
+            ];
         }
 
         return $latest;

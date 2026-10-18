@@ -103,14 +103,34 @@
         </x-fronda.hero>
 
         {{-- Quién va entrando: cada fila es un jornal que se encendió. --}}
-        <div class="flex flex-col rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-white/10 dark:bg-gray-900">
+        {{-- Todas las entradas: se ven unas seis y el resto con scroll, con buscador. --}}
+        <div x-data="{ q: '', norm(t) { return (t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() }, hay(el) { return ! this.q || el.dataset.buscar.includes(this.norm(this.q)) } }" class="flex flex-col self-start rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-white/10 dark:bg-gray-900">
             <div class="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-white/5">
                 <p class="text-sm font-semibold text-gray-950 dark:text-white">{{ $enVivo ? 'Van entrando' : 'Entradas del día' }}</p>
-                <x-filament::icon icon="heroicon-o-arrow-right-end-on-rectangle" class="h-5 w-5 text-gray-400" />
+                <span class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                    @if (count($dia['entries']) > 0)
+                        {{ count($dia['entries']) }} {{ count($dia['entries']) === 1 ? 'entrada' : 'entradas' }}
+                    @endif
+                    <x-filament::icon icon="heroicon-o-arrow-right-end-on-rectangle" class="h-5 w-5 text-gray-400" />
+                </span>
             </div>
 
+            @if (count($dia['entries']) > 0)
+                <div class="border-b border-gray-100 px-3 py-2 dark:border-white/5">
+                    <x-filament::input.wrapper prefix-icon="heroicon-m-magnifying-glass">
+                        <x-filament::input type="search" x-model="q" placeholder="Buscar persona o área" aria-label="Buscar en las entradas" />
+                    </x-filament::input.wrapper>
+                </div>
+            @endif
+
+            <div x-ref="lista" class="max-h-[26.5rem] overflow-y-auto">
             @forelse ($dia['entries'] as $entrada)
-                <div wire:key="entrada-{{ $entrada['employee_id'] }}-{{ $entrada['at']->timestamp }}" class="flex items-center gap-3 border-b border-gray-50 px-4 py-2.5 last:border-b-0 dark:border-white/5">
+                <div
+                    wire:key="entrada-{{ $entrada['employee_id'] }}-{{ $entrada['at']->timestamp }}"
+                    data-buscar="{{ \Illuminate\Support\Str::lower(\Illuminate\Support\Str::ascii($entrada['name'].' '.$entrada['area_label'])) }}"
+                    x-show="hay($el)"
+                    class="flex items-center gap-3 border-b border-gray-50 px-4 py-2.5 last:border-b-0 dark:border-white/5"
+                >
                     <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style="background-color: {{ \App\Domain\HumanResources\Services\LaborCostReport::AREA_COLORS[$entrada['area']] }}">
                         {{ $iniciales($entrada['name']) }}
                     </span>
@@ -136,6 +156,11 @@
                     <p class="text-xs text-gray-500 dark:text-gray-400">Cada carné que se escanea en portería aparece aquí y enciende su jornal.</p>
                 </div>
             @endforelse
+            </div>
+
+            <p x-cloak x-show="q && ! [...$refs.lista.querySelectorAll('[data-buscar]')].some((el) => hay(el))" class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                Nadie con «<span x-text="q"></span>» en las entradas.
+            </p>
         </div>
     </div>
 
@@ -251,7 +276,13 @@
         :description="($esCorte ? 'Lo que va del corte' : 'El día').' de cada persona, de mayor a menor costo. «Estimado» quiere decir que tiene horas sin confirmar o que sigue adentro.'"
         collapsible
     >
-        <div class="-mx-2 overflow-x-auto px-2">
+        <div x-data="{ q: '', norm(t) { return (t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() }, hay(el) { return ! this.q || el.dataset.buscar.includes(this.norm(this.q)) } }">
+        <div class="mb-3 max-w-sm">
+            <x-filament::input.wrapper prefix-icon="heroicon-m-magnifying-glass">
+                <x-filament::input type="search" x-model="q" placeholder="Buscar trabajador, cargo o área" aria-label="Buscar en la tabla por trabajador" />
+            </x-filament::input.wrapper>
+        </div>
+        <div x-ref="lista" class="-mx-2 overflow-x-auto px-2">
             <table class="w-full border-separate border-spacing-0 text-sm">
                 <thead>
                     <tr class="text-gray-600 dark:text-gray-300">
@@ -271,7 +302,12 @@
                 </thead>
                 <tbody>
                     @forelse ($informe['rows'] as $fila)
-                        <tr wire:key="fila-{{ $fila['employee_id'] }}" class="even:bg-gray-50 dark:even:bg-white/5">
+                        <tr
+                            wire:key="fila-{{ $fila['employee_id'] }}"
+                            data-buscar="{{ \Illuminate\Support\Str::lower(\Illuminate\Support\Str::ascii(collect([$fila['name'], $fila['code'], $fila['position'], $fila['area_label']])->filter()->join(' '))) }}"
+                            x-show="hay($el)"
+                            class="even:bg-gray-50 dark:even:bg-white/5"
+                        >
                             <td class="border-b border-gray-100 px-3 py-2 dark:border-white/5">
                                 <div class="flex items-center gap-2">
                                     <span class="font-medium text-gray-950 dark:text-white">{{ $fila['name'] }}</span>
@@ -328,6 +364,10 @@
                     @endforelse
                 </tbody>
             </table>
+        </div>
+            <p x-cloak x-show="q && ! [...$refs.lista.querySelectorAll('[data-buscar]')].some((el) => hay(el))" class="py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                Nadie con «<span x-text="q"></span>» en esta tabla.
+            </p>
         </div>
     </x-filament::section>
 
