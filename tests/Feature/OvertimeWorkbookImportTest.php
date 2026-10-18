@@ -171,6 +171,20 @@ it('does not load one worker\'s hours onto another when a copied sheet kept some
         ->and(collect($plan['rows'])->contains(fn (array $r): bool => $r['employee']?->is($elias) ?? false))->toBeFalse();
 });
 
+it('recognizes a name written with one letter off, but not a sibling who shares the surname', function (): void {
+    $geraldine = Employee::factory()->create(['tenant_id' => $this->tenant->id, 'document_number' => '1118570286', 'first_name' => 'Geraldine Alejandra', 'last_name' => 'Escobar Martínez']);
+    $jhonnatan = Employee::factory()->create(['tenant_id' => $this->tenant->id, 'document_number' => '1116612077', 'first_name' => 'Jhonnatan David', 'last_name' => 'Condia Lara']);
+    $ernesto = Employee::factory()->create(['tenant_id' => $this->tenant->id, 'document_number' => '1116614560', 'first_name' => 'Ernesto', 'last_name' => 'Rincón Vergara']);
+    Employee::factory()->create(['tenant_id' => $this->tenant->id, 'document_number' => '1116613220', 'first_name' => 'William Herney', 'last_name' => 'Rincon Vergara']);
+
+    $empleados = Employee::query()->where('tenant_id', $this->tenant->id)->get();
+
+    expect(OvertimeWorkbookImporter::match($empleados, '1118570286', 'GERALDIN ESCOBAR')?->is($geraldine))->toBeTrue()
+        ->and(OvertimeWorkbookImporter::match($empleados, '1116612077', 'JHONATAN CONDIA')?->is($jhonnatan))->toBeTrue()
+        // La hoja de William copiada con la cédula de Ernesto: el apellido no basta.
+        ->and(OvertimeWorkbookImporter::match($empleados, '1116614560', 'WILLIAM RINCON')?->is($ernesto))->toBeFalse();
+});
+
 it('replaces with the workbook only the days it brings: voids what was there and rebuilds them', function (): void {
     // Una marca de la portería después de los días del libro: no se toca.
     $carne = $this->employee->qrCodes()->first();

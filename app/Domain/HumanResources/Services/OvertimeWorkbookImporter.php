@@ -457,6 +457,11 @@ class OvertimeWorkbookImporter
      * ¿El nombre escrito en la hoja es el de este trabajador? Basta con que dos de sus
      * palabras —o la única, si es una— estén en el nombre completo, sin tildes: la hoja
      * dice «ERNESTO RINCÓN» y el trabajador es «Ernesto Rincón Vargas».
+     *
+     * Una palabra larga con una letra de más o de menos es la misma: el libro escribe
+     * «GERALDIN» y «JHONATAN» donde la ficha dice «Geraldine» y «Jhonnatan». Las dos
+     * palabras se siguen exigiendo, para que un apellido compartido —los Rincón— no
+     * baste para tomar la hoja de un hermano.
      */
     private static function sameName(?string $sheetName, string $fullName): bool
     {
@@ -472,7 +477,12 @@ class OvertimeWorkbookImporter
             return false;
         }
 
-        return count(array_intersect($sheet, $employee)) >= min(2, count($sheet));
+        $matches = collect($sheet)->filter(fn (string $word): bool => collect($employee)->contains(
+            fn (string $other): bool => $word === $other
+                || (strlen($word) >= 5 && strlen($other) >= 5 && levenshtein($word, $other) <= 1),
+        ))->count();
+
+        return $matches >= min(2, count($sheet));
     }
 
     private static function digits(?string $value): string
