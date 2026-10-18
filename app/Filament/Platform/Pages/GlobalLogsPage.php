@@ -21,8 +21,19 @@ class GlobalLogsPage extends Page
 
     protected string $view = 'filament.platform.global-logs';
 
+    /**
+     * El log se escribe en UTC (la zona de la aplicación); el superadministrador lee las
+     * horas en la de Colombia, que es donde opera la plataforma.
+     */
+    public const DISPLAY_TIMEZONE = 'America/Bogota';
+
     /** Cuando está activo, también se muestran los avisos, no solo los errores. */
     public bool $includeWarnings = false;
+
+    public function getSubheading(): ?string
+    {
+        return 'Horas en hora de Colombia.';
+    }
 
     protected function getHeaderActions(): array
     {
@@ -46,8 +57,16 @@ class GlobalLogsPage extends Page
             ? ['ERROR', 'CRITICAL', 'ALERT', 'EMERGENCY', 'WARNING']
             : ['ERROR', 'CRITICAL', 'ALERT', 'EMERGENCY'];
 
+        $entries = array_map(
+            fn (array $entry): array => [
+                ...$entry,
+                'at' => $entry['at']?->copy()->timezone(self::DISPLAY_TIMEZONE),
+            ],
+            app(LogReaderService::class)->recent(levels: $levels),
+        );
+
         return [
-            'entries' => app(LogReaderService::class)->recent(levels: $levels),
+            'entries' => $entries,
             'includeWarnings' => $this->includeWarnings,
         ];
     }

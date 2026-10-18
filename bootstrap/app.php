@@ -14,6 +14,7 @@ use Illuminate\Http\Middleware\HandleCors;
 use Illuminate\Http\Request;
 use Laravel\Sanctum\Http\Middleware\CheckAbilities;
 use Laravel\Sanctum\Http\Middleware\CheckForAnyAbility;
+use Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -51,6 +52,17 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*'),
+        );
+
+        // Peticiones de Livewire manipuladas a mano (escáneres de vulnerabilidades): el
+        // navegador nunca escribe en una propiedad bloqueada ni manda un número como
+        // notificación. Livewire y Filament ya las rechazan; registrarlas como ERROR solo
+        // tapa las fallas reales en la página de errores de la plataforma.
+        $exceptions->dontReport(CannotUpdateLockedPropertyException::class);
+
+        $exceptions->dontReportWhen(
+            fn (Throwable $e): bool => $e instanceof TypeError
+                && str_contains($e->getMessage(), 'Filament\Notifications\Collection::'),
         );
 
         $exceptions->render(function (BusinessRuleException $e, Request $request) {

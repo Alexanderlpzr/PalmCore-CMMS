@@ -1,5 +1,6 @@
 <?php
 
+use App\Domain\Platform\Services\LogReaderService;
 use App\Filament\Pages\Auth\Login;
 use App\Filament\Platform\Pages\BackupsPage;
 use App\Filament\Platform\Pages\GlobalLogsPage;
@@ -10,9 +11,12 @@ use App\Models\Tenant;
 use App\Models\User;
 use Filament\Actions\Testing\TestAction;
 use Filament\Facades\Filament;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Str;
+use Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException;
 use Livewire\Livewire;
 
 /**
@@ -168,4 +172,37 @@ it('renders the recent errors page', function (): void {
     $this->actingAs($this->superAdmin);
 
     Livewire::test(GlobalLogsPage::class)->assertOk();
+});
+
+it('shows the log times in Colombia time, not the UTC they are written in', function (): void {
+    $this->actingAs($this->superAdmin);
+
+    $this->mock(LogReaderService::class)
+        ->shouldReceive('recent')
+        ->andReturn([[
+            'at' => Carbon::parse('2026-10-07 18:25:18', 'UTC'),
+            'level' => 'ERROR',
+            'message' => 'Algo se rompió',
+            'context' => 'Algo se rompió',
+        ]]);
+
+    Livewire::test(GlobalLogsPage::class)
+        ->assertSee('07/10/2026 13:25:18')
+        ->assertDontSee('07/10/2026 18:25:18')
+        ->assertSee('Horas en hora de Colombia.');
+});
+
+it('does not report Livewire requests tampered with by hand', function (): void {
+    Exceptions::fake();
+
+    // Un escáner que escribe en una propiedad bloqueada o manda un número como notificación.
+    report(new CannotUpdateLockedPropertyException('userUndertakingMultiFactorAuthentication'));
+    report(new TypeError('Filament\Notifications\Collection::{closure:Filament\Notifications\Collection::fromLivewire():32}(): Argument #1 ($notification) must be of type array, int given'));
+
+    // Un TypeError de verdad, de nuestro propio código, sí tiene que llegar al log.
+    report(new TypeError('App\Domain\Maintenance\Services\Foo::bar(): Argument #1 must be of type int'));
+
+    Exceptions::assertNotReported(CannotUpdateLockedPropertyException::class);
+    Exceptions::assertReportedCount(1);
+    Exceptions::assertReported(fn (TypeError $e): bool => str_contains($e->getMessage(), 'Foo::bar'));
 });
