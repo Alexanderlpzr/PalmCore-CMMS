@@ -40,6 +40,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\HtmlString;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use UnitEnum;
@@ -286,7 +287,7 @@ class HorasExtras extends Page implements HasTable
 
                         Notification::make()
                             ->title($result['imported'] > 0 ? ($result['imported'] === 1 ? 'Se cargó 1 día' : "Se cargaron {$result['imported']} días").($result['workers'] === 1 ? ' de 1 trabajador' : " de {$result['workers']} trabajadores") : 'No había días para cargar')
-                            ->body(($result['voided'] > 0 ? ($result['voided'] === 1 ? 'Se anuló 1 marca anterior. ' : "Se anularon {$result['voided']} marcas anteriores. ") : '').self::importSummary($result['counts'], $result['missingWorkers'], includeImport: false))
+                            ->body(new HtmlString(e(($result['voided'] > 0 ? ($result['voided'] === 1 ? 'Se anuló 1 marca anterior. ' : "Se anularon {$result['voided']} marcas anteriores. ") : '').self::importSummary($result['counts'], $result['missingWorkers'], includeImport: false)).self::issuesList($result['issues'], 5)))
                             ->success()
                             ->persistent()
                             ->send();
@@ -312,7 +313,7 @@ class HorasExtras extends Page implements HasTable
      *
      * @param  mixed  $state  el estado del campo: el archivo temporal mientras no se guarda
      */
-    private static function importPreview(mixed $state, bool $replace = false): string
+    private static function importPreview(mixed $state, bool $replace = false): string|HtmlString
     {
         $file = is_array($state) ? reset($state) : $state;
 
@@ -329,7 +330,27 @@ class HorasExtras extends Page implements HasTable
         $window = $plan['window'] ? 'El libro trae del '.$plan['window'][0]->format('d/m/Y').' al '.$plan['window'][1]->format('d/m/Y').'. ' : '';
         $voids = $replace ? ($plan['toVoid'] === 1 ? 'Se anula 1 marca anterior. ' : "Se anulan {$plan['toVoid']} marcas anteriores. ") : '';
 
-        return $window.$voids.self::importSummary($plan['counts'], $plan['missingWorkers']);
+        return new HtmlString(e($window.$voids.self::importSummary($plan['counts'], $plan['missingWorkers'])).self::issuesList($plan['issues']));
+    }
+
+    /**
+     * Los errores del libro, en lista, para corregirlos en el Excel: los primeros y
+     * cuántos más hay.
+     *
+     * @param  list<string>  $issues
+     */
+    private static function issuesList(array $issues, int $limit = 20): string
+    {
+        if ($issues === []) {
+            return '';
+        }
+
+        $items = collect($issues)->take($limit)->map(fn (string $issue): string => '<li>'.e($issue).'</li>')->implode('');
+        $more = count($issues) > $limit ? '<li>… y '.(count($issues) - $limit).' más.</li>' : '';
+        $heading = count($issues) === 1 ? 'Revise en el libro 1 aviso:' : 'Revise en el libro '.count($issues).' avisos:';
+
+        return '<p class="mt-2 font-medium text-warning-600 dark:text-warning-400">'.$heading.'</p>'
+            .'<ul class="mt-1 list-disc space-y-0.5 ps-5 text-sm">'.$items.$more.'</ul>';
     }
 
     /**

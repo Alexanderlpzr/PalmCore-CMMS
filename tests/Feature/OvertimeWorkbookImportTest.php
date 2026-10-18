@@ -16,6 +16,7 @@ use Database\Seeders\PermissionSeeder;
 use Database\Seeders\TenantRolesSeeder;
 use Filament\Actions\Testing\TestAction;
 use Filament\Facades\Filament;
+use Filament\Notifications\Livewire\Notifications;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Livewire\Livewire;
@@ -233,3 +234,92 @@ it('reads the scheduled end of the workbook, fixing a. m. and p. m. mixed up', f
     'fin después de la salida' => ['20:00', '07:00', '15:00', null],
     'sin fin' => ['', '07:00', '15:00', null],
 ]);
+
+it('warns about every error of the workbook before importing', function (): void {
+    $libro = libroParaImportar([
+        'PEDRO' => [123, [
+            ['lunes, 28 de septiembre de 2026', '7:00am', '6:00pm', '2:00am'],
+            ['martes, 29 de septiembre de 2026', '7:00am', '6:00pm', '6:30am'],
+            ['miércoles, 30 de septiembre de 2026', '6:00am', '11:00pm'],
+            ['jueves, 1 de octubre de 2026', '6:00', '2:00pm'],
+            ['viernes, 2 de octubre de 2026', '7:00am', ''],
+            ['sábado, 3 de octubre de 2026', 'siete', '3:00pm'],
+            ['3/10/2026', '7:00am', '3:00pm'],
+            ['lunes, 28 de septiembre de 2026', '7:00am', '6:00pm'],
+        ]],
+        // Otra hoja del mismo trabajador.
+        'PEDRO P' => [1116615860, [['martes, 6 de octubre de 2026', '7:00am', '3:00pm']]],
+    ]);
+
+    $avisos = app(OvertimeWorkbookImporter::class)->plan($libro, $this->tenant)['issues'];
+    @unlink($libro);
+
+    $tiene = fn (string $texto): bool => collect($avisos)->contains(fn (string $aviso): bool => str_contains($aviso, $texto));
+
+    expect($tiene('Hoja PEDRO: la cédula 123 no es la de la ficha de Pedro Pérez'))->toBeTrue()
+        ->and($tiene('Hoja PEDRO P: es del mismo trabajador que la hoja PEDRO'))->toBeTrue()
+        ->and($tiene('28/09/2026: el fin horario 2:00 am no cuadraba con el turno; se tomó como 2:00 pm'))->toBeTrue()
+        ->and($tiene('29/09/2026: el fin horario 6:30 am no cae dentro del turno'))->toBeTrue()
+        ->and($tiene('30/09/2026: turno de 17 horas'))->toBeTrue()
+        ->and($tiene('la hora «6:00» de «HORA INICIO» no dice a. m. ni p. m.; se tomó como 06:00'))->toBeTrue()
+        ->and($tiene('el 02/10/2026 tiene hora de inicio pero no de salida'))->toBeTrue()
+        ->and($tiene('no se entiende la hora «siete» de «HORA INICIO»'))->toBeTrue()
+        ->and($tiene('el 03/10/2026 tiene hora de salida pero no de inicio'))->toBeTrue()
+        ->and($tiene('no se entiende la fecha «3/10/2026»'))->toBeTrue()
+        ->and($tiene('el 28/09/2026 ya está en la fila 10'))->toBeTrue();
+});
+
+it('warns about the sheets it cannot read and the columns they lack', function (): void {
+    $ruta = tempnam(sys_get_temp_dir(), 'libro').'.xlsx';
+    $writer = new Writer;
+    $writer->openToFile($ruta);
+    $writer->getCurrentSheet()->setName('ROTA');
+    $writer->addRow(Row::fromValues(['NOMBRE TRABAJADOR', 'PEDRO PÉREZ']));
+    $writer->addRow(Row::fromValues(['DÍA', 'HORA INICIO', 'HORA SALIDA']));
+    $writer->addRow(Row::fromValues(['lunes, 28 de septiembre de 2026', '7:00am', '3:00pm']));
+    $writer->addNewSheetAndMakeItCurrent()->setName('SIN FIN');
+    $writer->addRow(Row::fromValues(['NOMBRE TRABAJADOR', 'PEDRO PÉREZ', 'IDENTIFICACIÓN', '1116615860']));
+    $writer->addRow(Row::fromValues(['FECHA', 'HORA INICIO', 'HORA      SALIDA']));
+    $writer->addRow(Row::fromValues(['martes, 29 de septiembre de 2026', '7:00am', '3:00pm']));
+    $writer->close();
+
+    $avisos = app(OvertimeWorkbookImporter::class)->plan($ruta, $this->tenant)['issues'];
+    @unlink($ruta);
+
+    expect($avisos)->toContain('Hoja ROTA: no se leyó, le falta la fila de títulos con «FECHA» en la columna A.')
+        ->toContain('Hoja SIN FIN: no tiene la columna «FIN HORARIO LABORAL»; sus días se cuentan con la jornada de cada día.');
+});
+
+it('has nothing to warn about a clean workbook, midnight written as «12:00pm» included', function (): void {
+    $libro = libroParaImportar([
+        'PEDRO' => [1116615860, [
+            ['lunes, 28 de septiembre de 2026', '7:00am', '6:00pm', '2:00pm'],
+            ['martes, 29 de septiembre de 2026', '5:00pm', '12:00pm', '12:00pm'],
+        ]],
+    ]);
+
+    expect(app(OvertimeWorkbookImporter::class)->plan($libro, $this->tenant)['issues'])->toBe([]);
+    @unlink($libro);
+});
+
+it('shows the warnings of the workbook when importing from «Horas extras»', function (): void {
+    $this->actingAs($this->rrhh);
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+    Filament::setTenant($this->tenant);
+
+    $libro = libroParaImportar(['PEDRO' => [123, [['lunes, 28 de septiembre de 2026', '7:00am', '6:00pm']]]]);
+
+    Livewire::test(HorasExtras::class)
+        ->callAction(TestAction::make('importarLibro')->table(), [
+            'libro' => UploadedFile::fake()->createWithContent('TH-NOM-P-001.xlsx', file_get_contents($libro)),
+        ]);
+    @unlink($libro);
+
+    $avisos = new Notifications;
+    $avisos->mount();
+    $notificacion = $avisos->notifications->last();
+
+    expect($notificacion->getTitle())->toBe('Se cargó 1 día de 1 trabajador')
+        ->and((string) $notificacion->getBody())->toContain('Revise en el libro 1 aviso')
+        ->toContain('la cédula 123 no es la de la ficha de Pedro Pérez');
+});

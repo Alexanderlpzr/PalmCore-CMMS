@@ -5,6 +5,7 @@ namespace App\Domain\HumanResources\Services;
 use Carbon\CarbonImmutable;
 use OpenSpout\Common\Entity\Cell;
 use OpenSpout\Common\Entity\Cell\FormulaCell;
+use OpenSpout\Reader\XLSX\Options;
 use OpenSpout\Reader\XLSX\Reader;
 
 /**
@@ -18,6 +19,10 @@ use OpenSpout\Reader\XLSX\Reader;
  * texto, nunca del nombre del día.
  *
  * Solo lee las hojas visibles: las ocultas son de trabajadores y periodos pasados.
+ *
+ * Lo que no puede leer bien no lo adivina: lo anota en los avisos de `readWithIssues()`
+ * —una hoja sin títulos, una columna que falta, una hora o una fecha que no entiende—
+ * para que talento humano lo corrija en el libro antes de importarlo.
  */
 final class OvertimeWorkbookReader
 {
@@ -60,14 +65,37 @@ final class OvertimeWorkbookReader
         'sunday_surcharge', 'night_surcharge', 'night_sunday_surcharge',
     ];
 
+    /** Las columnas sin las que un día no se puede cargar, o se carga con la jornada. */
+    private const TIME_COLUMNS = [
+        'start' => 'HORA INICIO',
+        'exit' => 'HORA SALIDA',
+        'scheduledEnd' => 'FIN HORARIO LABORAL',
+    ];
+
     /**
-     * @return list<array{sheet: string, name: string, document: string, supervisor: ?string, salary: ?float, bonusTotal: ?float, days: list<array{date: CarbonImmutable, start: ?string, scheduledEnd: ?string, exit: ?string, legal: array<string, float>, bonus: array<string, float>, notes: string}>}>
+     * @return list<array{sheet: string, name: string, document: string, supervisor: ?string, salary: ?float, bonusTotal: ?float, days: list<array{row: int, date: CarbonImmutable, start: ?string, scheduledEnd: ?string, exit: ?string, legal: array<string, float>, bonus: array<string, float>, notes: string}>}>
      */
     public function read(string $path): array
     {
-        $reader = new Reader;
+        return $this->readWithIssues($path)['sheets'];
+    }
+
+    /**
+     * Las hojas y, aparte, lo que no se pudo leer bien de ellas, como frases para
+     * talento humano: «Hoja ERNESTO, fila 22: no se entiende la hora «6:0p»…».
+     *
+     * @return array{sheets: list<array{sheet: string, name: string, document: string, supervisor: ?string, salary: ?float, bonusTotal: ?float, days: list<array{row: int, date: CarbonImmutable, start: ?string, scheduledEnd: ?string, exit: ?string, legal: array<string, float>, bonus: array<string, float>, notes: string}>}>, issues: list<string>}
+     */
+    public function readWithIssues(string $path): array
+    {
+        // Con las filas vacías, cada fila conserva su número de Excel: los avisos dicen
+        // «fila 22» y es la 22 que talento humano ve en el libro.
+        $options = new Options;
+        $options->SHOULD_PRESERVE_EMPTY_ROWS = true;
+        $reader = new Reader($options);
         $reader->open($path);
         $sheets = [];
+        $issues = [];
 
         foreach ($reader->getSheetIterator() as $sheet) {
             if (! $sheet->isVisible() || in_array(self::normalize($sheet->getName()), self::SUMMARY_SHEETS, true)) {
@@ -86,14 +114,16 @@ final class OvertimeWorkbookReader
                 $rows[$index] = $cells;
             }
 
-            if ($parsed = $this->parseSheet($sheet->getName(), $rows)) {
+            if ($parsed = $this->parseSheet($sheet->getName(), $rows, $issues)) {
                 $sheets[] = $parsed;
+            } else {
+                $issues[] = "Hoja {$sheet->getName()}: no se leyó, le falta la fila de títulos con «FECHA» en la columna A.";
             }
         }
 
         $reader->close();
 
-        return $sheets;
+        return ['sheets' => $sheets, 'issues' => $issues];
     }
 
     /**
@@ -148,8 +178,11 @@ final class OvertimeWorkbookReader
         return CarbonImmutable::create($year, self::MONTHS[$m[2]], (int) $m[1]);
     }
 
-    /** @param  array<int, array<int, mixed>>  $rows */
-    private function parseSheet(string $name, array $rows): ?array
+    /**
+     * @param  array<int, array<int, mixed>>  $rows
+     * @param  list<string>  $issues
+     */
+    private function parseSheet(string $name, array $rows, array &$issues): ?array
     {
         $headerRow = collect($rows)->search(fn (array $cells): bool => self::normalize((string) ($cells[1] ?? '')) === 'FECHA');
 
@@ -167,6 +200,18 @@ final class OvertimeWorkbookReader
             }
         }
 
+        $timeFields = array_column(array_filter($columns, fn (array $c): bool => $c[0] === 'time'), 1);
+
+        foreach (self::TIME_COLUMNS as $field => $label) {
+            if (! in_array($field, $timeFields, true)) {
+                $issues[] = "Hoja {$name}: no tiene la columna «{$label}»".($field === 'scheduledEnd'
+                    ? '; sus días se cuentan con la jornada de cada día.'
+                    : '; sus días no se pueden cargar.');
+            }
+        }
+
+        $seenDates = [];
+
         $days = [];
         $previous = null;
 
@@ -183,6 +228,8 @@ final class OvertimeWorkbookReader
             $day = ['date' => $date, 'start' => null, 'scheduledEnd' => null, 'exit' => null, 'notes' => '',
                 'legal' => array_fill_keys(self::BUCKETS, 0.0), 'bonus' => array_fill_keys(self::BUCKETS, 0.0)];
 
+            $rowIssues = [];
+
             foreach ($columns as $column => [$kind, $field]) {
                 $value = $cells[$column] ?? null;
 
@@ -191,12 +238,38 @@ final class OvertimeWorkbookReader
                     'text' => $day['notes'] = trim((string) ($value ?? '')),
                     default => $day[$kind][$field] += is_numeric($value) ? (float) $value : 0.0,
                 };
+
+                if ($kind === 'time' && ($problem = self::timeProblem($value, $day[$field]))) {
+                    $rowIssues[] = sprintf($problem, self::TIME_COLUMNS[$field]);
+                }
             }
 
             if ($date === null) {
+                // La fila de totales no tiene horas de entrada ni de salida: esa no avisa.
+                if ($day['start'] || $day['exit']) {
+                    $issues[] = "Hoja {$name}, fila {$r}: no se entiende la fecha «".trim((string) ($cells[1] ?? '')).'»; la fila no se leyó.';
+                }
+
                 continue;
             }
 
+            foreach ($rowIssues as $issue) {
+                $issues[] = "Hoja {$name}, fila {$r}: {$issue}";
+            }
+
+            if ((bool) $day['start'] !== (bool) $day['exit']) {
+                $issues[] = "Hoja {$name}, fila {$r}: el {$date->format('d/m/Y')} tiene ".($day['start'] ? 'hora de inicio pero no de salida' : 'hora de salida pero no de inicio').'; ese día no se carga.';
+            }
+
+            if ($day['start'] && $day['exit']) {
+                if (isset($seenDates[$date->toDateString()])) {
+                    $issues[] = "Hoja {$name}, fila {$r}: el {$date->format('d/m/Y')} ya está en la fila {$seenDates[$date->toDateString()]}.";
+                }
+
+                $seenDates[$date->toDateString()] ??= $r;
+            }
+
+            $day['row'] = $r;
             $previous = $date;
             $hasHours = array_sum($day['legal']) + array_sum($day['bonus']) > 0;
 
@@ -214,6 +287,33 @@ final class OvertimeWorkbookReader
             'bonusTotal' => is_numeric($bonus = $this->labelValue($rows, 'TOTAL BONO', exact: true)) ? (float) $bonus : null,
             'days' => $days,
         ];
+    }
+
+    /**
+     * Qué tiene de malo una hora del libro, con «%s» donde va la columna; null si nada.
+     * La que no se entiende no entra; la que no dice a. m. ni p. m. y podría ser las dos
+     * se toma en 24 horas, y talento humano debe saberlo.
+     */
+    private static function timeProblem(mixed $value, ?string $parsed): ?string
+    {
+        // Las horas con formato de hora de Excel no tienen nada que adivinar.
+        if (! is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        $text = trim($value);
+
+        if ($parsed === null) {
+            return "no se entiende la hora «{$text}» de «%s».";
+        }
+
+        $hour = (int) substr($parsed, 0, 2);
+
+        if (! preg_match('/[ap]\.?\s*m/iu', $text) && $hour >= 1 && $hour <= 12) {
+            return "la hora «{$text}» de «%s» no dice a. m. ni p. m.; se tomó como {$parsed}.";
+        }
+
+        return null;
     }
 
     /**

@@ -42,6 +42,9 @@ class OvertimeWorkbookImporter
     /** Marcas a menos de este margen del turno del libro se toman como el mismo turno. */
     private const OVERLAP_HOURS = 3;
 
+    /** Un turno más largo que esto es, casi siempre, un a. m. por p. m. en el libro. */
+    private const LONGEST_SHIFT_HOURS = 16;
+
     public const STATUS_LABELS = [
         'import' => 'Entra',
         'has_marks' => 'Ya tiene marcas de la portería',
@@ -58,7 +61,10 @@ class OvertimeWorkbookImporter
     /**
      * Qué pasaría con cada día del libro, sin escribir nada.
      *
-     * @return array{rows: list<array{employee: ?Employee, name: string, date: CarbonImmutable, entry: CarbonImmutable, exit: CarbonImmutable, scheduledEnd: ?CarbonImmutable, status: string}>, counts: array<string, int>, missingWorkers: list<string>, window: ?array{0: CarbonImmutable, 1: CarbonImmutable}, toVoid: int}
+     * `issues` son los errores del libro que talento humano debe mirar antes de importar:
+     * los que no dejó leer el libro y los que salen al cruzarlo con las fichas.
+     *
+     * @return array{rows: list<array{employee: ?Employee, name: string, date: CarbonImmutable, entry: CarbonImmutable, exit: CarbonImmutable, scheduledEnd: ?CarbonImmutable, status: string}>, counts: array<string, int>, missingWorkers: list<string>, window: ?array{0: CarbonImmutable, 1: CarbonImmutable}, toVoid: int, issues: list<string>}
      */
     public function plan(string $path, Tenant $tenant, bool $replace = false): array
     {
@@ -67,12 +73,16 @@ class OvertimeWorkbookImporter
         $employees = Employee::query()->forTenant($tenant->id)->get();
         $rows = [];
         $missing = [];
+        ['sheets' => $sheets, 'issues' => $issues] = $this->reader->readWithIssues($path);
+        $sheetOf = [];
 
-        foreach ($this->reader->read($path) as $sheet) {
+        foreach ($sheets as $sheet) {
             $employee = self::match($employees, $sheet['document'], $sheet['name']);
 
             if (! $employee) {
                 $missing[] = trim($sheet['name']) !== '' ? trim($sheet['name']) : $sheet['sheet'];
+            } else {
+                array_push($issues, ...$this->employeeIssues($sheet, $employee, $sheetOf));
             }
 
             foreach ($sheet['days'] as $day) {
@@ -96,6 +106,7 @@ class OvertimeWorkbookImporter
 
                 $scheduledEnd = self::scheduledEnd($day['scheduledEnd'] ?? null, $entry, $exit, $timezone);
                 $status = $this->statusOf($employee, $entry, $exit, $now, $replace);
+                array_push($issues, ...self::dayIssues($sheet['sheet'], $day, $entry, $exit, $scheduledEnd, $timezone));
 
                 // El mismo turno escrito dos veces en el libro entra una sola vez.
                 if ($status === 'import' && collect($rows)->contains(fn (array $row): bool => $row['status'] === 'import'
@@ -133,13 +144,82 @@ class OvertimeWorkbookImporter
             'missingWorkers' => array_values(array_unique($missing)),
             'window' => $window,
             'toVoid' => $toVoid,
+            'issues' => $issues,
         ];
+    }
+
+    /**
+     * Lo que no cuadra entre la hoja y la ficha del trabajador que se le encontró.
+     *
+     * @param  array{sheet: string, document: string}  $sheet
+     * @param  array<string, string>  $sheetOf  la hoja de cada trabajador ya visto
+     * @return list<string>
+     */
+    private function employeeIssues(array $sheet, Employee $employee, array &$sheetOf): array
+    {
+        $issues = [];
+        $document = self::digits($sheet['document']);
+
+        if ($document === '') {
+            $issues[] = "Hoja {$sheet['sheet']}: no tiene cédula; se reconoció a {$employee->fullName()} por el nombre.";
+        } elseif ($document !== self::digits($employee->document_number)) {
+            $issues[] = "Hoja {$sheet['sheet']}: la cédula {$document} no es la de la ficha de {$employee->fullName()} ({$employee->document_number}).";
+        }
+
+        if (isset($sheetOf[$employee->id])) {
+            $issues[] = "Hoja {$sheet['sheet']}: es del mismo trabajador que la hoja {$sheetOf[$employee->id]} ({$employee->fullName()}).";
+        }
+
+        $sheetOf[$employee->id] ??= $sheet['sheet'];
+
+        return $issues;
+    }
+
+    /**
+     * Lo raro de un día con entrada y salida: un turno que no puede ser de una persona, o
+     * un fin de horario que hubo que corregir o descartar.
+     *
+     * @param  array{row?: int, date: CarbonImmutable, scheduledEnd?: ?string}  $day
+     * @return list<string>
+     */
+    private static function dayIssues(string $sheet, array $day, CarbonImmutable $entry, CarbonImmutable $exit, ?CarbonImmutable $scheduledEnd, string $timezone): array
+    {
+        $where = "Hoja {$sheet}".(isset($day['row']) ? ", fila {$day['row']}" : '').", {$day['date']->format('d/m/Y')}";
+        $issues = [];
+        $hours = $entry->diffInMinutes($exit) / 60;
+
+        if ($hours > self::LONGEST_SHIFT_HOURS) {
+            $issues[] = sprintf('%s: turno de %s horas (%s a %s); revise a. m. y p. m.', $where, round($hours, 1), $entry->format('g:i a'), $exit->format('g:i a'));
+        }
+
+        $written = $day['scheduledEnd'] ?? null;
+
+        if (blank($written)) {
+            return $issues;
+        }
+
+        $asWritten = CarbonImmutable::parse($entry->toDateString().' '.$written, $timezone);
+
+        // «12:00pm» en un turno de tarde es la medianoche, como en la salida: no es un error.
+        if ($asWritten->hour === 12 && $asWritten->minute === 0 && $entry->hour >= 13) {
+            $asWritten = $asWritten->subHours(12);
+        }
+
+        $asWritten = $asWritten->lte($entry) ? $asWritten->addDay() : $asWritten;
+
+        if ($scheduledEnd === null) {
+            $issues[] = "{$where}: el fin horario {$asWritten->format('g:i a')} no cae dentro del turno; ese día se cuenta con la jornada.";
+        } elseif (! $scheduledEnd->eq($asWritten)) {
+            $issues[] = "{$where}: el fin horario {$asWritten->format('g:i a')} no cuadraba con el turno; se tomó como {$scheduledEnd->format('g:i a')}.";
+        }
+
+        return $issues;
     }
 
     /**
      * Carga los días que entran: dos marcas manuales por día y el día armado con ellas.
      *
-     * @return array{imported: int, workers: int, voided: int, counts: array<string, int>, missingWorkers: list<string>}
+     * @return array{imported: int, workers: int, voided: int, counts: array<string, int>, missingWorkers: list<string>, issues: list<string>}
      */
     public function import(string $path, Tenant $tenant, User $by, bool $replace = false): array
     {
@@ -205,6 +285,7 @@ class OvertimeWorkbookImporter
             'voided' => $voided,
             'counts' => $plan['counts'],
             'missingWorkers' => $plan['missingWorkers'],
+            'issues' => $plan['issues'],
         ];
     }
 
