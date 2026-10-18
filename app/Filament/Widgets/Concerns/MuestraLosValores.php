@@ -73,6 +73,8 @@ trait MuestraLosValores
                             generateLabels: (chart) => {
                                 const conjunto = chart.data.datasets[0] ?? { data: [] };
                                 const colores = conjunto.backgroundColor ?? [];
+                                // El gris por omisión de Chart.js no se lee sobre el fondo oscuro.
+                                const texto = document.documentElement.classList.contains('dark') ? '#e5e7eb' : '#374151';
 
                                 return (chart.data.labels ?? []).map((etiqueta, i) => {
                                     const valor = Number(conjunto.data[i]) || 0;
@@ -85,6 +87,7 @@ trait MuestraLosValores
                                         text: etiqueta + ' — ' + horas + ' __UNIDAD__',
                                         fillStyle: Array.isArray(colores) ? colores[i] : colores,
                                         strokeStyle: Array.isArray(colores) ? colores[i] : colores,
+                                        fontColor: texto,
                                         lineWidth: 0,
                                         hidden: !chart.getDataVisibility(i),
                                         index: i,
