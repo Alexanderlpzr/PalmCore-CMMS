@@ -57,7 +57,10 @@
     </div>
 
     <p @class([
-        'whitespace-nowrap text-xl font-bold tabular-nums sm:text-2xl xl:text-3xl',
+        'text-xl font-bold tabular-nums sm:text-2xl xl:text-3xl',
+        // Una cifra no se parte; un texto como «Sin horas pagadas» sí puede bajar de línea.
+        'whitespace-nowrap' => mb_strlen((string) $value) <= 14,
+        'leading-tight' => mb_strlen((string) $value) > 14,
         'text-gray-950 dark:text-white' => in_array($tone, ['neutral', 'ok'], true),
         'text-warning-600 dark:text-warning-400' => $tone === 'warning',
         'text-danger-600 dark:text-danger-400' => $tone === 'danger',

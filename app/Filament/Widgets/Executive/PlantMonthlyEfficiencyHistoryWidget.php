@@ -2,6 +2,7 @@
 
 namespace App\Filament\Widgets\Executive;
 
+use App\Filament\Widgets\Concerns\DiceCuandoNoHayDatos;
 use App\Models\Plant;
 use App\Models\PlantMonthlyKpi;
 use Filament\Widgets\ChartWidget;
@@ -21,6 +22,7 @@ use Illuminate\Support\Collection;
  */
 class PlantMonthlyEfficiencyHistoryWidget extends ChartWidget
 {
+    use DiceCuandoNoHayDatos;
     use InteractsWithPageFilters;
 
     protected ?string $heading = 'Eficiencia y Disponibilidad — Meses Cerrados';

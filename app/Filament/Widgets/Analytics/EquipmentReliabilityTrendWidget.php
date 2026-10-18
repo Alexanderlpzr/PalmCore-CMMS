@@ -4,6 +4,7 @@ namespace App\Filament\Widgets\Analytics;
 
 use App\Domain\Analytics\Services\AnalyticsService;
 use App\Domain\Analytics\Support\DashboardPeriod;
+use App\Filament\Widgets\Concerns\DiceCuandoNoHayDatos;
 use App\Models\Equipment;
 use Filament\Forms\Components\Select;
 use Filament\Schemas\Components\Utilities\Get;
@@ -13,6 +14,7 @@ use Filament\Widgets\ChartWidget\Concerns\HasFiltersSchema;
 
 class EquipmentReliabilityTrendWidget extends ChartWidget
 {
+    use DiceCuandoNoHayDatos;
     use HasFiltersSchema;
 
     public ?Equipment $record = null;

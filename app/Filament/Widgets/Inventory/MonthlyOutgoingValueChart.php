@@ -4,6 +4,7 @@ namespace App\Filament\Widgets\Inventory;
 
 use App\Domain\Inventory\Services\WarehouseDashboard;
 use App\Filament\Pages\TableroAlmacen;
+use App\Filament\Widgets\Concerns\DiceCuandoNoHayDatos;
 use App\Models\Tenant;
 use App\Support\FrondaPalette;
 use Filament\Facades\Filament;
@@ -15,6 +16,8 @@ use Filament\Widgets\ChartWidget;
  */
 class MonthlyOutgoingValueChart extends ChartWidget
 {
+    use DiceCuandoNoHayDatos;
+
     protected ?string $heading = 'Salidas del almacén por mes';
 
     protected ?string $description = 'Valor al costo de lo que salió, los últimos seis meses.';

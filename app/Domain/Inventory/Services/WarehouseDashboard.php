@@ -28,13 +28,14 @@ class WarehouseDashboard
     /**
      * Lo que requiere atención hoy.
      *
-     * @return array{belowMinimum: int, outOfStock: int, openPurchaseOrders: int, overduePurchaseOrders: int, inventoryValue: float, movementsToday: int}
+     * @return array{activeParts: int, belowMinimum: int, outOfStock: int, openPurchaseOrders: int, overduePurchaseOrders: int, inventoryValue: float, movementsToday: int}
      */
     public function attention(Tenant $tenant): array
     {
         $today = CarbonImmutable::now($tenant->plantTimezone());
 
         return [
+            'activeParts' => SparePart::query()->forTenant($tenant->id)->where('is_active', true)->count(),
             'belowMinimum' => self::belowMinimum(SparePart::query()->forTenant($tenant->id))->count(),
             'outOfStock' => self::outOfStock(SparePart::query()->forTenant($tenant->id))->count(),
             'openPurchaseOrders' => PurchaseOrder::query()->forTenant($tenant->id)->open()->count(),

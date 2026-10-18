@@ -2,6 +2,7 @@
 
 namespace App\Filament\Widgets\HumanResources;
 
+use App\Filament\Widgets\Concerns\DiceCuandoNoHayDatos;
 use Filament\Support\RawJs;
 use Filament\Widgets\ChartWidget;
 use Livewire\Attributes\Reactive;
@@ -13,6 +14,8 @@ use Livewire\Attributes\Reactive;
  */
 class LaborCostPieChart extends ChartWidget
 {
+    use DiceCuandoNoHayDatos;
+
     protected static bool $isLazy = false;
 
     protected static bool $isDiscovered = false;

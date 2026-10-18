@@ -3,6 +3,8 @@
 namespace App\Filament\Widgets\Reliability;
 
 use App\Domain\Analytics\Services\AnalyticsService;
+use App\Filament\Resources\Maintenance\WorkOrder\WorkOrderResource;
+use App\Models\WorkOrder;
 use Filament\Facades\Filament;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
@@ -21,6 +23,8 @@ class MaintenanceComplianceWidget extends BaseWidget
 
     protected int|string|array $columnSpan = 'full';
 
+    protected string $view = 'filament.widgets.fronda-stats';
+
     protected function getStats(): array
     {
         $service = app(AnalyticsService::class);
@@ -33,6 +37,7 @@ class MaintenanceComplianceWidget extends BaseWidget
             $this->complianceStat($compliance),
             $this->overdueStat($compliance),
             $this->mixStat($mix),
+            $this->openWorkOrdersStat($tenantId),
         ];
     }
 
@@ -65,6 +70,19 @@ class MaintenanceComplianceWidget extends BaseWidget
         return Stat::make('Preventivos Vencidos', (string) $overdue)
             ->description($overdue === 0 ? 'Todo el plan al día' : 'Requieren programarse cuanto antes')
             ->color($overdue === 0 ? 'success' : ($overdue <= 3 ? 'warning' : 'danger'));
+    }
+
+    /** Lo pendiente hoy: las órdenes abiertas, con las que ya pasaron su fecha. */
+    private function openWorkOrdersStat(string $tenantId): Stat
+    {
+        $open = WorkOrder::query()->where('tenant_id', $tenantId)->open();
+        $count = (clone $open)->count();
+        $late = (clone $open)->whereNotNull('planned_end_at')->where('planned_end_at', '<', now())->count();
+
+        return Stat::make('OT abiertas', (string) $count)
+            ->description($count === 0 ? 'Nada pendiente' : ($late > 0 ? "{$late} pasadas de su fecha planeada" : 'Ninguna vencida'))
+            ->url(WorkOrderResource::getUrl('index'))
+            ->color($late > 0 ? 'warning' : 'primary');
     }
 
     /**

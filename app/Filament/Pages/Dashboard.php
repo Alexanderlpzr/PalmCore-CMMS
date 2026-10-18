@@ -24,6 +24,7 @@ use Filament\Pages\Dashboard as BaseDashboard;
 use Filament\Pages\Dashboard\Concerns\HasFiltersForm;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Filament\Widgets\WidgetConfiguration;
 use UnitEnum;
 
 /**
@@ -70,13 +71,14 @@ class Dashboard extends BaseDashboard
      * Selección curada, agrupada por bloque (el orden final lo fija el $sort de
      * cada widget): Resumen → Paros → Confiabilidad → Costos.
      *
-     * @return array<class-string>
+     * @return array<class-string|WidgetConfiguration>
      */
     public function getWidgets(): array
     {
         return [
             // Resumen
-            PlantEfficiencyStatsWidget::class,
+            // La tarjeta grande del Dashboard es la disponibilidad: lo que mide a mantenimiento.
+            PlantEfficiencyStatsWidget::make(['heroMetric' => 'availability']),
             // Paros
             DowntimeMaintenanceBreakdownWidget::class,
             DowntimeByReasonWidget::class,

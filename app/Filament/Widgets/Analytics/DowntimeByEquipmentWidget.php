@@ -5,6 +5,7 @@ namespace App\Filament\Widgets\Analytics;
 use App\Domain\Analytics\Support\DashboardPeriod;
 use App\Domain\Analytics\Support\PlantaGeneral;
 use App\Domain\Assets\Services\DowntimeService;
+use App\Filament\Widgets\Concerns\DiceCuandoNoHayDatos;
 use App\Filament\Widgets\Concerns\MuestraLosValoresEnBarras;
 use App\Models\Plant;
 use Filament\Widgets\ChartWidget;
@@ -18,6 +19,7 @@ use Illuminate\Support\Carbon;
  */
 class DowntimeByEquipmentWidget extends ChartWidget
 {
+    use DiceCuandoNoHayDatos;
     use InteractsWithPageFilters;
     use MuestraLosValoresEnBarras;
 

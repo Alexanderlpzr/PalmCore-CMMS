@@ -16,6 +16,7 @@ use App\Infrastructure\Tenancy\CurrentTenant;
 use App\Models\Equipment;
 use App\Models\EquipmentKpi;
 use App\Models\Tenant;
+use Filament\Widgets\WidgetConfiguration;
 
 // CurrentTenant is static state — must be cleared after each test so it does
 // not leak into subsequent test files and corrupt their BelongsToTenant scopes.
@@ -316,7 +317,12 @@ it('the dashboard renders the curated indicator widgets', function () {
     // El Dashboard se consolidó en un set curado por bloques (Resumen, Paros,
     // Confiabilidad, Costos). Estos deben seguir cableados; las pantallas de
     // Eficiencia/Paros/Ejecutivo/Gastos se fusionaron aquí y salieron del menú.
-    $widgets = (new Dashboard)->getWidgets();
+    $configured = collect((new Dashboard)->getWidgets());
+    $widgets = $configured->map(fn ($widget): string => $widget instanceof WidgetConfiguration ? $widget->widget : $widget)->all();
+
+    // La tarjeta grande del Dashboard es la disponibilidad, no la eficiencia.
+    $efficiency = $configured->first(fn ($widget): bool => $widget instanceof WidgetConfiguration && $widget->widget === PlantEfficiencyStatsWidget::class);
+    expect($efficiency?->getProperties())->toBe(['heroMetric' => 'availability']);
 
     expect($widgets)->toContain(
         PlantEfficiencyStatsWidget::class,

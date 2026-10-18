@@ -4,6 +4,7 @@ namespace App\Filament\Widgets\Inventory;
 
 use App\Domain\Inventory\Services\WarehouseDashboard;
 use App\Filament\Pages\TableroAlmacen;
+use App\Filament\Widgets\Concerns\DiceCuandoNoHayDatos;
 use App\Models\Tenant;
 use App\Support\FrondaPalette;
 use Filament\Facades\Filament;
@@ -15,6 +16,8 @@ use Filament\Widgets\ChartWidget;
  */
 class MostUsedSparePartsChart extends ChartWidget
 {
+    use DiceCuandoNoHayDatos;
+
     protected ?string $heading = 'Repuestos más usados';
 
     protected ?string $description = 'Cantidad que salió en los últimos 90 días.';

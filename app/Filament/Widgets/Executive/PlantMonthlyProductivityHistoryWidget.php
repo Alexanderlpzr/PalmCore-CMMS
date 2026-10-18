@@ -2,6 +2,7 @@
 
 namespace App\Filament\Widgets\Executive;
 
+use App\Filament\Widgets\Concerns\DiceCuandoNoHayDatos;
 use App\Models\Plant;
 use App\Models\PlantMonthlyKpi;
 use Filament\Widgets\ChartWidget;
@@ -17,6 +18,7 @@ use Filament\Widgets\Concerns\InteractsWithPageFilters;
  */
 class PlantMonthlyProductivityHistoryWidget extends ChartWidget
 {
+    use DiceCuandoNoHayDatos;
     use InteractsWithPageFilters;
 
     protected ?string $heading = 'Productividad — Meses Cerrados';

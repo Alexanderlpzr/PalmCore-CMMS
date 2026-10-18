@@ -247,7 +247,20 @@ class TableroAlmacen extends Page
             PurchaseOrderResource::canCreate() ? ['label' => 'Nueva orden de compra', 'icon' => 'heroicon-o-document-plus', 'url' => PurchaseOrderResource::getUrl('create')] : null,
         ]));
 
+        // La tarjeta grande: lo que vale lo que hay, y qué parte de los repuestos está
+        // por encima de su mínimo. El valor y los movimientos de hoy suben allí.
+        $sanos = max(0, $attention['activeParts'] - $attention['belowMinimum']);
+        $hero = [
+            'value' => (float) $attention['inventoryValue'],
+            'percent' => $attention['activeParts'] > 0 ? $sanos * 100 / $attention['activeParts'] : 0,
+            'progressLabel' => $sanos.' de '.$attention['activeParts'].' repuestos por encima de su mínimo',
+            'movementsToday' => $attention['movementsToday'],
+            'activeParts' => $attention['activeParts'],
+        ];
+        $cards = array_values(array_filter($cards, fn (array $card): bool => ! in_array($card['label'], ['Valor del inventario', 'Movimientos de hoy'], true)));
+
         return [
+            'hero' => $hero,
             'cards' => $cards,
             'shortcuts' => $shortcuts,
             'movements' => $dashboard->recentMovements($tenant),

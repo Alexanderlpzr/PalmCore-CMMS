@@ -6,6 +6,7 @@ use App\Domain\Analytics\DTOs\TrendPoint;
 use App\Domain\Analytics\Services\AnalyticsService;
 use App\Domain\Analytics\Support\DashboardPeriod;
 use App\Domain\Analytics\Support\PlantaGeneral;
+use App\Filament\Widgets\Concerns\DiceCuandoNoHayDatos;
 use App\Filament\Widgets\Concerns\MuestraLosValoresEnBarras;
 use Filament\Facades\Filament;
 use Filament\Widgets\ChartWidget;
@@ -17,6 +18,7 @@ use Filament\Widgets\Concerns\InteractsWithPageFilters;
  */
 class DowntimeBySectionWidget extends ChartWidget
 {
+    use DiceCuandoNoHayDatos;
     use InteractsWithPageFilters;
     use MuestraLosValoresEnBarras;
 

@@ -3,11 +3,14 @@
 namespace App\Filament\Widgets\Executive;
 
 use App\Domain\Analytics\Services\ExecutiveDashboardService;
+use App\Filament\Widgets\Concerns\DiceCuandoNoHayDatos;
 use Filament\Facades\Filament;
 use Filament\Widgets\ChartWidget;
 
 class AvailabilityTrendWidget extends ChartWidget
 {
+    use DiceCuandoNoHayDatos;
+
     protected ?string $heading = 'Tendencia de Disponibilidad';
 
     protected ?string $pollingInterval = null;

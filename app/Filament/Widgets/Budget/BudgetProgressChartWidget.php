@@ -3,6 +3,7 @@
 namespace App\Filament\Widgets\Budget;
 
 use App\Domain\Analytics\Services\BudgetTrackingService;
+use App\Filament\Widgets\Concerns\DiceCuandoNoHayDatos;
 use App\Models\Plant;
 use Filament\Widgets\ChartWidget;
 use Filament\Widgets\Concerns\InteractsWithPageFilters;
@@ -13,6 +14,7 @@ use Filament\Widgets\Concerns\InteractsWithPageFilters;
  */
 class BudgetProgressChartWidget extends ChartWidget
 {
+    use DiceCuandoNoHayDatos;
     use InteractsWithPageFilters;
 
     protected ?string $heading = 'Avance del gasto por semana';

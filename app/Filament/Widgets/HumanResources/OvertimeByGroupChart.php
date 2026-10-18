@@ -4,6 +4,7 @@ namespace App\Filament\Widgets\HumanResources;
 
 use App\Domain\HumanResources\Services\HumanResourcesDashboard;
 use App\Filament\Pages\TableroTalentoHumano;
+use App\Filament\Widgets\Concerns\DiceCuandoNoHayDatos;
 use App\Models\Tenant;
 use App\Support\FrondaPalette;
 use Filament\Facades\Filament;
@@ -15,6 +16,8 @@ use Filament\Widgets\ChartWidget;
  */
 class OvertimeByGroupChart extends ChartWidget
 {
+    use DiceCuandoNoHayDatos;
+
     /** Verde y petróleo de la marca, y dos neutros para los grupos menores. */
     private const COLORS = [
         FrondaPalette::Brand[600],

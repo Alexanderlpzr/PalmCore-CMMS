@@ -3,11 +3,14 @@
 namespace App\Filament\Widgets\Analytics;
 
 use App\Domain\Analytics\Services\AnalyticsService;
+use App\Filament\Widgets\Concerns\DiceCuandoNoHayDatos;
 use Filament\Facades\Filament;
 use Filament\Widgets\ChartWidget;
 
 class ParetoFailuresWidget extends ChartWidget
 {
+    use DiceCuandoNoHayDatos;
+
     protected ?string $heading = 'Pareto de Fallas';
 
     protected ?string $pollingInterval = null;

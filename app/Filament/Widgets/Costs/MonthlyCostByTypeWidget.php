@@ -3,6 +3,7 @@
 namespace App\Filament\Widgets\Costs;
 
 use App\Domain\Analytics\Services\MaintenanceCostReportService;
+use App\Filament\Widgets\Concerns\DiceCuandoNoHayDatos;
 use App\Filament\Widgets\Costs\Concerns\ResolvesCostReportFilters;
 use Filament\Widgets\ChartWidget;
 use Filament\Widgets\Concerns\InteractsWithPageFilters;
@@ -14,6 +15,7 @@ use Filament\Widgets\Concerns\InteractsWithPageFilters;
  */
 class MonthlyCostByTypeWidget extends ChartWidget
 {
+    use DiceCuandoNoHayDatos;
     use InteractsWithPageFilters;
     use ResolvesCostReportFilters;
 

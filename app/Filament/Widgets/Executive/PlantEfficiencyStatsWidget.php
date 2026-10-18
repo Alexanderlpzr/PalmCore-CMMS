@@ -38,20 +38,78 @@ class PlantEfficiencyStatsWidget extends BaseWidget
 
     protected int|string|array $columnSpan = 'full';
 
+    protected string $view = 'filament.widgets.fronda-stats';
+
+    /**
+     * La cifra de la tarjeta grande: la disponibilidad en el Dashboard, que es lo que mide
+     * a mantenimiento; la eficiencia en «Productividad y Eficiencia».
+     */
+    public string $heroMetric = 'efficiency';
+
+    /** @var array<string, mixed>|null */
+    private ?array $metrics = null;
+
+    /**
+     * La tarjeta grande con degradado (ver `filament.widgets.fronda-stats`).
+     *
+     * @return array<string, mixed>|null
+     */
+    public function frondaHero(): ?array
+    {
+        $metrics = $this->metrics();
+
+        if ($metrics === null) {
+            return null;
+        }
+
+        $period = DashboardPeriod::label($this->pageFilters);
+        $number = fn (?float $value, int $decimals = 1): string => $value === null ? '—' : number_format($value, $decimals, ',', '.');
+
+        if ($this->heroMetric === 'availability') {
+            $availability = $metrics['availability_percentage'];
+
+            return [
+                'label' => 'Disponibilidad de la planta · '.$period,
+                'value' => $availability,
+                'suffix' => ' %',
+                'decimals' => 1,
+                'icon' => 'heroicon-o-wrench-screwdriver',
+                'badge' => $metrics['failure_count'] === 1 ? '1 falla de mantenimiento' : $metrics['failure_count'].' fallas de mantenimiento',
+                'percent' => $availability,
+                'progressLabel' => $number($metrics['maintenance_lost_hours']).' h que mantenimiento le quitó a la planta',
+                'empty' => $availability === null ? 'Sin horas pagadas: falta el calendario de producción del período.' : null,
+                'stats' => [
+                    ['label' => 'MTBF · tiempo entre fallas', 'value' => $number($metrics['mtbf_hours']).' h'],
+                    ['label' => 'MTTR · tiempo de reparación', 'value' => $number($metrics['mttr_hours']).' h'],
+                ],
+                'replaces' => ['Disponibilidad', 'MTBF / MTTR Planta'],
+            ];
+        }
+
+        $efficiency = $metrics['efficiency_percentage'];
+        $pressable = round($metrics['programmed_hours'] - $metrics['cleaning_hours'], 1);
+
+        return [
+            'label' => 'Eficiencia de la planta · '.$period,
+            'value' => $efficiency,
+            'suffix' => ' %',
+            'decimals' => 1,
+            'icon' => 'heroicon-o-cog-6-tooth',
+            'percent' => $efficiency,
+            'progressLabel' => $number($metrics['effective_hours']).' h prensadas de '.$number($pressable).' h prensables',
+            'empty' => $efficiency === null ? 'Sin horas pagadas: falta el calendario de producción del período.' : null,
+            'replaces' => ['Eficiencia'],
+        ];
+    }
+
     protected function getStats(): array
     {
-        $plant = $this->selectedPlant();
+        $metrics = $this->metrics();
 
-        if ($plant === null) {
+        if ($metrics === null) {
             return [Stat::make('Eficiencia de planta', 'Sin plantas registradas')];
         }
 
-        // El período elegido manda, incluido «últimos 12 meses»: antes ese preset
-        // caía al mes en curso sin decirlo, y el número en pantalla no era el que
-        // el filtro prometía.
-        [$from, $to] = DashboardPeriod::snapshotWindow($this->pageFilters);
-
-        $metrics = app(PlantKpiService::class)->calculate($plant, $from, $to);
         $period = DashboardPeriod::label($this->pageFilters);
 
         $efficiency = $metrics['efficiency_percentage'];
@@ -96,6 +154,28 @@ class PlantEfficiencyStatsWidget extends BaseWidget
                 ' / '.($metrics['mttr_hours'] !== null ? number_format($metrics['mttr_hours'], 1) : '—').' h')
                 ->description($metrics['failure_count'].' falla(s) de mantenimiento · '.$period),
         ];
+    }
+
+    /**
+     * Las cuentas del período, una sola vez por pintada: las leen la tarjeta grande y las
+     * pequeñas.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function metrics(): ?array
+    {
+        $plant = $this->selectedPlant();
+
+        if ($plant === null) {
+            return null;
+        }
+
+        // El período elegido manda, incluido «últimos 12 meses»: antes ese preset
+        // caía al mes en curso sin decirlo, y el número en pantalla no era el que
+        // el filtro prometía.
+        [$from, $to] = DashboardPeriod::snapshotWindow($this->pageFilters);
+
+        return $this->metrics ??= app(PlantKpiService::class)->calculate($plant, $from, $to);
     }
 
     private function selectedPlant(): ?Plant

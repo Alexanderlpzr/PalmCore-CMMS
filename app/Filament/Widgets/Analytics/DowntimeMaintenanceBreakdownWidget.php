@@ -4,6 +4,7 @@ namespace App\Filament\Widgets\Analytics;
 
 use App\Domain\Analytics\Services\AnalyticsService;
 use App\Domain\Analytics\Support\DashboardPeriod;
+use App\Filament\Widgets\Concerns\DiceCuandoNoHayDatos;
 use App\Filament\Widgets\Concerns\MuestraLosValores;
 use Filament\Facades\Filament;
 use Filament\Widgets\ChartWidget;
@@ -24,6 +25,7 @@ use Filament\Widgets\Concerns\InteractsWithPageFilters;
  */
 class DowntimeMaintenanceBreakdownWidget extends ChartWidget
 {
+    use DiceCuandoNoHayDatos;
     use InteractsWithPageFilters;
     use MuestraLosValores;
 

@@ -11,6 +11,8 @@ use Filament\Widgets\StatsOverviewWidget\Stat;
 
 class ExecutiveSummaryWidget extends BaseWidget
 {
+    protected string $view = 'filament.widgets.fronda-stats';
+
     use InteractsWithPageFilters;
 
     protected ?string $pollingInterval = null;

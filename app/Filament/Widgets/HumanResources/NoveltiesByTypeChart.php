@@ -4,6 +4,7 @@ namespace App\Filament\Widgets\HumanResources;
 
 use App\Domain\HumanResources\Services\HumanResourcesDashboard;
 use App\Filament\Pages\TableroTalentoHumano;
+use App\Filament\Widgets\Concerns\DiceCuandoNoHayDatos;
 use App\Filament\Widgets\Concerns\MuestraLosValores;
 use App\Models\Tenant;
 use App\Support\FrondaPalette;
@@ -16,6 +17,7 @@ use Filament\Widgets\ChartWidget;
  */
 class NoveltiesByTypeChart extends ChartWidget
 {
+    use DiceCuandoNoHayDatos;
     use MuestraLosValores;
 
     private const COLORS = [

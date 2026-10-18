@@ -4,12 +4,14 @@ namespace App\Filament\Widgets\Executive;
 
 use App\Domain\Analytics\Services\ExecutiveDashboardService;
 use App\Domain\Analytics\Support\DashboardPeriod;
+use App\Filament\Widgets\Concerns\DiceCuandoNoHayDatos;
 use Filament\Facades\Filament;
 use Filament\Widgets\ChartWidget;
 use Filament\Widgets\Concerns\InteractsWithPageFilters;
 
 class CostByTypeWidget extends ChartWidget
 {
+    use DiceCuandoNoHayDatos;
     use InteractsWithPageFilters;
 
     protected ?string $heading = 'Costos por Tipo';
