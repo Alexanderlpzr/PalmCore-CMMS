@@ -23,6 +23,10 @@ use Illuminate\Support\Collection;
 class PlantMonthlyEfficiencyHistoryWidget extends ChartWidget
 {
     use DiceCuandoNoHayDatos;
+
+    // Con todo el ancho y sin tope, Chart.js la estira hasta ocupar la pantalla.
+    protected ?string $maxHeight = '280px';
+
     use InteractsWithPageFilters;
 
     protected ?string $heading = 'Eficiencia y Disponibilidad — Meses Cerrados';

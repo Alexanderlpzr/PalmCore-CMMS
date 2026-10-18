@@ -15,6 +15,10 @@ use Filament\Widgets\ChartWidget\Concerns\HasFiltersSchema;
 class EquipmentReliabilityTrendWidget extends ChartWidget
 {
     use DiceCuandoNoHayDatos;
+
+    // Con todo el ancho y sin tope, Chart.js la estira hasta ocupar la pantalla.
+    protected ?string $maxHeight = '280px';
+
     use HasFiltersSchema;
 
     public ?Equipment $record = null;

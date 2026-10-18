@@ -12,6 +12,10 @@ use Filament\Widgets\Concerns\InteractsWithPageFilters;
 class CostByTypeWidget extends ChartWidget
 {
     use DiceCuandoNoHayDatos;
+
+    // Con todo el ancho y sin tope, Chart.js la estira hasta ocupar la pantalla.
+    protected ?string $maxHeight = '280px';
+
     use InteractsWithPageFilters;
 
     protected ?string $heading = 'Costos por Tipo';

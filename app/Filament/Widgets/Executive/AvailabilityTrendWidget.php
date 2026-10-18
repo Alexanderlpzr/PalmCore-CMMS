@@ -11,6 +11,9 @@ class AvailabilityTrendWidget extends ChartWidget
 {
     use DiceCuandoNoHayDatos;
 
+    // Con todo el ancho y sin tope, Chart.js la estira hasta ocupar la pantalla.
+    protected ?string $maxHeight = '280px';
+
     protected ?string $heading = 'Tendencia de Disponibilidad';
 
     protected ?string $pollingInterval = null;

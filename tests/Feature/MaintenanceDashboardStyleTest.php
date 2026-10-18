@@ -10,6 +10,8 @@ use App\Models\Tenant;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Filament\Facades\Filament;
+use Filament\Widgets\ChartWidget;
+use Illuminate\Support\Facades\File;
 use Livewire\Livewire;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -83,4 +85,19 @@ it('says a chart has no data instead of drawing empty axes', function (): void {
     Livewire::test(DowntimeByReasonWidget::class, ['pageFilters' => $this->filtros])
         ->assertOk()
         ->assertSee('Todavía no hay datos en este período.');
+});
+
+it('gives every chart a maximum height, so none fills the whole screen', function (): void {
+    $graficas = collect(File::allFiles(app_path('Filament/Widgets')))
+        ->map(fn (SplFileInfo $file): string => 'App\\Filament\\Widgets\\'.str_replace(['/', '\\', '.php'], ['\\', '\\', ''], $file->getRelativePathname()))
+        ->filter(fn (string $class): bool => class_exists($class) && is_subclass_of($class, ChartWidget::class) && ! (new ReflectionClass($class))->isAbstract())
+        ->values();
+
+    $sinTope = $graficas
+        ->filter(fn (string $class): bool => (new ReflectionClass($class))->getProperty('maxHeight')->getDefaultValue() === null)
+        ->values()
+        ->all();
+
+    expect($graficas->count())->toBeGreaterThan(15)
+        ->and($sinTope)->toBe([]);
 });
