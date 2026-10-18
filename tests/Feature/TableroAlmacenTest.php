@@ -73,14 +73,14 @@ it('lets the warehouse account register an entry, an exit and a count from the d
 
     // Salir más de lo que hay no se registra.
     $pantalla->callAction('salida', [
-        'warehouse_id' => $this->almacen->id, 'spare_part_id' => $this->correa->id, 'quantity' => 10,
+        'warehouse_id' => $this->almacen->id, 'spare_part_id' => $this->correa->id, 'quantity' => 10, 'exit_reason' => 'damage_or_loss',
     ])->assertNotified('No hay suficiente existencia disponible para esa salida.');
 
     // El formulario rechazado queda abierto para corregir la cantidad; se empieza de nuevo.
     $pantalla = Livewire::test(TableroAlmacen::class);
 
     $pantalla->callAction('salida', [
-        'warehouse_id' => $this->almacen->id, 'spare_part_id' => $this->correa->id, 'quantity' => 1, 'reference' => 'Daño',
+        'warehouse_id' => $this->almacen->id, 'spare_part_id' => $this->correa->id, 'quantity' => 1, 'exit_reason' => 'damage_or_loss', 'reference' => 'Daño',
     ])->assertNotified('Movimiento registrado');
 
     // El conteo deja lo que hay en el estante.

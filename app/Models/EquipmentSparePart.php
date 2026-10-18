@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable([
     'tenant_id',
     'equipment_id',
+    'spare_part_id',
     'name',
     'part_number',
     'unit_cost',
@@ -31,6 +32,12 @@ class EquipmentSparePart extends BaseModel
     public function equipment(): BelongsTo
     {
         return $this->belongsTo(Equipment::class);
+    }
+
+    /** El mismo repuesto en el almacén, si se enlazó: de ahí sale «dónde se usa». */
+    public function sparePart(): BelongsTo
+    {
+        return $this->belongsTo(SparePart::class);
     }
 
     protected function casts(): array

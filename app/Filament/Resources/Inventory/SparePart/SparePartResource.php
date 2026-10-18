@@ -6,6 +6,7 @@ use App\Filament\Resources\Inventory\SparePart\Pages\CreateSparePart;
 use App\Filament\Resources\Inventory\SparePart\Pages\EditSparePart;
 use App\Filament\Resources\Inventory\SparePart\Pages\ListSpareParts;
 use App\Filament\Resources\Inventory\SparePart\Pages\ViewSparePart;
+use App\Filament\Resources\Inventory\SparePart\RelationManagers\EquipmentUsageRelationManager;
 use App\Filament\Resources\Inventory\SparePart\RelationManagers\StockRelationManager;
 use App\Filament\Resources\Inventory\SparePart\RelationManagers\TransactionsRelationManager;
 use App\Filament\Resources\Inventory\SparePart\Schemas\SparePartForm;
@@ -31,14 +32,14 @@ class SparePartResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = 'Inventario';
 
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 2;
 
     protected static bool $isScopedToTenant = true;
 
     public static function shouldRegisterNavigation(): bool
     {
-        // Oculto para los roles de tenant; solo el superadministrador de plataforma lo ve.
-        return auth()->user()?->is_super_admin ?? false;
+        // En el menú de quien puede verlo: el almacén y el superadministrador.
+        return static::canViewAny();
     }
 
     public static function form(Schema $schema): Schema
@@ -61,6 +62,7 @@ class SparePartResource extends Resource
         return [
             'warehouseStock' => StockRelationManager::class,
             'transactions' => TransactionsRelationManager::class,
+            'equipmentUsage' => EquipmentUsageRelationManager::class,
         ];
     }
 

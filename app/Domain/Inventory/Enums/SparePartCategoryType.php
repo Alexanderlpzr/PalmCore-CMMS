@@ -25,6 +25,20 @@ enum SparePartCategoryType: string
         };
     }
 
+    /** El prefijo del código que asigna el sistema: MEC-0001, ELE-0001… */
+    public function codePrefix(): string
+    {
+        return match ($this) {
+            self::Mechanical => 'MEC',
+            self::Electrical => 'ELE',
+            self::Instrumentation => 'INS',
+            self::Lubrication => 'LUB',
+            self::Consumable => 'CON',
+            self::Safety => 'SEG',
+            self::Other => 'OTR',
+        };
+    }
+
     public function color(): string
     {
         return match ($this) {

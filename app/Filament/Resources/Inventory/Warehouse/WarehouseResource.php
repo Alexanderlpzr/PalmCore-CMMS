@@ -31,14 +31,14 @@ class WarehouseResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = 'Inventario';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 3;
 
     protected static bool $isScopedToTenant = true;
 
     public static function shouldRegisterNavigation(): bool
     {
-        // Oculto para los roles de tenant; solo el superadministrador de plataforma lo ve.
-        return auth()->user()?->is_super_admin ?? false;
+        // En el menú de quien puede verlo: el almacén y el superadministrador.
+        return static::canViewAny();
     }
 
     public static function form(Schema $schema): Schema

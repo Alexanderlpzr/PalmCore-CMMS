@@ -67,6 +67,12 @@ class SparePart extends BaseModel
         return $this->belongsTo(User::class, 'updated_by');
     }
 
+    /** Los equipos que llevan este repuesto («dónde se usa»). */
+    public function equipmentUsage(): HasMany
+    {
+        return $this->hasMany(EquipmentSparePart::class);
+    }
+
     public function warehouseStock(): HasMany
     {
         return $this->hasMany(WarehouseSparePart::class);
@@ -109,6 +115,27 @@ class SparePart extends BaseModel
         }
 
         return $this->totalStock() < $this->reorder_point;
+    }
+
+    /**
+     * Hay que pedirlo: bajo el punto de reorden o, si no tiene uno, en su mínimo o por
+     * debajo —la misma regla que la tarjeta «Bajo el mínimo» del tablero de almacén—.
+     */
+    public function needsRestock(): bool
+    {
+        if ($this->reorder_point !== null) {
+            return $this->isBelowReorderPoint();
+        }
+
+        return (float) $this->minimum_stock > 0 && $this->totalStock() <= (float) $this->minimum_stock;
+    }
+
+    /** El nivel con el que se pide: el punto de reorden, o el mínimo si no tiene. */
+    public function restockThreshold(): ?float
+    {
+        $threshold = $this->reorder_point ?? $this->minimum_stock;
+
+        return $threshold === null ? null : (float) $threshold;
     }
 
     // ── Casts ─────────────────────────────────────────────────────────────────

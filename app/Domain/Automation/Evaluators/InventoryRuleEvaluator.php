@@ -20,17 +20,17 @@ class InventoryRuleEvaluator
 
     public function evaluate(AutomationRule $rule): void
     {
-        // Find spare parts below reorder_point for this tenant.
-        // withSum pre-loads total stock so isBelowReorderPoint() reads an attribute, not a query.
+        // Find spare parts below their reorder point (or their minimum when they have none).
+        // withSum pre-loads total stock so needsRestock() reads an attribute, not a query.
         $spareParts = SparePart::withoutGlobalScopes()
             ->where('spare_parts.tenant_id', $rule->tenant_id)
             ->where('spare_parts.is_active', true)
             ->whereNull('spare_parts.deleted_at')
-            ->whereNotNull('spare_parts.reorder_point')
+            ->where(fn ($q) => $q->whereNotNull('spare_parts.reorder_point')->orWhere('spare_parts.minimum_stock', '>', 0))
             ->whereHas('warehouseStock', fn ($q) => $q->withoutGlobalScopes())
             ->withSum(['warehouseStock' => fn ($q) => $q->withoutGlobalScopes()], 'current_stock')
             ->get()
-            ->filter(fn (SparePart $sp) => $sp->isBelowReorderPoint());
+            ->filter(fn (SparePart $sp) => $sp->needsRestock());
 
         foreach ($spareParts as $sparePart) {
             $this->processLowStock($rule, $sparePart);
@@ -66,7 +66,7 @@ class InventoryRuleEvaluator
             severity: AlertSeverity::Warning,
             category: AlertCategory::Inventory,
             title: "Stock bajo: {$sparePart->code} — {$sparePart->name}",
-            message: "Stock disponible por debajo del punto de reorden ({$sparePart->reorder_point} unidades).",
+            message: 'Stock disponible por debajo del nivel de reposición ('.$sparePart->restockThreshold().' unidades).',
             entityType: 'spare_part',
             entityId: $sparePart->id,
             metadata: [
@@ -83,7 +83,7 @@ class InventoryRuleEvaluator
         event(new InventoryLowStockDetected(
             sparePart: $sparePart,
             currentStock: $sparePart->totalStock(),
-            reorderPoint: (float) $sparePart->reorder_point,
+            reorderPoint: (float) $sparePart->restockThreshold(),
         ));
     }
 

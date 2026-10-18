@@ -92,7 +92,10 @@ it('encuentra las tablas del proyecto', function (): void {
     // 86 con la página «Horas extras»: todos los trabajadores y su formato.
     // 87 con «Alimentación»: las comidas del periodo para pagarlas.
     // 88 con «Horas confirmadas»: los días firmados, para corregir novedades tardías.
-    expect(tableFiles())->toHaveCount(88);
+    //
+    // 93 con el control del almacén: Despachos, Kardex, Conteos y su planilla, y la
+    // pestaña «Dónde se usa» del repuesto.
+    expect(tableFiles())->toHaveCount(93);
 });
 
 it('alinea a la derecha toda columna de dinero o cantidad', function (): void {

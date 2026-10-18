@@ -2,8 +2,15 @@
 
 namespace App\Filament\Pages;
 
+use App\Domain\Inventory\Enums\InventoryExitReason;
+use App\Domain\Inventory\Enums\SparePartCategoryType;
+use App\Domain\Inventory\Enums\SparePartCriticality;
+use App\Domain\Inventory\Enums\SparePartUnit;
+use App\Domain\Inventory\Services\InventoryCountService;
 use App\Domain\Inventory\Services\InventoryService;
+use App\Domain\Inventory\Services\SparePartService;
 use App\Domain\Inventory\Services\WarehouseDashboard;
+use App\Filament\Resources\Inventory\InventoryCount\InventoryCountResource;
 use App\Filament\Resources\Inventory\PurchaseOrder\PurchaseOrderResource;
 use App\Filament\Resources\Inventory\SparePart\SparePartResource;
 use App\Filament\Resources\Inventory\Warehouse\WarehouseResource;
@@ -26,6 +33,7 @@ use Filament\Pages\Page;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
+use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use UnitEnum;
 
@@ -66,6 +74,7 @@ class TableroAlmacen extends Page
     protected function getHeaderActions(): array
     {
         return [
+            $this->surveyAction(),
             $this->movementAction('entrada'),
             $this->movementAction('salida'),
             $this->movementAction('conteo'),
@@ -106,7 +115,7 @@ class TableroAlmacen extends Page
             ->modalHeading($label)
             ->modalDescription(match ($kind) {
                 'entrada' => 'Lo que llega al almacén: una compra, una devolución, la existencia inicial.',
-                'salida' => 'Lo que sale sin orden de trabajo: un daño, una baja, una devolución al proveedor.',
+                'salida' => 'El vale de lo que sale sin orden de trabajo: consumo, dotación, un daño, una baja. Lo que piden las órdenes se entrega en Despachos.',
                 default => 'Escriba lo que hay en el estante: el sistema registra la diferencia.',
             })
             ->schema([
@@ -142,6 +151,20 @@ class TableroAlmacen extends Page
                         ->prefix('$')
                         ->visible($kind === 'entrada')
                         ->required($kind === 'entrada'),
+                    Select::make('exit_reason')
+                        ->label('Motivo')
+                        ->options(InventoryExitReason::options())
+                        ->default(InventoryExitReason::PlantConsumption->value)
+                        ->live()
+                        ->visible($kind === 'salida')
+                        ->required($kind === 'salida'),
+                    TextInput::make('recipient_name')
+                        ->label('Quién recibe')
+                        ->placeholder('Nombre de quien se lo lleva')
+                        ->datalist(fn (): array => $kind === 'salida' ? app(WarehouseDashboard::class)->recipientSuggestions($this->tenant()) : [])
+                        ->maxLength(150)
+                        ->visible($kind === 'salida')
+                        ->required(fn (Get $get): bool => $kind === 'salida' && (InventoryExitReason::tryFrom((string) $get('exit_reason'))?->requiresRecipient() ?? false)),
                     TextInput::make('reference')
                         ->label($kind === 'entrada' ? 'Factura o remisión' : 'Referencia')
                         ->maxLength(100)
@@ -163,7 +186,10 @@ class TableroAlmacen extends Page
                 try {
                     $movement = match ($kind) {
                         'entrada' => $service->receiveEntry($warehouse, $part, (float) $data['quantity'], $cost, $user, $data['reference'] ?? null, $data['notes'] ?? null),
-                        'salida' => $service->recordExit($warehouse, $part, (float) $data['quantity'], $cost, $user, $data['reference'] ?? null, $data['notes'] ?? null),
+                        'salida' => $service->recordExit(
+                            $warehouse, $part, (float) $data['quantity'], $cost, $user, $data['reference'] ?? null, $data['notes'] ?? null,
+                            InventoryExitReason::from($data['exit_reason']), filled($data['recipient_name'] ?? null) ? $data['recipient_name'] : null,
+                        ),
                         default => $service->adjustStock($warehouse, $part, (float) $data['quantity'], $cost, $user, $data['notes'] ?? null),
                     };
                 } catch (\RuntimeException|\InvalidArgumentException $e) {
@@ -182,6 +208,113 @@ class TableroAlmacen extends Page
                     ->body("{$part->name}: queda en ".self::number((float) $movement->new_stock).' en '.$warehouse->name.'.')
                     ->success()
                     ->send();
+            });
+    }
+
+    /**
+     * El levantamiento: parado frente al estante, con el celular, se anota lo que hay. El
+     * repuesto nace con su código, su ubicación y su existencia inicial en un solo paso, y
+     * el formulario queda abierto en el mismo estante para seguir con el siguiente.
+     */
+    private function surveyAction(): Action
+    {
+        return Action::make('levantar')
+            ->label('Levantar repuesto')
+            ->icon('heroicon-o-qr-code')
+            ->color('info')
+            ->authorize(fn (): bool => self::allows('spare-parts.create') && self::allows('inventory.entry'))
+            ->modalHeading('Levantar repuesto')
+            ->modalDescription('Lo que encuentra en el estante: el sistema le asigna el código y lo deja como existencia inicial.')
+            ->schema([
+                Grid::make(['default' => 1, 'sm' => 2])->schema([
+                    TextInput::make('name')
+                        ->label('Nombre')
+                        ->placeholder('Rodamiento 6205 2RS')
+                        ->required()
+                        ->maxLength(255)
+                        ->columnSpanFull(),
+                    Select::make('category_type')
+                        ->label('Categoría')
+                        ->options(SparePartCategoryType::options())
+                        ->default(SparePartCategoryType::Mechanical->value)
+                        ->required(),
+                    Select::make('unit')
+                        ->label('Unidad')
+                        ->options(SparePartUnit::options())
+                        ->default(SparePartUnit::Unit->value)
+                        ->required(),
+                    Select::make('warehouse_id')
+                        ->label('Almacén')
+                        ->options(fn (): array => Warehouse::query()->where('is_active', true)->orderBy('name')->pluck('name', 'id')->all())
+                        ->default(fn (): ?string => Warehouse::query()->where('is_active', true)->count() === 1 ? Warehouse::query()->where('is_active', true)->value('id') : null)
+                        ->required(),
+                    TextInput::make('bin_location')
+                        ->label('Ubicación')
+                        ->placeholder('Estante A · nivel 2')
+                        ->datalist(fn (): array => WarehouseSparePart::query()->whereNotNull('bin_location')->distinct()->orderBy('bin_location')->pluck('bin_location')->all())
+                        ->maxLength(50),
+                    TextInput::make('quantity')
+                        ->label('Cantidad que hay')
+                        ->numeric()
+                        ->minValue(0)
+                        ->required(),
+                    TextInput::make('unit_cost')
+                        ->label('Costo unitario')
+                        ->helperText('Si no lo sabe, déjelo en cero y se corrige con la primera factura.')
+                        ->numeric()
+                        ->minValue(0)
+                        ->default(0)
+                        ->prefix('$'),
+                    TextInput::make('minimum_stock')
+                        ->label('Mínimo')
+                        ->helperText('Con cuánto avisar para pedir.')
+                        ->numeric()
+                        ->minValue(0),
+                    Select::make('criticality')
+                        ->label('Criticidad')
+                        ->options(SparePartCriticality::options())
+                        ->default(SparePartCriticality::Medium->value)
+                        ->required(),
+                ]),
+            ])
+            ->modalSubmitActionLabel('Guardar')
+            ->extraModalFooterActions(fn (Action $action): array => [
+                $action->makeModalSubmitAction('levantarOtro', arguments: ['otro' => true])->label('Guardar y levantar otro'),
+            ])
+            ->action(function (array $data, array $arguments, Action $action, Schema $schema): void {
+                /** @var User $user */
+                $user = auth()->user();
+                $warehouse = Warehouse::query()->findOrFail($data['warehouse_id']);
+
+                $part = app(SparePartService::class)->create([
+                    'tenant_id' => $this->tenant()->id,
+                    'name' => $data['name'],
+                    'category_type' => $data['category_type'],
+                    'criticality' => $data['criticality'],
+                    'unit' => $data['unit'],
+                    'unit_cost' => (float) ($data['unit_cost'] ?? 0),
+                    'minimum_stock' => filled($data['minimum_stock'] ?? null) ? (float) $data['minimum_stock'] : null,
+                ], $user);
+
+                app(InventoryService::class)->registerInitialCount(
+                    $warehouse, $part, (float) $data['quantity'], (float) ($data['unit_cost'] ?? 0), $user, $data['bin_location'] ?? null,
+                );
+
+                Notification::make()
+                    ->title("{$part->code} · {$part->name}")
+                    ->body('Quedó con '.self::number((float) $data['quantity']).(filled($data['bin_location'] ?? null) ? ' en '.$data['bin_location'] : '').'.')
+                    ->success()
+                    ->send();
+
+                if ($arguments['otro'] ?? false) {
+                    // Mismo almacén y mismo estante: lo normal es seguir con el de al lado.
+                    $schema->fill([
+                        'warehouse_id' => $data['warehouse_id'],
+                        'bin_location' => $data['bin_location'] ?? null,
+                        'category_type' => $data['category_type'],
+                    ]);
+                    $action->halt();
+                }
             });
     }
 
@@ -212,6 +345,14 @@ class TableroAlmacen extends Page
                 'url' => SparePartResource::getUrl('index', ['filters' => ['sin_existencias' => ['isActive' => true]]]),
             ],
             [
+                'label' => 'Por despachar',
+                'value' => number_format($attention['pendingDispatches'], 0, ',', '.'),
+                'detail' => 'Repuestos pedidos por órdenes de trabajo',
+                'icon' => 'heroicon-o-clipboard-document-check',
+                'tone' => $attention['pendingDispatches'] > 0 ? 'warning' : 'ok',
+                'url' => Despachos::getUrl(),
+            ],
+            [
                 'label' => 'Órdenes de compra abiertas',
                 'value' => number_format($attention['openPurchaseOrders'], 0, ',', '.'),
                 'detail' => $attention['overduePurchaseOrders'] > 0
@@ -220,6 +361,14 @@ class TableroAlmacen extends Page
                 'icon' => 'heroicon-o-truck',
                 'tone' => $attention['overduePurchaseOrders'] > 0 ? 'danger' : 'neutral',
                 'url' => PurchaseOrderResource::getUrl('index'),
+            ],
+            [
+                'label' => 'Por contar',
+                'value' => number_format($dueCount = app(InventoryCountService::class)->dueCount($tenant->id), 0, ',', '.'),
+                'detail' => 'Les toca conteo cíclico según su ABC',
+                'icon' => 'heroicon-o-clipboard-document-list',
+                'tone' => $dueCount > 0 ? 'warning' : 'ok',
+                'url' => InventoryCountResource::canCreate() ? InventoryCountResource::getUrl('create') : InventoryCountResource::getUrl('index'),
             ],
             [
                 'label' => 'Valor del inventario',
@@ -240,9 +389,13 @@ class TableroAlmacen extends Page
         ];
 
         $shortcuts = array_values(array_filter([
+            Despachos::canAccess() ? ['label' => 'Despachos', 'icon' => 'heroicon-o-clipboard-document-check', 'url' => Despachos::getUrl()] : null,
             SparePartResource::canViewAny() ? ['label' => 'Repuestos', 'icon' => 'heroicon-o-wrench-screwdriver', 'url' => SparePartResource::getUrl('index')] : null,
             WarehouseResource::canViewAny() ? ['label' => 'Almacenes', 'icon' => 'heroicon-o-building-storefront', 'url' => WarehouseResource::getUrl('index')] : null,
             PurchaseOrderResource::canViewAny() ? ['label' => 'Órdenes de compra', 'icon' => 'heroicon-o-truck', 'url' => PurchaseOrderResource::getUrl('index')] : null,
+            InventoryCountResource::canViewAny() ? ['label' => 'Conteos', 'icon' => 'heroicon-o-clipboard-document-list', 'url' => InventoryCountResource::getUrl('index')] : null,
+            Kardex::canAccess() ? ['label' => 'Kardex', 'icon' => 'heroicon-o-arrows-right-left', 'url' => Kardex::getUrl()] : null,
+            ReportesAlmacen::canAccess() ? ['label' => 'Reportes', 'icon' => 'heroicon-o-chart-bar', 'url' => ReportesAlmacen::getUrl()] : null,
             SparePartResource::canCreate() ? ['label' => 'Nuevo repuesto', 'icon' => 'heroicon-o-plus-circle', 'url' => SparePartResource::getUrl('create')] : null,
             PurchaseOrderResource::canCreate() ? ['label' => 'Nueva orden de compra', 'icon' => 'heroicon-o-document-plus', 'url' => PurchaseOrderResource::getUrl('create')] : null,
         ]));

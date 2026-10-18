@@ -101,6 +101,15 @@ class Tenant extends Model
         return $timezone;
     }
 
+    /**
+     * Los repuestos de una OT salen cuando el almacén los entrega (cola de despachos), no
+     * solos al cerrar la orden.
+     */
+    public function dispatchesPartsFromWarehouse(): bool
+    {
+        return (bool) data_get($this->settings, 'inventory.warehouse_dispatch', false);
+    }
+
     /** Days until the subscription expires (negative when already expired). */
     public function daysUntilExpiry(): ?int
     {

@@ -30,7 +30,7 @@
     </div>
 
     {{-- Lo que requiere atención: cada tarjeta abre la lista ya filtrada. --}}
-    <div class="grid grid-cols-2 gap-3 lg:grid-cols-3">
+    <div class="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-5">
         @foreach ($cards as $card)
             <x-fronda.kpi
                 :label="$card['label']"
@@ -51,7 +51,7 @@
                 <div class="min-w-0">
                     <p class="truncate text-sm font-medium text-gray-950 dark:text-white">{{ $movimiento->spare_part_name_snapshot }}</p>
                     <p class="text-xs text-gray-500 dark:text-gray-400">
-                        {{ $movimiento->type->label() }} · {{ $movimiento->warehouse?->name }} · {{ $movimiento->performed_at?->copy()->setTimezone($timezone)->format('d/m h:i a') }}
+                        {{ $movimiento->exit_reason?->label() ?? $movimiento->type->label() }} · {{ $movimiento->warehouse?->name }}@if ($movimiento->recipient_name) · Recibió {{ $movimiento->recipient_name }}@endif · {{ $movimiento->performed_at?->copy()->setTimezone($timezone)->format('d/m h:i a') }}
                     </p>
                 </div>
                 <p @class([

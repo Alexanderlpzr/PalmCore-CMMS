@@ -744,6 +744,14 @@ class WorkOrderService
         WorkOrderStatus $toStatus,
         User $actor,
     ): void {
+        // Donde el almacén despacha, los repuestos salen cuando él los entrega (cola de
+        // despachos): cerrar o reabrir la OT no los descuenta ni los devuelve solo.
+        $warehouseDispatches = $workOrder->tenant?->dispatchesPartsFromWarehouse() ?? false;
+
+        if ($warehouseDispatches && in_array($toStatus, [WorkOrderStatus::Completed, WorkOrderStatus::Closed, WorkOrderStatus::InProgress], true)) {
+            return;
+        }
+
         match (true) {
             $toStatus === WorkOrderStatus::Planned => $this->workOrderInventoryService->reservePartsForWorkOrder($workOrder, $actor),
 

@@ -178,7 +178,9 @@ it('upward adjustment records positive delta and sets new absolute stock', funct
         ->and((float) $tx->quantity)->toBe(5.0)   // delta = 15 - 10
         ->and((float) $tx->previous_stock)->toBe(10.0)
         ->and((float) $tx->new_stock)->toBe(15.0)
-        ->and((float) $wsp->current_stock)->toBe(15.0);
+        ->and((float) $wsp->current_stock)->toBe(15.0)
+        ->and($wsp->last_counted_at)->not->toBeNull()
+        ->and($wsp->last_counted_by)->toBe($user->id);
 });
 
 it('downward adjustment records negative delta (shrinkage)', function () {

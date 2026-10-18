@@ -2,19 +2,25 @@
 
 namespace App\Filament\Resources\Equipment\RelationManagers;
 
+use App\Models\EquipmentSparePart;
+use App\Models\SparePart;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Support\RawJs;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -56,6 +62,31 @@ class SparePartsRelationManager extends RelationManager
     {
         return $schema
             ->components([
+                // Opcional: enlazarlo al repuesto del almacén deja ver cuánto hay y, en la
+                // ficha del repuesto, en qué equipos va.
+                Select::make('spare_part_id')
+                    ->label('Repuesto del almacén')
+                    ->helperText('Opcional. Si ya está en el almacén, elíjalo y se llenan los datos.')
+                    ->options(fn (): array => SparePart::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name'])
+                        ->mapWithKeys(fn (SparePart $part): array => [$part->id => "{$part->code} · {$part->name}"])->all())
+                    ->searchable()
+                    ->live()
+                    ->afterStateUpdated(function (?string $state, Get $get, Set $set): void {
+                        $part = $state ? SparePart::query()->find($state) : null;
+
+                        if ($part === null) {
+                            return;
+                        }
+
+                        if (blank($get('name'))) {
+                            $set('name', $part->name);
+                        }
+
+                        if (blank($get('part_number'))) {
+                            $set('part_number', $part->code);
+                        }
+                    })
+                    ->columnSpanFull(),
                 TextInput::make('name')
                     ->label('Nombre del repuesto')
                     ->required()
@@ -86,6 +117,7 @@ class SparePartsRelationManager extends RelationManager
     {
         return $table
             ->recordTitleAttribute('name')
+            ->modifyQueryUsing(fn (Builder $query) => $query->with(['sparePart' => fn ($part) => $part->withSum('warehouseStock', 'current_stock')]))
             ->defaultSort('name')
             ->columns([
                 TextColumn::make('name')
@@ -96,6 +128,12 @@ class SparePartsRelationManager extends RelationManager
                     ->label('Referencia')
                     ->searchable()
                     ->placeholder('—'),
+                TextColumn::make('in_stock')
+                    ->label('En almacén')
+                    ->state(fn (EquipmentSparePart $record): ?float => $record->sparePart?->totalStock())
+                    ->numeric(decimalPlaces: 2)
+                    ->alignEnd()
+                    ->placeholder('Sin enlazar'),
                 // Solo el dato: cuánto cuesta el repuesto. No suma ni alimenta nada.
                 TextColumn::make('unit_cost')
                     ->label('Costo')

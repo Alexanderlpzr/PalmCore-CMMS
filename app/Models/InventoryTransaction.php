@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Domain\Inventory\Enums\InventoryExitReason;
 use App\Domain\Inventory\Enums\InventoryTransactionType;
 use App\Domain\Shared\Concerns\BelongsToTenant;
 use Database\Factories\InventoryTransactionFactory;
@@ -32,6 +33,8 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'spare_part_code_snapshot',
     'spare_part_name_snapshot',
     'reference_number',
+    'exit_reason',
+    'recipient_name',
     'notes',
     'performed_by',
     'performed_at',
@@ -100,6 +103,7 @@ class InventoryTransaction extends Model
     {
         return [
             'type' => InventoryTransactionType::class,
+            'exit_reason' => InventoryExitReason::class,
             'quantity' => 'decimal:4',
             'unit_cost' => 'decimal:4',
             'total_cost' => 'decimal:4',

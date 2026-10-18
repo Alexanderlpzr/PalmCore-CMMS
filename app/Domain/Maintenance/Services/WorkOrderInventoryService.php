@@ -5,9 +5,11 @@ namespace App\Domain\Maintenance\Services;
 use App\Domain\Inventory\Services\InventoryService;
 use App\Domain\Maintenance\Enums\WorkOrderPartStatus;
 use App\Models\User;
+use App\Models\WarehouseSparePart;
 use App\Models\WorkOrder;
 use App\Models\WorkOrderPart;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 
 class WorkOrderInventoryService
 {
@@ -202,6 +204,74 @@ class WorkOrderInventoryService
         ]);
     }
 
+    // ── Dispatch (cola de despachos del almacén) ──────────────────────────────
+
+    /**
+     * El almacén entrega lo que pidió la OT. Puede entregar menos de lo pedido: lo que no
+     * entrega se libera. Queda en el kardex como consumo de la OT, con quién lo recibió.
+     */
+    public function dispatchPart(WorkOrderPart $part, float $quantity, string $recipientName, User $actor): void
+    {
+        if (! in_array($part->status, [WorkOrderPartStatus::Requested, WorkOrderPartStatus::Reserved], true)) {
+            throw new \RuntimeException("Only requested or reserved parts can be dispatched. Current status: {$part->status->label()}.");
+        }
+
+        if (! $part->hasInventoryLink()) {
+            throw new \RuntimeException('Part has no inventory link (spare_part_id / warehouse_id missing).');
+        }
+
+        // Completas: la lista de despachos las trae con pocas columnas.
+        $part->load(['warehouse', 'sparePart', 'workOrder']);
+
+        if ($quantity <= 0 || $quantity > (float) $part->quantity) {
+            throw new \InvalidArgumentException("Dispatch quantity must be between 0 and {$part->quantity}.");
+        }
+
+        if (blank($recipientName)) {
+            throw new \InvalidArgumentException('A dispatch needs the name of who receives the part.');
+        }
+
+        DB::transaction(function () use ($part, $quantity, $recipientName, $actor): void {
+            if ($part->unit_cost_snapshot === null) {
+                // Pedido sin costo congelado: se toma el promedio del almacén al entregarlo.
+                $average = WarehouseSparePart::query()
+                    ->where('warehouse_id', $part->warehouse_id)
+                    ->where('spare_part_id', $part->spare_part_id)
+                    ->value('average_unit_cost');
+                $part->update(['unit_cost_snapshot' => (float) ($average ?? $part->sparePart->unit_cost)]);
+            }
+
+            $reserved = $part->status === WorkOrderPartStatus::Reserved ? (float) $part->reserved_quantity : 0.0;
+
+            if ($reserved < $quantity) {
+                $this->inventoryService->reserveForWorkOrder($part->warehouse, $part->sparePart, $quantity - $reserved);
+                $reserved = $quantity;
+            }
+
+            $this->inventoryService->consumeFromWorkOrder(
+                $part->warehouse,
+                $part->sparePart,
+                $quantity,
+                (float) $part->unit_cost_snapshot,
+                $part->workOrder,
+                $actor,
+                $part->id,
+                null,
+                $recipientName,
+            );
+
+            if ($reserved > $quantity) {
+                $this->inventoryService->releaseReservation($part->warehouse, $part->sparePart, $reserved - $quantity);
+            }
+
+            $part->update([
+                'status' => WorkOrderPartStatus::Issued->value,
+                'issued_quantity' => $quantity,
+                'reserved_quantity' => 0,
+            ]);
+        });
+    }
+
     // ── Cancel single part (releases reservation, use before soft-delete) ─────
 
     /**
@@ -215,6 +285,7 @@ class WorkOrderInventoryService
         }
 
         if ($part->status === WorkOrderPartStatus::Reserved) {
+            $part->load(['warehouse', 'sparePart']);
             $this->inventoryService->releaseReservation(
                 $part->warehouse,
                 $part->sparePart,

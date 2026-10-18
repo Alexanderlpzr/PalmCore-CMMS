@@ -29,8 +29,10 @@ class SparePartForm
                     ->schema([
                         TextInput::make('code')
                             ->label('Código')
-                            ->required()
-                            ->maxLength(100)
+                            ->required(fn (string $operation): bool => $operation === 'edit')
+                            ->placeholder('Se asigna solo: MEC-0001, ELE-0001…')
+                            ->helperText(fn (string $operation): ?string => $operation === 'create' ? 'Déjelo vacío y el sistema le pone el siguiente de su categoría.' : null)
+                            ->maxLength(50)
                             ->unique(
                                 table: SparePart::class,
                                 column: 'code',
@@ -62,7 +64,7 @@ class SparePartForm
                         Select::make('abc_classification')
                             ->label('Clasificación ABC')
                             ->options(SparePartAbcClassification::options())
-                            ->required(),
+                            ->helperText('Se puede dejar vacía: el reporte ABC la calcula con lo que se consume.'),
                         Select::make('unit')
                             ->label('Unidad de medida')
                             ->options(SparePartUnit::options())

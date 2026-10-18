@@ -3,6 +3,7 @@
 namespace App\Actions\Tenants;
 
 use App\Models\Area;
+use App\Models\AutomationRule;
 use App\Models\Plant;
 use App\Models\Tenant;
 use Database\Seeders\PermissionSeeder;
@@ -83,6 +84,15 @@ class ProvisionTenantBaseStructure
             // migration/seeder having run. Both seeders are idempotent.
             (new PermissionSeeder)->run();
             (new TenantRolesSeeder)->run($tenant);
+
+            AutomationRule::ensureStockLowRule($tenant->id);
+
+            // Los repuestos de las OT los entrega el almacén desde su cola de despachos.
+            if (data_get($tenant->settings, 'inventory.warehouse_dispatch') === null) {
+                $tenant->forceFill([
+                    'settings' => array_replace_recursive($tenant->settings ?? [], ['inventory' => ['warehouse_dispatch' => true]]),
+                ])->saveQuietly();
+            }
         });
     }
 }

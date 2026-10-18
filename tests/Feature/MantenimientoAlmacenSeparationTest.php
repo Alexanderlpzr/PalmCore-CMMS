@@ -5,6 +5,8 @@ use App\Filament\Resources\Inventory\SparePart\SparePartResource;
 use App\Filament\Resources\Inventory\Warehouse\WarehouseResource;
 use App\Filament\Resources\Maintenance\WorkOrder\Pages\ViewWorkOrder;
 use App\Filament\Resources\Maintenance\WorkOrder\RelationManagers\PartsRelationManager;
+use App\Filament\Resources\Manufacturers\ManufacturerResource;
+use App\Filament\Resources\Suppliers\SupplierResource;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\WorkOrder;
@@ -93,4 +95,23 @@ it('shows the warehouse account only the inventory and what it shares', function
 
     expect($ajenas)->toBe([])
         ->and(SparePartResource::canAccess())->toBeTrue();
+});
+
+it('lists the warehouse screens in the menu of the warehouse account', function (): void {
+    actuarConRol('almacen', $this->tenant);
+
+    expect(SparePartResource::shouldRegisterNavigation())->toBeTrue()
+        ->and(WarehouseResource::shouldRegisterNavigation())->toBeTrue()
+        ->and(PurchaseOrderResource::shouldRegisterNavigation())->toBeTrue()
+        ->and(SupplierResource::shouldRegisterNavigation())->toBeTrue()
+        ->and(ManufacturerResource::shouldRegisterNavigation())->toBeTrue();
+});
+
+it('keeps the warehouse screens out of the maintenance menu', function (): void {
+    actuarConRol('mantenimiento', $this->tenant);
+
+    expect(SparePartResource::shouldRegisterNavigation())->toBeFalse()
+        ->and(WarehouseResource::shouldRegisterNavigation())->toBeFalse()
+        ->and(PurchaseOrderResource::shouldRegisterNavigation())->toBeFalse()
+        ->and(SupplierResource::shouldRegisterNavigation())->toBeTrue();
 });

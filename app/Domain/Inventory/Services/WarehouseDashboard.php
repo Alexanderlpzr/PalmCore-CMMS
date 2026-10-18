@@ -4,11 +4,15 @@ namespace App\Domain\Inventory\Services;
 
 use App\Domain\Inventory\Enums\InventoryTransactionType;
 use App\Domain\Inventory\Enums\PurchaseOrderStatus;
+use App\Domain\Maintenance\Enums\WorkOrderPartStatus;
+use App\Domain\Maintenance\Enums\WorkOrderStatus;
+use App\Models\Employee;
 use App\Models\InventoryTransaction;
 use App\Models\PurchaseOrder;
 use App\Models\SparePart;
 use App\Models\Tenant;
 use App\Models\WarehouseSparePart;
+use App\Models\WorkOrderPart;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -28,7 +32,7 @@ class WarehouseDashboard
     /**
      * Lo que requiere atención hoy.
      *
-     * @return array{activeParts: int, belowMinimum: int, outOfStock: int, openPurchaseOrders: int, overduePurchaseOrders: int, inventoryValue: float, movementsToday: int}
+     * @return array{activeParts: int, belowMinimum: int, outOfStock: int, openPurchaseOrders: int, overduePurchaseOrders: int, inventoryValue: float, movementsToday: int, pendingDispatches: int}
      */
     public function attention(Tenant $tenant): array
     {
@@ -53,7 +57,43 @@ class WarehouseDashboard
                 ->forTenant($tenant->id)
                 ->whereBetween('performed_at', [$today->startOfDay()->utc(), $today->endOfDay()->utc()])
                 ->count(),
+            'pendingDispatches' => self::pendingDispatches(WorkOrderPart::query()->forTenant($tenant->id))->count(),
         ];
+    }
+
+    /**
+     * Lo que pidieron las órdenes de trabajo y el almacén todavía no ha entregado. Incluye
+     * las OT ya cerradas: se cierran a menudo con el repuesto puesto, y el almacén
+     * confirma después lo que entregó.
+     *
+     * @param  Builder<WorkOrderPart>  $query
+     * @return Builder<WorkOrderPart>
+     */
+    public static function pendingDispatches(Builder $query): Builder
+    {
+        return $query
+            ->whereNotNull('spare_part_id')
+            ->whereNotNull('warehouse_id')
+            ->whereIn('status', [WorkOrderPartStatus::Requested->value, WorkOrderPartStatus::Reserved->value])
+            ->whereHas('workOrder', fn (Builder $order) => $order->where('status', '!=', WorkOrderStatus::Cancelled->value));
+    }
+
+    /**
+     * Los nombres que se le ofrecen al almacenista en «quién recibe»: el personal activo
+     * y quienes ya han recibido algo. Se puede escribir cualquier otro.
+     *
+     * @return list<string>
+     */
+    public function recipientSuggestions(Tenant $tenant): array
+    {
+        $employees = Employee::query()->forTenant($tenant->id)->active()
+            ->orderBy('first_name')->get(['first_name', 'last_name'])
+            ->map(fn (Employee $employee): string => $employee->fullName());
+
+        $previous = InventoryTransaction::query()->forTenant($tenant->id)
+            ->whereNotNull('recipient_name')->distinct()->pluck('recipient_name');
+
+        return $employees->merge($previous)->filter()->unique()->sort()->values()->all();
     }
 
     /**

@@ -121,7 +121,7 @@ class PurchaseOrderService
      * (Entry transaction + average-cost update via InventoryService) and advances
      * the order status. Quantity is clamped to what is still pending on the line.
      */
-    public function receiveLine(PurchaseOrderLine $line, float $quantity, User $performedBy): PurchaseOrderLine
+    public function receiveLine(PurchaseOrderLine $line, float $quantity, User $performedBy, ?string $invoiceNumber = null): PurchaseOrderLine
     {
         $line->loadMissing(['purchaseOrder.warehouse', 'sparePart']);
         $purchaseOrder = $line->purchaseOrder;
@@ -136,7 +136,7 @@ class PurchaseOrderService
             throw new \RuntimeException('No hay cantidad pendiente por recibir en este renglón.');
         }
 
-        DB::transaction(function () use ($line, $purchaseOrder, $quantity, $performedBy): void {
+        DB::transaction(function () use ($line, $purchaseOrder, $quantity, $performedBy, $invoiceNumber): void {
             $this->inventoryService->receiveEntry(
                 $purchaseOrder->warehouse,
                 $line->sparePart,
@@ -144,7 +144,7 @@ class PurchaseOrderService
                 (float) $line->unit_cost,
                 $performedBy,
                 referenceNumber: $purchaseOrder->po_number,
-                notes: "Recepción OC {$purchaseOrder->po_number}",
+                notes: "Recepción OC {$purchaseOrder->po_number}".(filled($invoiceNumber) ? " · factura {$invoiceNumber}" : ''),
             );
 
             $line->update([
@@ -155,6 +155,31 @@ class PurchaseOrderService
         });
 
         return $line->refresh();
+    }
+
+    /**
+     * Lo que llegó de verdad, renglón por renglón: el proveedor manda a menudo una parte y
+     * el resto después. Los renglones en cero no se tocan; todo o nada.
+     *
+     * @param  array<string, float>  $quantitiesByLine  id del renglón => cantidad que llegó
+     */
+    public function receiveQuantities(PurchaseOrder $purchaseOrder, array $quantitiesByLine, User $performedBy, ?string $invoiceNumber = null): PurchaseOrder
+    {
+        $quantitiesByLine = array_filter($quantitiesByLine, fn (float $quantity): bool => $quantity > 0);
+
+        if ($quantitiesByLine === []) {
+            throw new \RuntimeException('Escriba la cantidad que llegó en al menos un renglón.');
+        }
+
+        DB::transaction(function () use ($purchaseOrder, $quantitiesByLine, $performedBy, $invoiceNumber): void {
+            $lines = $purchaseOrder->lines()->whereKey(array_keys($quantitiesByLine))->get();
+
+            foreach ($lines as $line) {
+                $this->receiveLine($line, $quantitiesByLine[$line->id], $performedBy, $invoiceNumber);
+            }
+        });
+
+        return $purchaseOrder->refresh();
     }
 
     /** Receive every pending quantity on the order in one action. */

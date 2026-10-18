@@ -2,6 +2,7 @@
 
 namespace App\Domain\Inventory\Services;
 
+use App\Domain\Inventory\Enums\InventoryExitReason;
 use App\Domain\Inventory\Enums\InventoryTransactionType;
 use App\Models\InventoryTransaction;
 use App\Models\SparePart;
@@ -79,6 +80,42 @@ class InventoryService
         });
     }
 
+    // ── Initial count (levantamiento) ─────────────────────────────────────────
+
+    /**
+     * Lo que se encontró en el estante al levantar el almacén: entra como existencia
+     * inicial, queda en su ubicación y cuenta como contado hoy. Con cero solo se
+     * registra la ubicación, sin movimiento.
+     */
+    public function registerInitialCount(
+        Warehouse $warehouse,
+        SparePart $sparePart,
+        float $quantity,
+        float $unitCost,
+        User $performedBy,
+        ?string $binLocation = null,
+    ): WarehouseSparePart {
+        if ($quantity < 0) {
+            throw new \InvalidArgumentException('Counted stock cannot be negative.');
+        }
+
+        return DB::transaction(function () use ($warehouse, $sparePart, $quantity, $unitCost, $performedBy, $binLocation): WarehouseSparePart {
+            if ($quantity > 0) {
+                $this->receiveEntry($warehouse, $sparePart, $quantity, $unitCost, $performedBy, 'Inventario inicial');
+            }
+
+            $wsp = $this->lockWsp($warehouse, $sparePart);
+
+            $wsp->update([
+                'bin_location' => filled($binLocation) ? $binLocation : $wsp->bin_location,
+                'last_counted_at' => now(),
+                'last_counted_by' => $performedBy->id,
+            ]);
+
+            return $wsp->refresh();
+        });
+    }
+
     // ── Exit ──────────────────────────────────────────────────────────────────
 
     /**
@@ -92,13 +129,19 @@ class InventoryService
         User $performedBy,
         ?string $referenceNumber = null,
         ?string $notes = null,
+        ?InventoryExitReason $exitReason = null,
+        ?string $recipientName = null,
     ): InventoryTransaction {
         if ($quantity <= 0) {
             throw new \InvalidArgumentException('Exit quantity must be positive.');
         }
 
+        if ($exitReason?->requiresRecipient() && blank($recipientName)) {
+            throw new \InvalidArgumentException('This exit reason needs the name of who receives the part.');
+        }
+
         return DB::transaction(function () use (
-            $warehouse, $sparePart, $quantity, $unitCost, $performedBy, $referenceNumber, $notes
+            $warehouse, $sparePart, $quantity, $unitCost, $performedBy, $referenceNumber, $notes, $exitReason, $recipientName
         ): InventoryTransaction {
             $wsp = $this->lockWsp($warehouse, $sparePart);
 
@@ -121,6 +164,8 @@ class InventoryService
                 'previous_stock' => $previousStock,
                 'new_stock' => $newStock,
                 'reference_number' => $referenceNumber,
+                'exit_reason' => $exitReason,
+                'recipient_name' => $recipientName,
                 'notes' => $notes,
                 'performed_by' => $performedBy->id,
             ]);
@@ -153,7 +198,11 @@ class InventoryService
             $previousStock = (float) $wsp->current_stock;
             $delta = $newAbsoluteStock - $previousStock;
 
-            $wsp->update(['current_stock' => $newAbsoluteStock]);
+            $wsp->update([
+                'current_stock' => $newAbsoluteStock,
+                'last_counted_at' => now(),
+                'last_counted_by' => $performedBy->id,
+            ]);
 
             return $this->createTransaction($wsp, [
                 'type' => InventoryTransactionType::Adjustment,
@@ -275,13 +324,14 @@ class InventoryService
         User $performedBy,
         ?string $workOrderPartId = null,
         ?string $notes = null,
+        ?string $recipientName = null,
     ): InventoryTransaction {
         if ($quantity <= 0) {
             throw new \InvalidArgumentException('Consumption quantity must be positive.');
         }
 
         return DB::transaction(function () use (
-            $warehouse, $sparePart, $quantity, $unitCost, $workOrder, $performedBy, $workOrderPartId, $notes
+            $warehouse, $sparePart, $quantity, $unitCost, $workOrder, $performedBy, $workOrderPartId, $notes, $recipientName
         ): InventoryTransaction {
             $wsp = $this->lockWsp($warehouse, $sparePart);
 
@@ -315,6 +365,7 @@ class InventoryService
                 'work_order_id' => $workOrder->id,
                 'work_order_part_id' => $workOrderPartId,
                 'reference_number' => $workOrder->work_order_number,
+                'recipient_name' => $recipientName,
                 'notes' => $notes,
                 'performed_by' => $performedBy->id,
             ]);

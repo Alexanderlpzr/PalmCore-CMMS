@@ -6,6 +6,9 @@ use App\Domain\Inventory\Enums\SparePartAbcClassification;
 use App\Domain\Inventory\Enums\SparePartCategoryType;
 use App\Domain\Inventory\Enums\SparePartCriticality;
 use App\Domain\Inventory\Services\WarehouseDashboard;
+use App\Domain\Reports\Services\SparePartLabelsPdfService;
+use App\Models\Tenant;
+use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
@@ -15,6 +18,8 @@ use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreAction;
 use Filament\Actions\RestoreBulkAction;
 use Filament\Actions\ViewAction;
+use Filament\Facades\Filament;
+use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
@@ -22,6 +27,8 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SparePartTable
 {
@@ -103,6 +110,18 @@ class SparePartTable
                 ForceDeleteAction::make(),
             ])
             ->toolbarActions([
+                // Las etiquetas del estante: se marcan los repuestos y sale el PDF para imprimir.
+                BulkAction::make('etiquetas')
+                    ->label('Imprimir etiquetas QR')
+                    ->icon(Heroicon::OutlinedQrCode)
+                    ->color('gray')
+                    ->action(function (Collection $records): StreamedResponse {
+                        /** @var Tenant $tenant */
+                        $tenant = Filament::getTenant();
+                        $pdf = app(SparePartLabelsPdfService::class)->generate($records, $tenant);
+
+                        return response()->streamDownload(fn () => print ($pdf), 'ETIQUETAS-REPUESTOS-'.now()->format('Ymd').'.pdf');
+                    }),
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),
                     RestoreBulkAction::make(),
