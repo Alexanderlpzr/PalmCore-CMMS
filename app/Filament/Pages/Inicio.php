@@ -29,7 +29,7 @@ class Inicio extends Page
      * that role inherits the landing that ingeniero-mantenimiento and supervisor
      * used to have.
      */
-    private const DASHBOARD_LANDING_ROLES = ['administrador-general'];
+    private const DASHBOARD_LANDING_ROLES = ['administrador-general', 'mantenimiento'];
 
     /** Session flag so the landing redirect fires once per session, not on every visit to Inicio. */
     private const LANDING_REDIRECT_KEY = 'landing_redirect_done';

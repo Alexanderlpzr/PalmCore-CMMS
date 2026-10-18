@@ -90,6 +90,7 @@ it('offers only the roles of the chosen company', function (): void {
         ->toBe([
             'administrador-general' => 'Administrador General',
             'almacen' => 'Almacen',
+            'mantenimiento' => 'Mantenimiento',
             'porteria' => 'Porteria',
             'talento-humano' => 'Talento Humano',
         ])

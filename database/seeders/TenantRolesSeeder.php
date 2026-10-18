@@ -13,8 +13,9 @@ class TenantRolesSeeder extends Seeder
      * Role → permission matrix (complete, all modules).
      * All permissions are global; roles are scoped per tenant via team_id.
      *
-     * A single role by design: the maintenance engineer administers his own
-     * tenant, and we administer the platform through is_super_admin. The former
+     * `administrador-general` controls the whole tenant; `mantenimiento`, `almacen`,
+     * `talento-humano` and `porteria` are each one area, and only the platform
+     * (is_super_admin) assigns them. The former
      * nine-role matrix (gerencia, plant-manager, ingeniero-mantenimiento,
      * supervisor, tecnico, almacenista, compras, operario) was retired — see the
      * migration that drops them from existing tenants.
@@ -66,6 +67,48 @@ class TenantRolesSeeder extends Seeder
             // Sin nómina: la lleva `talento-humano`. Ver la migración
             // 2026_09_18_204030_revoke_payroll_from_tenant_admin, que explica por qué
             // esta es la tercera vuelta de la decisión.
+        ],
+
+        /*
+         * Quien lleva mantenimiento: equipos, órdenes, planes, paros, horómetros,
+         * producción, energía, presupuesto e indicadores. Sin el inventario —es del
+         * almacén, que trabaja aparte— y sin administrar usuarios ni roles, que hace
+         * Fronda: así nadie se da a sí mismo acceso al almacén o a la nómina. Las OT
+         * siguen sacando repuestos del almacén; la salida la ve el almacén en sus
+         * movimientos. Proveedores y fabricantes son de los dos.
+         * Pedido por El Pajuil el 2026-10-18 para la cuenta mtto@.
+         */
+        'mantenimiento' => [
+            'plants.view', 'plants.create', 'plants.update', 'plants.delete',
+            'areas.view', 'areas.create', 'areas.update', 'areas.delete',
+            'audit-log.view',
+            'equipment-categories.view', 'equipment-categories.create', 'equipment-categories.update', 'equipment-categories.delete',
+            'manufacturers.view', 'manufacturers.create', 'manufacturers.update', 'manufacturers.delete',
+            'suppliers.view', 'suppliers.create', 'suppliers.update', 'suppliers.delete',
+            'contractors.view', 'contractors.create', 'contractors.update', 'contractors.delete',
+            'equipment.view', 'equipment.create', 'equipment.update', 'equipment.delete',
+            'equipment-documents.view', 'equipment-documents.create', 'equipment-documents.update', 'equipment-documents.delete',
+            'equipment-photos.view', 'equipment-photos.create', 'equipment-photos.update', 'equipment-photos.delete',
+            'equipment-qr.view', 'equipment-qr.create', 'equipment-qr.update',
+            'issue-reports.view', 'issue-reports.acknowledge', 'issue-reports.archive',
+            'maintenance-requests.view', 'maintenance-requests.create', 'maintenance-requests.update', 'maintenance-requests.delete',
+            'maintenance-requests.approve', 'maintenance-requests.review', 'maintenance-requests.convert',
+            'maintenance-request-comments.view', 'maintenance-request-comments.create',
+            'maintenance-request-attachments.create',
+            'work-orders.view', 'work-orders.create', 'work-orders.update', 'work-orders.delete',
+            'work-orders.plan', 'work-orders.execute', 'work-orders.verify', 'work-orders.close',
+            'work-order-comments.view', 'work-order-comments.create',
+            'work-order-time-logs.create', 'work-order-parts.create', 'work-order-signatures.create',
+            'maintenance-plans.view', 'maintenance-plans.create', 'maintenance-plans.update', 'maintenance-plans.delete', 'maintenance-plans.activate',
+            'maintenance-plan-tasks.create', 'maintenance-plan-tasks.update',
+            'maintenance-checklist-items.create', 'maintenance-plan-attachments.create',
+            'equipment-meter-readings.view', 'equipment-meter-readings.create',
+            'downtime-events.view', 'downtime-events.create', 'downtime-events.update', 'downtime-events.confirm',
+            'production-calendar.view', 'production-calendar.manage',
+            'energy.view', 'energy.manage',
+            'maintenance-budgets.view', 'maintenance-budgets.manage',
+            'announcements.view', 'announcements.create', 'announcements.update', 'announcements.delete',
+            'carousel-slides.view', 'carousel-slides.create', 'carousel-slides.update', 'carousel-slides.delete',
         ],
 
         /*
