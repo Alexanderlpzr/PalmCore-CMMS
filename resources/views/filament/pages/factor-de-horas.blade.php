@@ -65,7 +65,7 @@
                     </p>
 
                     <x-slot name="stats">
-                        <x-fronda.hero-stat label="Horas pagadas" :value="$horas($total['hours']).' h'" :detail="$horas($total['surcharge_hours']).' h con recargo · '.$horas($total['overtime_hours']).' h extras'" />
+                        <x-fronda.hero-stat label="Horas pagadas" :value="$horas($total['hours']).' h'" :detail="$horas($total['overtime_hours']).' h sin recargos (extras) · '.$horas($total['surcharge_hours']).' h de solo recargos'" />
                         <x-fronda.hero-stat
                             :label="'Contra '.($informe['previousLabel'] ?? 'el mes anterior')"
                             :value="$variacionTotal === null ? '—' : ($variacionTotal > 0 ? '+' : '').number_format($variacionTotal * 100, 1, ',', '.').' %'"
@@ -93,7 +93,7 @@
 
                 <x-slot name="description">
                     Horas del {{ $informe['from']->format('d/m/Y') }} al {{ $informe['to']->format('d/m/Y') }}.
-                    Los recargos pagan solo el recargo, porque la hora ya va en el sueldo; las extras pagan la hora completa. «Extras» son las «horas sin recargos» del Excel y «Recargos y extras», las «horas con recargos». El factor es cuánto se pagó en recargos y extras por cada peso ordinario.
+                    Los recargos pagan solo el recargo, porque la hora ya va en el sueldo; las extras pagan la hora completa. Las columnas «Con recargos» y «Sin recargos» son las del Excel de Talento Humano: «con recargos» suma recargos y horas extras, y «sin recargos» son solo las horas extras. «Solo recargos» es la diferencia entre las dos. El factor es cuánto se pagó en recargos y extras por cada peso ordinario.
                     @if ($this->mode === 'fecha')
                         El ordinario es el sueldo del mes de quien está contratado, como en el Excel.
                     @endif
@@ -108,9 +108,9 @@
                             <tr class="text-gray-600 dark:text-gray-300">
                                 <th rowspan="2" class="text-left font-semibold px-3 py-2 border-b border-gray-200 dark:border-white/10 align-bottom">Grupo</th>
                                 <th rowspan="2" class="text-right font-semibold px-3 py-2 border-b border-gray-200 dark:border-white/10 align-bottom">Ordinario</th>
-                                <th colspan="2" class="text-center font-semibold px-3 py-1 border-b border-l border-gray-200 dark:border-white/10">Recargos</th>
-                                <th colspan="2" class="text-center font-semibold px-3 py-1 border-b border-l border-gray-200 dark:border-white/10">Extras</th>
-                                <th colspan="2" class="text-center font-semibold px-3 py-1 border-b border-l border-gray-200 dark:border-white/10">Recargos y extras</th>
+                                <th colspan="2" class="text-center font-semibold px-3 py-1 border-b border-l border-gray-200 dark:border-white/10">Solo recargos</th>
+                                <th colspan="2" class="text-center font-semibold px-3 py-1 border-b border-l border-gray-200 dark:border-white/10">Sin recargos (horas extras)</th>
+                                <th colspan="2" class="text-center font-semibold px-3 py-1 border-b border-l border-gray-200 dark:border-white/10">Con recargos (recargos + extras)</th>
                                 <th rowspan="2" class="text-right font-semibold px-3 py-2 border-b border-l border-gray-200 dark:border-white/10 align-bottom">Factor</th>
                                 <th colspan="2" class="text-center font-semibold px-3 py-1 border-b border-l border-gray-200 dark:border-white/10">
                                     {{ $informe['previousLabel'] ?? 'Mes anterior' }}

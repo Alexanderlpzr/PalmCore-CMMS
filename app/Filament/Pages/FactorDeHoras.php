@@ -149,6 +149,29 @@ class FactorDeHoras extends Page
         ];
     }
 
+    /**
+     * El indicador de los tableros (TH-INF-F-002) de lo que va del corte hasta hoy, o null
+     * para quien no ve la nómina: trae sueldos.
+     *
+     * @return array<string, mixed>|null
+     */
+    public static function dashboardIndicator(Tenant $tenant): ?array
+    {
+        if (! static::canAccess()) {
+            return null;
+        }
+
+        $today = CarbonImmutable::now($tenant->plantTimezone())->toDateString();
+        $report = app(HoursFactorReport::class)->toDate($tenant, CarbonImmutable::parse($today));
+
+        return HoursFactorReport::excelRows($report) + [
+            'from' => $report['from'],
+            'until' => $report['until'],
+            'estimated' => $report['estimated'],
+            'url' => static::getUrl(['vista' => 'fecha', 'hasta' => $today]),
+        ];
+    }
+
     private function tenant(): Tenant
     {
         /** @var Tenant */

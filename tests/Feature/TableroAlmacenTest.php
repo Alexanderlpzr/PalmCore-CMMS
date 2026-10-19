@@ -117,3 +117,23 @@ it('opens the panel on the warehouse dashboard for the warehouse account, and no
         expect(TableroAlmacen::canAccess())->toBeFalse();
     }
 });
+
+it('shows the hours factor indicator only to whoever sees the payroll, not to the warehouse account', function (): void {
+    // La cuenta de almacén no ve sueldos.
+    $this->actingAs($this->bodeguero);
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+    Filament::setTenant($this->tenant);
+    Livewire::test(TableroAlmacen::class)
+        ->assertOk()
+        ->assertDontSee('Indicador factor de horas');
+
+    $fronda = User::factory()->create(['is_active' => true, 'is_super_admin' => true]);
+    $fronda->tenants()->attach($this->tenant->id, ['joined_at' => now()]);
+    $this->actingAs($fronda);
+    Filament::setTenant($this->tenant);
+
+    Livewire::test(TableroAlmacen::class)
+        ->assertOk()
+        ->assertSee('Indicador factor de horas')
+        ->assertSee('Horas con recargos (horas extras) a personal de producción');
+});

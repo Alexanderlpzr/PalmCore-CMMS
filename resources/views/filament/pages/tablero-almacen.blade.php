@@ -65,4 +65,9 @@
             <p class="py-4 text-center text-sm text-gray-500 dark:text-gray-400">Todavía no hay movimientos de inventario.</p>
         @endforelse
     </x-filament::section>
+
+    {{-- El indicador de talento humano (TH-INF-F-002): solo para quien ve la nómina. --}}
+    @if ($factor)
+        <x-fronda.hours-factor-indicator :factor="$factor" />
+    @endif
 </x-filament-panels::page>
