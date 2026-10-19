@@ -100,7 +100,7 @@
             </x-slot>
 
             <x-slot name="description">
-                Como el TH-INF-F-002 de Talento Humano: del {{ $factor['from']->format('d/m/Y') }} a hoy. Lo ordinario es el sueldo del mes de cada grupo; «con recargos» suma recargos y horas extras, y «sin recargos» son solo las horas extras.
+                Como el TH-INF-F-002 de Talento Humano: del {{ $factor['from']->format('d/m/Y') }} a hoy. Lo ordinario es el sueldo del mes de cada grupo, con las horas ordinarias trabajadas en el corte; «con recargos» suma recargos y horas extras, y «sin recargos» son solo las horas extras.
                 @if ($factor['estimated'])
                     <span class="font-medium text-warning-600 dark:text-warning-400">Estimado: incluye horas sin confirmar.</span>
                 @endif
@@ -125,9 +125,9 @@
                         @foreach ($factor['ordinary'] as $fila)
                             <tr>
                                 <td class="border-b border-gray-100 px-3 py-2 dark:border-white/5">
-                                    <span class="inline-flex items-center gap-2"><span class="h-2.5 w-2.5 shrink-0 rounded-full" style="background-color: {{ $marca($fila['label']) }}"></span>{{ $fila['label'] }}</span>
+                                    <span class="inline-flex items-center gap-2"><span class="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-black/5 dark:ring-white/50" style="background-color: {{ $marca($fila['label']) }}"></span>{{ $fila['label'] }}</span>
                                 </td>
-                                <td class="border-b border-gray-100 px-3 py-2 text-right tabular-nums text-gray-400 dark:border-white/5">—</td>
+                                <td class="border-b border-gray-100 px-3 py-2 text-right tabular-nums dark:border-white/5">{{ $fila['hours'] > 0 ? $horasEnteras($fila['hours']) : '—' }}</td>
                                 <td class="border-b border-gray-100 px-3 py-2 text-right tabular-nums dark:border-white/5">{{ $fila['amount'] > 0 ? $pesos($fila['amount']) : '—' }}</td>
                             </tr>
                         @endforeach
@@ -135,7 +135,7 @@
                         @foreach ($factor['withSurcharges'] as $fila)
                             <tr>
                                 <td class="border-b border-gray-100 px-3 py-2 dark:border-white/5">
-                                    <span class="inline-flex items-center gap-2"><span class="h-2.5 w-2.5 shrink-0 rounded-full" style="background-color: {{ $marca($fila['label']) }}"></span>{{ $fila['label'] }}</span>
+                                    <span class="inline-flex items-center gap-2"><span class="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-black/5 dark:ring-white/50" style="background-color: {{ $marca($fila['label']) }}"></span>{{ $fila['label'] }}</span>
                                 </td>
                                 <td class="border-b border-gray-100 px-3 py-2 text-right tabular-nums dark:border-white/5">{{ $horasEnteras($fila['hours']) }}</td>
                                 <td class="border-b border-gray-100 px-3 py-2 text-right tabular-nums dark:border-white/5">{{ $fila['amount'] > 0 ? $pesos($fila['amount']) : '—' }}</td>
@@ -153,7 +153,7 @@
                         @foreach ($factor['overtime'] as $fila)
                             <tr>
                                 <td class="border-b border-gray-100 px-3 py-2 dark:border-white/5">
-                                    <span class="inline-flex items-center gap-2"><span class="h-2.5 w-2.5 shrink-0 rounded-full" style="background-color: {{ $marca($fila['label']) }}"></span>{{ $fila['label'] }}</span>
+                                    <span class="inline-flex items-center gap-2"><span class="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-black/5 dark:ring-white/50" style="background-color: {{ $marca($fila['label']) }}"></span>{{ $fila['label'] }}</span>
                                 </td>
                                 <td class="border-b border-gray-100 px-3 py-2 text-right tabular-nums dark:border-white/5">{{ $horasEnteras($fila['hours']) }}</td>
                                 <td class="border-b border-gray-100 px-3 py-2 text-right tabular-nums dark:border-white/5">{{ $fila['amount'] > 0 ? $pesos($fila['amount']) : '—' }}</td>
@@ -170,7 +170,7 @@
             </div>
 
             <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">
-                Desde el corte de octubre de 2026, MOPE va dentro de Mantenimiento, como en el Excel.
+                Los totales de horas son solo los de recargos y extras, como en el Excel. Desde el corte de octubre de 2026, MOPE va dentro de Mantenimiento.
             </p>
         </x-filament::section>
     @endif

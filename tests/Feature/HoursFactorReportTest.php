@@ -89,6 +89,19 @@ it('adds up each group with what was paid as bonus', function (): void {
         ->and($informe['groups']['mantenimiento']['overtime_amount'])->toBe(164_000.0);
 });
 
+it('counts the ordinary hours worked in the payroll window, only from confirmed days', function (): void {
+    AttendanceDay::factory()->forEmployee($this->operario)->create([
+        'work_date' => '2026-10-07',
+        'ordinary_hours' => 7,
+        'worked_hours' => 7,
+    ]);
+
+    $informe = app(HoursFactorReport::class)->forRun($this->run);
+
+    expect($informe['groups']['produccion']['ordinary_hours'])->toBe(8.0)
+        ->and($informe['total']['ordinary_hours'])->toBe(8.0);
+});
+
 it('counts MOPE inside maintenance from the October 2026 cut on', function (): void {
     $informe = app(HoursFactorReport::class)->forRun($this->run);
 
@@ -182,6 +195,8 @@ it('lays out the rows of the human resources workbook (TH-INF-F-002)', function 
     $filas = HoursFactorReport::excelRows(app(HoursFactorReport::class)->toDate($this->tenant, Carbon::parse('2026-10-10')));
 
     expect(array_column($filas['ordinary'], 'amount'))->toBe([2_100_000.0, 4_200_000.0, 0.0])
+        // Las ordinarias trabajadas del operario (7 y 1), aunque el segundo día fuera de apoyo.
+        ->and(array_column($filas['ordinary'], 'hours'))->toBe([8.0, 0.0, 0.0])
         // Producción: 4 h extras; su turno de apoyo a mantenimiento va en su propio renglón.
         ->and($filas['withSurcharges'][0])->toMatchArray(['hours' => 4.0, 'amount' => 50_000.0])
         ->and($filas['withSurcharges'][1])->toMatchArray(['hours' => 6.0, 'amount' => 21_000.0])

@@ -86,6 +86,14 @@ class HoursFactorReport
         }
 
         $this->moveMaintenanceSupport($run, $entries, $rows);
+        $this->addOrdinaryHours(
+            $run->tenant_id,
+            $entries->mapWithKeys(fn (PayrollEntry $entry): array => [$entry->employee_id => $entry->employee?->area_specific]),
+            CarbonImmutable::instance($run->hoursFrom()),
+            CarbonImmutable::instance($run->hoursTo()),
+            $rows,
+            confirmedOnly: true,
+        );
 
         return $this->assemble($rows);
     }
@@ -152,6 +160,7 @@ class HoursFactorReport
         }
 
         $this->moveSupportDays($tenant->id, $employees, $from, $until, $rows);
+        $this->addOrdinaryHours($tenant->id, $employees->map(fn (Employee $employee): ?string => $employee->area_specific), $from, $until, $rows);
 
         return ['from' => $from, 'until' => $until, 'estimated' => $cost['estimated']] + $this->assemble($rows);
     }
@@ -168,7 +177,7 @@ class HoursFactorReport
         $total = $this->emptyRow('Total');
 
         foreach ($rows as $key => $row) {
-            foreach (['ordinary', 'surcharge_hours', 'surcharge_amount', 'overtime_hours', 'overtime_amount'] as $field) {
+            foreach (['ordinary', 'ordinary_hours', 'surcharge_hours', 'surcharge_amount', 'overtime_hours', 'overtime_amount'] as $field) {
                 $total[$field] += $row[$field];
             }
 
@@ -189,20 +198,22 @@ class HoursFactorReport
      * ordinario de cada grupo, las horas «con recargos» (recargos y extras) y las «sin
      * recargos» (solo extras), y sus totales. Administrativo y sin área no van, como en
      * el Excel. El apoyo a mantenimiento no tiene renglón sin recargos: sus extras van
-     * con producción, para que el total sea el de todas las extras.
+     * con producción, para que el total sea el de todas las extras. Lo ordinario trae
+     * también las horas ordinarias trabajadas, que no suman al total de horas: el total
+     * es el de horas con recargos, como en el Excel.
      *
      * @param  array{groups: array<string, array<string, mixed>>}  $report  lo que devuelven `forRun()` o `toDate()`
-     * @return array{ordinary: list<array{label: string, amount: float}>, withSurcharges: list<array{label: string, hours: float, amount: float}>, payrollTotal: array{hours: float, amount: float}, overtime: list<array{label: string, hours: float, amount: float}>, overtimeTotal: array{hours: float, amount: float}}
+     * @return array{ordinary: list<array{label: string, hours: float, amount: float}>, withSurcharges: list<array{label: string, hours: float, amount: float}>, payrollTotal: array{hours: float, amount: float}, overtime: list<array{label: string, hours: float, amount: float}>, overtimeTotal: array{hours: float, amount: float}}
      */
     public static function excelRows(array $report): array
     {
-        $group = fn (string $key): array => ($report['groups'][$key] ?? []) + ['ordinary' => 0.0, 'hours' => 0.0, 'amount' => 0.0, 'overtime_hours' => 0.0, 'overtime_amount' => 0.0];
+        $group = fn (string $key): array => ($report['groups'][$key] ?? []) + ['ordinary' => 0.0, 'ordinary_hours' => 0.0, 'hours' => 0.0, 'amount' => 0.0, 'overtime_hours' => 0.0, 'overtime_amount' => 0.0];
         [$production, $support, $maintenance, $mope] = [$group('produccion'), $group('apoyo_mantenimiento'), $group('mantenimiento'), $group('mope')];
 
         $ordinary = [
-            ['label' => 'Horas ordinarias pagadas a producción', 'amount' => (float) $production['ordinary']],
-            ['label' => 'Horas ordinarias pagadas a mantenimiento', 'amount' => (float) $maintenance['ordinary']],
-            ['label' => 'Horas ordinarias pagadas al proyecto MOPE', 'amount' => (float) $mope['ordinary']],
+            ['label' => 'Horas ordinarias pagadas a producción', 'hours' => (float) $production['ordinary_hours'], 'amount' => (float) $production['ordinary']],
+            ['label' => 'Horas ordinarias pagadas a mantenimiento', 'hours' => (float) $maintenance['ordinary_hours'], 'amount' => (float) $maintenance['ordinary']],
+            ['label' => 'Horas ordinarias pagadas al proyecto MOPE', 'hours' => (float) $mope['ordinary_hours'], 'amount' => (float) $mope['ordinary']],
         ];
 
         $withSurcharges = [
@@ -358,19 +369,45 @@ class HoursFactorReport
         return $this->parameters->valueOrDefault($parameter, CarbonImmutable::instance($day), $tenantId, $parameter->seedValue()) ?: $parameter->seedValue();
     }
 
-    /** @return array<string, array{label: string, workers: int, ordinary: float, surcharge_hours: float, surcharge_amount: float, overtime_hours: float, overtime_amount: float}> */
+    /**
+     * Las horas ordinarias que de verdad se trabajaron —las de los días armados por el
+     * reloj o el libro—, por grupo. Van con el grupo del trabajador aunque el día haya
+     * sido de apoyo a mantenimiento: su sueldo también se queda en su grupo. La nómina
+     * cuenta solo los días confirmados; a mitad del corte, también los por confirmar.
+     *
+     * @param  Collection<string, ?string>  $areas  el área de la ficha de cada trabajador
+     * @param  array<string, array<string, mixed>>  $rows
+     */
+    private function addOrdinaryHours(string $tenantId, Collection $areas, CarbonImmutable $from, CarbonImmutable $until, array &$rows, bool $confirmedOnly = false): void
+    {
+        $hours = AttendanceDay::query()
+            ->forTenant($tenantId)
+            ->whereIn('employee_id', $areas->keys()->all())
+            ->between($from->toDateString(), $until->toDateString())
+            ->when($confirmedOnly, fn ($query) => $query->confirmed())
+            ->groupBy('employee_id')
+            ->selectRaw('employee_id, sum(ordinary_hours) as hours')
+            ->pluck('hours', 'employee_id');
+
+        foreach ($hours as $employeeId => $sum) {
+            $rows[self::groupOf($areas[$employeeId] ?? null, $from)]['ordinary_hours'] += (float) $sum;
+        }
+    }
+
+    /** @return array<string, array{label: string, workers: int, ordinary: float, ordinary_hours: float, surcharge_hours: float, surcharge_amount: float, overtime_hours: float, overtime_amount: float}> */
     private function emptyRows(): array
     {
         return collect(self::GROUPS)->map(fn (string $label): array => $this->emptyRow($label))->all();
     }
 
-    /** @return array{label: string, workers: int, ordinary: float, surcharge_hours: float, surcharge_amount: float, overtime_hours: float, overtime_amount: float} */
+    /** @return array{label: string, workers: int, ordinary: float, ordinary_hours: float, surcharge_hours: float, surcharge_amount: float, overtime_hours: float, overtime_amount: float} */
     private function emptyRow(string $label): array
     {
         return [
             'label' => $label,
             'workers' => 0,
             'ordinary' => 0.0,
+            'ordinary_hours' => 0.0,
             'surcharge_hours' => 0.0,
             'surcharge_amount' => 0.0,
             'overtime_hours' => 0.0,
