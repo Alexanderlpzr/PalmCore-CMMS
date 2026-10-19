@@ -389,6 +389,8 @@ class TableroAlmacen extends Page
         ];
 
         $shortcuts = array_values(array_filter([
+            // Sin almacén no se puede levantar ni registrar nada: es lo primero.
+            WarehouseResource::canCreate() && ! Warehouse::query()->exists() ? ['label' => 'Crear el primer almacén', 'icon' => 'heroicon-o-plus-circle', 'url' => WarehouseResource::getUrl('create')] : null,
             Despachos::canAccess() ? ['label' => 'Despachos', 'icon' => 'heroicon-o-clipboard-document-check', 'url' => Despachos::getUrl()] : null,
             SparePartResource::canViewAny() ? ['label' => 'Repuestos', 'icon' => 'heroicon-o-wrench-screwdriver', 'url' => SparePartResource::getUrl('index')] : null,
             WarehouseResource::canViewAny() ? ['label' => 'Almacenes', 'icon' => 'heroicon-o-building-storefront', 'url' => WarehouseResource::getUrl('index')] : null,

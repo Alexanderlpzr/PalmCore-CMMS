@@ -29,6 +29,8 @@ use App\Filament\Resources\Inventory\SparePart\Pages\CreateSparePart;
 use App\Filament\Resources\Inventory\SparePart\Pages\ListSpareParts;
 use App\Filament\Resources\Inventory\SparePart\Pages\ViewSparePart;
 use App\Filament\Resources\Inventory\SparePart\RelationManagers\EquipmentUsageRelationManager;
+use App\Filament\Resources\Inventory\Warehouse\Pages\CreateWarehouse;
+use App\Filament\Resources\Inventory\Warehouse\WarehouseResource;
 use App\Infrastructure\Tenancy\CurrentTenant;
 use App\Models\Alert;
 use App\Models\AutomationRule;
@@ -92,7 +94,27 @@ function repuestoConExistencia(Tenant $tenant, Warehouse $warehouse, array $attr
     return $part;
 }
 
-// ── Fase 0: la alerta de reposición ──────────────────────────────────────────
+// ── Fase 0: los almacenes y la alerta de reposición ──────────────────────────
+
+it('lets the warehouse account create its first warehouse', function (): void {
+    Warehouse::query()->forceDelete();
+    $this->actingAs($this->bodeguero);
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+    Filament::setTenant($this->tenant);
+
+    expect(WarehouseResource::canCreate())->toBeTrue();
+
+    Livewire::test(TableroAlmacen::class)->assertSee('Crear el primer almacén');
+
+    Livewire::test(CreateWarehouse::class)
+        ->fillForm(['code' => 'ALM-01', 'name' => 'Almacén principal', 'is_active' => true])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    expect(Warehouse::query()->where('code', 'ALM-01')->exists())->toBeTrue();
+
+    Livewire::test(TableroAlmacen::class)->assertDontSee('Crear el primer almacén');
+});
 
 it('turns on the restock alert for every new company', function (): void {
     $empresa = Tenant::factory()->create();

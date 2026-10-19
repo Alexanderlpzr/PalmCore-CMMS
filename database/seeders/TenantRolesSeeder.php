@@ -139,7 +139,7 @@ class TenantRolesSeeder extends Seeder
         // órdenes de compra y proveedores. Ningún equipo, orden de trabajo ni persona.
         'almacen' => [
             'spare-parts.view', 'spare-parts.create', 'spare-parts.update',
-            'warehouses.view', 'warehouses.update',
+            'warehouses.view', 'warehouses.create', 'warehouses.update',
             'inventory.view', 'inventory.entry', 'inventory.exit', 'inventory.adjust', 'inventory.transfer',
             'suppliers.view', 'suppliers.create', 'suppliers.update',
             'manufacturers.view',
