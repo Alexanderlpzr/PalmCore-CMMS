@@ -184,6 +184,51 @@ class HoursFactorReport
         ];
     }
 
+    /**
+     * El informe con los renglones del Excel de talento humano (TH-INF-F-002): lo
+     * ordinario de cada grupo, las horas «con recargos» (recargos y extras) y las «sin
+     * recargos» (solo extras), y sus totales. Administrativo y sin área no van, como en
+     * el Excel. El apoyo a mantenimiento no tiene renglón sin recargos: sus extras van
+     * con producción, para que el total sea el de todas las extras.
+     *
+     * @param  array{groups: array<string, array<string, mixed>>}  $report  lo que devuelven `forRun()` o `toDate()`
+     * @return array{ordinary: list<array{label: string, amount: float}>, withSurcharges: list<array{label: string, hours: float, amount: float}>, payrollTotal: array{hours: float, amount: float}, overtime: list<array{label: string, hours: float, amount: float}>, overtimeTotal: array{hours: float, amount: float}}
+     */
+    public static function excelRows(array $report): array
+    {
+        $group = fn (string $key): array => ($report['groups'][$key] ?? []) + ['ordinary' => 0.0, 'hours' => 0.0, 'amount' => 0.0, 'overtime_hours' => 0.0, 'overtime_amount' => 0.0];
+        [$production, $support, $maintenance, $mope] = [$group('produccion'), $group('apoyo_mantenimiento'), $group('mantenimiento'), $group('mope')];
+
+        $ordinary = [
+            ['label' => 'Horas ordinarias pagadas a producción', 'amount' => (float) $production['ordinary']],
+            ['label' => 'Horas ordinarias pagadas a mantenimiento', 'amount' => (float) $maintenance['ordinary']],
+            ['label' => 'Horas ordinarias pagadas al proyecto MOPE', 'amount' => (float) $mope['ordinary']],
+        ];
+
+        $withSurcharges = [
+            ['label' => 'Horas con recargos (horas extras) a personal de producción', 'hours' => (float) $production['hours'], 'amount' => (float) $production['amount']],
+            ['label' => 'Horas con recargos (horas extras) a producción en apoyo a mantenimiento', 'hours' => (float) $support['hours'], 'amount' => (float) $support['amount']],
+            ['label' => 'Horas con recargos (horas extras) a personal de mantenimiento', 'hours' => (float) $maintenance['hours'], 'amount' => (float) $maintenance['amount']],
+            ['label' => 'Horas con recargos (horas extras) a personal del proyecto MOPE', 'hours' => (float) $mope['hours'], 'amount' => (float) $mope['amount']],
+        ];
+
+        $overtime = [
+            ['label' => 'Horas sin recargos (horas extras) a personal de producción', 'hours' => (float) $production['overtime_hours'] + (float) $support['overtime_hours'], 'amount' => (float) $production['overtime_amount'] + (float) $support['overtime_amount']],
+            ['label' => 'Horas sin recargos (horas extras) a personal de mantenimiento', 'hours' => (float) $maintenance['overtime_hours'], 'amount' => (float) $maintenance['overtime_amount']],
+            ['label' => 'Horas sin recargos (horas extras) a personal del proyecto MOPE', 'hours' => (float) $mope['overtime_hours'], 'amount' => (float) $mope['overtime_amount']],
+        ];
+
+        $sum = fn (array $rows, string $field): float => round(array_sum(array_column($rows, $field)), 2);
+
+        return [
+            'ordinary' => $ordinary,
+            'withSurcharges' => $withSurcharges,
+            'payrollTotal' => ['hours' => $sum($withSurcharges, 'hours'), 'amount' => round($sum($ordinary, 'amount') + $sum($withSurcharges, 'amount'), 2)],
+            'overtime' => $overtime,
+            'overtimeTotal' => ['hours' => $sum($overtime, 'hours'), 'amount' => $sum($overtime, 'amount')],
+        ];
+    }
+
     /** La nómina anterior de la empresa, con la que se compara. */
     public function previousRun(PayrollRun $run): ?PayrollRun
     {

@@ -132,6 +132,33 @@ it('opens for human resources with its cards, shortcuts and charts', function ()
     expect(app(HumanResourcesDashboard::class)->noveltiesByType($this->tenant))->toBe(['Vacaciones' => 5]);
 });
 
+it('shows the hours factor indicator of human resources for what goes of the cutoff', function (): void {
+    $this->actingAs($this->rrhh);
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+    Filament::setTenant($this->tenant);
+
+    // Hora de 10.000 (2.100.000 / 210): dos horas extras diurnas son 25.000.
+    app(PayrollParameterService::class)->setValue(PayrollParameter::MonthlyHoursDivisor, 210, Carbon::parse('2026-01-01'), $this->tenant->id);
+    $operario = Employee::factory()->create(['tenant_id' => $this->tenant->id, 'area_specific' => 'procesos', 'base_salary' => 2_100_000, 'hire_date' => '2025-01-01']);
+    AttendanceDay::factory()->forEmployee($operario)->confirmed()->create([
+        'work_date' => '2026-10-05',
+        'ordinary_hours' => 7,
+        'overtime_day_hours' => 2,
+        'worked_hours' => 9,
+    ]);
+
+    Livewire::test(TableroTalentoHumano::class)
+        ->assertOk()
+        ->assertSee('Indicador factor de horas · corte al 12/10/2026')
+        ->assertSee('Horas ordinarias pagadas a producción')
+        ->assertSee('$ 2.100.000')
+        ->assertSee('Horas con recargos (horas extras) a personal de producción')
+        ->assertSee('Total nómina de personal de producción y mantenimiento')
+        ->assertSee('$ 2.125.000')
+        ->assertSee('Total horas extras de producción y mantenimiento sin recargos')
+        ->assertSee('$ 25.000');
+});
+
 it('is not for the maintenance administrator or the gate', function (): void {
     foreach (['administrador-general', 'porteria'] as $rol) {
         $usuario = User::factory()->create(['is_active' => true]);

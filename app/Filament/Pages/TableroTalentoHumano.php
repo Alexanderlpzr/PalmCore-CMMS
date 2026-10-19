@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Domain\HumanResources\Services\HoursFactorReport;
 use App\Domain\HumanResources\Services\HumanResourcesDashboard;
 use App\Filament\Resources\AttendanceScans\AttendanceScanResource;
 use App\Filament\Resources\Employees\EmployeeResource;
@@ -154,10 +155,25 @@ class TableroTalentoHumano extends Page
             EmployeeResource::canCreate() ? ['label' => 'Nuevo trabajador', 'icon' => 'heroicon-o-user-plus', 'url' => EmployeeResource::getUrl('create')] : null,
         ]));
 
+        // El indicador de talento humano (TH-INF-F-002) de lo que va del corte: solo para
+        // quien ve la nómina, porque trae sueldos.
+        $factor = null;
+
+        if (FactorDeHoras::canAccess()) {
+            $report = app(HoursFactorReport::class)->toDate($tenant, CarbonImmutable::parse($today));
+            $factor = HoursFactorReport::excelRows($report) + [
+                'from' => $report['from'],
+                'until' => $report['until'],
+                'estimated' => $report['estimated'],
+                'url' => FactorDeHoras::getUrl(['vista' => 'fecha', 'hasta' => $today]),
+            ];
+        }
+
         return [
             'cards' => $cards,
             'cutoff' => $canSeeHours ? $cutoff : null,
             'shortcuts' => $shortcuts,
+            'factor' => $factor,
         ];
     }
 

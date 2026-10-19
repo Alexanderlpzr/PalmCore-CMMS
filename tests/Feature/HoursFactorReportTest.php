@@ -176,6 +176,21 @@ it('counts the hours still to confirm and marks the report as estimated', functi
         ->and($informe['groups']['produccion']['overtime_hours'])->toBe(6.0);
 });
 
+it('lays out the rows of the human resources workbook (TH-INF-F-002)', function (): void {
+    app(PayrollParameterService::class)->setValue(PayrollParameter::HoursCutoffDay, 26, Carbon::parse('2026-01-01'), $this->tenant->id);
+
+    $filas = HoursFactorReport::excelRows(app(HoursFactorReport::class)->toDate($this->tenant, Carbon::parse('2026-10-10')));
+
+    expect(array_column($filas['ordinary'], 'amount'))->toBe([2_100_000.0, 4_200_000.0, 0.0])
+        // Producción: 4 h extras; su turno de apoyo a mantenimiento va en su propio renglón.
+        ->and($filas['withSurcharges'][0])->toMatchArray(['hours' => 4.0, 'amount' => 50_000.0])
+        ->and($filas['withSurcharges'][1])->toMatchArray(['hours' => 6.0, 'amount' => 21_000.0])
+        ->and($filas['withSurcharges'][2])->toMatchArray(['hours' => 0.0, 'amount' => 0.0])
+        ->and($filas['payrollTotal'])->toBe(['hours' => 10.0, 'amount' => 6_371_000.0])
+        ->and($filas['overtime'][0])->toMatchArray(['hours' => 4.0, 'amount' => 50_000.0])
+        ->and($filas['overtimeTotal'])->toBe(['hours' => 4.0, 'amount' => 50_000.0]);
+});
+
 it('compares with the same stretch of the previous cut', function (): void {
     $informe = app(HoursFactorReport::class)->sameStretchBefore($this->tenant, Carbon::parse('2026-09-27')->toImmutable(), Carbon::parse('2026-10-10')->toImmutable());
 
