@@ -9,6 +9,7 @@ use App\Filament\Resources\Maintenance\WorkOrder\Pages\ViewWorkOrder;
 use App\Filament\Resources\Maintenance\WorkOrder\RelationManagers\AttachmentsRelationManager;
 use App\Filament\Resources\Maintenance\WorkOrder\RelationManagers\CommentsRelationManager;
 use App\Filament\Resources\Maintenance\WorkOrder\RelationManagers\PartsRelationManager;
+use App\Filament\Resources\Maintenance\WorkOrder\RelationManagers\TasksRelationManager;
 use App\Filament\Resources\Maintenance\WorkOrder\Schemas\WorkOrderForm;
 use App\Filament\Resources\Maintenance\WorkOrder\Schemas\WorkOrderInfolist;
 use App\Filament\Resources\Maintenance\WorkOrder\Tables\WorkOrderTable;
@@ -59,6 +60,8 @@ class WorkOrderResource extends Resource
         // Permisos de trabajo, Registro de Tiempo y Firmas de Conformidad se retiran
         // (sus relation managers quedan en disco, dormidos).
         return [
+            // El checklist del preventivo, solo en las OT que traen tareas del plan.
+            'tasks' => TasksRelationManager::class,
             'parts' => PartsRelationManager::class,
             'comments' => CommentsRelationManager::class,
             'attachments' => AttachmentsRelationManager::class,

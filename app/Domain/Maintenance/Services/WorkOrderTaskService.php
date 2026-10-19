@@ -301,6 +301,8 @@ class WorkOrderTaskService
      */
     private function raiseDeviationAlert(WorkOrderChecklistResult $result): void
     {
+        // Lo que lee el mensaje, de una vez: desde la web la medición llega sin su tarea.
+        $result->loadMissing(['task.workOrder.equipment', 'recordedBy']);
         $task = $result->task;
         $workOrder = $task?->workOrder;
 

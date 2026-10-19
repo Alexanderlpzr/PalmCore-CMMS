@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Domain\Maintenance\Enums\WorkOrderStatus;
+use App\Filament\Resources\Maintenance\WorkOrder\ProgramaDelDiaAction;
 use App\Filament\Resources\Maintenance\WorkOrder\WorkOrderResource;
 use App\Models\MaintenanceSchedule;
 use App\Models\Plant;
@@ -10,6 +11,7 @@ use App\Models\User;
 use App\Models\WorkOrder;
 use BackedEnum;
 use Carbon\CarbonImmutable;
+use Filament\Actions\Action;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Collection;
@@ -34,6 +36,12 @@ class MaintenanceCalendar extends Page
     protected static ?int $navigationSort = 2;
 
     protected string $view = 'filament.pages.maintenance-calendar';
+
+    /** @return array<Action> */
+    protected function getHeaderActions(): array
+    {
+        return [ProgramaDelDiaAction::make()];
+    }
 
     /** Visible month as 'Y-m'. */
     public string $month = '';

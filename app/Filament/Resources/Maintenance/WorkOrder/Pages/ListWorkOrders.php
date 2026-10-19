@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Maintenance\WorkOrder\Pages;
 use App\Domain\Reports\Enums\ExcelReportType;
 use App\Domain\Reports\Excel\ExcelReportManager;
 use App\Domain\Reports\Services\OrdenesTrabajoPdfService;
+use App\Filament\Resources\Maintenance\WorkOrder\ProgramaDelDiaAction;
 use App\Filament\Resources\Maintenance\WorkOrder\WorkOrderResource;
 use App\Filament\Widgets\Lists\WorkOrderKpis;
 use App\Models\WorkOrder;
@@ -56,6 +57,7 @@ class ListWorkOrders extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
+            ProgramaDelDiaAction::make(),
             Action::make('export_excel')
                 ->label('Exportar Excel')
                 ->icon(Heroicon::OutlinedTableCells)
