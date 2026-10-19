@@ -65,6 +65,7 @@ class LinesRelationManager extends RelationManager
                         /** @var User $user */
                         $user = auth()->user();
                         app(InventoryCountService::class)->record($record, $state === null || $state === '' ? null : (float) $state, $user);
+                        $this->dispatch('conteo-actualizado');
 
                         return $state;
                     }),

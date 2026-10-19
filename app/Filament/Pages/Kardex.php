@@ -52,6 +52,46 @@ class Kardex extends Page implements HasTable
         return $user !== null && ($user->is_super_admin || $user->can('inventory.view'));
     }
 
+    /**
+     * Los movimientos que muestra la tabla —con sus filtros—, en pesos, para las tarjetas
+     * de arriba. Los ajustes van netos: lo que sobró menos lo que faltó.
+     *
+     * @return array{movements: int, parts: int, inValue: float, inCount: int, outValue: float, outCount: int, adjustValue: float, adjustCount: int}
+     */
+    public function resumen(): array
+    {
+        $query = $this->getFilteredTableQuery();
+
+        if ($query === null) {
+            return ['movements' => 0, 'parts' => 0, 'inValue' => 0.0, 'inCount' => 0, 'outValue' => 0.0, 'outCount' => 0, 'adjustValue' => 0.0, 'adjustCount' => 0];
+        }
+
+        $base = $query->toBase()->cloneWithout(['columns', 'orders']);
+        $adjust = InventoryTransactionType::Adjustment->value;
+        $totals = (clone $base)->selectRaw(
+            'count(*) as movements,
+            count(distinct spare_part_id) as parts,
+            coalesce(sum(case when type <> ? and quantity > 0 then quantity * unit_cost end), 0) as in_value,
+            count(case when type <> ? and quantity > 0 then 1 end) as in_count,
+            coalesce(sum(case when type <> ? and quantity < 0 then -quantity * unit_cost end), 0) as out_value,
+            count(case when type <> ? and quantity < 0 then 1 end) as out_count,
+            coalesce(sum(case when type = ? then quantity * unit_cost end), 0) as adjust_value,
+            count(case when type = ? and quantity <> 0 then 1 end) as adjust_count',
+            [$adjust, $adjust, $adjust, $adjust, $adjust, $adjust],
+        )->first();
+
+        return [
+            'movements' => (int) $totals->movements,
+            'parts' => (int) $totals->parts,
+            'inValue' => round((float) $totals->in_value, 0),
+            'inCount' => (int) $totals->in_count,
+            'outValue' => round((float) $totals->out_value, 0),
+            'outCount' => (int) $totals->out_count,
+            'adjustValue' => round((float) $totals->adjust_value, 0),
+            'adjustCount' => (int) $totals->adjust_count,
+        ];
+    }
+
     public function table(Table $table): Table
     {
         return $table

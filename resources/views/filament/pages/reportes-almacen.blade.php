@@ -5,6 +5,28 @@
 @endphp
 
 <x-filament-panels::page>
+    {{-- La cifra del año: lo que se consumió, y qué parte del inventario está quieta. --}}
+    <x-fronda.hero
+        label="Consumido en el último año · salidas y despachos al costo"
+        :value="$hero['consumed']"
+        prefix="$ "
+        :badge="$hero['classA'].' '.($hero['classA'] === 1 ? 'repuesto clase A' : 'repuestos clase A')"
+        icon="heroicon-o-chart-bar"
+    >
+        <x-fronda.progress
+            light
+            :percent="$hero['idlePercent']"
+            :label="'Plata quieta: '.$pesos($hero['idleValue']).' del inventario'"
+        />
+
+        <x-slot name="stats">
+            <x-fronda.hero-stat label="Valor del inventario" :value="$pesos($hero['inventoryValue'])" detail="Al costo promedio" />
+            <x-fronda.hero-stat label="Plata quieta" :value="$pesos($hero['idleValue'])" detail="Sin salidas en seis meses" />
+            <x-fronda.hero-stat label="Despachado a OT" :value="$pesos($hero['dispatched'])" detail="En el último año" />
+            <x-fronda.hero-stat label="Salidas con vale" :value="$pesos($hero['vouchers'])" detail="Sin orden de trabajo" />
+        </x-slot>
+    </x-fronda.hero>
+
     {{-- El ABC en tres tarjetas: cuántos repuestos y cuánta plata en cada clase. --}}
     <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
         @foreach (['A' => 'Clase A · cada mes', 'B' => 'Clase B · cada trimestre', 'C' => 'Clase C · cada semestre'] as $clase => $rotulo)
@@ -69,7 +91,7 @@
                     <p class="shrink-0 text-sm font-bold tabular-nums">{{ $pesos($fila['value']) }}</p>
                 </div>
             @empty
-                <p class="py-4 text-center text-sm text-gray-500 dark:text-gray-400">Nada quieto: todo lo que hay ha tenido movimiento.</p>
+                <x-fronda.empty-state icon="heroicon-o-check-circle" heading="Nada quieto">Todo lo que hay en el estante ha tenido salidas en los últimos seis meses.</x-fronda.empty-state>
             @endforelse
         </x-filament::section>
 
@@ -83,7 +105,7 @@
                     <p class="shrink-0 text-sm font-bold tabular-nums">{{ $pesos($fila['value']) }}</p>
                 </div>
             @empty
-                <p class="py-4 text-center text-sm text-gray-500 dark:text-gray-400">Todavía no se ha despachado nada a órdenes de trabajo.</p>
+                <x-fronda.empty-state icon="heroicon-o-wrench-screwdriver" heading="Sin despachos todavía">Cuando el almacén entregue repuestos a órdenes de trabajo, aquí aparece lo que se lleva cada equipo.</x-fronda.empty-state>
             @endforelse
         </x-filament::section>
 
@@ -94,7 +116,7 @@
                     <p class="shrink-0 text-sm font-bold tabular-nums">{{ $pesos($fila['value']) }}</p>
                 </div>
             @empty
-                <p class="py-4 text-center text-sm text-gray-500 dark:text-gray-400">No hay salidas sin orden de trabajo en el año.</p>
+                <x-fronda.empty-state icon="heroicon-o-arrow-up-tray" heading="Sin salidas con vale">Las salidas sin orden de trabajo del año aparecen aquí, por motivo.</x-fronda.empty-state>
             @endforelse
         </x-filament::section>
 
@@ -105,7 +127,7 @@
                     <p class="shrink-0 text-sm font-bold tabular-nums">{{ $pesos($fila['value']) }}</p>
                 </div>
             @empty
-                <p class="py-4 text-center text-sm text-gray-500 dark:text-gray-400">Todavía nadie ha recibido con vale.</p>
+                <x-fronda.empty-state icon="heroicon-o-user-group" heading="Nadie ha recibido con vale">Aquí aparecen las diez personas que más se llevan del almacén.</x-fronda.empty-state>
             @endforelse
         </x-filament::section>
     </div>

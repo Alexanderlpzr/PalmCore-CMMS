@@ -76,6 +76,25 @@ class Despachos extends Page implements HasTable
         return 'warning';
     }
 
+    /**
+     * Lo de la cola que muestra la tabla —con sus filtros—, para las tarjetas de arriba.
+     *
+     * @return array{pending: int, orders: int, closedOrders: int, short: int, value: float}
+     */
+    public function resumen(): array
+    {
+        $pedidos = $this->getFilteredTableQuery()?->get() ?? collect();
+        $cerradas = [WorkOrderStatus::Completed, WorkOrderStatus::Verified, WorkOrderStatus::Closed];
+
+        return [
+            'pending' => $pedidos->count(),
+            'orders' => $pedidos->pluck('work_order_id')->unique()->count(),
+            'closedOrders' => $pedidos->filter(fn (WorkOrderPart $part): bool => in_array($part->workOrder?->status, $cerradas, true))->pluck('work_order_id')->unique()->count(),
+            'short' => $pedidos->filter(fn (WorkOrderPart $part): bool => $this->available($part) < (float) $part->quantity)->count(),
+            'value' => round((float) $pedidos->sum(fn (WorkOrderPart $part): float => (float) $part->quantity * (float) ($part->unit_cost_snapshot ?? $this->stockRow($part)?->average_unit_cost ?? 0)), 0),
+        ];
+    }
+
     public function getSubheading(): ?string
     {
         return 'Lo que pidieron las órdenes de trabajo. Sale del inventario cuando usted lo entrega.';

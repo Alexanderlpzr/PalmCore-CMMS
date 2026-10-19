@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Domain\Inventory\Services\WarehouseDashboard;
 use App\Domain\Inventory\Services\WarehouseReports;
 use App\Models\Tenant;
 use BackedEnum;
@@ -72,13 +73,25 @@ class ReportesAlmacen extends Page
         $tenant = $this->tenant();
         $abc = $reports->abc($tenant);
         $exits = $reports->exits($tenant);
+        $idle = $reports->idle($tenant);
+        $byEquipment = $reports->byEquipment($tenant);
+        $inventoryValue = (float) app(WarehouseDashboard::class)->attention($tenant)['inventoryValue'];
 
         return [
+            'hero' => [
+                'consumed' => (float) $abc->sum('value'),
+                'inventoryValue' => $inventoryValue,
+                'idleValue' => (float) $idle->sum('value'),
+                'idlePercent' => $inventoryValue > 0 ? $idle->sum('value') * 100 / $inventoryValue : 0,
+                'dispatched' => (float) $byEquipment->sum('value'),
+                'vouchers' => (float) $exits['reasons']->sum('value'),
+                'classA' => $abc->filter(fn (array $row): bool => $row['proposed']->value === 'A')->count(),
+            ],
             'abc' => $abc,
             'abcTotals' => $abc->groupBy(fn (array $row): string => $row['proposed']->value)
                 ->map(fn ($rows): array => ['parts' => $rows->count(), 'value' => $rows->sum('value')]),
-            'idle' => $reports->idle($tenant),
-            'byEquipment' => $reports->byEquipment($tenant),
+            'idle' => $idle,
+            'byEquipment' => $byEquipment,
             'reasons' => $exits['reasons'],
             'recipients' => $exits['recipients'],
         ];

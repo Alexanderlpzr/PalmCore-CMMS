@@ -22,6 +22,7 @@ use App\Filament\Pages\Kardex;
 use App\Filament\Pages\ReportesAlmacen;
 use App\Filament\Pages\TableroAlmacen;
 use App\Filament\Resources\Inventory\InventoryCount\Pages\CreateInventoryCount;
+use App\Filament\Resources\Inventory\InventoryCount\Pages\ListInventoryCounts;
 use App\Filament\Resources\Inventory\InventoryCount\Pages\ViewInventoryCount;
 use App\Filament\Resources\Inventory\InventoryCount\RelationManagers\LinesRelationManager;
 use App\Filament\Resources\Inventory\PurchaseOrder\Pages\ViewPurchaseOrder;
@@ -31,6 +32,8 @@ use App\Filament\Resources\Inventory\SparePart\Pages\ViewSparePart;
 use App\Filament\Resources\Inventory\SparePart\RelationManagers\EquipmentUsageRelationManager;
 use App\Filament\Resources\Inventory\Warehouse\Pages\CreateWarehouse;
 use App\Filament\Resources\Inventory\Warehouse\WarehouseResource;
+use App\Filament\Widgets\Inventory\InventoryCountProgress;
+use App\Filament\Widgets\Lists\InventoryCountKpis;
 use App\Infrastructure\Tenancy\CurrentTenant;
 use App\Models\Alert;
 use App\Models\AutomationRule;
@@ -577,4 +580,92 @@ it('prints shelf labels with a QR for the selected parts', function (): void {
     $pdf = app(SparePartLabelsPdfService::class)->generate(collect([$parte]), $this->tenant);
 
     expect($pdf)->toStartWith('%PDF');
+});
+
+// ── Los indicadores, con el estilo de Talento Humano ─────────────────────────
+
+it('sums up the dispatch queue above the table', function (): void {
+    $this->tenant->update(['settings' => ['inventory' => ['warehouse_dispatch' => true]]]);
+    $hay = repuestoConExistencia($this->tenant, $this->almacen, ['name' => 'Correa B-52'], 6);
+    $falta = repuestoConExistencia($this->tenant, $this->almacen, ['name' => 'Motor 5 HP'], 0);
+    ordenConRepuesto($this->tenant, $this->almacen, $hay, 2);
+    $cerrada = ordenConRepuesto($this->tenant, $this->almacen, $falta, 1);
+    $cerrada->workOrder->update(['status' => WorkOrderStatus::Closed->value]);
+
+    $this->actingAs($this->bodeguero);
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+    Filament::setTenant($this->tenant);
+
+    $pantalla = Livewire::test(Despachos::class)
+        ->assertSee('Por despachar')
+        ->assertSee('Sin existencia suficiente');
+
+    // 3 unidades pedidas a 10.000 cada una.
+    expect($pantalla->instance()->resumen())->toBe(['pending' => 2, 'orders' => 2, 'closedOrders' => 1, 'short' => 1, 'value' => 30_000.0]);
+});
+
+it('sums up what came in, went out and was adjusted in the kardex, as filtered', function (): void {
+    $parte = repuestoConExistencia($this->tenant, $this->almacen, ['name' => 'Grasa EP2'], 0);
+    $servicio = app(InventoryService::class);
+    $servicio->receiveEntry($this->almacen, $parte, 10, 1_000, $this->bodeguero);
+    $servicio->recordExit($this->almacen, $parte, 4, 1_000, $this->bodeguero, exitReason: InventoryExitReason::DamageOrLoss);
+    $servicio->adjustStock($this->almacen, $parte, 5, 1_000, $this->bodeguero);
+
+    $this->actingAs($this->bodeguero);
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+    Filament::setTenant($this->tenant);
+
+    $pantalla = Livewire::test(Kardex::class)->assertSee('Ajustes por conteo');
+
+    expect($pantalla->instance()->resumen())->toBe([
+        'movements' => 3, 'parts' => 1, 'inValue' => 10_000.0, 'inCount' => 1,
+        'outValue' => 4_000.0, 'outCount' => 1, 'adjustValue' => -1_000.0, 'adjustCount' => 1,
+    ]);
+
+    $pantalla->filterTable('type', ['exit']);
+
+    expect($pantalla->instance()->resumen()['movements'])->toBe(1);
+});
+
+it('shows the count list cards and the count progress, blind while counting', function (): void {
+    $faltante = repuestoConExistencia($this->tenant, $this->almacen, ['name' => 'Faltante'], 10, 2_000);
+    $cuadra = repuestoConExistencia($this->tenant, $this->almacen, ['name' => 'Cuadra'], 4);
+    $servicio = app(InventoryCountService::class);
+    $conteo = $servicio->start($this->almacen, InventoryCountScope::All, $this->bodeguero);
+    $servicio->record($conteo->lines()->where('spare_part_id', $faltante->id)->firstOrFail(), 8, $this->bodeguero);
+
+    $this->actingAs($this->bodeguero);
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+    Filament::setTenant($this->tenant);
+
+    Livewire::test(InventoryCountProgress::class, ['record' => $conteo])
+        ->assertSee('1 de 2 repuestos contados')
+        ->assertSee('Conteo ciego')
+        ->assertDontSee('Faltantes');
+
+    $servicio->record($conteo->lines()->where('spare_part_id', $cuadra->id)->firstOrFail(), 4, $this->bodeguero);
+    $servicio->apply($conteo->refresh(), $this->bodeguero);
+
+    Livewire::test(InventoryCountProgress::class, ['record' => $conteo->refresh()])
+        ->assertSee('Faltantes')
+        ->assertSee('−$ 4.000');
+
+    Livewire::test(InventoryCountKpis::class)
+        ->assertSee('Exactitud del inventario')
+        ->assertSee('50 %')
+        ->assertSee('1 de 2 contados cuadraron');
+
+    Livewire::test(ListInventoryCounts::class)->assertOk();
+});
+
+it('opens the reports with the big card and says when a section has nothing yet', function (): void {
+    $this->actingAs($this->bodeguero);
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+    Filament::setTenant($this->tenant);
+
+    Livewire::test(ReportesAlmacen::class)
+        ->assertSee('Consumido en el último año')
+        ->assertSee('Valor del inventario')
+        ->assertSee('Sin despachos todavía')
+        ->assertSee('Sin salidas con vale');
 });

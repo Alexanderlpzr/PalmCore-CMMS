@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Inventory\InventoryCount\Pages;
 use App\Domain\Inventory\Services\InventoryCountService;
 use App\Domain\Reports\Excel\InventoryCountSheetExcel;
 use App\Filament\Resources\Inventory\InventoryCount\InventoryCountResource;
+use App\Filament\Widgets\Inventory\InventoryCountProgress;
 use App\Models\InventoryCount;
 use App\Models\User;
 use Filament\Actions\Action;
@@ -16,6 +17,12 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class ViewInventoryCount extends ViewRecord
 {
     protected static string $resource = InventoryCountResource::class;
+
+    /** El avance del conteo arriba de la planilla. */
+    protected function getHeaderWidgets(): array
+    {
+        return [InventoryCountProgress::class];
+    }
 
     protected function getHeaderActions(): array
     {
@@ -51,6 +58,7 @@ class ViewInventoryCount extends ViewRecord
                     }
 
                     $this->record->refresh();
+                    $this->dispatch('conteo-actualizado');
 
                     Notification::make()
                         ->title('Conteo aplicado')
@@ -69,6 +77,7 @@ class ViewInventoryCount extends ViewRecord
                 ->action(function (InventoryCount $record): void {
                     app(InventoryCountService::class)->cancel($record);
                     $this->record->refresh();
+                    $this->dispatch('conteo-actualizado');
 
                     Notification::make()->title('Conteo cancelado')->success()->send();
                 }),
