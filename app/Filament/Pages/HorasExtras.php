@@ -367,7 +367,13 @@ class HorasExtras extends Page implements HasTable
             }
         }
 
-        $text = $parts === [] ? 'El libro no trae días con entrada y salida.' : implode(' · ', $parts).'.';
+        // Después de importar no se cuentan los que entraron —ya lo dice el título—: si todo
+        // entró, no hay nada más que decir.
+        $text = match (true) {
+            $parts !== [] => implode(' · ', $parts).'.',
+            $includeImport => 'El libro no trae días con entrada y salida.',
+            default => '',
+        };
 
         if ($missingWorkers !== []) {
             $text .= ' Sin trabajador en la plataforma: '.implode(', ', array_slice($missingWorkers, 0, 6)).(count($missingWorkers) > 6 ? '…' : '').'.';

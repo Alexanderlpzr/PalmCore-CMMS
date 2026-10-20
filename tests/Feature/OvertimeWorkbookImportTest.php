@@ -335,7 +335,9 @@ it('shows the warnings of the workbook when importing from «Horas extras»', fu
 
     expect($notificacion->getTitle())->toBe('Se cargó 1 día de 1 trabajador')
         ->and((string) $notificacion->getBody())->toContain('Revise en el libro 1 aviso')
-        ->toContain('la cédula 123 no es la de la ficha de Pedro Pérez');
+        ->toContain('la cédula 123 no es la de la ficha de Pedro Pérez')
+        // Todo entró: no dice que el libro no trae días.
+        ->not->toContain('no trae días');
 });
 
 it('lists the warnings of the workbook as a list in the summary before importing, not as code', function (): void {
