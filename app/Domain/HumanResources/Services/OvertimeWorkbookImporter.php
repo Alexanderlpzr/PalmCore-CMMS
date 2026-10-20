@@ -208,9 +208,7 @@ class OvertimeWorkbookImporter
         $asWritten = $asWritten->lte($entry) ? $asWritten->addDay() : $asWritten;
 
         if ($scheduledEnd === null) {
-            $issues[] = "{$where}: el fin horario {$asWritten->format('g:i a')} no cae dentro del turno; ese día se cuenta con la jornada.";
-        } elseif (! $scheduledEnd->eq($asWritten)) {
-            $issues[] = "{$where}: el fin horario {$asWritten->format('g:i a')} no cuadraba con el turno; se tomó como {$scheduledEnd->format('g:i a')}.";
+            $issues[] = "{$where}: el fin horario {$asWritten->format('g:i a')} no cae dentro del turno ({$entry->format('g:i a')} a {$exit->format('g:i a')}); ese día se cuenta con la jornada.";
         }
 
         return $issues;
@@ -294,9 +292,11 @@ class OvertimeWorkbookImporter
      *
      * Va entre la entrada y la salida: después de la entrada y, a lo sumo, en la salida
      * (el turno de noche que el libro anota con el fin igual a la salida no tiene extras).
-     * El libro se llena a mano y trae errores de a. m. y p. m. —«2:00am» por «2:00pm» en
-     * un turno de 7 a 6—: si el fin no cae en el turno se prueba al revés, y si tampoco,
-     * se descarta y el día se cuenta con la jornada.
+     * La hora se toma como está escrita: si dice 2:00 a. m., son las 2:00 a. m. Si así no
+     * cae dentro del turno —«1:00am» en un turno de 6 a. m. a 5 p. m.—, no se adivina
+     * otra: se descarta y el día se cuenta con la jornada (decisión de la empresa del
+     * 2026-10-20). La única lectura aparte es la del libro para la medianoche: «12:00pm»
+     * en un turno de la tarde son las 12 de la noche, igual que en la salida.
      */
     public static function scheduledEnd(?string $time, CarbonImmutable $entry, CarbonImmutable $exit, string $timezone): ?CarbonImmutable
     {
@@ -304,24 +304,21 @@ class OvertimeWorkbookImporter
             return null;
         }
 
-        $base = CarbonImmutable::parse($entry->toDateString().' '.$time, $timezone);
+        $end = CarbonImmutable::parse($entry->toDateString().' '.$time, $timezone);
 
-        foreach ([$base, $base->addHours(12), $base->subHours(12)] as $candidate) {
-            // Antes de la entrada, es del día siguiente (turno de noche).
-            if ($candidate->lte($entry)) {
-                $candidate = $candidate->addDay();
-            }
-
-            // Un horario de menos de 4 horas no es un horario: es un error de a. m. y p. m.
-            // que no se pudo corregir. Salvo que termine justo con la salida.
-            $plausible = $candidate->eq($exit) || $entry->diffInMinutes($candidate) >= 240;
-
-            if ($candidate->gt($entry) && $candidate->lte($exit) && $plausible) {
-                return $candidate;
-            }
+        if ($end->hour === 12 && $end->minute === 0 && $entry->hour >= 13) {
+            $end = $end->subHours(12);
         }
 
-        return null;
+        // Antes de la entrada, es del día siguiente (turno de noche).
+        if ($end->lte($entry)) {
+            $end = $end->addDay();
+        }
+
+        // Un horario de menos de 4 horas no es un horario, salvo que termine justo con la salida.
+        $plausible = $end->eq($exit) || $entry->diffInMinutes($end) >= 240;
+
+        return $end->gt($entry) && $end->lte($exit) && $plausible ? $end : null;
     }
 
     /**

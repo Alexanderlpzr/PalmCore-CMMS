@@ -1,5 +1,6 @@
 <?php
 
+use App\Domain\HumanResources\Enums\PayrollParameter;
 use App\Domain\HumanResources\Services\AttendanceService;
 use App\Domain\HumanResources\Services\OvertimeWorkbookImporter;
 use App\Domain\HumanResources\Services\PayrollParameterService;
@@ -212,7 +213,10 @@ it('replaces with the workbook only the days it brings: voids what was there and
 
 it('counts as ordinary what the workbook schedules: no overtime on the night shift that ends on schedule', function (): void {
     // 6 p. m. a 6 a. m. con el fin del horario a las 6 a. m.: todo ordinario, con recargo nocturno.
-    // 7 a. m. a 6 p. m. con «2:00am», que es 2:00 pm: siete ordinarias y cuatro extras.
+    // 7 a. m. a 6 p. m. con «2:00am»: no cae en el turno y no se adivina otra hora; el día
+    // se cuenta con la jornada: siete ordinarias y cuatro extras.
+    app(PayrollParameterService::class)->setValue(PayrollParameter::OrdinaryHoursPerDay, 7, Carbon::parse('2026-07-15'), $this->tenant->id);
+
     $libro = libroParaImportar([
         'PEDRO' => [1116615860, [
             ['martes, 29 de septiembre de 2026', '6:00pm', '6:00am', '6:00am'],
@@ -244,7 +248,9 @@ it('reads the scheduled end of the workbook, fixing a. m. and p. m. mixed up', f
 })->with([
     'noche, fin igual a la salida' => ['06:00', '18:00', '06:00', '2026-10-04 06:00'],
     'día normal' => ['14:00', '07:00', '18:00', '2026-10-03 14:00'],
-    '«2:00am» que es 2:00 pm' => ['02:00', '07:00', '18:00', '2026-10-03 14:00'],
+    // La hora se toma como está escrita: no se cambia a. m. por p. m.
+    '«2:00am» en un turno de día' => ['02:00', '07:00', '18:00', null],
+    '«12:00pm» en un turno de la tarde es la medianoche' => ['12:00', '17:00', '00:00', '2026-10-04 00:00'],
     'fin después de la salida' => ['20:00', '07:00', '15:00', null],
     'sin fin' => ['', '07:00', '15:00', null],
 ]);
@@ -272,7 +278,7 @@ it('warns about every error of the workbook before importing', function (): void
 
     expect($tiene('Hoja PEDRO: la cédula 123 no es la de la ficha de Pedro Pérez'))->toBeTrue()
         ->and($tiene('Hoja PEDRO P: es del mismo trabajador que la hoja PEDRO'))->toBeTrue()
-        ->and($tiene('28/09/2026: el fin horario 2:00 am no cuadraba con el turno; se tomó como 2:00 pm'))->toBeTrue()
+        ->and($tiene('28/09/2026: el fin horario 2:00 am no cae dentro del turno (7:00 am a 6:00 pm); ese día se cuenta con la jornada'))->toBeTrue()
         ->and($tiene('29/09/2026: el fin horario 6:30 am no cae dentro del turno'))->toBeTrue()
         ->and($tiene('30/09/2026: turno de 17 horas'))->toBeTrue()
         ->and($tiene('la hora «6:00» de «HORA INICIO» no dice a. m. ni p. m.; se tomó como 06:00'))->toBeTrue()
