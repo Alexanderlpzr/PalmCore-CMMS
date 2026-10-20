@@ -267,7 +267,7 @@ class HorasExtras extends Page implements HasTable
                             ->label('Reemplazar lo que ya hay en esos días')
                             ->helperText('Las marcas de los días que trae el libro, de cada trabajador del libro, se anulan con el motivo «Reemplazada por el libro» y esos días —aun confirmados— se rehacen con el libro. Antes y después de esos días no se toca nada.')
                             ->live(),
-                        Text::make(fn (Get $get): string => self::importPreview($get('libro'), (bool) $get('reemplazar'))),
+                        Text::make(fn (Get $get): string|HtmlString => self::importPreview($get('libro'), (bool) $get('reemplazar'))),
                     ])
                     ->modalSubmitActionLabel('Importar')
                     ->action(function (array $data): void {

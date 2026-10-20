@@ -337,3 +337,17 @@ it('shows the warnings of the workbook when importing from «Horas extras»', fu
         ->and((string) $notificacion->getBody())->toContain('Revise en el libro 1 aviso')
         ->toContain('la cédula 123 no es la de la ficha de Pedro Pérez');
 });
+
+it('lists the warnings of the workbook as a list in the summary before importing, not as code', function (): void {
+    $this->actingAs($this->rrhh);
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+    Filament::setTenant($this->tenant);
+
+    $libro = libroParaImportar(['PEDRO' => [123, [['lunes, 28 de septiembre de 2026', '7:00am', '6:00pm']]]]);
+
+    Livewire::test(HorasExtras::class)
+        ->mountAction(TestAction::make('importarLibro')->table())
+        ->fillForm(['libro' => UploadedFile::fake()->createWithContent('TH-NOM-P-001.xlsx', file_get_contents($libro))])
+        ->assertMountedActionModalSeeHtml('<li>Hoja PEDRO: la cédula 123 no es la de la ficha de Pedro Pérez');
+    @unlink($libro);
+});
