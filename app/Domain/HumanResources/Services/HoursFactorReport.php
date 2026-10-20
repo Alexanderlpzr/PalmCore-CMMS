@@ -197,10 +197,10 @@ class HoursFactorReport
      * El informe con los renglones del Excel de talento humano (TH-INF-F-002): lo
      * ordinario de cada grupo, las horas «con recargos» (recargos y extras) y las «sin
      * recargos» (solo extras), y sus totales. Administrativo y sin área no van, como en
-     * el Excel. El apoyo a mantenimiento no tiene renglón sin recargos: sus extras van
-     * con producción, para que el total sea el de todas las extras. Lo ordinario trae
-     * también las horas ordinarias trabajadas, que no suman al total de horas: el total
-     * es el de horas con recargos, como en el Excel.
+     * el Excel. El apoyo a mantenimiento solo va en las horas con recargos: en el Excel
+     * de talento humano sus horas no entran en las «sin recargos» (869 + 346 = 1.215 en
+     * el de octubre). Lo ordinario trae también las horas ordinarias trabajadas, que no
+     * suman al total de horas: el total es el de horas con recargos, como en el Excel.
      *
      * @param  array{groups: array<string, array<string, mixed>>}  $report  lo que devuelven `forRun()` o `toDate()`
      * @return array{ordinary: list<array{label: string, hours: float, amount: float}>, withSurcharges: list<array{label: string, hours: float, amount: float}>, payrollTotal: array{hours: float, amount: float}, overtime: list<array{label: string, hours: float, amount: float}>, overtimeTotal: array{hours: float, amount: float}}
@@ -224,7 +224,7 @@ class HoursFactorReport
         ];
 
         $overtime = [
-            ['label' => 'Horas sin recargos (horas extras) a personal de producción', 'hours' => (float) $production['overtime_hours'] + (float) $support['overtime_hours'], 'amount' => (float) $production['overtime_amount'] + (float) $support['overtime_amount']],
+            ['label' => 'Horas sin recargos (horas extras) a personal de producción', 'hours' => (float) $production['overtime_hours'], 'amount' => (float) $production['overtime_amount']],
             ['label' => 'Horas sin recargos (horas extras) a personal de mantenimiento', 'hours' => (float) $maintenance['overtime_hours'], 'amount' => (float) $maintenance['overtime_amount']],
             ['label' => 'Horas sin recargos (horas extras) a personal del proyecto MOPE', 'hours' => (float) $mope['overtime_hours'], 'amount' => (float) $mope['overtime_amount']],
         ];

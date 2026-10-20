@@ -206,6 +206,20 @@ it('lays out the rows of the human resources workbook (TH-INF-F-002)', function 
         ->and($filas['overtimeTotal'])->toBe(['hours' => 4.0, 'amount' => 50_000.0]);
 });
 
+it('leaves the maintenance support hours out of the rows without surcharges, as the workbook does', function (): void {
+    app(PayrollParameterService::class)->setValue(PayrollParameter::HoursCutoffDay, 26, Carbon::parse('2026-01-01'), $this->tenant->id);
+
+    // El domingo que vino de apoyo a mantenimiento: ocho horas extras dominicales.
+    diaParaElIndicador($this->operario, '2026-10-04', ['overtime_sunday_day_hours' => 8], ['rest_day_worked' => true, 'maintenance_support' => true]);
+
+    $filas = HoursFactorReport::excelRows(app(HoursFactorReport::class)->toDate($this->tenant, Carbon::parse('2026-10-10')));
+
+    expect($filas['withSurcharges'][1]['hours'])->toBe(14.0)
+        // Producción sin recargos: solo sus 4 extras, no las 8 del apoyo.
+        ->and($filas['overtime'][0]['hours'])->toBe(4.0)
+        ->and($filas['overtimeTotal']['hours'])->toBe(4.0);
+});
+
 it('compares with the same stretch of the previous cut', function (): void {
     $informe = app(HoursFactorReport::class)->sameStretchBefore($this->tenant, Carbon::parse('2026-09-27')->toImmutable(), Carbon::parse('2026-10-10')->toImmutable());
 
