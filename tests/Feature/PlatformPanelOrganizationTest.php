@@ -146,6 +146,25 @@ it('saves a company whose country code has three letters', function (): void {
         ->and($tenant->country_code)->toBe('COL');
 });
 
+it('saves what the forms carry without losing the other settings of the company', function (): void {
+    // «Formatos» guarda en `settings`, donde también vive el despacho desde el almacén.
+    $tenant = empresaDePrueba(['settings' => ['inventory' => ['warehouse_dispatch' => true]]]);
+
+    Livewire::test(EditTenant::class, ['record' => $tenant->getRouteKey()])
+        ->fillForm([
+            'settings.documents.legal_name' => 'Extractora El Pajuil Central del Casanare SAS ZOMAC',
+            'settings.human_resources.form_signer' => 'Danna Fernanda Torres',
+        ])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    $tenant->refresh();
+
+    expect($tenant->legalName())->toBe('Extractora El Pajuil Central del Casanare SAS ZOMAC')
+        ->and($tenant->overtimeFormSigner())->toBe('Danna Fernanda Torres')
+        ->and($tenant->dispatchesPartsFromWarehouse())->toBeTrue();
+});
+
 it('never offers to permanently delete a company', function (): void {
     // Archivar se deshace; el borrado definitivo de una empresa entera, no.
     $tenant = empresaDePrueba();

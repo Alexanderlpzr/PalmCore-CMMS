@@ -37,6 +37,12 @@ class EditTenant extends EditRecord
      */
     protected function mutateFormDataBeforeSave(array $data): array
     {
+        // El formulario solo trae los ajustes que muestra (los de «Formatos»); los demás
+        // —como el despacho de repuestos desde el almacén— se conservan.
+        if (array_key_exists('settings', $data)) {
+            $data['settings'] = array_replace_recursive($this->record->settings ?? [], $data['settings'] ?? []);
+        }
+
         return TenantForm::withAccessFromStatus($data);
     }
 

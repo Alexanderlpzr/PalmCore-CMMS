@@ -60,7 +60,7 @@
                 <strong>{{ $tenant?->name }}</strong>
             @endif
         </td>
-        <td rowspan="3" class="title">FORMATO DE HORAS EXTRAS</td>
+        <td rowspan="3" class="title">{{ mb_strtoupper($tenant?->legalName() ?? '') }}<br><span style="font-size: 0.8em;">{{ Formato::FORM_TITLE }}</span></td>
         <td class="control">CÓDIGO: {{ Formato::FORM_CODE }}</td>
     </tr>
     <tr><td class="control">VERSIÓN: {{ Formato::FORM_VERSION }}</td></tr>
@@ -189,7 +189,7 @@
         <td class="gap"></td>
         <td>{{ $employee->fullName() }} — Trabajador</td>
         <td class="gap"></td>
-        <td>Talento humano</td>
+        <td>{{ $tenant?->overtimeFormSigner() ? $tenant->overtimeFormSigner().' — Talento Humano' : 'Talento humano' }}</td>
     </tr>
 </table>
 

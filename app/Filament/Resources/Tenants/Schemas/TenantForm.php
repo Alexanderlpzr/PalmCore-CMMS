@@ -81,6 +81,25 @@ class TenantForm
                             ->helperText('Se muestra en el encabezado de los documentos PDF generados.'),
                     ]),
 
+                // Lo que va escrito en los formatos que se imprimen y se firman. Vive en
+                // `settings`, que EditTenant mezcla con lo que ya había al guardar.
+                Section::make('Formatos')
+                    ->description('Lo que llevan los formatos que se descargan, como el de horas extras.')
+                    ->columns(2)
+                    ->collapsible()
+                    ->schema([
+                        TextInput::make('settings.documents.legal_name')
+                            ->label('Razón social')
+                            ->maxLength(255)
+                            ->placeholder('EXTRACTORA EL PAJUIL CENTRAL DEL CASANARE SAS ZOMAC')
+                            ->helperText('Va en el encabezado. Vacío: el nombre de la empresa.'),
+                        TextInput::make('settings.human_resources.form_signer')
+                            ->label('Firma de Talento Humano en el formato de horas extras')
+                            ->maxLength(255)
+                            ->placeholder('Danna Fernanda Torres')
+                            ->helperText('Sale como «Nombre — Talento Humano». Vacío: «Talento humano».'),
+                    ]),
+
                 // El estado decide lo que la gente de la empresa puede hacer en su panel:
                 // con Prueba o Activo trabaja con normalidad; con Solo lectura o Suspendido
                 // entra a consultar, pero el Gate le niega crear, cambiar y borrar

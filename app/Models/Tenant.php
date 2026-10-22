@@ -110,6 +110,21 @@ class Tenant extends Model
         return (bool) data_get($this->settings, 'inventory.warehouse_dispatch', false);
     }
 
+    /**
+     * La razón social que va en el encabezado de los formatos («EXTRACTORA EL PAJUIL
+     * CENTRAL DEL CASANARE SAS ZOMAC»); sin ella, el nombre de la empresa.
+     */
+    public function legalName(): string
+    {
+        return trim((string) data_get($this->settings, 'documents.legal_name')) ?: $this->name;
+    }
+
+    /** Quien firma por talento humano el formato de horas extras, o null si nadie. */
+    public function overtimeFormSigner(): ?string
+    {
+        return trim((string) data_get($this->settings, 'human_resources.form_signer')) ?: null;
+    }
+
     /** Days until the subscription expires (negative when already expired). */
     public function daysUntilExpiry(): ?int
     {

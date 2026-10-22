@@ -58,11 +58,14 @@ class FormatoHorasExtrasPdfService
      * El control documental del formato, tal como lo imprime la extractora en su hoja: el
      * papel que se firma tiene que ser reconocible como el mismo formato de siempre.
      */
-    public const FORM_CODE = 'TH-FOR-002';
+    public const FORM_CODE = 'TH-NOM-F-001';
 
     public const FORM_VERSION = '02';
 
-    public const FORM_DATE = '27/11/2020';
+    public const FORM_DATE = '23/10/2026';
+
+    /** El nombre del formato, debajo de la razón social (antes «Formato de horas extras», TH-FOR-002). */
+    public const FORM_TITLE = 'FORMATO DE HORARIOS Y NOVEDADES DE HORAS EXTRAS';
 
     public function __construct(
         private readonly ReportBrandingService $branding,

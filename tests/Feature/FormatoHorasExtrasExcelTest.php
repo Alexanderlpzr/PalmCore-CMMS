@@ -36,7 +36,10 @@ use Spatie\Permission\PermissionRegistrar;
 
 beforeEach(function (): void {
     $this->seed(PermissionSeeder::class);
-    $this->tenant = Tenant::factory()->create(['timezone' => 'America/Bogota']);
+    $this->tenant = Tenant::factory()->create(['timezone' => 'America/Bogota', 'settings' => [
+        'documents' => ['legal_name' => 'Extractora El Pajuil Central del Casanare SAS ZOMAC'],
+        'human_resources' => ['form_signer' => 'Danna Fernanda Torres'],
+    ]]);
     app(TenantRolesSeeder::class)->run($this->tenant);
     setPermissionsTeamId($this->tenant->id);
     app(PermissionRegistrar::class)->forgetCachedPermissions();
@@ -102,23 +105,26 @@ it('writes one sheet per worker with the heading, the worker and the days of the
     $hoja = $libro['DIEGO MEDINA'];
     $texto = collect($hoja)->flatten()->filter()->map(fn ($v) => (string) $v);
 
-    // Como la plantilla: el logo en A1:B3 y el título desde la C.
-    expect($hoja[1][3])->toBe('FORMATO DE HORAS EXTRAS')
-        ->and($texto)->toContain('CÓDIGO: TH-FOR-002', 'VERSIÓN: 02', 'FECHA: 27/11/2020')
+    // Como el formato TH-NOM-F-001: el logo en A1:B3, la razón social y debajo el nombre
+    // del formato, desde la C.
+    expect($hoja[1][3])->toBe('EXTRACTORA EL PAJUIL CENTRAL DEL CASANARE SAS ZOMAC')
+        ->and($hoja[2][3])->toBe('FORMATO DE HORARIOS Y NOVEDADES DE HORAS EXTRAS')
+        ->and($texto)->toContain('CÓDIGO: TH-NOM-F-001', 'VERSIÓN: 02', 'FECHA: 23/10/2026')
         ->and($hoja[5][2])->toBe('DIEGO MEDINA ROJAS')
         ->and($texto)->toContain('1116616864', 'OPERARIO DE PROCESO I', 'EDWIN MARSIGLIA')
         ->and($hoja[10])->toContain('HORAS EXTRAS DIURNAS', 'RECARGO NOCTURNO', 'JUSTIFICACIÓN', 'BONO HED')
         // Treinta días del corte, una fila cada uno.
         ->and($texto)->toContain('domingo, 27 de septiembre de 2026', 'lunes, 26 de octubre de 2026')
         ->and($texto)->toContain('07:00 am', '02:00 pm', '06:00 pm')
-        // La calculadora completa: salario y valor de la hora a la vista, y sin la columna
-        // del recargo diurno dominical, que este período no tiene.
-        ->and($texto)->toContain('SALARIO (COP)', 'VALOR HORA (COP)', 'Valor horas extras y recargos (COP)')
+        // El salario al lado de la identificación, en la fila del cargo; sin la calculadora
+        // a la derecha y sin la columna del recargo diurno dominical.
+        ->and($hoja[6])->toContain('SALARIO')
+        ->and(collect($hoja[6])->contains(fn ($v): bool => is_numeric($v) && (float) $v === (float) $this->diego->base_salary))->toBeTrue()
+        ->and($texto)->not->toContain('VALOR HORA (COP)')->not->toContain('Valor horas extras y recargos (COP)')
         ->and($hoja[10])->not->toContain('RECARGO DIURNO DOMINICAL')
-        // La calculadora va a la derecha de la cuadrícula, en la misma fila del encabezado.
-        ->and($hoja[10])->toContain('SALARIO (COP)')
         ->and($texto)->toContain('Total horas extras diurnas', 'Recargo nocturno dominical')
-        ->and($texto->filter(fn (string $v): bool => str_starts_with($v, 'Vo. Bo. Jefe inmediato — Edwin Marsiglia')))->toHaveCount(1);
+        ->and($texto->filter(fn (string $v): bool => str_starts_with($v, 'Vo. Bo. Jefe inmediato — Edwin Marsiglia')))->toHaveCount(1)
+        ->and($texto)->toContain('Danna Fernanda Torres — Talento Humano');
 });
 
 it('leaves the values out for whoever does not see salaries', function (): void {
@@ -126,7 +132,7 @@ it('leaves the values out for whoever does not see salaries', function (): void 
     $texto = collect(leerLibroDelFormato($ruta))->flatten()->filter()->map(fn ($v) => (string) $v);
     @unlink($ruta);
 
-    expect($texto)->not->toContain('VALOR HORA (COP)')->not->toContain('SALARIO (COP)');
+    expect($texto)->not->toContain('SALARIO')->not->toContain((string) (float) $this->diego->base_salary);
 });
 
 it('lists in «Horas extras» everyone who clocked in, with their totals, and downloads them all', function (): void {
