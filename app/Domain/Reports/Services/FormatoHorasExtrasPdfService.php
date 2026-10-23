@@ -67,6 +67,16 @@ class FormatoHorasExtrasPdfService
     /** El nombre del formato, debajo de la razón social (antes «Formato de horas extras», TH-FOR-002). */
     public const FORM_TITLE = 'FORMATO DE HORARIOS Y NOVEDADES DE HORAS EXTRAS';
 
+    /**
+     * Las horas extras por día que caben en la tabla principal del formato: el máximo legal.
+     * Lo que pase va en la tabla de abajo. Con la regla del bono apagada es solo cómo se
+     * muestra: la nómina las sigue pagando todas como horas extras.
+     */
+    public const LEGAL_DAILY_OVERTIME = 2.0;
+
+    /** Las clases de hora extra, las que siempre lleva la tabla de horas extralegales. */
+    private const OVERTIME_COLUMNS = ['overtime_day', 'overtime_night', 'overtime_sunday_day', 'overtime_sunday_night'];
+
     public function __construct(
         private readonly ReportBrandingService $branding,
         private readonly PayrollParameterService $parameters,
@@ -150,11 +160,14 @@ class FormatoHorasExtrasPdfService
         $rows = [];
         $legalTotal = ClassifiedHours::empty();
         $bonusTotal = ClassifiedHours::empty();
+        $mainTotal = ClassifiedHours::empty();
+        $apartTotal = ClassifiedHours::empty();
 
         for ($date = $from; $date->lte($to); $date = $date->addDay()) {
             $key = $date->toDateString();
             $day = $days[$key] ?? null;
             [$legal, $bonus] = $day ? $this->split($day, $key < $periodStart->toDateString(), $bonusRule, $p) : [ClassifiedHours::empty(), ClassifiedHours::empty()];
+            [$main, $apart] = $day ? $this->display($day, $legal, $bonus, $bonusRule) : [ClassifiedHours::empty(), ClassifiedHours::empty()];
             [$entry, $exit] = $day ? $this->entryAndExit($day, $timezone) : [null, null];
 
             // El fin del horario que trajo el libro, si el día salió de él; si no, la entrada
@@ -171,6 +184,8 @@ class FormatoHorasExtrasPdfService
 
             $legalTotal = $legalTotal->plus($legal);
             $bonusTotal = $bonusTotal->plus($bonus);
+            $mainTotal = $mainTotal->plus($main);
+            $apartTotal = $apartTotal->plus($apart);
 
             $rows[] = [
                 'date' => $date,
@@ -180,6 +195,8 @@ class FormatoHorasExtrasPdfService
                 'exit' => $exit,
                 'legal' => $this->columns($legal),
                 'bonus' => $this->columns($bonus),
+                'main' => $this->columns($main),
+                'apart' => $this->columns($apart),
                 'notes' => collect([
                     $holidays[$key] ?? null,
                     $novelties->first(fn (EmployeeNovelty $n): bool => $n->starts_on->toDateString() <= $key && $n->ends_on->toDateString() >= $key)?->type->label(),
@@ -196,6 +213,11 @@ class FormatoHorasExtrasPdfService
         // horas si las hubiera; el formato no las muestra.
         $columns = self::COLUMNS;
         unset($columns['sunday_surcharge']);
+
+        $apartTotals = $this->columns($apartTotal);
+        $apartColumns = array_sum($apartTotals) > 0
+            ? array_values(array_filter(array_keys(self::COLUMNS), fn (string $bucket): bool => in_array($bucket, self::OVERTIME_COLUMNS, true) || $apartTotals[$bucket] > 0))
+            : [];
 
         $calculator = [];
 
@@ -232,6 +254,12 @@ class FormatoHorasExtrasPdfService
             'bonusTotals' => $this->columns($bonusTotal),
             'bonusColumns' => array_keys(array_filter($this->columns($bonusTotal), fn (float $hours): bool => $hours > 0)),
             'bonusRule' => $bonusRule,
+            'mainTotals' => $this->columns($mainTotal),
+            'apartTotals' => $apartTotals,
+            'apartColumns' => $apartColumns,
+            'apartTitle' => $bonusRule
+                ? 'BONIFICACIÓN CONSTITUTIVA — HORAS DEL MES ANTERIOR Y EXTRAS QUE PASAN DEL TOPE DIARIO'
+                : 'HORAS EXTRALEGALES — LAS QUE PASAN DE '.(int) self::LEGAL_DAILY_OVERTIME.' HORAS EXTRAS AL DÍA',
             'salary' => $salary,
             'divisor' => $divisor,
             'hourValue' => $hourValue,
@@ -257,6 +285,34 @@ class FormatoHorasExtrasPdfService
             wholeDayAsBonus: $previousMonth,
             dailyCap: (float) ($p[PayrollParameter::MaxOvertimeHoursDay->value] ?? 0),
             isRestDay: (bool) $day->rest_day_worked,
+        );
+
+        return [$parts['legal'], $parts['bonus']];
+    }
+
+    /**
+     * Cómo se reparte el día entre la tabla principal y la de abajo.
+     *
+     * La principal lleva solo las horas extras legales del día, las dos que permite la ley,
+     * y los recargos; el resto va en la tabla de abajo. Con la regla del bono, la de abajo
+     * es la bonificación que liquida la nómina. Sin ella el corte es solo del formato: la
+     * nómina las paga todas como horas extras. El domingo o festivo de descanso trabajado
+     * va completo arriba, como en el libro.
+     *
+     * @return array{0: ClassifiedHours, 1: ClassifiedHours} tabla principal, tabla de abajo
+     */
+    private function display(AttendanceDay $day, ClassifiedHours $legal, ClassifiedHours $bonus, bool $bonusRule): array
+    {
+        if ($bonusRule) {
+            return [$legal, $bonus];
+        }
+
+        $parts = $this->splitter->split(
+            $legal,
+            wholeDayAsBonus: false,
+            dailyCap: self::LEGAL_DAILY_OVERTIME,
+            isRestDay: (bool) $day->rest_day_worked,
+            capDaysWithoutShift: true,
         );
 
         return [$parts['legal'], $parts['bonus']];

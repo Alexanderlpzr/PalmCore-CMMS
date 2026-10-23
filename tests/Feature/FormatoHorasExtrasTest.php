@@ -105,6 +105,34 @@ it('splits the hours with the same rule as the payroll', function (): void {
         ->and($this->datos['bonusColumns'])->toBe(['overtime_day']);
 });
 
+it('shows apart the overtime above two hours a day without touching what the payroll pays', function (): void {
+    app(PayrollParameterService::class)->setValue(PayrollParameter::OvertimeExcessAsBonus, 0, Carbon::parse('2026-01-01'), $this->tenant->id);
+    $datos = app(FormatoHorasExtrasPdfService::class)->data($this->employee, CarbonImmutable::parse('2026-09-27'), CarbonImmutable::parse('2026-10-26'));
+    $fila = fn (string $fecha): array => collect($datos['rows'])->first(fn (array $r): bool => $r['date']->toDateString() === $fecha);
+
+    // La nómina paga las cuatro como horas extras; el formato muestra dos arriba y dos abajo.
+    expect($fila('2026-10-05')['legal']['overtime_day'])->toBe(4.0)
+        ->and($fila('2026-10-05')['bonus']['overtime_day'])->toBe(0.0)
+        ->and($fila('2026-10-05')['main']['overtime_day'])->toBe(2.0)
+        ->and($fila('2026-10-05')['apart']['overtime_day'])->toBe(2.0)
+        // El 28 de septiembre, igual que los demás días.
+        ->and($fila('2026-09-28')['main']['overtime_day'])->toBe(2.0)
+        ->and($fila('2026-09-28')['apart']['overtime_day'])->toBe(2.0)
+        // El domingo de descanso trabajado va completo arriba, como en el libro.
+        ->and($fila('2026-10-11')['main']['overtime_sunday_day'])->toBe(8.0)
+        ->and($fila('2026-10-11')['apart']['overtime_sunday_day'])->toBe(0.0)
+        ->and($datos['apartTotals']['overtime_day'])->toBe(4.0)
+        ->and($datos['apartColumns'])->toBe(['overtime_day', 'overtime_night', 'overtime_sunday_day', 'overtime_sunday_night'])
+        ->and($datos['apartTitle'])->toStartWith('HORAS EXTRALEGALES')
+        // Los valores no cambian: 8 × 12.500 + 8 × 20.500, todo como horas extras.
+        ->and($datos['legalAmount'])->toBe(264_000.0)
+        ->and($datos['bonusAmount'])->toBe(0.0);
+
+    $pdf = app(FormatoHorasExtrasPdfService::class)->generate($this->employee, CarbonImmutable::parse('2026-09-27'), CarbonImmutable::parse('2026-10-26'));
+
+    expect(substr($pdf, 0, 4))->toBe('%PDF');
+});
+
 it('values the hours like the sheet calculator', function (): void {
     expect($this->datos['hourValue'])->toBe(10_000.0)
         ->and($this->datos['calculator']['overtime_day']['legalAmount'])->toBe(25_000.0)

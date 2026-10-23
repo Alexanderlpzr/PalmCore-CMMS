@@ -210,6 +210,16 @@ describe('the splitter', function (): void {
             ->and($partes['bonus']->overtimeHours())->toBe(0.0);
     });
 
+    it('caps the whole overtime day too when asked, but never the rest day worked', function (): void {
+        $dia = new ClassifiedHours(overtimeDay: 7);
+        $partes = (new OvertimeBonusSplitter)->split($dia, wholeDayAsBonus: false, dailyCap: 2, capDaysWithoutShift: true);
+        $descanso = (new OvertimeBonusSplitter)->split($dia, wholeDayAsBonus: false, dailyCap: 2, isRestDay: true, capDaysWithoutShift: true);
+
+        expect($partes['legal']->overtimeDay)->toBe(2.0)
+            ->and($partes['bonus']->overtimeDay)->toBe(5.0)
+            ->and($descanso['legal']->overtimeDay)->toBe(7.0);
+    });
+
     it('sends every overtime hour to the bonus with a cap of zero', function (): void {
         $partes = (new OvertimeBonusSplitter)->split(new ClassifiedHours(ordinary: 7, overtimeDay: 3), wholeDayAsBonus: false, dailyCap: 0);
 

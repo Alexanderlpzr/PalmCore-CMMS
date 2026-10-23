@@ -108,9 +108,6 @@
                             @foreach (array_keys($data['columns']) as $bolsa)
                                 <th class="border border-white/30 px-2 py-2 font-semibold" title="{{ Formato::COLUMN_TITLES[$bolsa] }}">{{ Formato::COLUMN_TITLES[$bolsa] }}</th>
                             @endforeach
-                            @foreach ($data['bonusColumns'] as $bolsa)
-                                <th class="border border-white/30 px-2 py-2 font-semibold">BONO {{ Formato::COLUMNS[$bolsa] }}</th>
-                            @endforeach
                             <th class="border border-white/30 px-2 py-2 text-left font-semibold">JUSTIFICACIÓN</th>
                         </tr>
                     </thead>
@@ -124,10 +121,7 @@
                                 <td class="{{ $celda }} whitespace-nowrap text-center tabular-nums">{{ $hora($dia['scheduledEnd']) }}</td>
                                 <td class="{{ $celda }} whitespace-nowrap text-center tabular-nums">{{ $hora($dia['exit']) }}</td>
                                 @foreach (array_keys($data['columns']) as $bolsa)
-                                    <td class="{{ $celda }} text-center tabular-nums">{{ $horas((float) $dia['legal'][$bolsa]) }}</td>
-                                @endforeach
-                                @foreach ($data['bonusColumns'] as $bolsa)
-                                    <td class="{{ $celda }} bg-gray-50 text-center tabular-nums dark:bg-white/5">{{ $horas((float) $dia['bonus'][$bolsa]) }}</td>
+                                    <td class="{{ $celda }} text-center tabular-nums">{{ $horas((float) $dia['main'][$bolsa]) }}</td>
                                 @endforeach
                                 <td @class([$celda, 'text-danger-600 dark:text-danger-400' => $dia['surcharged'] && $dia['notes'] !== ''])>{{ $dia['notes'] }}</td>
                             </tr>
@@ -135,16 +129,63 @@
                         <tr class="font-bold" style="background-color: #D5EBDD; color: #0f3d22">
                             <td class="{{ $celda }}" colspan="4">TOTAL HORAS</td>
                             @foreach (array_keys($data['columns']) as $bolsa)
-                                <td class="{{ $celda }} text-center tabular-nums">{{ $horas((float) $data['legalTotals'][$bolsa]) }}</td>
-                            @endforeach
-                            @foreach ($data['bonusColumns'] as $bolsa)
-                                <td class="{{ $celda }} text-center tabular-nums">{{ $horas((float) $data['bonusTotals'][$bolsa]) }}</td>
+                                <td class="{{ $celda }} text-center tabular-nums">{{ $horas((float) $data['mainTotals'][$bolsa]) }}</td>
                             @endforeach
                             <td class="{{ $celda }}"></td>
                         </tr>
                     </tbody>
                 </table>
             </div>
+
+            {{-- Las horas extras que pasan de las legales del día, en su propia tabla --}}
+            @if ($data['apartColumns'] !== [])
+                @php
+                    $sumaFila = fn (array $h): float => array_sum(array_map(fn (string $bolsa): float => (float) $h[$bolsa], $data['apartColumns']));
+                @endphp
+                <div class="-mx-2 overflow-x-auto px-2">
+                    <table class="w-full min-w-[40rem] border-collapse text-xs">
+                        <thead>
+                            <tr class="text-white" style="background-color: {{ FrondaPalette::LogoPetrol }}">
+                                <th class="border border-white/30 px-2 py-2 text-left font-semibold" colspan="{{ 5 + count($data['apartColumns']) }}">{{ $data['apartTitle'] }}</th>
+                            </tr>
+                            <tr class="text-white" style="background-color: {{ FrondaPalette::LogoPetrol }}">
+                                <th class="border border-white/30 px-2 py-2 text-left font-semibold">FECHA</th>
+                                <th class="border border-white/30 px-2 py-2 font-semibold">HORA INICIO</th>
+                                <th class="border border-white/30 px-2 py-2 font-semibold">FIN HORARIO LABORAL</th>
+                                <th class="border border-white/30 px-2 py-2 font-semibold">HORA SALIDA</th>
+                                @foreach ($data['apartColumns'] as $bolsa)
+                                    <th class="border border-white/30 px-2 py-2 font-semibold">{{ Formato::COLUMN_TITLES[$bolsa] }}</th>
+                                @endforeach
+                                <th class="border border-white/30 px-2 py-2 font-semibold">TOTAL</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($data['rows'] as $dia)
+                                @continue($sumaFila($dia['apart']) <= 0)
+                                <tr>
+                                    <td @class([$celda, 'whitespace-nowrap', 'font-medium text-danger-600 dark:text-danger-400' => $dia['surcharged']])>
+                                        {{ $dia['date']->locale('es')->translatedFormat('l, j \d\e F') }}
+                                    </td>
+                                    <td class="{{ $celda }} whitespace-nowrap text-center tabular-nums">{{ $hora($dia['entry']) }}</td>
+                                    <td class="{{ $celda }} whitespace-nowrap text-center tabular-nums">{{ $hora($dia['scheduledEnd']) }}</td>
+                                    <td class="{{ $celda }} whitespace-nowrap text-center tabular-nums">{{ $hora($dia['exit']) }}</td>
+                                    @foreach ($data['apartColumns'] as $bolsa)
+                                        <td class="{{ $celda }} text-center tabular-nums">{{ $horas((float) $dia['apart'][$bolsa]) }}</td>
+                                    @endforeach
+                                    <td class="{{ $celda }} text-center font-bold tabular-nums">{{ $horas($sumaFila($dia['apart'])) }}</td>
+                                </tr>
+                            @endforeach
+                            <tr class="font-bold bg-gray-50 dark:bg-white/5">
+                                <td class="{{ $celda }}" colspan="4">TOTAL HORAS</td>
+                                @foreach ($data['apartColumns'] as $bolsa)
+                                    <td class="{{ $celda }} text-center tabular-nums">{{ $horas((float) $data['apartTotals'][$bolsa]) }}</td>
+                                @endforeach
+                                <td class="{{ $celda }} text-center tabular-nums">{{ $horas($sumaFila($data['apartTotals'])) }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            @endif
 
             {{-- Los totales por clase (horas extras y bono juntos), como al pie del formato --}}
             @php

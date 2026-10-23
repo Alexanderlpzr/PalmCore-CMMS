@@ -113,7 +113,10 @@ it('writes one sheet per worker with the heading, the worker and the days of the
         ->and($texto)->toContain('CÓDIGO: TH-NOM-F-001', 'VERSIÓN: 02', 'FECHA: 23/10/2026')
         ->and($hoja[5][2])->toBe('DIEGO MEDINA ROJAS')
         ->and($texto)->toContain('1116616864', 'OPERARIO DE PROCESO I', 'EDWIN MARSIGLIA')
-        ->and($hoja[10])->toContain('HORAS EXTRAS DIURNAS', 'RECARGO NOCTURNO', 'JUSTIFICACIÓN', 'BONO HED')
+        ->and($hoja[10])->toContain('HORAS EXTRAS DIURNAS', 'RECARGO NOCTURNO', 'JUSTIFICACIÓN')
+        ->and($hoja[10])->not->toContain('BONO HED')
+        // La bonificación, en su tabla debajo de la cuadrícula.
+        ->and($texto->filter(fn (string $v): bool => str_starts_with($v, 'BONIFICACIÓN CONSTITUTIVA')))->toHaveCount(1)
         // Treinta días del corte, una fila cada uno.
         ->and($texto)->toContain('domingo, 27 de septiembre de 2026', 'lunes, 26 de octubre de 2026')
         ->and($texto)->toContain('07:00 am', '02:00 pm', '06:00 pm')
@@ -126,6 +129,36 @@ it('writes one sheet per worker with the heading, the worker and the days of the
         ->and($texto)->toContain('Total horas extras diurnas', 'Recargo nocturno dominical')
         ->and($texto->filter(fn (string $v): bool => str_starts_with($v, 'Vo. Bo. Jefe inmediato — Edwin Marsiglia')))->toHaveCount(1)
         ->and($texto)->toContain('Danna Fernanda Torres — Talento Humano');
+});
+
+it('keeps only two overtime hours a day in the grid and the rest in a table below', function (): void {
+    // Como está la planta: sin la regla del bono, la nómina paga todo como horas extras.
+    app(PayrollParameterService::class)->setValue(PayrollParameter::OvertimeExcessAsBonus, 0, Carbon::parse('2026-01-01'), $this->tenant->id);
+
+    $ruta = app(FormatoHorasExtrasExcel::class)->write(collect([$this->diego]), CarbonImmutable::parse('2026-09-27'), CarbonImmutable::parse('2026-10-26'), showValues: false);
+    $hoja = leerLibroDelFormato($ruta)['DIEGO MEDINA'];
+    @unlink($ruta);
+
+    $filaDe = fn (string $fecha): array => collect($hoja)->filter(fn (array $fila): bool => ($fila[1] ?? null) === $fecha)->values()->all();
+    $titulo = collect($hoja)->search(fn (array $fila): bool => str_starts_with((string) ($fila[1] ?? ''), 'HORAS EXTRALEGALES'));
+
+    // El 28 de septiembre y el 5 de octubre, de 7 a 6: cuatro extras diurnas cada uno.
+    [$arriba, $abajo] = $filaDe('lunes, 5 de octubre de 2026');
+
+    expect($titulo)->not->toBeFalse()
+        ->and($hoja[$titulo][1])->toBe('HORAS EXTRALEGALES — LAS QUE PASAN DE 2 HORAS EXTRAS AL DÍA')
+        ->and($hoja[$titulo + 1])->toContain('FECHA', 'HORAS EXTRAS DIURNAS', 'HORAS EXTRAS DOMINICAL NOCTURNA', 'TOTAL')
+        // Arriba las dos legales; abajo las otras dos, con su total.
+        ->and($arriba[5])->toBe(2)
+        ->and($abajo[5])->toBe(2)
+        // Fecha, tres horas y las cuatro clases: el total en la novena.
+        ->and($abajo[9])->toBe(2)
+        // Los días del mes anterior, igual que los demás.
+        ->and($filaDe('lunes, 28 de septiembre de 2026'))->toHaveCount(2)
+        // Abajo solo los días con horas de más.
+        ->and($filaDe('martes, 6 de octubre de 2026'))->toHaveCount(1)
+        // Al pie, el total del período con las de las dos tablas.
+        ->and(collect($hoja)->first(fn (array $fila): bool => ($fila[1] ?? null) === 'Total horas extras diurnas')[2])->toBe(8);
 });
 
 it('leaves the values out for whoever does not see salaries', function (): void {

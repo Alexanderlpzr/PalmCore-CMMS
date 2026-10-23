@@ -31,6 +31,7 @@
     .grid { margin-top: 6px; }
     .grid th { background: #d9d9d9; font-size: 6.3pt; font-weight: bold; padding: 3px 2px; text-align: center; vertical-align: middle; }
     .grid th.bono { background: #f2e2bf; }
+    .apart { margin-top: 8px; width: 70%; }
     .grid td { padding: 2px 3px; font-size: 6.8pt; }
     .date { text-align: center; white-space: nowrap; }
     .red { color: #d00000; }
@@ -99,9 +100,6 @@
                 <th>{{ $titulos[$bolsa] }}</th>
             @endforeach
             <th style="width: 120px;">JUSTIFICACIÓN</th>
-            @foreach ($bonusColumns as $bolsa)
-                <th class="bono">BONO {{ $columnas[$bolsa] }}</th>
-            @endforeach
         </tr>
     </thead>
     <tbody>
@@ -112,26 +110,64 @@
                 <td class="time">{{ $hora($fila['scheduledEnd']) }}</td>
                 <td class="time">{{ $hora($fila['exit']) }}</td>
                 @foreach (array_keys($columnas) as $bolsa)
-                    <td class="num">{{ $h($fila['legal'][$bolsa]) }}</td>
+                    <td class="num">{{ $h($fila['main'][$bolsa]) }}</td>
                 @endforeach
                 <td class="notes">{{ $fila['notes'] }}</td>
-                @foreach ($bonusColumns as $bolsa)
-                    <td class="num bono">{{ $h($fila['bonus'][$bolsa]) }}</td>
-                @endforeach
             </tr>
         @endforeach
         <tr class="totals">
             <td colspan="4">TOTAL HORAS</td>
             @foreach (array_keys($columnas) as $bolsa)
-                <td class="num">{{ $h($legalTotals[$bolsa]) }}</td>
+                <td class="num">{{ $h($mainTotals[$bolsa]) }}</td>
             @endforeach
             <td></td>
-            @foreach ($bonusColumns as $bolsa)
-                <td class="num bono">{{ $h($bonusTotals[$bolsa]) }}</td>
-            @endforeach
         </tr>
     </tbody>
 </table>
+
+@if ($apartColumns)
+    {{-- Las horas extras que pasan de las legales del día, aparte, como pidió talento humano. --}}
+    @php
+        $sumaFila = fn (array $horas): float => array_sum(array_map(fn (string $bolsa): float => (float) $horas[$bolsa], $apartColumns));
+    @endphp
+    <table class="box grid apart">
+        <thead>
+            <tr><th class="bono" colspan="{{ 5 + count($apartColumns) }}">{{ $apartTitle }}</th></tr>
+            <tr>
+                <th class="bono" style="width: 118px;">FECHA</th>
+                <th class="bono">HORA INICIO</th>
+                <th class="bono">FIN HORARIO LABORAL</th>
+                <th class="bono">HORA SALIDA</th>
+                @foreach ($apartColumns as $bolsa)
+                    <th class="bono">{{ $titulos[$bolsa] }}</th>
+                @endforeach
+                <th class="bono">TOTAL</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach ($rows as $fila)
+                @continue($sumaFila($fila['apart']) <= 0)
+                <tr>
+                    <td @class(['date', 'red' => $fila['surcharged']])>{{ $fila['date']->locale('es')->translatedFormat('l, j \d\e F \d\e Y') }}</td>
+                    <td class="time">{{ $hora($fila['entry']) }}</td>
+                    <td class="time">{{ $hora($fila['scheduledEnd']) }}</td>
+                    <td class="time">{{ $hora($fila['exit']) }}</td>
+                    @foreach ($apartColumns as $bolsa)
+                        <td class="num">{{ $h($fila['apart'][$bolsa]) }}</td>
+                    @endforeach
+                    <td class="num"><strong>{{ $h($sumaFila($fila['apart'])) }}</strong></td>
+                </tr>
+            @endforeach
+            <tr class="totals">
+                <td colspan="4">TOTAL HORAS</td>
+                @foreach ($apartColumns as $bolsa)
+                    <td class="num">{{ $h($apartTotals[$bolsa]) }}</td>
+                @endforeach
+                <td class="num">{{ $h($sumaFila($apartTotals)) }}</td>
+            </tr>
+        </tbody>
+    </table>
+@endif
 
 @if ($showValues)
     {{-- La calculadora de la hoja: salario entre el divisor, y cada clase con su factor. --}}
@@ -175,7 +211,7 @@
     </table>
 @endif
 
-@if ($bonusRule && $bonusColumns)
+@if ($bonusRule && $apartColumns)
     <p class="note">Bonificación constitutiva: las horas de los días del mes anterior y las extras que pasan del tope diario se pagan con el mismo valor como bonificación, que cuenta para seguridad social y prestaciones.</p>
 @endif
 

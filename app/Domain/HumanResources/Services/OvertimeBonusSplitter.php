@@ -34,9 +34,11 @@ final class OvertimeBonusSplitter
      * @param  bool  $wholeDayAsBonus  el día es del mes anterior al que se liquida
      * @param  float  $dailyCap  las horas extras por día que se pagan como extras
      * @param  bool  $isRestDay  talento humano lo marcó como descanso trabajado
+     * @param  bool  $capDaysWithoutShift  el tope también parte el día que es todo extra (con
+     *                                     la jornada semanal, el que llega pasadas las 42 h)
      * @return array{legal: ClassifiedHours, bonus: ClassifiedHours}
      */
-    public function split(ClassifiedHours $hours, bool $wholeDayAsBonus, float $dailyCap, bool $isRestDay = false): array
+    public function split(ClassifiedHours $hours, bool $wholeDayAsBonus, float $dailyCap, bool $isRestDay = false, bool $capDaysWithoutShift = false): array
     {
         if ($wholeDayAsBonus) {
             return [
@@ -55,7 +57,7 @@ final class OvertimeBonusSplitter
 
         $hasOrdinaryShift = ($hours->ordinary + $hours->nightSurcharge + $hours->sundaySurcharge + $hours->nightSundaySurcharge) > 0;
 
-        if ($isRestDay || ! $hasOrdinaryShift) {
+        if ($isRestDay || (! $hasOrdinaryShift && ! $capDaysWithoutShift)) {
             return ['legal' => $hours, 'bonus' => ClassifiedHours::empty()];
         }
 
