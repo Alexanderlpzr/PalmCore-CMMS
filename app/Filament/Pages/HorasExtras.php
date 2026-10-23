@@ -172,6 +172,25 @@ class HorasExtras extends Page implements HasTable
             ->recordAction('detalleTrabajador')
             ->recordActions([
                 EmployeeDetailAction::make(fn (Employee $record): Employee => $record, fn (): array => $this->window()),
+                // Su hoja como en el Excel (TH-NOM-F-001), con «anterior» y «siguiente» para
+                // pasar por los demás de la lista, como las hojas del libro.
+                Action::make('hoja')
+                    ->label('Hoja')
+                    ->icon(Heroicon::OutlinedDocumentText)
+                    ->modalHeading('Formato de horas extras')
+                    ->modalContent(function (Employee $record) {
+                        [$from, $to] = $this->window();
+
+                        return view('filament.pages.partials.hoja-de-horas-modal', [
+                            'employeeIds' => $this->getFilteredSortedTableQuery()?->get()->modelKeys() ?? [$record->getKey()],
+                            'employeeId' => $record->getKey(),
+                            'from' => $from->toDateString(),
+                            'to' => $to->toDateString(),
+                        ]);
+                    })
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Cerrar')
+                    ->modalWidth('7xl'),
                 // Sus días del periodo, para ajustar horas o anular un día sin salir de aquí.
                 Action::make('dias')
                     ->label('Días')

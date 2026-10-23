@@ -9,6 +9,7 @@ use App\Filament\Pages\HorasExtras;
 use App\Filament\Resources\Employees\Pages\EditEmployee;
 use App\Filament\Resources\Employees\RelationManagers\OvertimeRelationManager;
 use App\Infrastructure\Tenancy\CurrentTenant;
+use App\Livewire\HumanResources\OvertimeSheet;
 use App\Models\AttendanceDay;
 use App\Models\Employee;
 use App\Models\EmployeeQrCode;
@@ -197,4 +198,62 @@ it('lists the last cutoff windows, the current one first', function (): void {
         ->toBe(['2026-09-27|2026-10-26', '2026-08-27|2026-09-26', '2026-07-27|2026-08-26'])
         ->and(array_keys(PayrollRun::recentHoursWindows(0, 2, CarbonImmutable::parse('2026-10-07'))))
         ->toBe(['2026-10-01|2026-10-31', '2026-09-01|2026-09-30']);
+});
+
+it('shows the sheet of each worker on screen like the workbook, and goes from one to the next', function (): void {
+    $hoja = Livewire::test(OvertimeSheet::class, [
+        'employeeIds' => [$this->diego->id, $this->ana->id],
+        'employeeId' => $this->diego->id,
+        'from' => '2026-09-27',
+        'to' => '2026-10-26',
+    ]);
+
+    $hoja->assertSee('EXTRACTORA EL PAJUIL CENTRAL DEL CASANARE SAS ZOMAC')
+        ->assertSee('FORMATO DE HORARIOS Y NOVEDADES DE HORAS EXTRAS')
+        ->assertSee('DIEGO MEDINA ROJAS')
+        ->assertSee('EDWIN MARSIGLIA')
+        // Todos los días del corte, con sus horas y el total.
+        ->assertSee('domingo, 27 de septiembre')
+        ->assertSee('lunes, 26 de octubre')
+        ->assertSee('07:00 am')
+        ->assertSee('TOTAL HORAS')
+        ->assertSee('Total horas extras diurnas')
+        // Talento humano ve el sueldo: salario y el valor de cada clase de hora.
+        ->assertSee('SALARIO')
+        ->assertSee('Valor horas extras y recargos')
+        ->assertSee('Danna Fernanda Torres — Talento Humano')
+        ->assertSee('1 de 2');
+
+    $hoja->call('next')
+        ->assertSee('ANA PÉREZ')
+        ->assertSee('2 de 2')
+        ->call('next')
+        ->assertSee('ANA PÉREZ')
+        ->call('previous')
+        ->assertSee('DIEGO MEDINA ROJAS');
+});
+
+it('leaves the values out of the sheet for whoever does not see salaries', function (): void {
+    $this->rrhh->revokePermissionTo('employee-salaries.view');
+    foreach ($this->rrhh->roles as $rol) {
+        $rol->revokePermissionTo('employee-salaries.view');
+    }
+    app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+    Livewire::test(OvertimeSheet::class, [
+        'employeeIds' => [$this->diego->id],
+        'employeeId' => $this->diego->id,
+        'from' => '2026-09-27',
+        'to' => '2026-10-26',
+    ])
+        ->assertSee('DIEGO MEDINA ROJAS')
+        ->assertDontSee('SALARIO')
+        ->assertDontSee('Valor horas extras y recargos');
+});
+
+it('opens the sheet from each row of «Horas extras»', function (): void {
+    Livewire::test(HorasExtras::class)
+        ->assertActionVisible(TestAction::make('hoja')->table($this->diego))
+        ->mountAction(TestAction::make('hoja')->table($this->diego))
+        ->assertMountedActionModalSee('Formato de horas extras');
 });
