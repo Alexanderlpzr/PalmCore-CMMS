@@ -125,6 +125,27 @@ class Tenant extends Model
         return trim((string) data_get($this->settings, 'human_resources.form_signer')) ?: null;
     }
 
+    /**
+     * Lo que llevan los certificados de talento humano: quién los expide —un trabajador
+     * de Personal, con su firma escaneada—, la ciudad donde se expiden, la IPS del examen
+     * de egreso y el correo del pie. Los cambia talento humano en «Certificados».
+     *
+     * @return array{signer_employee_id: ?string, signature_path: ?string, city: string, exit_exam_provider: ?string, contact_email: ?string}
+     */
+    public function certificateSettings(): array
+    {
+        $settings = (array) data_get($this->settings, 'human_resources.certificates', []);
+        $text = fn (string $key): ?string => trim((string) ($settings[$key] ?? '')) ?: null;
+
+        return [
+            'signer_employee_id' => $text('signer_employee_id'),
+            'signature_path' => $text('signature_path'),
+            'city' => $text('city') ?? '',
+            'exit_exam_provider' => $text('exit_exam_provider'),
+            'contact_email' => $text('contact_email'),
+        ];
+    }
+
     /** Days until the subscription expires (negative when already expired). */
     public function daysUntilExpiry(): ?int
     {

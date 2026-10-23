@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Employees\Pages;
 use App\Domain\HumanResources\Enums\PayrollParameter;
 use App\Domain\HumanResources\Services\PayrollParameterService;
 use App\Domain\Reports\Services\FormatoHorasExtrasPdfService;
+use App\Filament\Pages\Certificados;
 use App\Filament\Resources\Concerns\HasBackAction;
 use App\Filament\Resources\Employees\EmployeeResource;
 use App\Filament\Resources\Employees\Widgets\EmployeeMonthCalendar;
@@ -77,6 +78,12 @@ class EditEmployee extends EditRecord
         return [
             $this->getBackAction(),
             $this->hoursFormAction(),
+            Action::make('certificados')
+                ->label('Certificados')
+                ->icon(Heroicon::OutlinedDocumentCheck)
+                ->color('gray')
+                ->visible(fn (): bool => Certificados::canAccess())
+                ->url(fn (): string => Certificados::getUrl(['trabajador' => $this->record->getKey()])),
             DeleteAction::make(),
         ];
     }

@@ -22,6 +22,9 @@ enum EmployeeDocumentType: string
     case Contrato = 'contrato';
     case Examenes = 'examenes';
     case ClausulasAdicionales = 'clausulas_adicionales';
+
+    /** Los que expide talento humano desde «Certificados»: no son de la carpeta de ingreso. */
+    case Certificado = 'certificado';
     case Otro = 'otro';
 
     public function label(): string
@@ -38,6 +41,7 @@ enum EmployeeDocumentType: string
             self::Contrato => 'Contrato',
             self::Examenes => 'Exámenes médicos',
             self::ClausulasAdicionales => 'Cláusulas adicionales TH-AL',
+            self::Certificado => 'Certificado expedido',
             self::Otro => 'Otro',
         };
     }
@@ -66,13 +70,14 @@ enum EmployeeDocumentType: string
             self::Examenes => 'danger',
             self::AfiliacionEps, self::AfiliacionArl, self::AfiliacionPension,
             self::AfiliacionCesantias, self::AfiliacionCaja => 'success',
+            self::Certificado => 'warning',
             self::Otro => 'gray',
         };
     }
 
     public function isRequired(): bool
     {
-        return $this !== self::Otro;
+        return ! in_array($this, [self::Otro, self::Certificado], true);
     }
 
     /** @return list<self> */
