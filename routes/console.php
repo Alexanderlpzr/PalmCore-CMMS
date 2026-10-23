@@ -6,6 +6,7 @@ use App\Domain\Reports\Services\ReportManager;
 use App\Jobs\DetectStaleMeterReadingsJob;
 use App\Jobs\EvaluateAutomationRulesJob;
 use App\Jobs\GeneratePreventiveWorkOrdersJob;
+use App\Jobs\PresumeAdministrativeWorkdaysJob;
 use App\Jobs\RecalculateAllEquipmentKpisJob;
 use App\Jobs\SnapshotPlantKpisJob;
 use App\Jobs\WatchPlatformHealthJob;
@@ -88,6 +89,19 @@ Schedule::call(function (): void {
 })
     ->name('maintenance:generate-preventives')
     ->dailyAt('05:00')
+    ->onOneServer();
+
+// La jornada presunta de los administrativos que ayer no marcaron en portería, pasada
+// la medianoche de la planta: el día ya terminó y nadie va a marcar en él.
+Schedule::call(function (): void {
+    Tenant::withoutGlobalScopes()
+        ->where('is_active', true)
+        ->select('id')
+        ->each(fn (Tenant $tenant) => PresumeAdministrativeWorkdaysJob::dispatch($tenant->id));
+})
+    ->name('attendance:presume-workdays')
+    ->dailyAt('00:30')
+    ->timezone('America/Bogota')
     ->onOneServer();
 
 // Cierra el mes en curso y el anterior, cada día. A diario y no el día 1: el

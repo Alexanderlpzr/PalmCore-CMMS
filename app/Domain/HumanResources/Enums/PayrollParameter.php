@@ -71,6 +71,13 @@ enum PayrollParameter: string
     // Entrada y salida a la hora en punto: hasta el minuto 30 baja, desde el 31 sube.
     case RoundMarksToHour = 'round_marks_to_hour';
 
+    /**
+     * El administrativo que no marca en portería trabajó su jornada legal: 6 a. m. a
+     * 2 p. m. con una hora de almuerzo. Cada día laboral sin marcas se llena con esas
+     * marcas a mano; el día que marca, mandan sus marcas. Ver `PresumedWorkdayService`.
+     */
+    case PresumeAdministrativeWorkday = 'presume_administrative_workday';
+
     // ── Auxilio de alimentación ───────────────────────────────────────────────
     // Se paga aparte de la nómina y no es salario: ver `MealAllowanceCalculator`.
     case MealAllowanceValue = 'meal_allowance_value';
@@ -118,6 +125,7 @@ enum PayrollParameter: string
             self::OvertimeSundayNight => 'Hora extra dominical nocturna',
             self::OvertimeExcessAsBonus => 'Exceso de extras como bonificación',
             self::RoundMarksToHour => 'Redondear entrada y salida a la hora',
+            self::PresumeAdministrativeWorkday => 'Jornada presunta de los administrativos sin marcas',
             self::MealAllowanceValue => 'Valor de cada comida principal',
             self::MealSnackValue => 'Valor de cada merienda',
             self::MealNightShiftFrom => 'Turno de noche si entra desde',
@@ -148,7 +156,7 @@ enum PayrollParameter: string
             self::SurchargeNight, self::SurchargeSunday, self::SurchargeNightSunday,
             self::OvertimeDay, self::OvertimeNight, self::OvertimeSundayDay, self::OvertimeSundayNight,
             self::OvertimeExcessAsBonus => 'Recargos y horas extras',
-            self::RoundMarksToHour => 'Jornada',
+            self::RoundMarksToHour, self::PresumeAdministrativeWorkday => 'Jornada',
             self::HealthEmployeeRate, self::PensionEmployeeRate => 'Aportes del trabajador',
             self::MealAllowanceValue, self::MealSnackValue, self::MealNightShiftFrom, self::MealBreakfastStart, self::MealBreakfastEnd, self::MealLunchStart, self::MealLunchEnd, self::MealSnackStart, self::MealSnackEnd, self::MealDinnerStart, self::MealDinnerEnd, self::MealNightSnackStart, self::MealNightSnackEnd, self::MealNightBreakfastStart, self::MealNightBreakfastEnd => 'Auxilio de alimentación',
         };
@@ -179,7 +187,7 @@ enum PayrollParameter: string
             self::MaxOvertimeHoursWeek, self::HoursCutoffDay, self::WeeklyOrdinaryHours => PayrollParameterUnit::Number,
             self::NightWindowStart, self::NightWindowEnd => PayrollParameterUnit::HourOfDay,
             self::MealNightShiftFrom, self::MealBreakfastStart, self::MealBreakfastEnd, self::MealLunchStart, self::MealLunchEnd, self::MealSnackStart, self::MealSnackEnd, self::MealDinnerStart, self::MealDinnerEnd, self::MealNightSnackStart, self::MealNightSnackEnd, self::MealNightBreakfastStart, self::MealNightBreakfastEnd => PayrollParameterUnit::HourOfDay,
-            self::OvertimeExcessAsBonus, self::RoundMarksToHour => PayrollParameterUnit::Toggle,
+            self::OvertimeExcessAsBonus, self::RoundMarksToHour, self::PresumeAdministrativeWorkday => PayrollParameterUnit::Toggle,
             default => PayrollParameterUnit::Factor,
         };
     }
@@ -217,6 +225,7 @@ enum PayrollParameter: string
             self::OvertimeSundayNight => 2.55,
             self::OvertimeExcessAsBonus => 0,
             self::RoundMarksToHour => 0,
+            self::PresumeAdministrativeWorkday => 0,
             // El auxilio arranca en 0: cada empresa pone su valor. Las franjas son las de El Pajuil.
             self::MealAllowanceValue => 0,
             self::MealSnackValue => 0,
