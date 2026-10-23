@@ -67,7 +67,7 @@
     </x-filament::section>
 
     {{-- El indicador de talento humano (TH-INF-F-002): solo para quien ve la nómina. --}}
-    @if ($factor)
-        <x-fronda.hours-factor-indicator :factor="$factor" />
+    @if ($showFactor)
+        @livewire(\App\Livewire\HumanResources\HoursFactorIndicator::class, ['tenantId' => $tenantId])
     @endif
 </x-filament-panels::page>

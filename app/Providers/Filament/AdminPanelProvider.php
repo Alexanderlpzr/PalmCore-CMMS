@@ -55,6 +55,12 @@ class AdminPanelProvider extends PanelProvider
                 PanelsRenderHook::BODY_START,
                 fn (): View => view('filament.impersonation-banner'),
             )
+            // La barra fina de arriba mientras se abre otra página: las que calculan el
+            // corte tardan, y sin ella parece que el clic no hizo nada.
+            ->renderHook(
+                PanelsRenderHook::BODY_END,
+                fn (): View => view('filament.page-loading-bar'),
+            )
             // Subscription status banner — shown for trial, read_only, and suspended tenants.
             // Healthy active tenants see no banner; expiring-soon uses a Filament notification.
             ->renderHook(

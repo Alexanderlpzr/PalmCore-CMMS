@@ -7,6 +7,7 @@ use App\Filament\Pages\TableroTalentoHumano;
 use App\Filament\Widgets\Inventory\MonthlyOutgoingValueChart;
 use App\Filament\Widgets\Inventory\MostUsedSparePartsChart;
 use App\Infrastructure\Tenancy\CurrentTenant;
+use App\Livewire\HumanResources\HoursFactorIndicator;
 use App\Models\SparePart;
 use App\Models\Tenant;
 use App\Models\User;
@@ -134,6 +135,14 @@ it('shows the hours factor indicator only to whoever sees the payroll, not to th
 
     Livewire::test(TableroAlmacen::class)
         ->assertOk()
+        ->assertSee('Calculando lo que va del corte');
+
+    Livewire::withoutLazyLoading()->test(HoursFactorIndicator::class, ['tenantId' => $this->tenant->id])
         ->assertSee('Indicador factor de horas')
         ->assertSee('Horas con recargos (horas extras) a personal de producción');
+
+    // Y la pieza misma no le entrega nada a quien no ve la nómina.
+    $this->actingAs($this->bodeguero);
+    Livewire::withoutLazyLoading()->test(HoursFactorIndicator::class, ['tenantId' => $this->tenant->id])
+        ->assertDontSee('Indicador factor de horas');
 });

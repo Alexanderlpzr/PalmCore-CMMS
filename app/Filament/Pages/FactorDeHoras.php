@@ -11,6 +11,7 @@ use Filament\Facades\Filament;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Livewire\Attributes\Url;
 use Throwable;
 use UnitEnum;
@@ -149,9 +150,16 @@ class FactorDeHoras extends Page
         ];
     }
 
+    /** Cuánto se guarda el indicador de los tableros antes de volver a calcularlo. */
+    public const DASHBOARD_INDICATOR_MINUTES = 5;
+
     /**
      * El indicador de los tableros (TH-INF-F-002) de lo que va del corte hasta hoy, o null
      * para quien no ve la nómina: trae sueldos.
+     *
+     * Se guarda unos minutos por empresa y por día: recalcular el corte entero cuesta
+     * segundos en el servidor y los tableros se abren a cada rato. Lo que cambie en las
+     * horas aparece, a lo sumo, en `DASHBOARD_INDICATOR_MINUTES` minutos.
      *
      * @return array<string, mixed>|null
      */
@@ -162,14 +170,23 @@ class FactorDeHoras extends Page
         }
 
         $today = CarbonImmutable::now($tenant->plantTimezone())->toDateString();
-        $report = app(HoursFactorReport::class)->toDate($tenant, CarbonImmutable::parse($today));
 
-        return HoursFactorReport::excelRows($report) + [
-            'from' => $report['from'],
-            'until' => $report['until'],
-            'estimated' => $report['estimated'],
-            'url' => static::getUrl(['vista' => 'fecha', 'hasta' => $today]),
-        ];
+        $indicator = Cache::remember(
+            "indicador-factor-de-horas:{$tenant->getKey()}:{$today}",
+            now()->addMinutes(self::DASHBOARD_INDICATOR_MINUTES),
+            function () use ($tenant, $today): array {
+                $report = app(HoursFactorReport::class)->toDate($tenant, CarbonImmutable::parse($today));
+
+                return HoursFactorReport::excelRows($report) + [
+                    'from' => $report['from'],
+                    'until' => $report['until'],
+                    'estimated' => $report['estimated'],
+                    'calculatedAt' => CarbonImmutable::now($tenant->plantTimezone()),
+                ];
+            },
+        );
+
+        return $indicator + ['url' => static::getUrl(['vista' => 'fecha', 'hasta' => $today], tenant: $tenant)];
     }
 
     private function tenant(): Tenant

@@ -7,10 +7,12 @@ use App\Domain\HumanResources\Services\AttendanceDayBuilder;
 use App\Domain\HumanResources\Services\AttendanceService;
 use App\Domain\HumanResources\Services\HumanResourcesDashboard;
 use App\Domain\HumanResources\Services\PayrollParameterService;
+use App\Filament\Pages\FactorDeHoras;
 use App\Filament\Pages\TableroTalentoHumano;
 use App\Filament\Widgets\HumanResources\NoveltiesByTypeChart;
 use App\Filament\Widgets\HumanResources\OvertimeByGroupChart;
 use App\Infrastructure\Tenancy\CurrentTenant;
+use App\Livewire\HumanResources\HoursFactorIndicator;
 use App\Models\AttendanceDay;
 use App\Models\Employee;
 use App\Models\EmployeeNovelty;
@@ -20,6 +22,8 @@ use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\TenantRolesSeeder;
 use Filament\Facades\Filament;
+use Filament\Support\Facades\FilamentView;
+use Filament\View\PanelsRenderHook;
 use Illuminate\Support\Carbon;
 use Livewire\Livewire;
 use Spatie\Permission\PermissionRegistrar;
@@ -147,9 +151,14 @@ it('shows the hours factor indicator of human resources for what goes of the cut
         'worked_hours' => 9,
     ]);
 
+    // La página no espera el cálculo: muestra la silueta y el indicador llega después.
     Livewire::test(TableroTalentoHumano::class)
         ->assertOk()
+        ->assertSee('Calculando lo que va del corte');
+
+    Livewire::withoutLazyLoading()->test(HoursFactorIndicator::class, ['tenantId' => $this->tenant->id])
         ->assertSee('Indicador factor de horas · corte al 12/10/2026')
+        ->assertSee('Calculado a las')
         ->assertSee('Horas ordinarias pagadas a producción')
         ->assertSee('$ 2.100.000')
         ->assertSee('Horas con recargos (horas extras) a personal de producción')
@@ -157,6 +166,36 @@ it('shows the hours factor indicator of human resources for what goes of the cut
         ->assertSee('$ 2.125.000')
         ->assertSee('Total horas extras de producción y mantenimiento sin recargos')
         ->assertSee('$ 25.000');
+});
+
+it('keeps the indicator for a few minutes before recalculating it', function (): void {
+    $this->actingAs($this->rrhh);
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+    Filament::setTenant($this->tenant);
+
+    $operario = Employee::factory()->create(['tenant_id' => $this->tenant->id, 'area_specific' => 'procesos', 'base_salary' => 2_100_000, 'hire_date' => '2025-01-01']);
+    $dia = fn (string $fecha) => AttendanceDay::factory()->forEmployee($operario)->confirmed()->create(['work_date' => $fecha, 'ordinary_hours' => 7, 'overtime_day_hours' => 2, 'worked_hours' => 9]);
+    $extras = fn (): float => FactorDeHoras::dashboardIndicator($this->tenant)['overtimeTotal']['hours'];
+
+    $dia('2026-10-05');
+    expect($extras())->toBe(2.0);
+
+    // Otro día con extras: dentro de los cinco minutos sigue lo calculado.
+    $dia('2026-10-06');
+    expect($extras())->toBe(2.0);
+
+    $this->travel(FactorDeHoras::DASHBOARD_INDICATOR_MINUTES + 1)->minutes();
+    expect($extras())->toBe(4.0);
+});
+
+it('shows a thin loading bar when opening another page of the panel', function (): void {
+    $this->actingAs($this->rrhh);
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+    Filament::getPanel('admin')->boot();
+
+    expect((string) FilamentView::renderHook(PanelsRenderHook::BODY_END))
+        ->toContain('fronda-barra-carga')
+        ->toContain('prefers-reduced-motion');
 });
 
 it('is not for the maintenance administrator or the gate', function (): void {

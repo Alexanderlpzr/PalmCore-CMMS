@@ -158,7 +158,9 @@ class TableroTalentoHumano extends Page
             'cards' => $cards,
             'cutoff' => $canSeeHours ? $cutoff : null,
             'shortcuts' => $shortcuts,
-            'factor' => FactorDeHoras::dashboardIndicator($tenant),
+            // Se carga después de la página (HoursFactorIndicator): calcular el corte tarda.
+            'showFactor' => FactorDeHoras::canAccess(),
+            'tenantId' => $tenant->getKey(),
         ];
     }
 

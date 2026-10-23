@@ -421,7 +421,9 @@ class TableroAlmacen extends Page
             'movements' => $dashboard->recentMovements($tenant),
             'timezone' => $tenant->plantTimezone(),
             // El indicador de talento humano: solo para quien ve la nómina, no para la cuenta de almacén.
-            'factor' => FactorDeHoras::dashboardIndicator($tenant),
+            // Se carga después de la página (HoursFactorIndicator): calcular el corte tarda.
+            'showFactor' => FactorDeHoras::canAccess(),
+            'tenantId' => $tenant->getKey(),
         ];
     }
 

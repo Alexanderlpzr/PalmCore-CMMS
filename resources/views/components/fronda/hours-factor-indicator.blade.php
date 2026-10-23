@@ -23,6 +23,9 @@
 
     <x-slot name="description">
         Como el TH-INF-F-002 de Talento Humano: del {{ $factor['from']->format('d/m/Y') }} a hoy. Lo ordinario es el sueldo del mes de cada grupo, con las horas ordinarias trabajadas en el corte; «con recargos» suma recargos y horas extras, y «sin recargos» son solo las horas extras.
+        @if ($factor['calculatedAt'] ?? null)
+            <span class="text-gray-400 dark:text-gray-500">Calculado a las {{ $factor['calculatedAt']->format('g:i a') }}; se actualiza cada {{ \App\Filament\Pages\FactorDeHoras::DASHBOARD_INDICATOR_MINUTES }} minutos.</span>
+        @endif
         @if ($factor['estimated'])
             <span class="font-medium text-warning-600 dark:text-warning-400">Estimado: incluye horas sin confirmar.</span>
         @endif
