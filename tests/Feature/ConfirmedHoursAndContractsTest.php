@@ -233,7 +233,8 @@ it('gathers everything about a worker in the cutoff: days, meals, cost and novel
         ->and($resumen['totals']['meal_count'])->toBe(2)
         ->and($resumen['totals']['novelty_days'])->toBe(2)
         ->and($resumen['novelties'][0]['type'])->toBe('Vacaciones')
-        ->and($resumen['cost']['jornal'])->toEqual(100_000.0);
+        // El jornal es fijo: del 1 al 8 contratado, menos los dos de vacaciones, seis días.
+        ->and($resumen['cost']['jornal'])->toEqual(600_000.0);
 
     // Sin permiso para ver salarios, nada de pesos.
     expect(app(EmployeePeriodSummary::class)->for($this->employee, Carbon::parse('2026-10-01'), Carbon::parse('2026-10-31'))['cost'])->toBeNull();

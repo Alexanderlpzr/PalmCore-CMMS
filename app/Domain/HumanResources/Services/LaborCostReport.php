@@ -27,10 +27,12 @@ use Illuminate\Support\Collection;
  *
  * Tres conceptos, decididos con la empresa el 2026-10-15:
  *
- *  - **Jornal**: salario ÷ días del mes (30) por cada día en que la persona entró a la
- *    extractora —una entrada en portería o un día con horas—. Arranca en cero y crece con
- *    cada carné que se escanea (cambio pedido por la empresa el mismo 2026-10-15: antes
- *    sumaba a todo activo, marcara o no).
+ *  - **Jornal**: salario ÷ días del mes (30) por cada día en que la persona estuvo
+ *    contratada, entrara o no, domingos y festivos incluidos: es el costo fijo, el mismo
+ *    que liquida la nómina con corte (pedido por la empresa el 2026-10-23; del 15 al 23 de
+ *    octubre solo contó el día de quien entraba). El día de novedad sin entrada no es
+ *    jornal: va en novedades pagadas, o en nada si no es remunerada —la ausencia no
+ *    justificada y el permiso no remunerado descuentan el día—.
  *  - **Recargos y horas extras**: las horas del reloj valoradas como en la nómina,
  *    salario ÷ divisor × factor. Cuentan también las propuestas sin confirmar y el turno
  *    que sigue abierto (hasta ahora), y por eso esas cifras van marcadas «estimado».
@@ -93,7 +95,7 @@ class LaborCostReport
 
     /**
      * @return array{
-     *     rows: list<array{employee_id: string, code: ?string, name: string, position: ?string, area: string, area_label: string, days: int, present: int, inside: bool, without_salary: bool, jornal: float, novelties: float, novelty_days: int, reimbursed: float, surcharges: float, surcharge_hours: float, overtime: float, overtime_hours: float, meals: float, meal_count: int, total: float, estimated: bool}>,
+     *     rows: list<array{employee_id: string, code: ?string, name: string, position: ?string, area: string, area_label: string, days: int, present: int, inside: bool, without_salary: bool, jornal: float, day_value: float, novelties: float, novelty_days: int, reimbursed: float, surcharges: float, surcharge_hours: float, overtime: float, overtime_hours: float, meals: float, meal_count: int, total: float, estimated: bool}>,
      *     areas: array<string, array{label: string, color: string, people: int, jornal: float, novelties: float, surcharges: float, overtime: float, meals: float, total: float}>,
      *     totals: array{people: int, present: int, inside: int, without_salary: int, jornal: float, novelties: float, novelty_days: int, reimbursed: float, surcharges: float, surcharge_hours: float, overtime: float, overtime_hours: float, meals: float, meal_count: int, total: float},
      *     entries: list<array{employee_id: string, name: string, area: string, area_label: string, at: CarbonImmutable, jornal: float, inside: bool}>,
@@ -128,15 +130,15 @@ class LaborCostReport
         $this->addMeals($rows, $tenant->id, $from, $to, $now);
         $this->addNovelties($rows, $employees, $tenant->id, $from, $to);
 
-        $all = collect($rows)->map(function (array $row) use ($employees, $tenant): array {
+        $all = collect($rows)->map(function (array $row) use ($employees, $tenant, $from, $to): array {
             $row = $this->chargeNovelties($row, $employees[$row['employee_id']], $tenant->id);
-            $row = $this->chargeJornal($row, $employees[$row['employee_id']], $tenant->id);
+            $row = $this->chargeJornal($row, $employees[$row['employee_id']], $tenant->id, $from, $to);
             $row['total'] = round($row['jornal'] + $row['novelties'] + $row['surcharges'] + $row['overtime'] + $row['meals'], 2);
 
             return $row;
         });
 
-        // En las tablas y las tortas, solo quien ya costó algo: quien no ha entrado vale cero.
+        // En las tablas y las tortas, solo quien costó algo: el que no tenía contrato no.
         $rows = $all
             ->filter(fn (array $row): bool => $row['present'] > 0 || $row['total'] > 0)
             ->sortByDesc('total')
@@ -163,7 +165,7 @@ class LaborCostReport
                 'total' => round($rows->sum('total'), 2),
             ],
             'entries' => array_map(fn (array $entry): array => $entry + [
-                'jornal' => $all[$entry['employee_id']]['jornal'] / max(1, $all[$entry['employee_id']]['present']),
+                'jornal' => $all[$entry['employee_id']]['day_value'],
                 'inside' => $all[$entry['employee_id']]['inside'],
             ], $entries),
             'estimated' => $rows->contains('estimated', true),
@@ -294,23 +296,37 @@ class LaborCostReport
     }
 
     /**
-     * Salario ÷ días del mes por cada día en que entró. El día cuenta una vez, aunque haya
-     * entrado y salido varias veces.
+     * Salario ÷ días del mes por cada día del rango en que estuvo contratado. El día de
+     * novedad en que no entró no es jornal: ya lo cuentan las novedades pagadas, y el de la
+     * no remunerada no se paga.
      *
      * @param  array<string, mixed>  $row
      * @return array<string, mixed>
      */
-    private function chargeJornal(array $row, Employee $employee, string $tenantId): array
+    private function chargeJornal(array $row, Employee $employee, string $tenantId, CarbonImmutable $from, CarbonImmutable $to): array
     {
         $salary = (float) $employee->base_salary;
+        $hired = $employee->hire_date?->toDateString();
+        $terminated = $employee->termination_date?->toDateString();
 
-        foreach (array_keys($row['present_dates']) as $date) {
+        foreach (CarbonPeriod::create($from, $to) as $day) {
+            $date = $day->toDateString();
+
+            if (($hired !== null && $date < $hired) || ($terminated !== null && $date > $terminated)) {
+                continue;
+            }
+
+            if (isset($row['novelty_dates'][$date]) && ! isset($row['present_dates'][$date])) {
+                continue;
+            }
+
             $row['jornal'] += $salary / $this->parameter(PayrollParameter::MonthDays, CarbonImmutable::parse($date), $tenantId);
         }
 
         $row['jornal'] = round($row['jornal'], 2);
+        $row['day_value'] = round($salary / $this->parameter(PayrollParameter::MonthDays, $to, $tenantId), 2);
         $row['present'] = count($row['present_dates']);
-        unset($row['present_dates']);
+        unset($row['present_dates'], $row['novelty_dates']);
 
         return $row;
     }
@@ -402,7 +418,6 @@ class LaborCostReport
 
         $row['novelties'] = round($row['novelties'], 2);
         $row['reimbursed'] = round($row['reimbursed'], 2);
-        unset($row['novelty_dates']);
 
         return $row;
     }

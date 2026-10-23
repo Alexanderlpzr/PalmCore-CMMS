@@ -24,7 +24,8 @@ use Livewire\Livewire;
 use Spatie\Permission\PermissionRegistrar;
 
 /*
- * El tablero «Costo de personal»: jornal (salario ÷ 30) por cada día que la persona entró;
+ * El tablero «Costo de personal»: jornal (salario ÷ 30) por cada día contratado, entre o no
+ * —el costo fijo, como lo liquida la nómina; pedido el 2026-10-23—;
  * recargos y extras valorados como en la nómina, con lo sin confirmar como estimado; y
  * alimentación. Acumulado del corte del 27 al 26.
  *
@@ -103,7 +104,7 @@ function filaDe(array $informe, Employee $trabajador): array
     return collect($informe['rows'])->firstWhere('employee_id', $trabajador->id);
 }
 
-it('starts the day at zero while nobody has come in', function (): void {
+it('charges the fixed daily wage of everyone hired, before anybody comes in', function (): void {
     Employee::factory()->create([
         'tenant_id' => $this->tenant->id,
         'base_salary' => 2_000_000,
@@ -113,25 +114,27 @@ it('starts the day at zero while nobody has come in', function (): void {
 
     $informe = app(LaborCostReport::class)->forRange($this->tenant, Carbon::parse('2026-10-13'), Carbon::parse('2026-10-13'));
 
-    // Dos en nómina —el retirado no cuenta—, ninguno entró: nada cuesta todavía.
+    // Dos en nómina —el retirado no cuenta—, ninguno entró: el día ya cuesta sus jornales,
+    // 3.000.000 ÷ 30 de Ana y 1.500.000 ÷ 30 de Beto.
     expect($informe['totals']['people'])->toBe(2)
         ->and($informe['totals']['present'])->toBe(0)
-        ->and($informe['totals']['total'])->toEqual(0.0)
-        ->and($informe['rows'])->toBe([])
-        ->and($informe['areas'])->toBe([])
+        ->and($informe['totals']['jornal'])->toEqual(150_000.0)
+        ->and($informe['totals']['total'])->toEqual(150_000.0)
+        ->and($informe['rows'])->toHaveCount(2)
+        ->and($informe['areas'])->toHaveKeys(['procesos', 'mantenimiento'])
         ->and($informe['entries'])->toBe([]);
 });
 
-it('charges the daily wage only of whoever comes in, as they come in', function (): void {
+it('lists who comes in without changing the fixed cost', function (): void {
     app(AttendanceService::class)->record($this->carneAna, at: Carbon::parse('2026-10-14 06:10', 'America/Bogota')->utc());
 
     $informe = app(LaborCostReport::class)->forRange($this->tenant, Carbon::parse('2026-10-14'), Carbon::parse('2026-10-14'));
 
-    // Ana entró: su jornal (3.000.000 ÷ 30). Beto no ha llegado: no cuesta.
+    // Ana entró y Beto no ha llegado: los dos jornales cuentan igual. La entrada es asistencia
+    // y lleva el valor del día de Ana (3.000.000 ÷ 30).
     expect($informe['totals']['present'])->toBe(1)
-        ->and($informe['totals']['jornal'])->toEqual(100_000.0)
-        ->and($informe['areas'])->toHaveKeys(['procesos'])
-        ->and($informe['areas'])->not->toHaveKey('mantenimiento')
+        ->and($informe['totals']['jornal'])->toEqual(150_000.0)
+        ->and($informe['areas'])->toHaveKeys(['procesos', 'mantenimiento'])
         ->and($informe['entries'])->toHaveCount(1)
         ->and($informe['entries'][0]['name'])->toBe($this->ana->fullName())
         ->and($informe['entries'][0]['at']->format('H:i'))->toBe('06:10')
@@ -185,7 +188,7 @@ it('counts whoever is still inside up to now', function (): void {
         ->and($informe['totals']['inside'])->toBe(1);
 });
 
-it('accumulates the cutoff from the 27th, one daily wage per day each person came in', function (): void {
+it('accumulates the cutoff from the 27th, one daily wage per day hired, came in or not', function (): void {
     $this->beto->update(['hire_date' => '2026-10-10']);
     $carneBeto = EmployeeQrCode::factory()->forEmployee($this->beto)->create();
 
@@ -201,10 +204,12 @@ it('accumulates the cutoff from the 27th, one daily wage per day each person cam
 
     expect(filaDe($informe, $this->ana)['days'])->toBe(18)
         ->and(filaDe($informe, $this->ana)['present'])->toBe(3)
-        ->and(filaDe($informe, $this->ana)['jornal'])->toEqual(300_000.0)
+        // Los 18 días del 27/09 al 14/10, aunque solo entró tres.
+        ->and(filaDe($informe, $this->ana)['jornal'])->toEqual(1_800_000.0)
         ->and(filaDe($informe, $this->beto)['days'])->toBe(5)
         ->and(filaDe($informe, $this->beto)['present'])->toBe(1)
-        ->and(filaDe($informe, $this->beto)['jornal'])->toEqual(50_000.0);
+        // Desde que lo contrataron, el 10/10: cinco días.
+        ->and(filaDe($informe, $this->beto)['jornal'])->toEqual(250_000.0);
 });
 
 it('shows the dashboard to human resources, by day and by cutoff', function (): void {
@@ -224,20 +229,23 @@ it('shows the dashboard to human resources, by day and by cutoff', function (): 
         ->assertSee('Horas extras y recargos por área')
         ->assertSee('Alimentación por área')
         ->assertSee('Procesos')
-        // Beto no entró el 13: mantenimiento no costó nada ese día.
-        ->assertDontSee('Beto')
+        // Beto no entró el 13, pero su jornal cuenta: mantenimiento también costó.
+        ->assertSee('Beto')
+        ->assertSee('salario ÷ 30 por día contratado')
         ->set('vista', 'corte')
         ->assertOk()
         ->assertSee('Del 27/09 al 13/10')
         // El futuro no cuesta todavía: un día después de hoy vuelve a hoy.
         ->set('fecha', '2026-10-20')
         ->assertSet('fecha', '2026-10-14')
-        // Hoy nadie ha entrado: el día arranca en cero, sin tortas, y se refresca solo.
+        // Hoy nadie ha entrado: el día ya cuesta sus jornales, por área, y se refresca solo.
         ->set('vista', 'dia')
-        ->assertSee('El día arranca en $ 0')
+        ->assertSee('Lo que cuesta hoy')
+        ->assertDontSee('El día arranca en $ 0')
         ->assertSee('Todavía no ha entrado nadie')
         ->assertSee('En vivo')
-        ->assertDontSee('Costo por área');
+        ->assertSee('Por área')
+        ->assertSee('Mantenimiento');
 });
 
 it('shows only overtime and surcharges when asked, without the fixed cost', function (): void {
@@ -306,12 +314,14 @@ it('charges the paid novelty days of whoever did not come, with what EPS or ARL 
         ->and($ana['novelty_days'])->toBe(4)
         ->and($ana['reimbursed'])->toEqualWithDelta(133_333.33, 0.01)
         ->and($ana['jornal'])->toEqual(100_000.0)
-        // Caro: el día del accidente lo pone la empresa; el permiso no remunerado no suma.
+        // Caro: el día del accidente lo pone la empresa; el permiso no remunerado no suma ni
+        // es jornal. Sus jornales son el 1 y el 2.
         ->and($carolina['novelties'])->toEqual(160_000.0)
+        ->and($carolina['jornal'])->toEqual(160_000.0)
         ->and($carolina['reimbursed'])->toEqual(80_000.0)
         ->and($informe['totals']['novelties'])->toEqual(810_000.0)
         ->and($informe['totals']['reimbursed'])->toEqualWithDelta(463_333.33, 0.01)
-        ->and($informe['totals']['total'])->toEqual(910_000.0 + $ana['meals'] + $ana['surcharges'] + $ana['overtime'])
+        ->and($informe['totals']['total'])->toEqual(1_070_000.0 + $ana['meals'] + $ana['surcharges'] + $ana['overtime'])
         ->and($informe['areas']['mantenimiento']['novelties'])->toEqual(250_000.0);
 
     // Las novedades son costo fijo: «solo extras y recargos» no las cuenta.
@@ -325,7 +335,7 @@ it('charges the paid novelty days of whoever did not come, with what EPS or ARL 
     Filament::setCurrentPanel(Filament::getPanel('admin'));
     Filament::setTenant($this->tenant);
 
-    // El día de hoy no arranca en cero: Beto sigue incapacitado.
+    // Beto sigue incapacitado hoy: su día va en novedades pagadas.
     Livewire::test(CostoDePersonal::class)
         ->assertOk()
         ->assertSee('Novedades pagadas')

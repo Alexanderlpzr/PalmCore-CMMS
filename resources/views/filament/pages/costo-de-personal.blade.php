@@ -76,7 +76,7 @@
         {{-- La cifra del día, con quiénes van entrando contra los que están en nómina. --}}
         <x-fronda.hero
             class="lg:col-span-2"
-            :label="$soloExtras ? ($enVivo ? 'Extras y recargos de hoy' : 'Extras y recargos del '.$fechaLarga) : ($enVivo ? 'Lo que va costando hoy' : 'Costo del '.$fechaLarga)"
+            :label="$soloExtras ? ($enVivo ? 'Extras y recargos de hoy' : 'Extras y recargos del '.$fechaLarga) : ($enVivo ? 'Lo que cuesta hoy' : 'Costo del '.$fechaLarga)"
             :value="round($dia['totals']['total'])"
             prefix="$ "
             :badge="$dia['estimated'] ? 'Estimado' : null"
@@ -102,7 +102,7 @@
             </x-slot>
         </x-fronda.hero>
 
-        {{-- Quién va entrando: cada fila es un jornal que se encendió. --}}
+        {{-- Quién va entrando: la asistencia del día; el jornal ya cuenta desde el contrato. --}}
         {{-- Todas las entradas: se ven unas seis y el resto con scroll, con buscador. --}}
         <div x-data="{ q: '', norm(t) { return (t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() }, hay(el) { return ! this.q || el.dataset.buscar.includes(this.norm(this.q)) } }" class="flex flex-col self-start rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-white/10 dark:bg-gray-900">
             <div class="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-white/5">
@@ -139,9 +139,6 @@
                         <p class="text-xs text-gray-500 dark:text-gray-400">{{ $entrada['area_label'] }} · {{ $entrada['at']->format('g:i a') }}</p>
                     </div>
                     <div class="text-right">
-                        @unless ($soloExtras)
-                            <p class="whitespace-nowrap text-sm font-semibold tabular-nums text-success-600 dark:text-success-400">+ {{ $pesos($entrada['jornal']) }}</p>
-                        @endunless
                         @if ($entrada['inside'])
                             <p class="text-xs text-gray-500 dark:text-gray-400">adentro</p>
                         @endif
@@ -153,7 +150,7 @@
                         <x-filament::icon icon="heroicon-o-qr-code" class="h-6 w-6 text-gray-400" />
                     </span>
                     <p class="text-sm font-medium text-gray-950 dark:text-white">{{ $enVivo ? 'Todavía no ha entrado nadie' : 'Nadie entró este día' }}</p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">Cada carné que se escanea en portería aparece aquí y enciende su jornal.</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Cada carné que se escanea en portería aparece aquí.</p>
                 </div>
             @endforelse
             </div>
@@ -166,14 +163,14 @@
 
     @if ($informe['totals']['without_salary'] > 0)
         <div class="rounded-lg border border-danger-300 bg-danger-50 px-4 py-2 text-sm text-danger-700 dark:border-danger-500/40 dark:bg-danger-500/10 dark:text-danger-300">
-            {{ $informe['totals']['without_salary'] }} {{ $informe['totals']['without_salary'] === 1 ? 'persona que entró no tiene' : 'personas que entraron no tienen' }} salario: su jornal y sus extras cuentan en cero. Cárguelo en su ficha en «Personal».
+            {{ $informe['totals']['without_salary'] }} {{ $informe['totals']['without_salary'] === 1 ? 'persona no tiene' : 'personas no tienen' }} salario: su jornal y sus extras cuentan en cero. Cárguelo en su ficha en «Personal».
         </div>
     @endif
 
     {{-- Los conceptos de la vista elegida, con la parte del total que se lleva cada uno. --}}
     <div @class(['grid grid-cols-2 gap-3', 'sm:grid-cols-3 lg:grid-cols-5' => ! $soloExtras])>
         @foreach (array_filter([
-            ['key' => 'jornal', 'detail' => $informe['totals']['present'].' '.($informe['totals']['present'] === 1 ? 'persona' : 'personas').' · salario ÷ 30 por día que entró'],
+            ['key' => 'jornal', 'detail' => $informe['totals']['people'].' '.($informe['totals']['people'] === 1 ? 'persona' : 'personas').' · salario ÷ 30 por día contratado'],
             ['key' => 'novelties', 'detail' => $informe['totals']['novelty_days'].' '.($informe['totals']['novelty_days'] === 1 ? 'día' : 'días').' de incapacidad, permiso o vacaciones'.($informe['totals']['reimbursed'] > 0 ? ' · EPS/ARL reembolsan '.$pesos($informe['totals']['reimbursed']) : '')],
             ['key' => 'surcharges', 'detail' => $horas($informe['totals']['surcharge_hours']).' h nocturnas y dominicales'],
             ['key' => 'overtime', 'detail' => $horas($informe['totals']['overtime_hours']).' h extras'],
@@ -200,7 +197,7 @@
             @if ($soloExtras)
                 Aparecen cuando alguien pasa de su jornada o trabaja de noche o en domingo: al marcar la salida, o en vivo para quien sigue adentro{{ $enVivo ? '. Esta pantalla se actualiza sola' : '' }}.
             @else
-                El costo crece con cada carné que se escanea en portería: el jornal de quien entra, sus recargos y horas extras, y sus comidas. Las tortas por área aparecen con la primera entrada{{ $enVivo ? ', y esta pantalla se actualiza sola' : '' }}.
+                El costo del día es el jornal de quien está contratado, y las marcas de portería le suman los recargos, las horas extras y las comidas{{ $enVivo ? '. Esta pantalla se actualiza sola' : '' }}.
             @endif
         </x-fronda.empty-state>
     @else
@@ -382,6 +379,6 @@
     @endif
 
     <p class="text-xs text-gray-500 dark:text-gray-400">
-        Costo directo: no incluye prestaciones sociales, aportes patronales ni parafiscales. El jornal cuenta desde que la persona entra a la extractora (salario ÷ 30 por cada día que entró). Los días de incapacidad, permiso autorizado, calamidad o vacaciones de quien no vino suman como los paga la nómina; lo que después reembolsan la EPS o la ARL se muestra aparte y no se descuenta. Los recargos y las extras se valoran como en la nómina (salario ÷ divisor × factor) e incluyen horas sin confirmar.
+        Costo directo: no incluye prestaciones sociales, aportes patronales ni parafiscales. El jornal es el costo fijo, como lo liquida la nómina: salario ÷ 30 por cada día contratado, entre o no, domingos y festivos incluidos; la ausencia no justificada y el permiso no remunerado lo descuentan. Los días de incapacidad, permiso autorizado, calamidad o vacaciones de quien no vino suman como los paga la nómina; lo que después reembolsan la EPS o la ARL se muestra aparte y no se descuenta. Los recargos y las extras se valoran como en la nómina (salario ÷ divisor × factor) e incluyen horas sin confirmar.
     </p>
 </x-filament-panels::page>
