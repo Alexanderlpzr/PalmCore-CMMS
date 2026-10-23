@@ -168,6 +168,28 @@ it('shows the hours factor indicator of human resources for what goes of the cut
         ->assertSee('$ 25.000');
 });
 
+it('loads the indicator after the page, as the browser asks for it', function (): void {
+    $this->actingAs($this->rrhh);
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+    Filament::setTenant($this->tenant);
+
+    $pieza = Livewire::test(HoursFactorIndicator::class, ['tenantId' => $this->tenant->id])
+        ->assertSee('Calculando lo que va del corte');
+
+    // El navegador pide la pieza con lo que trae la silueta («$wire.__lazyLoad('…')»).
+    preg_match("/__lazyLoad\((?:'|&#039;)([A-Za-z0-9+\/=]+)/", $pieza->html(), $carga);
+
+    // Esa petición llega sin la empresa, sin el panel y sin el equipo de permisos que
+    // pone el arranque del panel: así fallaba en producción.
+    CurrentTenant::clear();
+    Filament::setTenant(null, isQuiet: true);
+    setPermissionsTeamId(null);
+    app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+    $pieza->call('__lazyLoad', $carga[1])
+        ->assertSee('Indicador factor de horas · corte al 12/10/2026');
+});
+
 it('keeps the indicator for a few minutes before recalculating it', function (): void {
     $this->actingAs($this->rrhh);
     Filament::setCurrentPanel(Filament::getPanel('admin'));
