@@ -121,8 +121,12 @@ class AppServiceProvider extends ServiceProvider
             return;
         }
 
+        // Sin el esquema («//fronda.app/build/…»): la dirección se arma al arrancar, con
+        // APP_URL —que en producción es http—, y la página va por https. Con «http://» el
+        // navegador la bloqueaba por la política de seguridad (CSP) y las tortas se
+        // quedaban sin sus valores.
         FilamentAsset::register([
-            Js::make('chart-js-plugins', Vite::asset(self::CHART_PLUGINS_ENTRY))->module(),
+            Js::make('chart-js-plugins', preg_replace('#^https?:#', '', Vite::asset(self::CHART_PLUGINS_ENTRY)))->module(),
         ]);
     }
 

@@ -377,6 +377,15 @@ class LaborCostReport
             ->keyBy('employee_id')
             ->filter(fn (AttendanceScan $scan): bool => $scan->direction === AttendanceDirection::Entrada);
 
+        // Los días que ya se armaron con horas, de una vez y no uno por uno.
+        $built = AttendanceDay::query()
+            ->forTenant($tenantId)
+            ->whereIn('employee_id', $lastScans->keys()->all())
+            ->between($now->subHours(AttendanceService::MAX_OPEN_SHIFT_HOURS)->toDateString(), $now->toDateString())
+            ->where('worked_hours', '>', 0)
+            ->get(['employee_id', 'work_date'])
+            ->mapWithKeys(fn (AttendanceDay $day): array => [$day->employee_id.'|'.$day->work_date->toDateString() => true]);
+
         foreach ($lastScans as $employeeId => $scan) {
             $entry = CarbonImmutable::instance($scan->scanned_at)->setTimezone($now->getTimezone());
             $workDate = CarbonImmutable::parse($entry->toDateString());
@@ -389,14 +398,7 @@ class LaborCostReport
             $row['inside'] = true;
             $row['estimated'] = true;
 
-            $alreadyBuilt = AttendanceDay::query()
-                ->forTenant($tenantId)
-                ->where('employee_id', $employeeId)
-                ->whereDate('work_date', $workDate->toDateString())
-                ->where('worked_hours', '>', 0)
-                ->exists();
-
-            if (! $alreadyBuilt) {
+            if (! $built->has($employeeId.'|'.$workDate->toDateString())) {
                 $row['present_dates'][$workDate->toDateString()] = true;
 
                 try {

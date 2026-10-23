@@ -138,20 +138,28 @@ class HumanResourcesDashboard
             ->with('employee:id,area_specific')
             ->get();
 
+        $windows = [];
+
         foreach ($ranges as $index => $range) {
             [$from, $to] = explode('|', $range);
             $labels[] = 'Al '.CarbonImmutable::parse($to)->format('d/m');
+            $windows[$index] = [$from, $to, CarbonImmutable::parse($from)];
+        }
 
-            foreach ($days as $day) {
-                $date = $day->work_date->toDateString();
+        // Una pasada por los días: cada uno cae en su corte (antes, una pasada por corte).
+        foreach ($days as $day) {
+            $date = $day->work_date->toDateString();
 
+            foreach ($windows as $index => [$from, $to, $start]) {
                 if ($date < $from || $date > $to) {
                     continue;
                 }
 
-                $group = $day->maintenance_support ? 'apoyo_mantenimiento' : HoursFactorReport::groupOf($day->employee?->area_specific, CarbonImmutable::parse($from));
+                $group = $day->maintenance_support ? 'apoyo_mantenimiento' : HoursFactorReport::groupOf($day->employee?->area_specific, $start);
                 $groups[$group] ??= array_fill(0, count($ranges), 0.0);
-                $groups[$group][$index] += $this->sum(collect([$day]), self::OVERTIME_COLUMNS);
+                $groups[$group][$index] += array_sum(array_map(fn (string $column): float => (float) $day->{$column}, self::OVERTIME_COLUMNS));
+
+                break;
             }
         }
 

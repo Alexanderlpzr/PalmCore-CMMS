@@ -25,6 +25,15 @@ class PayrollParameterService
     /** Memo por petición: la liquidación de 48 empleados pide el mismo divisor 48 veces. */
     private array $cache = [];
 
+    /**
+     * Todas las vigencias de cada empresa, leídas una vez: un informe del corte pregunta
+     * por cada parámetro en cada día —cientos de veces— y antes cada pregunta era una
+     * consulta (unas 500 por informe, la mayor parte de los 4 segundos del tablero).
+     *
+     * @var array<string, array<string, list<array{from: string, to: ?string, value: float}>>>
+     */
+    private array $versions = [];
+
     // ── Lectura ───────────────────────────────────────────────────────────────
 
     /**
@@ -42,18 +51,43 @@ class PayrollParameterService
             return $this->cache[$key];
         }
 
-        $value = PayrollParameterVersion::query()
-            ->forTenant($tenantId)
-            ->where('key', $parameter->value)
-            ->effectiveOn($date)
-            ->orderByDesc('effective_from')
-            ->value('value');
+        // La más reciente que rige ese día, como `effectiveOn()` ordenado por la fecha de inicio.
+        $day = $date->toDateString();
+        $value = null;
+
+        foreach ($this->versionsOf($tenantId)[$parameter->value] ?? [] as $version) {
+            if ($version['from'] <= $day && ($version['to'] === null || $version['to'] >= $day)) {
+                $value = $version['value'];
+
+                break;
+            }
+        }
 
         if ($value === null) {
             throw PayrollParameterException::missing($parameter, $date);
         }
 
         return $this->cache[$key] = (float) $value;
+    }
+
+    /**
+     * Las vigencias de la empresa por clave, de la más reciente a la más antigua.
+     *
+     * @return array<string, list<array{from: string, to: ?string, value: float}>>
+     */
+    private function versionsOf(string $tenantId): array
+    {
+        return $this->versions[$tenantId] ??= PayrollParameterVersion::query()
+            ->forTenant($tenantId)
+            ->orderByDesc('effective_from')
+            ->get(['key', 'value', 'effective_from', 'effective_to'])
+            ->groupBy('key')
+            ->map(fn ($rows): array => $rows->map(fn (PayrollParameterVersion $row): array => [
+                'from' => $row->effective_from->toDateString(),
+                'to' => $row->effective_to?->toDateString(),
+                'value' => (float) $row->value,
+            ])->values()->all())
+            ->all();
     }
 
     /**
@@ -108,6 +142,17 @@ class PayrollParameterService
         ));
     }
 
+    /**
+     * Olvida las vigencias leídas. Para quien escribe parámetros dentro de una transacción
+     * que luego deshace —el plan de un comando—: si no, lo deshecho seguiría rigiendo en
+     * memoria.
+     */
+    public function forget(): void
+    {
+        $this->cache = [];
+        $this->versions = [];
+    }
+
     // ── Escritura ─────────────────────────────────────────────────────────────
 
     /**
@@ -149,6 +194,7 @@ class PayrollParameterService
                 $sameDay->update(['value' => $value, 'notes' => $notes, 'created_by' => $userId]);
 
                 $this->cache = [];
+                $this->versions = [];
 
                 return $sameDay;
             }
@@ -160,6 +206,7 @@ class PayrollParameterService
                 ->update(['effective_to' => $from->copy()->subDay()->toDateString()]);
 
             $this->cache = [];
+            $this->versions = [];
 
             return PayrollParameterVersion::create([
                 'tenant_id' => $tenantId,
@@ -205,6 +252,7 @@ class PayrollParameterService
         }
 
         $this->cache = [];
+        $this->versions = [];
 
         return $created;
     }

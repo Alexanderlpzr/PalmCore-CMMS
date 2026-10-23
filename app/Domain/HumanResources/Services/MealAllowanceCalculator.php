@@ -40,6 +40,9 @@ class MealAllowanceCalculator
     /** Las comidas que se pagan con el valor de merienda. */
     public const SNACKS = ['merienda', 'merienda_nocturna'];
 
+    /** @var array<string, list<array{0: string, 1: int, 2: int}>> las franjas por día, ya calculadas */
+    private array $windows = [];
+
     public function __construct(private readonly PayrollParameterService $parameters) {}
 
     /**
@@ -149,8 +152,37 @@ class MealAllowanceCalculator
         $hour = $entry->hour + $entry->minute / 60;
         $isNight = $hour >= $nightFrom || $hour < 4;
         // El nocturno que entró pasada la medianoche pertenece a la noche anterior.
-        $base = $isNight && $hour < 4 ? $day->subDay() : $day;
+        $nightBefore = $isNight && $hour < 4;
+        $entryAt = $entry->getTimestamp();
+        $exitAt = $exit->getTimestamp();
+        $meals = [];
 
+        foreach ($this->windows($day, $isNight, $nightBefore, $tenantId) as [$meal, $start, $end]) {
+            // «Cobijar»: estar trabajando en algún momento de la franja.
+            if ($entryAt < $end && $exitAt > $start) {
+                $meals[] = $meal;
+            }
+        }
+
+        return $meals;
+    }
+
+    /**
+     * Las franjas de comida de un turno que empieza ese día, como instantes. Son las mismas
+     * para todos los que trabajan ese día: se calculan una vez y no por cada turno —un
+     * corte trae más de mil—.
+     *
+     * @return list<array{0: string, 1: int, 2: int}>
+     */
+    private function windows(CarbonImmutable $day, bool $isNight, bool $nightBefore, string $tenantId): array
+    {
+        $key = $tenantId.'|'.$day->toDateString().'|'.(int) $isNight.'|'.(int) $nightBefore;
+
+        if (isset($this->windows[$key])) {
+            return $this->windows[$key];
+        }
+
+        $base = $nightBefore ? $day->subDay() : $day;
         $windows = $isNight
             ? [
                 'cena' => [$base, PayrollParameter::MealDinnerStart, PayrollParameter::MealDinnerEnd],
@@ -163,19 +195,17 @@ class MealAllowanceCalculator
                 'merienda' => [$base, PayrollParameter::MealSnackStart, PayrollParameter::MealSnackEnd],
             ];
 
-        $meals = [];
+        $result = [];
 
         foreach ($windows as $meal => [$date, $startKey, $endKey]) {
-            $start = $date->addMinutes((int) round($this->value($startKey, $day, $tenantId) * 60));
-            $end = $date->addMinutes((int) round($this->value($endKey, $day, $tenantId) * 60));
-
-            // «Cobijar»: estar trabajando en algún momento de la franja.
-            if ($entry->lessThan($end) && $exit->greaterThan($start)) {
-                $meals[] = $meal;
-            }
+            $result[] = [
+                $meal,
+                $date->addMinutes((int) round($this->value($startKey, $day, $tenantId) * 60))->getTimestamp(),
+                $date->addMinutes((int) round($this->value($endKey, $day, $tenantId) * 60))->getTimestamp(),
+            ];
         }
 
-        return $meals;
+        return $this->windows[$key] = $result;
     }
 
     /**
