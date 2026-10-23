@@ -242,14 +242,30 @@ it('agrupa por área, cargo o estado sin agrupar por omisión', function (): voi
         ->and($table->getDefaultGroup())->toBeNull();
 });
 
-it('filtra por área general', function (): void {
+it('filtra por producción, mantenimiento, administrativo y MOPE', function (): void {
     personalUser('talento-humano', $this->tenant);
 
-    $this->operario->forceFill(['area' => 'operativo'])->save();
-    $administrativo = Employee::factory()->create(['tenant_id' => $this->tenant->id, 'area' => 'administrativo']);
+    $this->operario->forceFill(['area_specific' => 'procesos'])->save();
+    $laboratorio = Employee::factory()->create(['tenant_id' => $this->tenant->id, 'area_specific' => 'laboratorio']);
+    $mecanico = Employee::factory()->create(['tenant_id' => $this->tenant->id, 'area_specific' => 'mantenimiento']);
+    $administrativo = Employee::factory()->create(['tenant_id' => $this->tenant->id, 'area_specific' => 'administrativo']);
+    $mope = Employee::factory()->create(['tenant_id' => $this->tenant->id, 'area_specific' => 'mope']);
 
+    expect(Livewire::test(ListEmployees::class)->instance()->getTable()->getFilter('area')->getOptions())
+        ->toBe(['produccion' => 'Producción', 'mantenimiento' => 'Mantenimiento', 'administrativo' => 'Administrativo', 'mope' => 'MOPE']);
+
+    // Producción junta procesos con laboratorio, calidad y oficios varios.
     Livewire::test(ListEmployees::class)
+        ->filterTable('area', 'produccion')
+        ->assertCanSeeTableRecords([$this->operario, $laboratorio])
+        ->assertCanNotSeeTableRecords([$mecanico, $administrativo, $mope])
+        ->filterTable('area', 'mantenimiento')
+        ->assertCanSeeTableRecords([$mecanico])
+        ->assertCanNotSeeTableRecords([$this->operario, $mope])
         ->filterTable('area', 'administrativo')
         ->assertCanSeeTableRecords([$administrativo])
-        ->assertCanNotSeeTableRecords([$this->operario]);
+        ->assertCanNotSeeTableRecords([$this->operario, $mecanico])
+        ->filterTable('area', 'mope')
+        ->assertCanSeeTableRecords([$mope])
+        ->assertCanNotSeeTableRecords([$mecanico, $administrativo]);
 });

@@ -68,6 +68,20 @@ final class EmployeeProfileOptions
         'administrativo' => 'Administrativo',
     ];
 
+    /**
+     * Las cuatro áreas con que talento humano filtra el personal, armadas con el área
+     * específica de la ficha. Producción junta procesos, laboratorio, calidad y oficios
+     * varios, como el informe factor de horas.
+     *
+     * @var array<string, array{label: string, specific: list<string>}>
+     */
+    public const AREA_GROUPS = [
+        'produccion' => ['label' => 'Producción', 'specific' => ['procesos', 'laboratorio', 'calidad', 'oficios_varios']],
+        'mantenimiento' => ['label' => 'Mantenimiento', 'specific' => ['mantenimiento']],
+        'administrativo' => ['label' => 'Administrativo', 'specific' => ['administrativo']],
+        'mope' => ['label' => 'MOPE', 'specific' => ['mope']],
+    ];
+
     /** @var list<string> */
     public const GARMENT_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
 

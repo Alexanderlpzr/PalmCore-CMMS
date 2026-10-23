@@ -177,7 +177,10 @@ class EmployeesTable
 
                 SelectFilter::make('area')
                     ->label('Área')
-                    ->options(Options::AREAS),
+                    ->options(array_map(fn (array $group): string => $group['label'], Options::AREA_GROUPS))
+                    ->query(fn (Builder $query, array $data): Builder => isset(Options::AREA_GROUPS[$data['value'] ?? ''])
+                        ? $query->whereIn('area_specific', Options::AREA_GROUPS[$data['value']]['specific'])
+                        : $query),
 
                 SelectFilter::make('area_specific')
                     ->label('Área específica')
