@@ -171,22 +171,30 @@ class FactorDeHoras extends Page
 
         $today = CarbonImmutable::now($tenant->plantTimezone())->toDateString();
 
+        // Las fechas se guardan como texto: la caché de producción no deserializa objetos
+        // (`cache.serializable_classes`), y un CarbonImmutable volvía como objeto incompleto.
         $indicator = Cache::remember(
-            "indicador-factor-de-horas:{$tenant->getKey()}:{$today}",
+            "indicador-factor-de-horas:v2:{$tenant->getKey()}:{$today}",
             now()->addMinutes(self::DASHBOARD_INDICATOR_MINUTES),
             function () use ($tenant, $today): array {
                 $report = app(HoursFactorReport::class)->toDate($tenant, CarbonImmutable::parse($today));
 
                 return HoursFactorReport::excelRows($report) + [
-                    'from' => $report['from'],
-                    'until' => $report['until'],
+                    'from' => CarbonImmutable::instance($report['from'])->toIso8601String(),
+                    'until' => CarbonImmutable::instance($report['until'])->toIso8601String(),
                     'estimated' => $report['estimated'],
-                    'calculatedAt' => CarbonImmutable::now($tenant->plantTimezone()),
+                    'calculatedAt' => CarbonImmutable::now($tenant->plantTimezone())->toIso8601String(),
                 ];
             },
         );
 
-        return $indicator + ['url' => static::getUrl(['vista' => 'fecha', 'hasta' => $today], tenant: $tenant)];
+        // Cada fecha vuelve con el desfase con que se guardó, sin pasarla a otra zona.
+        return [
+            'from' => CarbonImmutable::parse($indicator['from']),
+            'until' => CarbonImmutable::parse($indicator['until']),
+            'calculatedAt' => CarbonImmutable::parse($indicator['calculatedAt']),
+            'url' => static::getUrl(['vista' => 'fecha', 'hasta' => $today], tenant: $tenant),
+        ] + $indicator;
     }
 
     private function tenant(): Tenant

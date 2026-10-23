@@ -19,12 +19,14 @@ use App\Models\EmployeeNovelty;
 use App\Models\EmployeeQrCode;
 use App\Models\Tenant;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\TenantRolesSeeder;
 use Filament\Facades\Filament;
 use Filament\Support\Facades\FilamentView;
 use Filament\View\PanelsRenderHook;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Livewire\Livewire;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -208,6 +210,27 @@ it('keeps the indicator for a few minutes before recalculating it', function ():
 
     $this->travel(FactorDeHoras::DASHBOARD_INDICATOR_MINUTES + 1)->minutes();
     expect($extras())->toBe(4.0);
+});
+
+it('reads the indicator back from a cache that does not unserialize objects, as in production', function (): void {
+    // En producción la caché guarda serializado y sin clases (`cache.serializable_classes`
+    // en false): un CarbonImmutable guardado volvía como objeto incompleto y la pieza daba 500.
+    config(['cache.stores.array.serialize' => true, 'cache.serializable_classes' => false]);
+    Cache::forgetDriver('array');
+
+    $this->actingAs($this->rrhh);
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+    Filament::setTenant($this->tenant);
+
+    FactorDeHoras::dashboardIndicator($this->tenant);
+    $leido = FactorDeHoras::dashboardIndicator($this->tenant);
+
+    expect($leido['until']->format('d/m/Y'))->toBe('12/10/2026')
+        ->and($leido['calculatedAt'])->toBeInstanceOf(CarbonImmutable::class);
+
+    Livewire::withoutLazyLoading()->test(HoursFactorIndicator::class, ['tenantId' => $this->tenant->id])
+        ->assertOk()
+        ->assertSee('Indicador factor de horas · corte al 12/10/2026');
 });
 
 it('shows a thin loading bar when opening another page of the panel', function (): void {
