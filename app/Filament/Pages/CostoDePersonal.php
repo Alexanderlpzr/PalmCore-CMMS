@@ -197,7 +197,7 @@ class CostoDePersonal extends Page
         return [
             'por_area' => [
                 'heading' => 'Costo por área',
-                'description' => 'Jornales, recargos, extras y alimentación '.$deLoQue.'.',
+                'description' => 'Jornales, novedades pagadas, recargos, extras y alimentación '.$deLoQue.'.',
                 'slices' => $byArea(fn (array $area): float => $area['total']),
             ],
             'por_concepto' => [

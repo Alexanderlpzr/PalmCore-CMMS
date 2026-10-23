@@ -5,12 +5,15 @@ namespace App\Domain\HumanResources\Services;
 use App\Domain\HumanResources\Enums\AttendanceDayStatus;
 use App\Domain\HumanResources\Enums\AttendanceDirection;
 use App\Domain\HumanResources\Enums\EmploymentStatus;
+use App\Domain\HumanResources\Enums\NoveltyDayBasis;
+use App\Domain\HumanResources\Enums\NoveltyType;
 use App\Domain\HumanResources\Enums\PayrollParameter;
 use App\Domain\HumanResources\Exceptions\PayrollParameterException;
 use App\Domain\HumanResources\Support\EmployeeProfileOptions;
 use App\Models\AttendanceDay;
 use App\Models\AttendanceScan;
 use App\Models\Employee;
+use App\Models\EmployeeNovelty;
 use App\Models\Tenant;
 use App\Support\FrondaPalette;
 use Carbon\CarbonImmutable;
@@ -33,6 +36,10 @@ use Illuminate\Support\Collection;
  *    que sigue abierto (hasta ahora), y por eso esas cifras van marcadas «estimado».
  *    Las que la regla del bono pase a bonificación cuestan lo mismo y entran igual.
  *  - **Alimentación**: el auxilio por franja cubierta, con la misma estimación.
+ *  - **Novedades pagadas** (2026-10-22): el día de incapacidad, permiso autorizado,
+ *    calamidad o vacaciones de quien no vino también se le paga, con el mismo valor que en
+ *    la nómina. Al lado va cuánto de eso reembolsan la EPS o la ARL, sin descontarlo: el
+ *    tablero muestra lo que sale, y el reembolso es un dato.
  *
  * No incluye prestaciones, aportes patronales ni parafiscales: es el costo directo del día.
  */
@@ -41,6 +48,7 @@ class LaborCostReport
     /** @var array<string, string> */
     public const CONCEPTS = [
         'jornal' => 'Jornales',
+        'novelties' => 'Novedades pagadas',
         'surcharges' => 'Recargos',
         'overtime' => 'Horas extras',
         'meals' => 'Alimentación',
@@ -49,12 +57,16 @@ class LaborCostReport
     /** @var array<string, string> */
     public const CONCEPT_COLORS = [
         'jornal' => FrondaPalette::Petrol[600],
+        'novelties' => '#8b5cf6',
         'surcharges' => FrondaPalette::Petrol[300],
         'overtime' => FrondaPalette::Brand[600],
         'meals' => '#d97706',
     ];
 
     public const NO_AREA = 'sin_area';
+
+    /** Cuánto atrás se buscan incapacidades para seguir la cuenta de sus prórrogas. */
+    private const INCAPACITY_LOOKBACK_DAYS = 540;
 
     /**
      * Un color fijo por área, para que la misma área sea del mismo color en todas las
@@ -81,9 +93,9 @@ class LaborCostReport
 
     /**
      * @return array{
-     *     rows: list<array{employee_id: string, code: ?string, name: string, position: ?string, area: string, area_label: string, days: int, present: int, inside: bool, without_salary: bool, jornal: float, surcharges: float, surcharge_hours: float, overtime: float, overtime_hours: float, meals: float, meal_count: int, total: float, estimated: bool}>,
-     *     areas: array<string, array{label: string, color: string, people: int, jornal: float, surcharges: float, overtime: float, meals: float, total: float}>,
-     *     totals: array{people: int, present: int, inside: int, without_salary: int, jornal: float, surcharges: float, surcharge_hours: float, overtime: float, overtime_hours: float, meals: float, meal_count: int, total: float},
+     *     rows: list<array{employee_id: string, code: ?string, name: string, position: ?string, area: string, area_label: string, days: int, present: int, inside: bool, without_salary: bool, jornal: float, novelties: float, novelty_days: int, reimbursed: float, surcharges: float, surcharge_hours: float, overtime: float, overtime_hours: float, meals: float, meal_count: int, total: float, estimated: bool}>,
+     *     areas: array<string, array{label: string, color: string, people: int, jornal: float, novelties: float, surcharges: float, overtime: float, meals: float, total: float}>,
+     *     totals: array{people: int, present: int, inside: int, without_salary: int, jornal: float, novelties: float, novelty_days: int, reimbursed: float, surcharges: float, surcharge_hours: float, overtime: float, overtime_hours: float, meals: float, meal_count: int, total: float},
      *     entries: list<array{employee_id: string, name: string, area: string, area_label: string, at: CarbonImmutable, jornal: float, inside: bool}>,
      *     estimated: bool,
      * }
@@ -114,10 +126,12 @@ class LaborCostReport
         $entries = $this->addEntries($rows, $tenant->id, $from, $to, $timezone);
         $this->addOpenShifts($rows, $employees, $tenant->id, $from, $to, $now);
         $this->addMeals($rows, $tenant->id, $from, $to, $now);
+        $this->addNovelties($rows, $employees, $tenant->id, $from, $to);
 
         $all = collect($rows)->map(function (array $row) use ($employees, $tenant): array {
+            $row = $this->chargeNovelties($row, $employees[$row['employee_id']], $tenant->id);
             $row = $this->chargeJornal($row, $employees[$row['employee_id']], $tenant->id);
-            $row['total'] = round($row['jornal'] + $row['surcharges'] + $row['overtime'] + $row['meals'], 2);
+            $row['total'] = round($row['jornal'] + $row['novelties'] + $row['surcharges'] + $row['overtime'] + $row['meals'], 2);
 
             return $row;
         });
@@ -137,6 +151,9 @@ class LaborCostReport
                 'inside' => $rows->where('inside', true)->count(),
                 'without_salary' => $rows->where('without_salary', true)->count(),
                 'jornal' => round($rows->sum('jornal'), 2),
+                'novelties' => round($rows->sum('novelties'), 2),
+                'novelty_days' => (int) $rows->sum('novelty_days'),
+                'reimbursed' => round($rows->sum('reimbursed'), 2),
                 'surcharges' => round($rows->sum('surcharges'), 2),
                 'surcharge_hours' => round($rows->sum('surcharge_hours'), 2),
                 'overtime' => round($rows->sum('overtime'), 2),
@@ -155,7 +172,7 @@ class LaborCostReport
 
     /** Lo que se puede contar en el tablero: todo, o solo lo variable de las horas. */
     public const SCOPES = [
-        'todo' => ['jornal', 'surcharges', 'overtime', 'meals'],
+        'todo' => ['jornal', 'novelties', 'surcharges', 'overtime', 'meals'],
         'extras' => ['surcharges', 'overtime'],
     ];
 
@@ -186,6 +203,11 @@ class LaborCostReport
                     $row['meal_count'] = 0;
                 }
 
+                if (in_array('novelties', $excluded, true)) {
+                    $row['novelty_days'] = 0;
+                    $row['reimbursed'] = 0.0;
+                }
+
                 $row['total'] = round(array_sum(array_map(fn (string $concept): float => $row[$concept], $concepts)), 2);
 
                 return $row;
@@ -196,8 +218,8 @@ class LaborCostReport
 
         $totals = $report['totals'];
 
-        foreach (['jornal', 'surcharges', 'surcharge_hours', 'overtime', 'overtime_hours', 'meals', 'meal_count', 'total'] as $key) {
-            $totals[$key] = $key === 'meal_count' ? (int) $rows->sum($key) : round($rows->sum($key), 2);
+        foreach (['jornal', 'novelties', 'novelty_days', 'reimbursed', 'surcharges', 'surcharge_hours', 'overtime', 'overtime_hours', 'meals', 'meal_count', 'total'] as $key) {
+            $totals[$key] = in_array($key, ['meal_count', 'novelty_days'], true) ? (int) $rows->sum($key) : round($rows->sum($key), 2);
         }
 
         $totals['without_salary'] = $rows->where('without_salary', true)->count();
@@ -236,6 +258,10 @@ class LaborCostReport
             'present' => 0,
             'present_dates' => [],
             'jornal' => 0.0,
+            'novelty_dates' => [],
+            'novelties' => 0.0,
+            'novelty_days' => 0,
+            'reimbursed' => 0.0,
             'inside' => false,
             'without_salary' => (float) $employee->base_salary <= 0,
             'surcharges' => 0.0,
@@ -287,6 +313,125 @@ class LaborCostReport
         unset($row['present_dates']);
 
         return $row;
+    }
+
+    /**
+     * Los días de novedad del rango, con el tipo y el número de día de la incapacidad —el
+     * primero, el segundo…—, que es lo que decide quién la paga. Las prórrogas siguen la
+     * cuenta: una incapacidad del mismo tipo que empieza al día siguiente de otra es la
+     * misma. Por eso se miran también las que empezaron antes del rango.
+     *
+     * @param  array<string, array<string, mixed>>  $rows
+     * @param  Collection<string, Employee>  $employees
+     */
+    private function addNovelties(array &$rows, Collection $employees, string $tenantId, CarbonImmutable $from, CarbonImmutable $to): void
+    {
+        $novelties = EmployeeNovelty::query()
+            ->forTenant($tenantId)
+            ->whereIn('employee_id', $employees->keys()->all())
+            ->overlapping($from->subDays(self::INCAPACITY_LOOKBACK_DAYS), $to)
+            ->orderBy('starts_on')
+            ->get();
+
+        foreach ($novelties->groupBy('employee_id') as $employeeId => $ofEmployee) {
+            $employee = $employees[$employeeId];
+            $hired = $employee->hire_date?->toDateString();
+            $terminated = $employee->termination_date?->toDateString();
+            $chains = [];
+
+            foreach ($ofEmployee as $novelty) {
+                $type = $novelty->type;
+                $start = CarbonImmutable::parse($novelty->starts_on->toDateString());
+                $end = CarbonImmutable::parse($novelty->ends_on->toDateString());
+                $chain = $chains[$type->value] ?? null;
+
+                // La prórroga sigue la cuenta de la incapacidad que viene.
+                $chainStart = $chain && $start->lessThanOrEqualTo($chain['end']->addDay()) ? $chain['start'] : $start;
+                $chains[$type->value] = ['start' => $chainStart, 'end' => $chain ? $end->max($chain['end']) : $end];
+
+                // Las de antes del rango solo cuentan para la cuenta de días.
+                if ($end->lessThan($from)) {
+                    continue;
+                }
+
+                foreach (CarbonPeriod::create($start->max($from), $end->min($to)) as $day) {
+                    $date = $day->toDateString();
+
+                    if (($hired !== null && $date < $hired) || ($terminated !== null && $date > $terminated) || isset($rows[$employeeId]['novelty_dates'][$date])) {
+                        continue;
+                    }
+
+                    $rows[$employeeId]['novelty_dates'][$date] = [
+                        'type' => $type,
+                        'day' => (int) $chainStart->diffInDays($day) + 1,
+                    ];
+                }
+            }
+        }
+    }
+
+    /**
+     * Cada día de novedad vale lo que paga la nómina: el salario ÷ 30, el mínimo ÷ 30 en la
+     * incapacidad al mínimo, o nada si no es remunerada. El día que además entró ya está en
+     * el jornal y no se cuenta dos veces.
+     *
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    private function chargeNovelties(array $row, Employee $employee, string $tenantId): array
+    {
+        $salary = (float) $employee->base_salary;
+
+        foreach ($row['novelty_dates'] as $date => $novelty) {
+            /** @var NoveltyType $type */
+            $type = $novelty['type'];
+
+            if (! $type->isPaid() || isset($row['present_dates'][$date])) {
+                continue;
+            }
+
+            $day = CarbonImmutable::parse($date);
+            $monthDays = $this->parameter(PayrollParameter::MonthDays, $day, $tenantId);
+            $minimumDay = $this->parameter(PayrollParameter::Smlmv, $day, $tenantId) / $monthDays;
+            $value = $type->dayValueBasis() === NoveltyDayBasis::Smlmv ? $minimumDay : $salary / $monthDays;
+
+            $row['novelties'] += $value;
+            $row['novelty_days']++;
+            $row['reimbursed'] += $this->reimbursement($type, $novelty['day'], $value, $salary / $monthDays, $minimumDay);
+        }
+
+        $row['novelties'] = round($row['novelties'], 2);
+        $row['reimbursed'] = round($row['reimbursed'], 2);
+        unset($row['novelty_dates']);
+
+        return $row;
+    }
+
+    /**
+     * Lo que la EPS o la ARL le devuelven a la empresa por un día de incapacidad, según la
+     * ley colombiana:
+     *
+     *  - Accidente de trabajo: la empresa paga el día del accidente; desde el segundo, la
+     *    ARL reconoce el 100 % del salario.
+     *  - Enfermedad general: los dos primeros días los pone la empresa; del 3 al 90 la EPS
+     *    reconoce dos tercios del salario, nunca menos del mínimo; del 91 en adelante, la
+     *    mitad. Lo que la empresa paga por encima de eso es suyo.
+     *
+     * Permisos, calamidad y vacaciones no tienen reembolso.
+     */
+    private function reimbursement(NoveltyType $type, int $dayNumber, float $value, float $salaryDay, float $minimumDay): float
+    {
+        $recognized = match (true) {
+            $type === NoveltyType::IncapacidadAt => $dayNumber >= 2 ? $value : 0.0,
+            $type === NoveltyType::IncapacidadEgSalario, $type === NoveltyType::IncapacidadEgMinimo => match (true) {
+                $dayNumber <= 2 => 0.0,
+                $dayNumber <= 90 => max($salaryDay * 2 / 3, $minimumDay),
+                default => $salaryDay / 2,
+            },
+            default => 0.0,
+        };
+
+        return min($value, $recognized);
     }
 
     /**
@@ -480,6 +625,7 @@ class LaborCostReport
                 'color' => self::AREA_COLORS[$area],
                 'people' => $inArea->count(),
                 'jornal' => round($inArea->sum('jornal'), 2),
+                'novelties' => round($inArea->sum('novelties'), 2),
                 'surcharges' => round($inArea->sum('surcharges'), 2),
                 'overtime' => round($inArea->sum('overtime'), 2),
                 'meals' => round($inArea->sum('meals'), 2),

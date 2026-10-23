@@ -171,9 +171,10 @@
     @endif
 
     {{-- Los conceptos de la vista elegida, con la parte del total que se lleva cada uno. --}}
-    <div @class(['grid grid-cols-2 gap-3', 'lg:grid-cols-4' => ! $soloExtras])>
+    <div @class(['grid grid-cols-2 gap-3', 'sm:grid-cols-3 lg:grid-cols-5' => ! $soloExtras])>
         @foreach (array_filter([
             ['key' => 'jornal', 'detail' => $informe['totals']['present'].' '.($informe['totals']['present'] === 1 ? 'persona' : 'personas').' · salario ÷ 30 por día que entró'],
+            ['key' => 'novelties', 'detail' => $informe['totals']['novelty_days'].' '.($informe['totals']['novelty_days'] === 1 ? 'día' : 'días').' de incapacidad, permiso o vacaciones'.($informe['totals']['reimbursed'] > 0 ? ' · EPS/ARL reembolsan '.$pesos($informe['totals']['reimbursed']) : '')],
             ['key' => 'surcharges', 'detail' => $horas($informe['totals']['surcharge_hours']).' h nocturnas y dominicales'],
             ['key' => 'overtime', 'detail' => $horas($informe['totals']['overtime_hours']).' h extras'],
             ['key' => 'meals', 'detail' => $informe['totals']['meal_count'].' '.($informe['totals']['meal_count'] === 1 ? 'comida' : 'comidas')],
@@ -249,7 +250,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="px-3 py-6 text-center text-gray-500 dark:text-gray-400">No hay trabajadores activos con costo en este periodo.</td>
+                            <td colspan="9" class="px-3 py-6 text-center text-gray-500 dark:text-gray-400">No hay trabajadores activos con costo en este periodo.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -291,6 +292,7 @@
                         <th class="border-b border-gray-200 px-3 py-2 text-right font-semibold dark:border-white/10">{{ $esCorte ? 'Días entró' : 'Entró' }}</th>
                         @unless ($soloExtras)
                             <th class="border-b border-gray-200 px-3 py-2 text-right font-semibold dark:border-white/10">Jornal</th>
+                            <th class="border-b border-gray-200 px-3 py-2 text-right font-semibold dark:border-white/10">Novedades</th>
                         @endunless
                         <th class="border-b border-gray-200 px-3 py-2 text-right font-semibold dark:border-white/10">Recargos</th>
                         <th class="border-b border-gray-200 px-3 py-2 text-right font-semibold dark:border-white/10">Horas extras</th>
@@ -334,6 +336,12 @@
                             </td>
                             @unless ($soloExtras)
                                 <td class="border-b border-gray-100 px-3 py-2 text-right tabular-nums dark:border-white/5">{{ $pesos($fila['jornal']) }}</td>
+                                <td class="border-b border-gray-100 px-3 py-2 text-right tabular-nums dark:border-white/5">
+                                    {{ $pesos($fila['novelties']) }}
+                                    @if ($fila['novelty_days'] > 0)
+                                        <div class="text-xs text-gray-500 dark:text-gray-400">{{ $fila['novelty_days'] }} {{ $fila['novelty_days'] === 1 ? 'día' : 'días' }}{{ $fila['reimbursed'] > 0 ? ' · reembolsan '.$pesos($fila['reimbursed']) : '' }}</div>
+                                    @endif
+                                </td>
                             @endunless
                             <td class="border-b border-gray-100 px-3 py-2 text-right tabular-nums dark:border-white/5">
                                 {{ $pesos($fila['surcharges']) }}
@@ -359,7 +367,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="px-3 py-6 text-center text-gray-500 dark:text-gray-400">No hay trabajadores activos con costo en este periodo.</td>
+                            <td colspan="9" class="px-3 py-6 text-center text-gray-500 dark:text-gray-400">No hay trabajadores activos con costo en este periodo.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -374,6 +382,6 @@
     @endif
 
     <p class="text-xs text-gray-500 dark:text-gray-400">
-        Costo directo: no incluye prestaciones sociales, aportes patronales ni parafiscales. El jornal cuenta desde que la persona entra a la extractora (salario ÷ 30 por cada día que entró); los recargos y las extras se valoran como en la nómina (salario ÷ divisor × factor) e incluyen horas sin confirmar.
+        Costo directo: no incluye prestaciones sociales, aportes patronales ni parafiscales. El jornal cuenta desde que la persona entra a la extractora (salario ÷ 30 por cada día que entró). Los días de incapacidad, permiso autorizado, calamidad o vacaciones de quien no vino suman como los paga la nómina; lo que después reembolsan la EPS o la ARL se muestra aparte y no se descuenta. Los recargos y las extras se valoran como en la nómina (salario ÷ divisor × factor) e incluyen horas sin confirmar.
     </p>
 </x-filament-panels::page>
