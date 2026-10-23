@@ -120,9 +120,9 @@
                                 <td @class([$celda, 'whitespace-nowrap', 'font-medium text-danger-600 dark:text-danger-400' => $dia['surcharged']])>
                                     {{ $dia['date']->locale('es')->translatedFormat('l, j \d\e F') }}
                                 </td>
-                                <td class="{{ $celda }} text-center tabular-nums">{{ $hora($dia['entry']) }}</td>
-                                <td class="{{ $celda }} text-center tabular-nums">{{ $hora($dia['scheduledEnd']) }}</td>
-                                <td class="{{ $celda }} text-center tabular-nums">{{ $hora($dia['exit']) }}</td>
+                                <td class="{{ $celda }} whitespace-nowrap text-center tabular-nums">{{ $hora($dia['entry']) }}</td>
+                                <td class="{{ $celda }} whitespace-nowrap text-center tabular-nums">{{ $hora($dia['scheduledEnd']) }}</td>
+                                <td class="{{ $celda }} whitespace-nowrap text-center tabular-nums">{{ $hora($dia['exit']) }}</td>
                                 @foreach (array_keys($data['columns']) as $bolsa)
                                     <td class="{{ $celda }} text-center tabular-nums">{{ $horas((float) $dia['legal'][$bolsa]) }}</td>
                                 @endforeach
