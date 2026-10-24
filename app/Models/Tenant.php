@@ -126,11 +126,11 @@ class Tenant extends Model
     }
 
     /**
-     * Lo que llevan los certificados de talento humano: quién los expide —un trabajador
-     * de Personal, con su firma escaneada—, la ciudad donde se expiden, la IPS del examen
-     * de egreso y el correo del pie. Los cambia talento humano en «Certificados».
+     * Lo que llevan los certificados de talento humano además de su formato de Word: quién
+     * los expide —un trabajador de Personal, con su firma escaneada— y la IPS del examen de
+     * egreso. Los cambia talento humano en «Certificados».
      *
-     * @return array{signer_employee_id: ?string, signature_path: ?string, city: string, exit_exam_provider: ?string, contact_email: ?string}
+     * @return array{signer_employee_id: ?string, signature_path: ?string, exit_exam_provider: ?string}
      */
     public function certificateSettings(): array
     {
@@ -140,9 +140,7 @@ class Tenant extends Model
         return [
             'signer_employee_id' => $text('signer_employee_id'),
             'signature_path' => $text('signature_path'),
-            'city' => $text('city') ?? '',
             'exit_exam_provider' => $text('exit_exam_provider'),
-            'contact_email' => $text('contact_email'),
         ];
     }
 

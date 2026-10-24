@@ -5,7 +5,7 @@ namespace App\Filament\Pages;
 use App\Domain\HumanResources\Enums\CertificateType;
 use App\Domain\HumanResources\Enums\EmployeeDocumentType;
 use App\Domain\HumanResources\Enums\EmploymentStatus;
-use App\Domain\Reports\Services\CertificatePdfService;
+use App\Domain\Reports\Services\CertificateWordService;
 use App\Exceptions\BusinessRuleException;
 use App\Models\Employee;
 use App\Models\EmployeeDocument;
@@ -41,7 +41,8 @@ use UnitEnum;
 /**
  * Los certificados de talento humano: se elige el trabajador, sale la lista de los que le
  * aplican —la certificación laboral si trabaja, los cuatro del egreso si se retiró— con
- * los datos de su ficha puestos, y se expide el PDF firmado, que queda en su carpeta.
+ * los datos de su ficha puestos, y se expide en el mismo Word de la empresa, con la firma
+ * de quien expide, que queda en su carpeta.
  *
  * Quién expide es un trabajador de Personal con su firma escaneada, y lo cambia talento
  * humano en «Quién expide»: hoy el director de planta, cuando vuelva, la de gestión humana.
@@ -155,7 +156,7 @@ class Certificados extends Page
                         ->live()
                         ->afterStateUpdated(function (?string $state, Set $set): void {
                             if ($state) {
-                                $set('exit_exam_deadline', app(CertificatePdfService::class)->exitExamDeadline($this->tenant(), CarbonImmutable::parse($state))->toDateString());
+                                $set('exit_exam_deadline', app(CertificateWordService::class)->exitExamDeadline($this->tenant(), CarbonImmutable::parse($state))->toDateString());
                             }
                         })
                         ->visible(fn (Get $get): bool => $type($get)?->isForExit() ?? false),
@@ -194,7 +195,7 @@ class Certificados extends Page
                         ->visible(fn (Get $get): bool => $type($get) === CertificateType::SeveranceWithdrawal),
                     CheckboxList::make('delivered')
                         ->label('Documentos que recibió')
-                        ->options(CertificatePdfService::DELIVERED_DOCUMENTS)
+                        ->options(CertificateWordService::DELIVERED_DOCUMENTS)
                         ->columnSpanFull()
                         ->visible(fn (Get $get): bool => $type($get) === CertificateType::Clearance),
                     TextInput::make('delivered_other')
@@ -229,7 +230,7 @@ class Certificados extends Page
                 ->footer([
                     Actions::make([
                         Action::make('expedir')
-                            ->label('Expedir y descargar')
+                            ->label('Expedir y descargar el Word')
                             ->icon(Heroicon::OutlinedArrowDownTray)
                             ->submit('expedir'),
                     ])->key('form-actions'),
@@ -252,7 +253,7 @@ class Certificados extends Page
 
         /** @var User $user */
         $user = auth()->user();
-        $service = app(CertificatePdfService::class);
+        $service = app(CertificateWordService::class);
 
         try {
             $document = $service->issue($type, $employee, $this->tenant(), $state, $user);
@@ -270,7 +271,7 @@ class Certificados extends Page
 
         $bytes = (string) Storage::disk(private_files_disk())->get($document->file_path);
 
-        return response()->streamDownload(fn () => print ($bytes), $document->file_name, ['Content-Type' => 'application/pdf']);
+        return response()->streamDownload(fn () => print ($bytes), $document->file_name, ['Content-Type' => CertificateWordService::MIME]);
     }
 
     // ── Quién expide ──────────────────────────────────────────────────────────
@@ -307,19 +308,10 @@ class Certificados extends Page
                         ->image()
                         ->acceptedFileTypes(['image/png', 'image/jpeg'])
                         ->maxSize(2048),
-                    TextInput::make('city')
-                        ->label('Ciudad donde se expiden')
-                        ->placeholder('Maní – Casanare')
-                        ->required()
-                        ->maxLength(80),
                     TextInput::make('exit_exam_provider')
                         ->label('IPS del examen de egreso')
                         ->placeholder('Nombre de la IPS – dirección')
                         ->maxLength(200),
-                    TextInput::make('contact_email')
-                        ->label('Correo del pie de página')
-                        ->email()
-                        ->maxLength(120),
                 ])
                 ->action(function (array $data): void {
                     $this->saveSigner($data);
@@ -345,9 +337,7 @@ class Certificados extends Page
         data_set($settings, 'human_resources.certificates', [
             'signer_employee_id' => $data['signer_employee_id'] ?? null,
             'signature_path' => $signature,
-            'city' => trim((string) ($data['city'] ?? '')),
             'exit_exam_provider' => trim((string) ($data['exit_exam_provider'] ?? '')) ?: null,
-            'contact_email' => trim((string) ($data['contact_email'] ?? '')) ?: null,
         ]);
         $tenant->forceFill(['settings' => $settings])->save();
 
@@ -363,7 +353,7 @@ class Certificados extends Page
     /** @return array{signer: ?Employee, signature: ?string, settings: array<string, mixed>} */
     public function signerSummary(): array
     {
-        $service = app(CertificatePdfService::class);
+        $service = app(CertificateWordService::class);
         $tenant = $this->tenant();
 
         return [
@@ -398,7 +388,7 @@ class Certificados extends Page
 
         $today = CarbonImmutable::now($this->tenant()->plantTimezone());
 
-        foreach (app(CertificatePdfService::class)->defaults($type, $employee, $this->tenant(), $today) as $key => $value) {
+        foreach (app(CertificateWordService::class)->defaults($type, $employee, $this->tenant(), $today) as $key => $value) {
             $set($key, $value);
         }
     }
@@ -411,14 +401,14 @@ class Certificados extends Page
     private function salaryOptions(?Employee $employee): array
     {
         $pesos = fn (float $value): string => '$ '.number_format($value, 0, ',', '.');
-        $options = CertificatePdfService::SALARY_MODES;
+        $options = CertificateWordService::SALARY_MODES;
 
         if (! $employee) {
             return $options;
         }
 
         $basic = (float) $employee->base_salary;
-        $average = app(CertificatePdfService::class)->averageSalary($employee);
+        $average = app(CertificateWordService::class)->averageSalary($employee);
 
         $options['basic'] .= $basic > 0 ? ' · '.$pesos($basic) : ' · no tiene en la ficha';
         $options['average'] .= $average
@@ -432,7 +422,7 @@ class Certificados extends Page
     {
         return match ($mode) {
             'basic' => ! $employee || (float) $employee->base_salary <= 0,
-            'average' => ! $employee || app(CertificatePdfService::class)->averageSalary($employee) === null,
+            'average' => ! $employee || app(CertificateWordService::class)->averageSalary($employee) === null,
             default => false,
         };
     }

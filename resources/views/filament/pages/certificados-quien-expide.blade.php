@@ -12,12 +12,7 @@
         <div class="min-w-0 flex-1">
             <p class="text-xs text-gray-500 dark:text-gray-400">Expide</p>
             <p class="text-sm font-semibold text-gray-950 dark:text-white">{{ $firmante->fullName() }}</p>
-            <p class="text-xs text-gray-500 dark:text-gray-400">
-                {{ $firmante->position ?: 'Sin cargo en la ficha' }}
-                @if ($resumen['settings']['city'])
-                    · se expiden en {{ $resumen['settings']['city'] }}
-                @endif
-            </p>
+            <p class="text-xs text-gray-500 dark:text-gray-400">{{ $firmante->position ?: 'Sin cargo en la ficha' }}</p>
         </div>
         @if ($resumen['signature'])
             <img src="{{ $resumen['signature'] }}" alt="Firma de {{ $firmante->fullName() }}" class="h-12 max-w-48 rounded bg-white object-contain p-1">
