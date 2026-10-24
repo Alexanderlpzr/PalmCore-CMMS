@@ -253,7 +253,7 @@ class TeaCalculator extends Component
         }
 
         $lines = [
-            '*Calculadora R-100 — Fronda*',
+            '*Método R-100*',
             'Peso de racimos: '.number_format($this->number($this->bunchWeight), 0, ',', '.').' kg',
             'Rendimiento (TEA): '.number_format($this->result->tea * 100, 2, ',', '.').' %'.($this->quality ? ' — '.$this->quality['label'] : ''),
         ];

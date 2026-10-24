@@ -26,7 +26,9 @@ it('abre la calculadora R-100 sin iniciar sesión', function () {
         ->assertSee('<title>Método R-100', false)
         ->assertSee('¿Cuánto vale su fruta?')
         ->assertSee('Precio de compra de la tonelada de aceite (CPO)')
-        ->assertSee('images/r100/maduro.jpg');
+        ->assertSee('images/r100/maduro.jpg')
+        ->assertSee('alt="Extractora El Pajuil"', false)
+        ->assertDontSeeText('Fronda');
 
     expect(auth()->check())->toBeFalse();
 });
@@ -151,7 +153,9 @@ it('arma el mensaje de WhatsApp con el resultado', function () {
     $url = exampleThreeTrip()->instance()->whatsappUrl;
 
     expect($url)->toStartWith('https://wa.me/?text=')
-        ->and(rawurldecode($url))->toContain('20,24 %')
+        ->and(rawurldecode($url))->toContain('*Método R-100*')
+        ->not->toContain('Fronda')
+        ->toContain('20,24 %')
         ->toContain('$ 16.189.556')
         ->toContain(route('r100.calculator'));
 });

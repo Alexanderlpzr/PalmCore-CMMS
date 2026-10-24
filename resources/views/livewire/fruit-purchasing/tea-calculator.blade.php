@@ -45,14 +45,16 @@
     </style>
 
     {{-- Encabezado --}}
-    <header class="mb-8 flex items-start gap-4">
-        <img src="{{ asset('images/isotipo.png') }}" alt="" class="hidden h-16 w-16 shrink-0 sm:block">
-        <div>
-            <p class="text-base font-semibold uppercase tracking-widest text-brand-700">Fronda</p>
-            <h1 class="mt-1 text-5xl font-black leading-none tracking-tight text-petrol-900 sm:text-7xl">Método <span class="text-brand-600">R-100</span></h1>
-            <p class="mt-3 text-2xl font-bold text-petrol-800 sm:text-3xl">¿Cuánto vale su fruta?</p>
-            <p class="mt-3 max-w-2xl text-xl text-gray-600">Llene los pasos con lo que le dieron en la báscula. El resultado aparece solo, sin oprimir ningún botón.</p>
+    <header class="mb-8">
+        <div class="flex items-center gap-4 sm:gap-6">
+            <img src="{{ asset('images/logo.png') }}" alt="Extractora El Pajuil" width="512" height="512"
+                 class="h-20 w-20 shrink-0 drop-shadow-md sm:h-32 sm:w-32">
+            <div>
+                <h1 class="text-4xl font-black leading-none tracking-tight text-petrol-900 sm:text-7xl">Método <span class="text-brand-600">R-100</span></h1>
+                <p class="mt-2 text-xl font-bold text-petrol-800 sm:mt-3 sm:text-3xl">¿Cuánto vale su fruta?</p>
+            </div>
         </div>
+        <p class="mt-4 max-w-2xl text-xl text-gray-600">Llene los pasos con lo que le dieron en la báscula. El resultado aparece solo, sin oprimir ningún botón.</p>
     </header>
 
     <div class="grid gap-8 lg:grid-cols-[1fr_25rem]">
