@@ -31,6 +31,12 @@ Route::get('/equipment/qr/{token}', [EquipmentPublicController::class, 'show'])
     ->middleware('throttle:60,1')
     ->name('equipment.qr.show');
 
+// Calculadora R-100: pública a propósito, para que cualquier proveedor de fruta la
+// use sin cuenta. Solo calcula, no guarda nada ni toca datos de ninguna empresa.
+Route::view('/r100', 'fruit-purchasing.r100')
+    ->middleware('throttle:60,1')
+    ->name('r100.calculator');
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::view('dashboard', 'dashboard')->name('dashboard');
 });

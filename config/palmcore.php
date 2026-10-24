@@ -95,4 +95,27 @@ return [
         'require_two_factor_for_owners' => env('PALMCORE_REQUIRE_2FA_FOR_OWNERS', false),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | R-100 — pago de fruta por calidad
+    |--------------------------------------------------------------------------
+    | Coeficientes oficiales de la fórmula (confirmados 2026-10-23): cada kilo de
+    | racimo vale su porcentaje de extracción, la fruta suelta suma 0,4 puntos por
+    | cada 1 %, y FACIND = 3,4 % de proceso + 1,3 % de pérdidas. El precio es el de
+    | la tonelada de aceite (CPO) con el que se liquida la fruta.
+    */
+    'r100' => [
+        'oil_price_per_ton' => env('R100_OIL_PRICE_PER_TON'),
+        'bunch_values' => [
+            'ripe' => 0.21,
+            'overripe' => 0.125,
+            'unripe' => 0.11,
+            'abnormal' => 0.10,
+            'rotten' => 0.015,
+        ],
+        'loose_fruit_value' => 0.40,
+        'industrial_factor' => 0.047,
+        'kilos_per_long_stalk' => 1.5,
+    ],
+
 ];
