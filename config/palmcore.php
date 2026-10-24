@@ -116,6 +116,12 @@ return [
         'loose_fruit_value' => 0.40,
         'industrial_factor' => 0.047,
         'kilos_per_long_stalk' => 1.5,
+        // Calificación que ve el proveedor. Sale de los ejemplos de la presentación:
+        // 20,24 % «calidad excelente», 19,01 % «buena calidad», 18,83 % «mucho RP y RSM».
+        'quality_levels' => [
+            'excellent' => 0.20,
+            'good' => 0.19,
+        ],
     ],
 
 ];
