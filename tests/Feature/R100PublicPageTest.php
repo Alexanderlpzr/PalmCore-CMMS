@@ -23,6 +23,7 @@ function exampleThreeTrip(): Testable
 it('abre la calculadora R-100 sin iniciar sesión', function () {
     $this->get(route('r100.calculator'))
         ->assertOk()
+        ->assertSee('<title>Método R-100', false)
         ->assertSee('¿Cuánto vale su fruta?')
         ->assertSee('Precio de compra de la tonelada de aceite (CPO)')
         ->assertSee('images/r100/maduro.jpg');

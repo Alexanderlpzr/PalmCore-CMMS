@@ -1,6 +1,6 @@
 @extends('layouts.public')
 
-@section('title', 'Calculadora R-100 — ¿Cuánto vale su fruta?')
+@section('title', 'Método R-100 — ¿Cuánto vale su fruta?')
 
 @section('content')
     <script>
