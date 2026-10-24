@@ -432,12 +432,16 @@ class LaborCostReport
      *    reconoce dos tercios del salario, nunca menos del mínimo; del 91 en adelante, la
      *    mitad. Lo que la empresa paga por encima de eso es suyo.
      *
+     *  - Licencia de maternidad o de paternidad: la EPS la reconoce completa desde el
+     *    primer día.
+     *
      * Permisos, calamidad y vacaciones no tienen reembolso.
      */
     private function reimbursement(NoveltyType $type, int $dayNumber, float $value, float $salaryDay, float $minimumDay): float
     {
         $recognized = match (true) {
             $type === NoveltyType::IncapacidadAt => $dayNumber >= 2 ? $value : 0.0,
+            $type === NoveltyType::LicenciaMaternidad, $type === NoveltyType::LicenciaPaternidad => $value,
             $type === NoveltyType::IncapacidadEgSalario, $type === NoveltyType::IncapacidadEgMinimo => match (true) {
                 $dayNumber <= 2 => 0.0,
                 $dayNumber <= 90 => max($salaryDay * 2 / 3, $minimumDay),

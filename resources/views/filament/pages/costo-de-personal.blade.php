@@ -171,7 +171,7 @@
     <div @class(['grid grid-cols-2 gap-3', 'sm:grid-cols-3 lg:grid-cols-5' => ! $soloExtras])>
         @foreach (array_filter([
             ['key' => 'jornal', 'detail' => $informe['totals']['people'].' '.($informe['totals']['people'] === 1 ? 'persona' : 'personas').' · salario ÷ 30 por día contratado'],
-            ['key' => 'novelties', 'detail' => $informe['totals']['novelty_days'].' '.($informe['totals']['novelty_days'] === 1 ? 'día' : 'días').' de incapacidad, permiso o vacaciones'.($informe['totals']['reimbursed'] > 0 ? ' · EPS/ARL reembolsan '.$pesos($informe['totals']['reimbursed']) : '')],
+            ['key' => 'novelties', 'detail' => $informe['totals']['novelty_days'].' '.($informe['totals']['novelty_days'] === 1 ? 'día' : 'días').' de incapacidad, licencia, permiso o vacaciones'.($informe['totals']['reimbursed'] > 0 ? ' · EPS/ARL reembolsan '.$pesos($informe['totals']['reimbursed']) : '')],
             ['key' => 'surcharges', 'detail' => $horas($informe['totals']['surcharge_hours']).' h nocturnas y dominicales'],
             ['key' => 'overtime', 'detail' => $horas($informe['totals']['overtime_hours']).' h extras'],
             ['key' => 'meals', 'detail' => $informe['totals']['meal_count'].' '.($informe['totals']['meal_count'] === 1 ? 'comida' : 'comidas')],

@@ -3,7 +3,7 @@
 namespace App\Domain\HumanResources\Enums;
 
 /**
- * Los ocho motivos por los que un día del mes no fue un día trabajado.
+ * Los motivos por los que un día del mes no fue un día trabajado.
  *
  * Salen de auditar las columnas K a AA del libro de la extractora, una por una. Cada uno
  * responde tres preguntas distintas y no siempre igual, que es justamente por qué esto es
@@ -18,6 +18,10 @@ namespace App\Domain\HumanResources\Enums;
  * reglas del Código Sustantivo del Trabajo, no política de la empresa: por eso viven aquí
  * y no en la matriz configurable de `hr_payroll_concepts`, que gobierna los conceptos que
  * sí cambian por convención —bonificaciones, auxilio, recargos—.
+ *
+ * Las licencias de maternidad y de paternidad llegaron después (2026-10-24): no estaban en
+ * el libro, y salen de la ley —CST art. 236—: se pagan al salario, las reconoce la EPS
+ * completas y cuentan como tiempo de servicio para prima, cesantías y vacaciones.
  */
 enum NoveltyType: string
 {
@@ -29,6 +33,8 @@ enum NoveltyType: string
     case IncapacidadAt = 'incapacidad_at';
     case CalamidadDomestica = 'calamidad_domestica';
     case Vacaciones = 'vacaciones';
+    case LicenciaMaternidad = 'licencia_maternidad';
+    case LicenciaPaternidad = 'licencia_paternidad';
 
     public function label(): string
     {
@@ -41,6 +47,8 @@ enum NoveltyType: string
             self::IncapacidadAt => 'Incapacidad por accidente de trabajo',
             self::CalamidadDomestica => 'Calamidad doméstica',
             self::Vacaciones => 'Vacaciones',
+            self::LicenciaMaternidad => 'Licencia de maternidad',
+            self::LicenciaPaternidad => 'Licencia de paternidad',
         };
     }
 
@@ -50,6 +58,7 @@ enum NoveltyType: string
             self::AusenciaNoJustificada, self::PermisoNoRemunerado => 'danger',
             self::IncapacidadEgSalario, self::IncapacidadEgMinimo, self::IncapacidadAt => 'warning',
             self::Vacaciones => 'info',
+            self::LicenciaMaternidad, self::LicenciaPaternidad => 'success',
             default => 'gray',
         };
     }
@@ -92,7 +101,8 @@ enum NoveltyType: string
      *
      * Columna BN, que suma los días laborados, la incapacidad de enfermedad general al
      * salario propio, la de accidente de trabajo, la calamidad y las vacaciones. Deja
-     * fuera las ausencias, los permisos y la incapacidad liquidada al mínimo.
+     * fuera las ausencias, los permisos y la incapacidad liquidada al mínimo. Las licencias
+     * de maternidad y paternidad cuentan: la ley las toma como tiempo de servicio.
      */
     public function countsSeveranceBase(): bool
     {
@@ -101,6 +111,8 @@ enum NoveltyType: string
             self::IncapacidadAt,
             self::CalamidadDomestica,
             self::Vacaciones,
+            self::LicenciaMaternidad,
+            self::LicenciaPaternidad,
         ], true);
     }
 
@@ -109,7 +121,8 @@ enum NoveltyType: string
      *
      * Columna BO, más estrecha que la de prima: días laborados, incapacidad de enfermedad
      * general al salario propio, incapacidad por accidente de trabajo y calamidad. Las
-     * vacaciones no generan vacaciones, que es lo que uno esperaría y conviene comprobar.
+     * vacaciones no generan vacaciones, que es lo que uno esperaría y conviene comprobar. Las
+     * licencias de maternidad y paternidad sí: son tiempo de servicio.
      */
     public function countsVacationBase(): bool
     {
@@ -117,6 +130,8 @@ enum NoveltyType: string
             self::IncapacidadEgSalario,
             self::IncapacidadAt,
             self::CalamidadDomestica,
+            self::LicenciaMaternidad,
+            self::LicenciaPaternidad,
         ], true);
     }
 

@@ -344,6 +344,35 @@ it('charges the paid novelty days of whoever did not come, with what EPS or ARL 
         ->assertDontSee('El día arranca en $ 0');
 });
 
+it('pays maternity and paternity leave at salary, recognized in full by the EPS', function (): void {
+    // Pedido 2026-10-24. Ana, licencia de maternidad; Beto, de paternidad: los días valen el
+    // salario, la EPS los devuelve completos desde el primero y no son jornal.
+    EmployeeNovelty::factory()->forEmployee($this->ana)->of(NoveltyType::LicenciaMaternidad, '2026-09-20', '2027-01-23')->create();
+    EmployeeNovelty::factory()->forEmployee($this->beto)->of(NoveltyType::LicenciaPaternidad, '2026-10-01', '2026-10-14')->create();
+
+    $informe = app(LaborCostReport::class)->forRange($this->tenant, Carbon::parse('2026-10-01'), Carbon::parse('2026-10-05'));
+    $ana = filaDe($informe, $this->ana);
+    $beto = filaDe($informe, $this->beto);
+
+    expect($ana['novelties'])->toEqual(500_000.0)
+        ->and($ana['reimbursed'])->toEqual(500_000.0)
+        ->and($ana['jornal'])->toEqual(0.0)
+        ->and($beto['novelties'])->toEqual(250_000.0)
+        ->and($beto['reimbursed'])->toEqual(250_000.0);
+
+    // Para la nómina son tiempo de servicio: prima, cesantías y vacaciones.
+    foreach ([NoveltyType::LicenciaMaternidad, NoveltyType::LicenciaPaternidad] as $licencia) {
+        expect($licencia->isPaid())->toBeTrue()
+            ->and($licencia->countsMonthlyEarnings())->toBeTrue()
+            ->and($licencia->countsSeveranceBase())->toBeTrue()
+            ->and($licencia->countsVacationBase())->toBeTrue()
+            ->and($licencia->countsIbcPension())->toBeFalse();
+    }
+
+    expect(NoveltyType::options())->toHaveKeys(['licencia_maternidad', 'licencia_paternidad'])
+        ->and(NoveltyType::LicenciaMaternidad->label())->toBe('Licencia de maternidad');
+});
+
 it('keeps the dashboard away from whoever cannot see salaries', function (): void {
     $admin = User::factory()->create(['is_active' => true]);
     $admin->tenants()->attach($this->tenant->id, ['joined_at' => now()]);
