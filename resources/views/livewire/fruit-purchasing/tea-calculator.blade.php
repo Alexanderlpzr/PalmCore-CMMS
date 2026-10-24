@@ -29,12 +29,13 @@
 
     $field = 'block w-full rounded-xl border-2 border-gray-300 bg-white px-4 py-3 text-2xl font-semibold tabular-nums text-gray-900 placeholder:text-gray-400 placeholder:font-normal focus:border-brand-600 focus:outline-none focus:ring-4 focus:ring-brand-600/20';
     $format = 'x-on:blur="$el.value = window.frondaFormatNumber($el.value); $el.dispatchEvent(new Event(\'input\'))"';
+    $stepBadge = 'flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-petrol-800 text-xl text-white';
 
     $result = $this->result;
     $quality = $this->quality;
+    $bunchWeight = $this->bunchWeight;
     $remaining = $this->remainingKilos;
-    $bunchWeightValue = $remaining !== null ? $remaining + $this->distributedKilos : null;
-    $progress = $bunchWeightValue ? min(100, max(0, $this->distributedKilos / $bunchWeightValue * 100)) : 0;
+    $progress = $bunchWeight ? min(100, max(0, $this->distributedKilos / $bunchWeight * 100)) : 0;
     $balanced = $this->weightsBalanced;
 @endphp
 
@@ -77,25 +78,63 @@
                 <p class="mt-2 text-base text-gray-600">Precio de compra de la tonelada de aceite (CPO). Su fruta se paga a TEA × este precio.</p>
             </section>
 
-            {{-- Paso 1 --}}
+            {{-- Paso 1: peso neto --}}
             <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-7">
                 <h2 class="flex items-center gap-3 text-2xl font-bold text-petrol-900">
-                    <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-petrol-800 text-xl text-white">1</span>
-                    ¿Cuánto pesaron los racimos?
+                    <span class="{{ $stepBadge }}">1</span>
+                    <label for="netWeight">¿Cuánto pesó su viaje NETO?</label>
                 </h2>
-                <p class="mt-2 text-lg text-gray-600">Solo los racimos, sin la fruta suelta. En la planta lo llaman <strong>TPR</strong> (total peso de racimos).</p>
-                <label for="bunchWeight" class="sr-only">Total peso de racimos (TPR) en kilos</label>
+                <p class="mt-2 text-lg text-gray-600">Fruta suelta y peso de racimos, todo junto. Se lo dan en la báscula.</p>
                 <div class="relative mt-4 max-w-md">
-                    <input id="bunchWeight" type="text" inputmode="decimal" autocomplete="off" placeholder="18.000"
-                           wire:model.live.debounce.500ms="bunchWeight" {!! $format !!} class="{{ $field }} pr-16">
+                    <input id="netWeight" type="text" inputmode="decimal" autocomplete="off" placeholder="20.000"
+                           wire:model.live.debounce.500ms="netWeight" {!! $format !!} class="{{ $field }} pr-16">
                     <span class="pointer-events-none absolute inset-y-0 right-4 flex items-center text-xl font-semibold text-gray-500">kg</span>
                 </div>
             </section>
 
-            {{-- Paso 2 --}}
+            {{-- Paso 2: fruta suelta --}}
             <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-7">
                 <h2 class="flex items-center gap-3 text-2xl font-bold text-petrol-900">
-                    <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-petrol-800 text-xl text-white">2</span>
+                    <span class="{{ $stepBadge }}">2</span>
+                    ¿Trajo fruta suelta?
+                </h2>
+
+                <div class="mt-4 grid gap-5 sm:grid-cols-[12rem_1fr] sm:items-start">
+                    <img src="{{ asset('images/r100/fruta-suelta.jpg') }}" alt="Fruta suelta" loading="lazy" class="h-32 w-full rounded-2xl object-cover sm:h-44">
+                    <div class="space-y-5">
+                        <div>
+                            <label for="looseFruitKilos" class="block text-xl font-bold text-petrol-900">¿Cuántos kilos de fruta suelta?</label>
+                            <p class="text-base text-gray-600">La pepa que llega suelta, sin racimo. Se lo dan en la báscula. Si no trajo, déjelo vacío.</p>
+                            <div class="relative mt-3 max-w-xs">
+                                <input id="looseFruitKilos" type="text" inputmode="decimal" autocomplete="off" placeholder="0"
+                                       wire:model.live.debounce.500ms="looseFruitKilos" {!! $format !!} class="{{ $field }} pr-14">
+                                <span class="pointer-events-none absolute inset-y-0 right-4 flex items-center text-xl font-semibold text-gray-500">kg</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="impurityPercent" class="block text-xl font-bold text-petrol-900">Escriba el porcentaje de impureza</label>
+                            <p class="text-base text-gray-600">Hojas, palos o tierra en la fruta suelta. Se lo dan en la tolva.</p>
+                            <div class="relative mt-3 max-w-[12rem]">
+                                <input id="impurityPercent" type="text" inputmode="decimal" autocomplete="off" placeholder="0"
+                                       wire:model.live.debounce.500ms="impurityPercent" {!! $format !!} class="{{ $field }} pr-12">
+                                <span class="pointer-events-none absolute inset-y-0 right-4 flex items-center text-xl font-semibold text-gray-500">%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                @if ($bunchWeight !== null && $this->looseFruitShare !== null)
+                    <div class="mt-6 grid gap-3 rounded-2xl bg-gray-50 p-4 text-lg sm:grid-cols-2 sm:p-5" aria-live="polite">
+                        <p>Peso de los racimos <span class="text-gray-500">(TPR)</span>: <strong class="tabular-nums">{{ $kilos($bunchWeight) }}</strong></p>
+                        <p>La fruta suelta es el <strong class="tabular-nums">{{ $pct($this->looseFruitShare, 1) }}</strong> del viaje <span class="text-gray-500">(FS)</span></p>
+                    </div>
+                @endif
+            </section>
+
+            {{-- Paso 3: racimos --}}
+            <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-7">
+                <h2 class="flex items-center gap-3 text-2xl font-bold text-petrol-900">
+                    <span class="{{ $stepBadge }}">3</span>
                     ¿Cómo venían los racimos?
                 </h2>
                 <p class="mt-2 text-lg text-gray-600">Mire las fotos y escriba cuántos kilos había de cada tipo. Si no trajo de alguno, déjelo vacío.</p>
@@ -123,7 +162,7 @@
                 @if ($remaining !== null)
                     <div class="mt-6 rounded-2xl bg-gray-50 p-4 sm:p-5" aria-live="polite">
                         <div class="flex flex-wrap items-baseline justify-between gap-2 text-lg">
-                            <span>Ha repartido <strong class="tabular-nums">{{ $kilos($this->distributedKilos) }}</strong> de <strong class="tabular-nums">{{ $kilos($bunchWeightValue) }}</strong></span>
+                            <span>Ha repartido <strong class="tabular-nums">{{ $kilos($this->distributedKilos) }}</strong> de <strong class="tabular-nums">{{ $kilos($bunchWeight) }}</strong> de racimos</span>
                             @if ($balanced)
                                 <span class="font-bold text-brand-700">✔ Todo cuadra</span>
                             @elseif ($remaining > 0)
@@ -145,46 +184,6 @@
                         @endif
                     </div>
                 @endif
-            </section>
-
-            {{-- Paso 3 --}}
-            <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-7">
-                <h2 class="flex items-center gap-3 text-2xl font-bold text-petrol-900">
-                    <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-petrol-800 text-xl text-white">3</span>
-                    ¿Trajo fruta suelta?
-                </h2>
-
-                <div class="mt-4 grid gap-5 sm:grid-cols-[12rem_1fr] sm:items-start">
-                    <img src="{{ asset('images/r100/fruta-suelta.jpg') }}" alt="Fruta suelta" loading="lazy" class="h-32 w-full rounded-2xl object-cover sm:h-full">
-                    <div>
-                        <label for="looseFruitPercent" class="block text-xl font-bold text-petrol-900">De cada 100 kilos del viaje, ¿cuántos eran fruta suelta?</label>
-                        <p class="text-base text-gray-600">La pepa que llega suelta, sin racimo. Paga muy bien: 0,4 puntos por cada 1 %. <span class="text-gray-500">(% de Fruta Suelta, FS)</span></p>
-                        <div class="relative mt-3 max-w-[12rem]">
-                            <input id="looseFruitPercent" type="text" inputmode="decimal" autocomplete="off" placeholder="0"
-                                   wire:model.live.debounce.500ms="looseFruitPercent" {!! $format !!} class="{{ $field }} pr-12">
-                            <span class="pointer-events-none absolute inset-y-0 right-4 flex items-center text-xl font-semibold text-gray-500">%</span>
-                        </div>
-                    </div>
-                </div>
-
-                <fieldset class="mt-6">
-                    <legend class="text-xl font-bold text-petrol-900">¿Qué tan limpia venía la fruta suelta?</legend>
-                    <p class="text-base text-gray-600">Calidad de Fruta Suelta (CFS): 100 % menos la basura.</p>
-                    <div class="mt-3 grid gap-3 sm:grid-cols-3">
-                        @foreach (\App\Livewire\FruitPurchasing\TeaCalculator::LOOSE_FRUIT_QUALITY_OPTIONS as $percent => $label)
-                            <button type="button" wire:key="quality-{{ $percent }}" wire:click="chooseLooseFruitQuality('{{ $percent }}')"
-                                    aria-pressed="{{ $looseFruitQualityPercent === (string) $percent ? 'true' : 'false' }}"
-                                    @class([
-                                        'rounded-xl border-2 px-4 py-3 text-left text-lg font-semibold transition',
-                                        'border-brand-600 bg-brand-50 text-brand-800 ring-4 ring-brand-600/15' => $looseFruitQualityPercent === (string) $percent,
-                                        'border-gray-200 bg-white text-gray-700 hover:border-gray-300' => $looseFruitQualityPercent !== (string) $percent,
-                                    ])>
-                                {{ $label }}
-                                <span class="block text-base font-normal text-gray-500">{{ $percent }} %</span>
-                            </button>
-                        @endforeach
-                    </div>
-                </fieldset>
 
                 <div class="mt-6 border-t border-gray-100 pt-6">
                     <label for="longStalkCount" class="block text-xl font-bold text-petrol-900">¿Cuántos racimos llegaron con el tallo largo?</label>
@@ -240,7 +239,7 @@
                             @if ($result->fruitPricePerTon !== null)
                                 <div class="flex justify-between gap-3"><dt class="text-white/70">Le pagan cada tonelada a</dt><dd class="font-semibold">{{ $money($result->fruitPricePerTon) }}</dd></div>
                             @endif
-                            <div class="flex justify-between gap-3"><dt class="text-white/70">Peso de todo el viaje</dt><dd class="font-semibold">{{ $kilos($result->totalFruitKilos) }}</dd></div>
+                            <div class="flex justify-between gap-3"><dt class="text-white/70">Peso neto del viaje</dt><dd class="font-semibold">{{ $kilos($result->totalFruitKilos) }}</dd></div>
                         </dl>
 
                         <details class="mt-4 rounded-2xl bg-white/5 px-4 py-3">
@@ -271,7 +270,7 @@
                         <p class="mt-3 text-2xl font-bold">Aquí verá cuánto vale su fruta</p>
                         <p class="mt-2 text-lg text-white/75" data-testid="tea">
                             @if ($result && ! $balanced)
-                                Primero haga cuadrar los kilos de los racimos en el paso 2.
+                                Primero haga cuadrar los kilos de los racimos en el paso 3.
                             @elseif ($this->problems !== [])
                                 {{ $this->problems[0] }}
                             @endif
@@ -282,7 +281,7 @@
 
             <p class="mt-4 px-2 text-sm leading-relaxed text-gray-500">
                 Fórmula R-100: TEA = (RM·21% + RSM·12,5% + RVM·11% + RVA·10% + RP·1,5%) / TPR + (%FS·40%·%CFS) − %FACIND − (NPL·1,5 / TPR).
-                Es un estimado; el pago final sale de la calificación en planta.
+                TPR = peso neto − fruta suelta; CFS = 100 % − impureza. Es un estimado; el pago final sale de la calificación en planta.
             </p>
         </aside>
 

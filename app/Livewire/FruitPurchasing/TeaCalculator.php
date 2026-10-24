@@ -9,24 +9,25 @@ use Livewire\Attributes\Computed;
 use Livewire\Component;
 
 /**
- * Calculadora pública R-100: cualquier proveedor digita la calificación de su
- * viaje y ve la TEA a pagar, lo que recibiría y cómo ganar más. No guarda nada.
+ * Calculadora pública R-100: cualquier proveedor digita lo que le dieron en
+ * báscula y tolva y ve la TEA a pagar, lo que recibiría y cómo ganar más.
+ *
+ * La báscula da el peso neto del viaje y el de la fruta suelta; el peso de
+ * racimos (TPR) es la diferencia. La tolva da el % de impureza de la fruta
+ * suelta; su calidad (CFS) es 100 % menos esa impureza. No guarda nada.
  */
 class TeaCalculator extends Component
 {
     /** Los cinco tipos de racimo, en el orden en que se muestran. */
     public const BUNCH_FIELDS = ['ripe', 'overripe', 'unripe', 'abnormal', 'rotten'];
 
-    /** Opciones de limpieza de la fruta suelta: CFS = 100 % − impurezas. */
-    public const LOOSE_FRUIT_QUALITY_OPTIONS = [
-        '100' => 'Limpia',
-        '95' => 'Con un poco de basura',
-        '90' => 'Con bastante basura',
-    ];
-
     public string $oilPricePerTon = '';
 
-    public string $bunchWeight = '';
+    public string $netWeight = '';
+
+    public string $looseFruitKilos = '';
+
+    public string $impurityPercent = '';
 
     public string $ripe = '';
 
@@ -37,10 +38,6 @@ class TeaCalculator extends Component
     public string $abnormal = '';
 
     public string $rotten = '';
-
-    public string $looseFruitPercent = '';
-
-    public string $looseFruitQualityPercent = '100';
 
     public string $industrialFactorPercent = '';
 
@@ -59,9 +56,7 @@ class TeaCalculator extends Component
      */
     public function fillRipeWithRemainder(): void
     {
-        $bunchWeight = $this->number($this->bunchWeight);
-
-        if ($bunchWeight === null || $bunchWeight <= 0) {
+        if ($this->bunchWeight === null || $this->bunchWeight <= 0) {
             return;
         }
 
@@ -69,14 +64,7 @@ class TeaCalculator extends Component
             ->reject(fn (string $field): bool => $field === 'ripe')
             ->sum(fn (string $field): float => max(0.0, $this->number($this->{$field}) ?? 0.0));
 
-        $this->ripe = $this->formatForInput(max(0.0, $bunchWeight - $others));
-    }
-
-    public function chooseLooseFruitQuality(string $percent): void
-    {
-        if (array_key_exists($percent, self::LOOSE_FRUIT_QUALITY_OPTIONS)) {
-            $this->looseFruitQualityPercent = $percent;
-        }
+        $this->ripe = $this->formatForInput(max(0.0, $this->bunchWeight - $others));
     }
 
     /**
@@ -84,7 +72,7 @@ class TeaCalculator extends Component
      */
     public function startOver(): void
     {
-        $this->reset(['bunchWeight', ...self::BUNCH_FIELDS, 'looseFruitPercent', 'looseFruitQualityPercent', 'longStalkCount']);
+        $this->reset(['netWeight', 'looseFruitKilos', 'impurityPercent', ...self::BUNCH_FIELDS, 'longStalkCount']);
     }
 
     /**
@@ -96,6 +84,37 @@ class TeaCalculator extends Component
     public function bunchValues(): array
     {
         return config('palmcore.r100.bunch_values');
+    }
+
+    /**
+     * Peso de racimos (TPR) = peso neto del viaje − fruta suelta. Null mientras
+     * falte el neto o la fruta suelta pese tanto como el viaje.
+     */
+    #[Computed]
+    public function bunchWeight(): ?float
+    {
+        $netWeight = $this->number($this->netWeight);
+
+        if ($netWeight === null || $netWeight <= 0) {
+            return null;
+        }
+
+        $bunchWeight = $netWeight - max(0.0, $this->number($this->looseFruitKilos) ?? 0.0);
+
+        return $bunchWeight > 0 ? $bunchWeight : null;
+    }
+
+    /**
+     * Parte del viaje que llegó como fruta suelta (0,10 = 10 %).
+     */
+    #[Computed]
+    public function looseFruitShare(): ?float
+    {
+        $netWeight = $this->number($this->netWeight);
+
+        return $netWeight !== null && $netWeight > 0
+            ? max(0.0, $this->number($this->looseFruitKilos) ?? 0.0) / $netWeight
+            : null;
     }
 
     #[Computed]
@@ -110,9 +129,7 @@ class TeaCalculator extends Component
     #[Computed]
     public function remainingKilos(): ?float
     {
-        $bunchWeight = $this->number($this->bunchWeight);
-
-        return $bunchWeight !== null && $bunchWeight > 0 ? $bunchWeight - $this->distributedKilos : null;
+        return $this->bunchWeight !== null ? $this->bunchWeight - $this->distributedKilos : null;
     }
 
     /**
@@ -125,9 +142,21 @@ class TeaCalculator extends Component
     {
         $problems = [];
 
-        $bunchWeight = $this->number($this->bunchWeight);
-        if ($bunchWeight === null || $bunchWeight <= 0) {
-            $problems[] = 'Escriba cuántos kilos pesaron los racimos.';
+        $netWeight = $this->number($this->netWeight);
+        if ($netWeight === null || $netWeight <= 0) {
+            $problems[] = 'Escriba cuánto pesó su viaje neto.';
+        }
+
+        $looseFruit = $this->number($this->looseFruitKilos) ?? 0.0;
+        if ($looseFruit < 0) {
+            $problems[] = 'Los kilos de fruta suelta no pueden ser negativos.';
+        } elseif ($netWeight !== null && $netWeight > 0 && $looseFruit >= $netWeight) {
+            $problems[] = 'La fruta suelta no puede pesar lo mismo o más que todo el viaje.';
+        }
+
+        $impurity = $this->number($this->impurityPercent) ?? 0.0;
+        if ($impurity < 0 || $impurity > 100) {
+            $problems[] = 'El porcentaje de impureza debe estar entre 0 y 100.';
         }
 
         foreach (self::BUNCH_FIELDS as $field) {
@@ -135,16 +164,6 @@ class TeaCalculator extends Component
                 $problems[] = 'Los kilos no pueden ser negativos.';
                 break;
             }
-        }
-
-        $looseFruit = $this->number($this->looseFruitPercent) ?? 0.0;
-        if ($looseFruit < 0 || $looseFruit >= 100) {
-            $problems[] = 'La fruta suelta debe ser un número entre 0 y 99.';
-        }
-
-        $quality = $this->number($this->looseFruitQualityPercent);
-        if ($quality === null || $quality < 0 || $quality > 100) {
-            $problems[] = 'Elija qué tan limpia venía la fruta suelta.';
         }
 
         if ($this->number($this->industrialFactorPercent) === null) {
@@ -195,7 +214,7 @@ class TeaCalculator extends Component
     #[Computed]
     public function weightsBalanced(): bool
     {
-        return $this->result !== null && $this->result->weightsAreBalanced($this->number($this->bunchWeight));
+        return $this->result !== null && $this->result->weightsAreBalanced($this->bunchWeight);
     }
 
     /**
@@ -214,8 +233,8 @@ class TeaCalculator extends Component
         $tips = [];
         $unripe = $this->number($this->unripe) ?? 0.0;
         $overripeAndRotten = ($this->number($this->overripe) ?? 0.0) + ($this->number($this->rotten) ?? 0.0);
-        $looseFruit = $this->number($this->looseFruitPercent) ?? 0.0;
-        $quality = $this->number($this->looseFruitQualityPercent) ?? 100.0;
+        $looseFruitPercent = $this->looseFruitShare * 100;
+        $impurity = $this->number($this->impurityPercent) ?? 0.0;
         $longStalks = $this->number($this->longStalkCount) ?? 0.0;
 
         if ($unripe > 0) {
@@ -232,14 +251,14 @@ class TeaCalculator extends Component
                 ['longStalkCount' => 0]);
         }
 
-        if ($looseFruit > 0 && $quality < 100) {
-            $tips[] = $this->tip('clean', 'Envíe la fruta suelta limpia', 'Sin hojas, palos ni tierra. La basura le resta valor a cada kilo de fruta suelta.',
+        if ($looseFruitPercent > 0 && $impurity > 0) {
+            $tips[] = $this->tip('clean', 'Envíe la fruta suelta limpia', 'Sin hojas, palos ni tierra. La impureza le resta valor a cada kilo de fruta suelta.',
                 ['looseFruitQuality' => 1.0]);
         }
 
-        if ($looseFruit < 99) {
+        if ($looseFruitPercent < 98) {
             $tips[] = $this->tip('pick', 'Recoja la fruta suelta del suelo', 'Cada pepa cuenta: por cada 1 % más de fruta suelta en el viaje, su TEA sube 0,4 puntos. Recójala antes de 3 días.',
-                ['looseFruitShare' => min(0.98, ($looseFruit + 1) / 100)], 'Por cada 1 % más');
+                ['looseFruitShare' => ($looseFruitPercent + 1) / 100], 'Por cada 1 % más');
         }
 
         return $tips;
@@ -254,7 +273,7 @@ class TeaCalculator extends Component
 
         $lines = [
             '*Método R-100*',
-            'Peso de racimos: '.number_format($this->number($this->bunchWeight), 0, ',', '.').' kg',
+            'Peso neto del viaje: '.number_format($this->number($this->netWeight), 0, ',', '.').' kg',
             'Rendimiento (TEA): '.number_format($this->result->tea * 100, 2, ',', '.').' %'.($this->quality ? ' — '.$this->quality['label'] : ''),
         ];
 
@@ -296,14 +315,14 @@ class TeaCalculator extends Component
     private function calculatorArguments(): array
     {
         return [
-            'bunchWeight' => $this->number($this->bunchWeight),
+            'bunchWeight' => $this->bunchWeight,
             'ripe' => $this->number($this->ripe) ?? 0.0,
             'overripe' => $this->number($this->overripe) ?? 0.0,
             'unripe' => $this->number($this->unripe) ?? 0.0,
             'abnormal' => $this->number($this->abnormal) ?? 0.0,
             'rotten' => $this->number($this->rotten) ?? 0.0,
-            'looseFruitShare' => ($this->number($this->looseFruitPercent) ?? 0.0) / 100,
-            'looseFruitQuality' => $this->number($this->looseFruitQualityPercent) / 100,
+            'looseFruitShare' => $this->looseFruitShare,
+            'looseFruitQuality' => (100 - ($this->number($this->impurityPercent) ?? 0.0)) / 100,
             'industrialFactor' => $this->number($this->industrialFactorPercent) / 100,
             'longStalkCount' => (int) ($this->number($this->longStalkCount) ?? 0),
             'oilPricePerTon' => $this->number($this->oilPricePerTon),
