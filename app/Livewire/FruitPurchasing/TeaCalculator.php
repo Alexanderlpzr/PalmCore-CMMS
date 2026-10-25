@@ -203,10 +203,11 @@ class TeaCalculator extends Component
         }
 
         $levels = config('palmcore.r100.quality_levels');
+        $fruitTea = $this->result->tea + $this->result->industrialFactor;
 
         return match (true) {
-            $this->result->tea >= $levels['excellent'] => ['level' => 'excellent', 'label' => 'Excelente', 'message' => 'Su fruta llegó en muy buen estado. ¡Siga así!'],
-            $this->result->tea >= $levels['good'] => ['level' => 'good', 'label' => 'Buena', 'message' => 'Va bien. Con unos ajustes puede ganar más.'],
+            $fruitTea >= $levels['excellent'] => ['level' => 'excellent', 'label' => 'Excelente', 'message' => 'Su fruta llegó en muy buen estado. ¡Siga así!'],
+            $fruitTea >= $levels['good'] => ['level' => 'good', 'label' => 'Buena', 'message' => 'Va bien. Con unos ajustes puede ganar más.'],
             default => ['level' => 'improve', 'label' => 'Puede mejorar', 'message' => 'Hay plata quedándose en el camino. Mire los consejos.'],
         };
     }

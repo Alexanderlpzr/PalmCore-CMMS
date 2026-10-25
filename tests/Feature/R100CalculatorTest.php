@@ -29,6 +29,27 @@ it('reproduce la TEA del ejemplo 2 con aguaterapia y paloterapia (19,60 %)', fun
     expect($result->tea)->toEqualWithDelta(0.1960141, 0.000001);
 });
 
+/**
+ * «Formula pago.xlsx», fórmula definitiva del director (2026-10-24): igual a la
+ * anterior pero con FACIND 4,1 %. Hoja GUARIAPALMA, fila 19 (TEA A PAGAR).
+ */
+it('reproduce la TEA de la fórmula definitiva del director con FACIND 4,1 %', function (array $trip, float $expectedTea) {
+    expect(config('palmcore.r100.industrial_factor'))->toBe(0.041);
+
+    $result = R100Calculator::fromConfig()->calculate(
+        ...$trip,
+        industrialFactor: config('palmcore.r100.industrial_factor'),
+        longStalkCount: 0,
+    );
+
+    expect($result->tea)->toEqualWithDelta($expectedTea, 0.0000001);
+})->with([
+    'ejemplo 2 (C19)' => [['bunchWeight' => 18953.4, 'ripe' => 18060, 'overripe' => 259, 'unripe' => 52.7949860724234, 'abnormal' => 193.5816155988858, 'rotten' => 387.1632311977716, 'looseFruitShare' => 0.07, 'looseFruitQuality' => 0.95], 0.18904360687242505],
+    'ejemplo 2 con terapia (D19)' => [['bunchWeight' => 18845.4, 'ripe' => 18112.794986072422, 'overripe' => 0, 'unripe' => 0, 'abnormal' => 191, 'rotten' => 0, 'looseFruitShare' => 1534.6 / 20380, 'looseFruitQuality' => 0.95], 0.1904636093299985],
+    'ejemplo 3 (E19)' => [['bunchWeight' => 18000, 'ripe' => 17890, 'overripe' => 30, 'unripe' => 0, 'abnormal' => 80, 'rotten' => 0, 'looseFruitShare' => 0.10, 'looseFruitQuality' => 1.0], 0.20836944444444444],
+    'viaje de 20.000 kg (I19)' => [['bunchWeight' => 18600, 'ripe' => 17700, 'overripe' => 300, 'unripe' => 200, 'abnormal' => 200, 'rotten' => 200, 'looseFruitShare' => 0.07, 'looseFruitQuality' => 0.95], 0.18987419354838714],
+]);
+
 it('valora el viaje completo a TEA por el precio de la tonelada de aceite', function () {
     $result = R100Calculator::fromConfig()->calculate(
         bunchWeight: 18000, ripe: 17890, overripe: 30, unripe: 0, abnormal: 80, rotten: 0,

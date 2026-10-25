@@ -197,7 +197,7 @@
                 <details class="mt-6 rounded-2xl bg-gray-50 px-4 py-3">
                     <summary class="cursor-pointer text-base font-semibold text-gray-600">Datos de la planta (no necesita cambiarlos)</summary>
                     <label for="industrialFactorPercent" class="mt-3 block text-lg font-semibold text-gray-800">FACIND: costo de procesar la fruta</label>
-                    <p class="text-base text-gray-600">3,4 % de proceso + 1,3 % de pérdidas permitidas.</p>
+                    <p class="text-base text-gray-600">Lo que cuesta procesar la fruta en la planta, más las pérdidas permitidas.</p>
                     <div class="relative mt-2 max-w-[12rem]">
                         <input id="industrialFactorPercent" type="text" inputmode="decimal" autocomplete="off"
                                wire:model.live.debounce.500ms="industrialFactorPercent" class="{{ $field }} pr-12">

@@ -6,8 +6,8 @@ use Livewire\Livewire;
 
 /**
  * Ejemplo 3 de la presentación R-100: viaje neto de 20.000 kg con 2.000 kg de
- * fruta suelta limpia → TPR 18.000 kg, TEA 20,24 %. A $4.000.000 la tonelada de
- * aceite vale $16.189.556.
+ * fruta suelta limpia → TPR 18.000 kg. Con el FACIND definitivo de 4,1 % la TEA
+ * es 20,84 % y, a $4.000.000 la tonelada de aceite, vale $16.669.556.
  */
 function exampleThreeTrip(): Testable
 {
@@ -44,7 +44,7 @@ it('arranca con el FACIND oficial y el precio configurado, escritos como en Colo
     config(['palmcore.r100.oil_price_per_ton' => 4000000]);
 
     Livewire::test(TeaCalculator::class)
-        ->assertSet('industrialFactorPercent', '4,7')
+        ->assertSet('industrialFactorPercent', '4,1')
         ->assertSet('oilPricePerTon', '4.000.000')
         ->assertSee('Escriba cuánto pesó su viaje neto.');
 });
@@ -63,9 +63,9 @@ it('saca el peso de racimos y el % de fruta suelta del neto y los kilos de fruta
 it('calcula la TEA, el valor del viaje y la calidad', function () {
     exampleThreeTrip()
         ->assertSee('Usted recibiría')
-        ->assertSee('$ 16.189.556')
-        ->assertSee('20,24 %')
-        ->assertSee('$ 809.478')
+        ->assertSee('$ 16.669.556')
+        ->assertSee('20,84 %')
+        ->assertSee('$ 833.478')
         ->assertSee('20.000 kg')
         ->assertSee('Excelente')
         ->assertSee('Todo cuadra');
@@ -73,7 +73,8 @@ it('calcula la TEA, el valor del viaje y la calidad', function () {
 
 it('descuenta la impureza de la fruta suelta que dan en tolva', function () {
     // Ejemplo 2 de la presentación: 20.380 kg netos, 1.686 kg de fruta suelta con
-    // 5 % de impureza → CFS 95 %, TEA 18,83 %.
+    // 5 % de impureza → CFS 95 %. TEA 18,83 % con FACIND 4,7 %; 19,43 % con 4,1 %.
+    // La calificación no cambia con el FACIND: sigue en «Puede mejorar».
     Livewire::test(TeaCalculator::class)
         ->set('netWeight', '20.380')
         ->set('looseFruitKilos', '1.686')
@@ -83,19 +84,19 @@ it('descuenta la impureza de la fruta suelta que dan en tolva', function () {
         ->set('unripe', '52,07')
         ->set('abnormal', '190,93')
         ->set('rotten', '381,87')
-        ->assertSee('18,83 %')
+        ->assertSee('19,43 %')
         ->assertSee('Puede mejorar')
         ->assertSee('Envíe la fruta suelta limpia');
 });
 
-it('califica como buena la TEA del ejemplo 2 con terapia (19,60 %)', function () {
+it('califica como buena la fruta del ejemplo 2 con terapia (20,20 % con FACIND 4,1 %)', function () {
     Livewire::test(TeaCalculator::class)
         ->set('netWeight', '19.950')
         ->set('looseFruitKilos', '1.794')
         ->set('impurityPercent', '5')
         ->set('ripe', '17964,99')
         ->set('abnormal', '191')
-        ->assertSee('19,60 %')
+        ->assertSee('20,20 %')
         ->assertSee('Buena');
 });
 
@@ -115,7 +116,7 @@ it('muestra la TEA y pide el precio cuando no hay precio', function () {
     exampleThreeTrip()
         ->set('oilPricePerTon', '')
         ->assertSee('Su fruta rindió')
-        ->assertSee('20,24 %')
+        ->assertSee('20,84 %')
         ->assertSee('Escriba arriba el precio de la tonelada');
 });
 
@@ -173,8 +174,8 @@ it('arma el mensaje de WhatsApp con el resultado', function () {
         ->and(rawurldecode($url))->toContain('*Método R-100*')
         ->not->toContain('Fronda')
         ->toContain('Peso neto del viaje: 20.000 kg')
-        ->toContain('20,24 %')
-        ->toContain('$ 16.189.556')
+        ->toContain('20,84 %')
+        ->toContain('$ 16.669.556')
         ->toContain(route('r100.calculator'));
 });
 

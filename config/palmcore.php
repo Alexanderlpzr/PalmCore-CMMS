@@ -99,10 +99,11 @@ return [
     |--------------------------------------------------------------------------
     | R-100 — pago de fruta por calidad
     |--------------------------------------------------------------------------
-    | Coeficientes oficiales de la fórmula (confirmados 2026-10-23): cada kilo de
-    | racimo vale su porcentaje de extracción, la fruta suelta suma 0,4 puntos por
-    | cada 1 %, y FACIND = 3,4 % de proceso + 1,3 % de pérdidas. El precio es el de
-    | la tonelada de aceite (CPO) con el que se liquida la fruta.
+    | Coeficientes oficiales de la fórmula: cada kilo de racimo vale su porcentaje
+    | de extracción y la fruta suelta suma 0,4 puntos por cada 1 %. FACIND (costo de
+    | proceso más pérdidas permitidas) bajó de 4,7 % a 4,1 % en la fórmula definitiva
+    | del director (2026-10-24). El precio es el de la tonelada de aceite (CPO) con
+    | el que se liquida la fruta.
     */
     'r100' => [
         'oil_price_per_ton' => env('R100_OIL_PRICE_PER_TON'),
@@ -114,13 +115,15 @@ return [
             'rotten' => 0.015,
         ],
         'loose_fruit_value' => 0.40,
-        'industrial_factor' => 0.047,
+        'industrial_factor' => 0.041,
         'kilos_per_long_stalk' => 1.5,
-        // Calificación que ve el proveedor. Sale de los ejemplos de la presentación:
+        // Calificación que ve el proveedor, medida sobre la TEA ANTES de restar el
+        // FACIND: así califica la fruta y no cambia cuando cambia el costo de la
+        // planta. Sale de los ejemplos de la presentación (con FACIND 4,7 %):
         // 20,24 % «calidad excelente», 19,01 % «buena calidad», 18,83 % «mucho RP y RSM».
         'quality_levels' => [
-            'excellent' => 0.20,
-            'good' => 0.19,
+            'excellent' => 0.247,
+            'good' => 0.237,
         ],
     ],
 
