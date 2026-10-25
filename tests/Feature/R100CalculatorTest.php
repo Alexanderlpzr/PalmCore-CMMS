@@ -61,7 +61,7 @@ it('valora el viaje completo a TEA por el precio de la tonelada de aceite', func
         ->and($result->tripValue)->toEqualWithDelta(16_189_555.56, 0.01);
 });
 
-it('descuenta el pedúnculo largo como fracción del peso de racimos, sin dividir otra vez entre 100', function () {
+it('descuenta el pedúnculo largo como en el Excel del director: (NPL·1,5/TPR)%', function () {
     $withoutStalks = R100Calculator::fromConfig()->calculate(
         bunchWeight: 18000, ripe: 18000, overripe: 0, unripe: 0, abnormal: 0, rotten: 0,
         looseFruitShare: 0, looseFruitQuality: 1.0, industrialFactor: 0.047, longStalkCount: 0,
@@ -71,9 +71,10 @@ it('descuenta el pedúnculo largo como fracción del peso de racimos, sin dividi
         looseFruitShare: 0, looseFruitQuality: 1.0, industrialFactor: 0.047, longStalkCount: 12,
     );
 
-    // 12 pedúnculos × 1,5 kg / 18.000 kg = 0,1 puntos de TEA.
-    expect($withStalks->longStalkPenalty)->toEqualWithDelta(0.001, 0.0000001)
-        ->and($withoutStalks->tea - $withStalks->tea)->toEqualWithDelta(0.001, 0.0000001);
+    // 12 pedúnculos × 1,5 kg / 18.000 kg = 0,001; el «%» de la celda lo divide
+    // otra vez entre 100 → 0,00001 (0,001 puntos de TEA).
+    expect($withStalks->longStalkPenalty)->toEqualWithDelta(0.00001, 0.000000001)
+        ->and($withoutStalks->tea - $withStalks->tea)->toEqualWithDelta(0.00001, 0.000000001);
 });
 
 it('reporta cuando los tipos de racimo no suman el TPR', function () {

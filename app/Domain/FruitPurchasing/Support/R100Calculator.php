@@ -8,7 +8,10 @@ use InvalidArgumentException;
  * Fórmula R-100 de valoración de la fruta:
  *
  *   TEA = (RM·21% + RSM·12,5% + RVM·11% + RVA·10% + RP·1,5%) / TPR
- *         + %FS·40%·%CFS − %FACIND − (NPL·1,5 / TPR)
+ *         + %FS·40%·%CFS − %FACIND − (NPL·1,5 / TPR)%
+ *
+ * Igual que la celda del Excel del director, el castigo por pedúnculo largo
+ * lleva el «%» final: la fracción NPL·1,5/TPR se divide otra vez entre 100.
  *
  * El viaje completo (racimos + fruta suelta) se paga a TEA × precio de la
  * tonelada de aceite. Los porcentajes entran en fracción (8 % = 0,08).
@@ -63,7 +66,7 @@ class R100Calculator
         ) / $bunchWeight;
 
         $looseFruitContribution = $looseFruitShare * $this->looseFruitValue * $looseFruitQuality;
-        $longStalkPenalty = $longStalkCount * $this->kilosPerLongStalk / $bunchWeight;
+        $longStalkPenalty = $longStalkCount * $this->kilosPerLongStalk / $bunchWeight / 100;
         $tea = $bunchContribution + $looseFruitContribution - $industrialFactor - $longStalkPenalty;
 
         // %FS es la parte del viaje que llega suelta, así que el viaje pesa TPR / (1 − %FS).

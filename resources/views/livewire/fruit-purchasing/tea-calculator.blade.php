@@ -66,7 +66,7 @@
             {{-- Precio --}}
             <section class="rounded-3xl border-2 border-brand-200 bg-brand-50 p-5 sm:p-7">
                 <h2 class="flex items-center gap-3 text-2xl font-bold text-petrol-900">
-                    <span class="text-3xl" aria-hidden="true">💲</span> ¿A cómo pagan la tonelada de aceite?
+                    <span class="text-3xl" aria-hidden="true">💲</span> ¿Cuánto cuesta el precio del aceite (CPO)?
                 </h2>
                 <p class="mt-1 text-lg text-gray-700">Pregúntelo en la báscula o en la oficina de la extractora.</p>
                 <label for="oilPricePerTon" class="sr-only">Precio de compra de la tonelada de aceite (CPO)</label>
@@ -280,7 +280,7 @@
             </section>
 
             <p class="mt-4 px-2 text-sm leading-relaxed text-gray-500">
-                Fórmula R-100: TEA = (RM·21% + RSM·12,5% + RVM·11% + RVA·10% + RP·1,5%) / TPR + (%FS·40%·%CFS) − %FACIND − (NPL·1,5 / TPR).
+                Fórmula R-100: TEA = (RM·21% + RSM·12,5% + RVM·11% + RVA·10% + RP·1,5%) / TPR + (%FS·40%·%CFS) − %FACIND − (NPL·1,5 / TPR)%.
                 TPR = peso neto − fruta suelta; CFS = 100 % − impureza. Es un estimado; el pago final sale de la calificación en planta.
             </p>
         </aside>
@@ -298,7 +298,7 @@
                                 <p class="mt-1 text-lg leading-snug text-gray-700">{{ $tip['text'] }}</p>
                                 @if ($tip['moneyGain'] !== null && $tip['moneyGain'] > 0)
                                     <p class="mt-2 inline-block rounded-full bg-brand-100 px-3 py-1 text-lg font-bold text-brand-800">{{ $tip['gainLabel'] }}: + {{ $money($tip['moneyGain']) }}</p>
-                                @elseif ($tip['teaGain'] !== null && $tip['teaGain'] > 0)
+                                @elseif ($tip['teaGain'] !== null && $tip['teaGain'] >= 0.00005)
                                     <p class="mt-2 inline-block rounded-full bg-brand-100 px-3 py-1 text-lg font-bold text-brand-800">{{ $tip['gainLabel'] }}: + {{ number_format($tip['teaGain'] * 100, 2, ',', '.') }} puntos de TEA</p>
                                 @endif
                             </div>

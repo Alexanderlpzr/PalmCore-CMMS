@@ -26,6 +26,7 @@ it('abre la calculadora R-100 sin iniciar sesión', function () {
         ->assertOk()
         ->assertSee('<title>Método R-100', false)
         ->assertSee('¿Cuánto vale su fruta?')
+        ->assertSee('¿Cuánto cuesta el precio del aceite (CPO)?')
         ->assertSee('¿Cuánto pesó su viaje NETO?')
         ->assertSee('Escriba el porcentaje de impureza')
         ->assertSee('Precio de compra de la tonelada de aceite (CPO)')
@@ -157,14 +158,26 @@ it('calcula cuánto ganaría con aguaterapia a los racimos verdes', function () 
 });
 
 it('aconseja paloterapia y cortar el tallo cuando hay podrido y pedúnculo largo', function () {
+    // Pedúnculo como en el Excel: 12 × 1,5 / 18.000 / 100 = 0,00001 de TEA.
+    // 0,00001 × $4.000.000 × 18 t = $720.
     Livewire::test(TeaCalculator::class)
+        ->set('oilPricePerTon', '4000000')
         ->set('netWeight', '18000')
         ->set('ripe', '17600')
         ->set('rotten', '400')
         ->set('longStalkCount', '12')
         ->assertSee('Paloterapia a los sobremaduros y podridos')
         ->assertSee('Corte el tallo al ras')
-        ->assertSee('Podría ganar: + 0,10 puntos de TEA');
+        ->assertSee('Podría ganar: + $ 720');
+
+    // Sin precio, una ganancia que redondea a 0,00 puntos no se muestra.
+    Livewire::test(TeaCalculator::class)
+        ->set('netWeight', '18000')
+        ->set('ripe', '17600')
+        ->set('rotten', '400')
+        ->set('longStalkCount', '12')
+        ->assertSee('Corte el tallo al ras')
+        ->assertDontSee('0,00 puntos de TEA');
 });
 
 it('arma el mensaje de WhatsApp con el resultado', function () {
