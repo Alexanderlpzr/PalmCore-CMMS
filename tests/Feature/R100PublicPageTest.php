@@ -269,7 +269,8 @@ it('calcula cuánto ganaría con aguaterapia a los racimos verdes', function () 
         ->set('netWeight', '18000')
         ->set('ripe', '17000')
         ->set('unripe', '1000')
-        ->assertSee('Aguaterapia a los racimos verdes')
+        ->assertSee('Aguaterapia a los racimos verdes masudos (RVM)')
+        ->assertSee('Solo para los verdes masudos (RVM)')
         ->assertSee('Podría ganar: + $ 400.000');
 });
 

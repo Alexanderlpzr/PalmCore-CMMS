@@ -298,7 +298,7 @@ class TeaCalculator extends Component
         $longStalks = $this->number($this->longStalkCount) ?? 0.0;
 
         if ($unripe > 0) {
-            $tips[] = $this->tip('water', 'Aguaterapia a los racimos verdes', 'Moje con agua los racimos verdes masudos unos minutos y déjelos uno o dos días hasta que suelten fruto. Llegan como maduros y valen más.',
+            $tips[] = $this->tip('water', 'Aguaterapia a los racimos verdes masudos (RVM)', 'Solo para los verdes masudos (RVM), los que tienen color de maduro pero no han soltado ningún fruto. Moje con agua esos racimos unos minutos y déjelos uno o dos días hasta que suelten fruto. Llegan como maduros y valen más.',
                 ['ripe' => ($this->number($this->ripe) ?? 0.0) + $unripe, 'unripe' => 0.0]);
         }
 
