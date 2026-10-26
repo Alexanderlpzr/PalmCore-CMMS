@@ -48,6 +48,53 @@ it('abre la calculadora R-100 sin iniciar sesión', function () {
     expect(auth()->check())->toBeFalse();
 });
 
+it('pone los ejemplos debajo de las casillas y no dentro, para que no parezcan llenas', function () {
+    $this->get(route('r100.calculator'))
+        ->assertSee('Ejemplo: 20.000 kg')
+        ->assertSee('Ejemplo: 1.600 kg. Si no trajo, déjelo vacío.')
+        ->assertSee('Ejemplo: 5 %')
+        ->assertDontSee('placeholder=', false);
+});
+
+it('muestra cada tipo de racimo en una fila con su foto para ver en grande', function () {
+    $response = $this->get(route('r100.calculator'));
+
+    foreach (['ripe', 'overripe', 'unripe', 'abnormal', 'rotten'] as $bunch) {
+        $response->assertSee('data-bunch-row="'.$bunch.'"', false);
+    }
+
+    $response->assertSee('Ver grande la foto del racimo podrido')
+        ->assertSee('Toque en cualquier parte para cerrar');
+});
+
+it('marca en verde cada paso que ya está listo', function () {
+    $component = Livewire::test(TeaCalculator::class)
+        ->assertDontSee('Paso 1 listo');
+
+    expect($component->instance()->completedSteps)->toBe([1 => false, 2 => false, 3 => false]);
+
+    $component->set('netWeight', '20.000')->set('looseFruitKilos', '2.000')
+        ->assertSee('Paso 1 listo')
+        ->assertSee('Paso 2 listo')
+        ->assertDontSee('Paso 3 listo');
+
+    $component->set('ripe', '18.000')
+        ->assertSee('Paso 3 listo');
+
+    // Una impureza imposible deja el paso 2 (y por tanto el 3) sin terminar.
+    $component->set('impurityPercent', '120');
+    expect($component->instance()->completedSteps)->toBe([1 => true, 2 => false, 3 => false]);
+});
+
+it('trae la vista previa para cuando el enlace se comparte por WhatsApp', function () {
+    $this->get(route('r100.calculator'))
+        ->assertSee('<meta property="og:title" content="Método R-100 — ¿Cuánto vale su fruta?">', false)
+        ->assertSee('<meta property="og:image" content="'.asset('images/r100/compartir.jpg').'">', false)
+        ->assertSee('<meta property="og:url" content="'.route('r100.calculator').'">', false);
+
+    expect(public_path('images/r100/compartir.jpg'))->toBeFile();
+});
+
 it('sigue pidiendo inicio de sesión para el resto de la aplicación', function () {
     $this->get('/admin')->assertRedirect();
 });

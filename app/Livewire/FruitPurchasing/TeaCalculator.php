@@ -128,6 +128,32 @@ class TeaCalculator extends Component
             : null;
     }
 
+    /**
+     * Qué pasos ya están listos, para pintarlos en verde con ✔. El 2 (fruta
+     * suelta) es opcional: queda listo apenas el 1 lo está y sus campos no tienen
+     * errores. El 3 queda listo cuando los tipos de racimo cuadran con el TPR.
+     *
+     * @return array{1: bool, 2: bool, 3: bool}
+     */
+    #[Computed]
+    public function completedSteps(): array
+    {
+        $netWeight = $this->number($this->netWeight);
+        $netWeightReady = $netWeight !== null && $netWeight > 0;
+
+        $looseFruit = $this->number($this->looseFruitKilos) ?? 0.0;
+        $impurity = $this->number($this->impurityPercent) ?? 0.0;
+        $looseFruitReady = $netWeightReady
+            && $looseFruit >= 0 && $looseFruit < $netWeight
+            && $impurity >= 0 && $impurity <= 100;
+
+        return [
+            1 => $netWeightReady,
+            2 => $looseFruitReady,
+            3 => $looseFruitReady && $this->weightsBalanced,
+        ];
+    }
+
     #[Computed]
     public function distributedKilos(): float
     {

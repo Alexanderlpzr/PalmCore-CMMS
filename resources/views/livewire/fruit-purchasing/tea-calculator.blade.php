@@ -29,7 +29,13 @@
 
     $field = 'block w-full rounded-xl border-2 border-gray-300 bg-white px-4 py-3 text-2xl font-semibold tabular-nums text-gray-900 placeholder:text-gray-400 placeholder:font-normal focus:border-brand-600 focus:outline-none focus:ring-4 focus:ring-brand-600/20';
     $format = 'x-on:blur="$el.value = window.frondaFormatNumber($el.value); $el.dispatchEvent(new Event(\'input\'))"';
-    $stepBadge = 'flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-petrol-800 text-xl text-white';
+    $example = 'mt-2 text-base text-gray-500';
+
+    $steps = $this->completedSteps;
+    $sectionBox = fn (int $step): string => 'rounded-3xl border-2 bg-white p-5 shadow-sm transition-colors sm:p-7 '.($steps[$step] ? 'border-brand-300' : 'border-gray-200');
+    $stepBadge = fn (int $step): \Illuminate\Support\HtmlString => new \Illuminate\Support\HtmlString($steps[$step]
+        ? '<span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-600 text-white" data-step-done="'.$step.'"><svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span class="sr-only">Paso '.$step.' listo</span></span>'
+        : '<span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-petrol-800 text-xl text-white">'.$step.'</span>');
 
     $oilPrice = $this->oilPrice;
     $result = $this->result;
@@ -44,6 +50,7 @@
     <style>
         @keyframes r100-pop { 0% { transform: scale(.96); opacity: .4 } 60% { transform: scale(1.03) } 100% { transform: scale(1); opacity: 1 } }
         .r100-pop { animation: r100-pop .35s ease-out }
+        [x-cloak] { display: none !important }
     </style>
 
     {{-- Encabezado --}}
@@ -83,23 +90,24 @@
             </section>
 
             {{-- Paso 1: peso neto --}}
-            <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-7">
+            <section class="{{ $sectionBox(1) }}">
                 <h2 class="flex items-center gap-3 text-2xl font-bold text-petrol-900">
-                    <span class="{{ $stepBadge }}">1</span>
+                    {{ $stepBadge(1) }}
                     <label for="netWeight">¿Cuánto pesó su viaje NETO?</label>
                 </h2>
                 <p class="mt-2 text-lg text-gray-600">Fruta suelta y peso de racimos, todo junto. Se lo dan en la báscula.</p>
                 <div class="relative mt-4 max-w-md">
-                    <input id="netWeight" type="text" inputmode="decimal" autocomplete="off" placeholder="20.000"
+                    <input id="netWeight" type="text" inputmode="decimal" autocomplete="off" aria-describedby="netWeight-example"
                            wire:model.live.debounce.500ms="netWeight" {!! $format !!} class="{{ $field }} pr-16">
                     <span class="pointer-events-none absolute inset-y-0 right-4 flex items-center text-xl font-semibold text-gray-500">kg</span>
                 </div>
+                <p id="netWeight-example" class="{{ $example }}">Ejemplo: 20.000 kg</p>
             </section>
 
             {{-- Paso 2: fruta suelta --}}
-            <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-7">
+            <section class="{{ $sectionBox(2) }}">
                 <h2 class="flex items-center gap-3 text-2xl font-bold text-petrol-900">
-                    <span class="{{ $stepBadge }}">2</span>
+                    {{ $stepBadge(2) }}
                     ¿Trajo fruta suelta?
                 </h2>
 
@@ -108,21 +116,23 @@
                     <div class="space-y-5">
                         <div>
                             <label for="looseFruitKilos" class="block text-xl font-bold text-petrol-900">¿Cuántos kilos de fruta suelta?</label>
-                            <p class="text-base text-gray-600">La pepa que llega suelta, sin racimo. Se lo dan en la báscula. Si no trajo, déjelo vacío.</p>
+                            <p class="text-base text-gray-600">La pepa que llega suelta, sin racimo. Se lo dan en la báscula.</p>
                             <div class="relative mt-3 max-w-xs">
-                                <input id="looseFruitKilos" type="text" inputmode="decimal" autocomplete="off" placeholder="0"
+                                <input id="looseFruitKilos" type="text" inputmode="decimal" autocomplete="off" aria-describedby="looseFruitKilos-example"
                                        wire:model.live.debounce.500ms="looseFruitKilos" {!! $format !!} class="{{ $field }} pr-14">
                                 <span class="pointer-events-none absolute inset-y-0 right-4 flex items-center text-xl font-semibold text-gray-500">kg</span>
                             </div>
+                            <p id="looseFruitKilos-example" class="{{ $example }}">Ejemplo: 1.600 kg. Si no trajo, déjelo vacío.</p>
                         </div>
                         <div>
                             <label for="impurityPercent" class="block text-xl font-bold text-petrol-900">Escriba el porcentaje de impureza</label>
                             <p class="text-base text-gray-600">Hojas, palos o tierra en la fruta suelta. Se lo dan en la tolva.</p>
                             <div class="relative mt-3 max-w-[12rem]">
-                                <input id="impurityPercent" type="text" inputmode="decimal" autocomplete="off" placeholder="0"
+                                <input id="impurityPercent" type="text" inputmode="decimal" autocomplete="off" aria-describedby="impurityPercent-example"
                                        wire:model.live.debounce.500ms="impurityPercent" {!! $format !!} class="{{ $field }} pr-12">
                                 <span class="pointer-events-none absolute inset-y-0 right-4 flex items-center text-xl font-semibold text-gray-500">%</span>
                             </div>
+                            <p id="impurityPercent-example" class="{{ $example }}">Ejemplo: 5 %. Si la fruta llegó limpia, déjelo vacío.</p>
                         </div>
                     </div>
                 </div>
@@ -136,30 +146,49 @@
             </section>
 
             {{-- Paso 3: racimos --}}
-            <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-7">
+            <section class="{{ $sectionBox(3) }}" x-data="{ photo: null, name: '' }" x-on:keydown.escape.window="photo = null">
                 <h2 class="flex items-center gap-3 text-2xl font-bold text-petrol-900">
-                    <span class="{{ $stepBadge }}">3</span>
+                    {{ $stepBadge(3) }}
                     ¿Cómo venían los racimos?
                 </h2>
-                <p class="mt-2 text-lg text-gray-600">Mire las fotos y escriba cuántos kilos había de cada tipo. Si no trajo de alguno, déjelo vacío.</p>
+                <p class="mt-2 text-lg text-gray-600">Escriba cuántos kilos había de cada tipo. Si no trajo de alguno, déjelo vacío. Toque la foto para verla grande.</p>
 
-                <div class="mt-6 grid gap-4 sm:grid-cols-2">
+                <div class="mt-6 space-y-3">
                     @foreach ($bunchCards as $model => $card)
-                        <div wire:key="bunch-{{ $model }}" class="overflow-hidden rounded-2xl border-2 border-gray-200 bg-white focus-within:border-brand-500">
-                            <img src="{{ asset('images/r100/'.$card['photo'].'.jpg') }}" alt="Racimo {{ strtolower($card['name']) }}" loading="lazy" class="h-36 w-full object-cover">
-                            <div class="p-4">
-                                <label for="{{ $model }}" class="block text-xl font-bold text-petrol-900">{{ $card['name'] }} <span class="text-base font-normal text-gray-500">({{ $card['code'] }})</span></label>
-                                <span class="mt-1 inline-block rounded-full px-3 py-1 text-sm font-bold {{ $toneBadge[$card['tone']] }}">Paga {{ str_replace(',0 %', ' %', $pct($this->bunchValues[$model], 1)) }}</span>
+                        <div wire:key="bunch-{{ $model }}" data-bunch-row="{{ $model }}"
+                             class="grid grid-cols-[5rem_1fr] items-start gap-x-4 gap-y-3 rounded-2xl border-2 border-gray-200 bg-white p-3 focus-within:border-brand-500 sm:grid-cols-[6rem_1fr_12rem] sm:items-center sm:p-4">
+                            <button type="button" class="group relative overflow-hidden rounded-xl focus:outline-none focus:ring-4 focus:ring-brand-600/30"
+                                    x-on:click="photo = @js(asset('images/r100/'.$card['photo'].'.jpg')); name = @js($card['name'])"
+                                    aria-label="Ver grande la foto del racimo {{ strtolower($card['name']) }}">
+                                <img src="{{ asset('images/r100/'.$card['photo'].'.jpg') }}" alt="Racimo {{ strtolower($card['name']) }}" loading="lazy"
+                                     class="h-20 w-20 object-cover transition group-hover:scale-105 sm:h-24 sm:w-24">
+                                <span class="absolute bottom-1 right-1 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white" aria-hidden="true">
+                                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5M11 8v6M8 11h6"/></svg>
+                                </span>
+                            </button>
+                            <div class="min-w-0">
+                                <label for="{{ $model }}" class="text-xl font-bold text-petrol-900">{{ $card['name'] }} <span class="text-base font-normal text-gray-500">({{ $card['code'] }})</span></label>
+                                <span class="ml-1 inline-block rounded-full px-2.5 py-0.5 align-middle text-sm font-bold {{ $toneBadge[$card['tone']] }}">Paga {{ str_replace(',0 %', ' %', $pct($this->bunchValues[$model], 1)) }}</span>
                                 <p class="mt-1 text-base leading-snug text-gray-600">{{ $card['hint'] }}</p>
-                                <div class="relative mt-3">
-                                    <input id="{{ $model }}" type="text" inputmode="decimal" autocomplete="off" placeholder="0"
-                                           aria-label="Peso Racimo {{ $card['name'] }} ({{ $card['code'] }}) en kilos"
-                                           wire:model.live.debounce.500ms="{{ $model }}" {!! $format !!} class="{{ $field }} pr-14">
-                                    <span class="pointer-events-none absolute inset-y-0 right-4 flex items-center text-lg font-semibold text-gray-500">kg</span>
-                                </div>
+                            </div>
+                            <div class="relative col-span-2 sm:col-span-1">
+                                <input id="{{ $model }}" type="text" inputmode="decimal" autocomplete="off"
+                                       aria-label="Peso Racimo {{ $card['name'] }} ({{ $card['code'] }}) en kilos"
+                                       wire:model.live.debounce.500ms="{{ $model }}" {!! $format !!} class="{{ $field }} pr-14">
+                                <span class="pointer-events-none absolute inset-y-0 right-4 flex items-center text-lg font-semibold text-gray-500">kg</span>
                             </div>
                         </div>
                     @endforeach
+                </div>
+
+                {{-- Foto grande del racimo --}}
+                <div x-show="photo" x-cloak x-transition.opacity x-on:click="photo = null" role="dialog" aria-modal="true" aria-label="Foto del racimo"
+                     class="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4">
+                    <figure class="w-full max-w-xl">
+                        <img :src="photo" :alt="'Racimo ' + name" class="max-h-[70vh] w-full rounded-2xl object-contain">
+                        <figcaption class="mt-4 text-center text-3xl font-bold text-white" x-text="name"></figcaption>
+                        <p class="mt-2 text-center text-lg text-white/70">Toque en cualquier parte para cerrar</p>
+                    </figure>
                 </div>
 
                 {{-- Cuánto falta por repartir --}}
@@ -193,9 +222,10 @@
                     <label for="longStalkCount" class="block text-xl font-bold text-petrol-900">¿Cuántos racimos llegaron con el tallo largo?</label>
                     <p class="text-base text-gray-600">El tallo (pedúnculo) largo descuenta 1,5 kilos por racimo. <span class="text-gray-500">(Cantidad de Pedúnculo Largo, CPL)</span></p>
                     <div class="mt-3 max-w-[12rem]">
-                        <input id="longStalkCount" type="text" inputmode="numeric" autocomplete="off" placeholder="0"
+                        <input id="longStalkCount" type="text" inputmode="numeric" autocomplete="off" aria-describedby="longStalkCount-example"
                                wire:model.live.debounce.500ms="longStalkCount" class="{{ $field }}">
                     </div>
+                    <p id="longStalkCount-example" class="{{ $example }}">Si ninguno llegó con el tallo largo, déjelo vacío.</p>
                 </div>
 
                 <details class="mt-6 rounded-2xl bg-gray-50 px-4 py-3">
