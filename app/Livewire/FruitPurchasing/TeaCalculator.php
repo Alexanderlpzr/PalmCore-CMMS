@@ -41,14 +41,7 @@ class TeaCalculator extends Component
 
     public string $rotten = '';
 
-    public string $industrialFactorPercent = '';
-
     public string $longStalkCount = '';
-
-    public function mount(): void
-    {
-        $this->industrialFactorPercent = ColombianNumber::format(config('palmcore.r100.industrial_factor') * 100);
-    }
 
     /**
      * El precio publicado de la tonelada de aceite, o null si todavía no hay.
@@ -201,10 +194,6 @@ class TeaCalculator extends Component
                 $problems[] = 'Los kilos no pueden ser negativos.';
                 break;
             }
-        }
-
-        if ($this->number($this->industrialFactorPercent) === null) {
-            $problems[] = 'Falta el costo de la planta (FACIND).';
         }
 
         $longStalks = $this->number($this->longStalkCount) ?? 0.0;
@@ -363,7 +352,8 @@ class TeaCalculator extends Component
             'rotten' => $this->number($this->rotten) ?? 0.0,
             'looseFruitShare' => $this->looseFruitShare,
             'looseFruitQuality' => (100 - ($this->number($this->impurityPercent) ?? 0.0)) / 100,
-            'industrialFactor' => $this->number($this->industrialFactorPercent) / 100,
+            // El FACIND es de la planta: sale solo de la configuración, el proveedor no lo ve ni lo cambia.
+            'industrialFactor' => (float) config('palmcore.r100.industrial_factor'),
             'longStalkCount' => (int) ($this->number($this->longStalkCount) ?? 0),
             'oilPricePerTon' => $this->oilPrice['price'] ?? null,
         ];

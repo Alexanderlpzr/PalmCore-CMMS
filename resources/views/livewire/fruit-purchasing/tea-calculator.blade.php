@@ -227,17 +227,6 @@
                     </div>
                     <p id="longStalkCount-example" class="{{ $example }}">Si ninguno llegó con el tallo largo, déjelo vacío.</p>
                 </div>
-
-                <details class="mt-6 rounded-2xl bg-gray-50 px-4 py-3">
-                    <summary class="cursor-pointer text-base font-semibold text-gray-600">Datos de la planta (no necesita cambiarlos)</summary>
-                    <label for="industrialFactorPercent" class="mt-3 block text-lg font-semibold text-gray-800">FACIND: costo de procesar la fruta</label>
-                    <p class="text-base text-gray-600">Lo que cuesta procesar la fruta en la planta, más las pérdidas permitidas.</p>
-                    <div class="relative mt-2 max-w-[12rem]">
-                        <input id="industrialFactorPercent" type="text" inputmode="decimal" autocomplete="off"
-                               wire:model.live.debounce.500ms="industrialFactorPercent" class="{{ $field }} pr-12">
-                        <span class="pointer-events-none absolute inset-y-0 right-4 flex items-center text-xl font-semibold text-gray-500">%</span>
-                    </div>
-                </details>
             </section>
         </div>
 
@@ -279,9 +268,9 @@
                         <details class="mt-4 rounded-2xl bg-white/5 px-4 py-3">
                             <summary class="cursor-pointer text-base font-semibold text-white/80">¿De dónde sale este número?</summary>
                             <dl class="mt-3 space-y-1.5 text-base tabular-nums">
-                                <div class="flex justify-between"><dt class="text-white/70">Sus racimos aportan</dt><dd>+ {{ $pct($result->bunchContribution) }}</dd></div>
+                                {{-- El FACIND no se muestra: va ya descontado en lo que aportan los racimos, para que la suma cuadre. --}}
+                                <div class="flex justify-between"><dt class="text-white/70">Sus racimos aportan</dt><dd>+ {{ $pct($result->bunchContribution - $result->industrialFactor) }}</dd></div>
                                 <div class="flex justify-between"><dt class="text-white/70">La fruta suelta suma</dt><dd>+ {{ $pct($result->looseFruitContribution) }}</dd></div>
-                                <div class="flex justify-between"><dt class="text-white/70">Costo de la planta (FACIND)</dt><dd>− {{ $pct($result->industrialFactor) }}</dd></div>
                                 <div class="flex justify-between"><dt class="text-white/70">Tallos largos</dt><dd>− {{ $pct($result->longStalkPenalty) }}</dd></div>
                                 <div class="flex justify-between border-t border-white/15 pt-1.5 font-bold"><dt>TEA a pagar</dt><dd>{{ $pct($result->tea) }}</dd></div>
                             </dl>

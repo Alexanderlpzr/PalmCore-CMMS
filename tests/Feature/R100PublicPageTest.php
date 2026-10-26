@@ -122,7 +122,6 @@ it('usa el precio de la configuración mientras nadie publique uno', function ()
     config(['palmcore.r100.oil_price_per_ton' => 4000000]);
 
     Livewire::test(TeaCalculator::class)
-        ->assertSet('industrialFactorPercent', '4,1')
         ->assertSee('$ 4.000.000')
         ->assertSee('Escriba cuánto pesó su viaje neto.');
 });
@@ -188,9 +187,27 @@ it('entiende los puntos de mil y la coma decimal', function () {
         ->set('looseFruitKilos', '2.000')
         ->set('ripe', '17.890')
         ->set('overripe', '30')
-        ->set('abnormal', '80')
-        ->set('industrialFactorPercent', '4,7')
-        ->assertSee('$ 16.189.556');
+        ->set('abnormal', '80,0')
+        ->assertSee('$ 16.669.556');
+});
+
+it('no muestra el FACIND y el desglose sigue cuadrando con la TEA', function () {
+    // Ejemplo 3: racimos 20,94 % − FACIND 4,10 % = 16,84 %; + fruta suelta 4,00 % = 20,84 %.
+    exampleThreeTrip()
+        ->assertDontSee('Costo de la planta')
+        ->assertDontSee('FACIND)')
+        ->assertSee('+ 16,84 %')
+        ->assertSee('+ 4,00 %')
+        ->assertSee('20,84 %');
+});
+
+it('no deja que el proveedor cambie el FACIND', function () {
+    $this->get(route('r100.calculator'))
+        ->assertDontSee('id="industrialFactorPercent"', false)
+        ->assertDontSee('Datos de la planta');
+
+    expect(fn () => Livewire::test(TeaCalculator::class)->set('industrialFactorPercent', '0'))
+        ->toThrow(Exception::class);
 });
 
 it('muestra solo la TEA cuando la extractora no ha publicado el precio', function () {
