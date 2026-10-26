@@ -74,7 +74,7 @@
             {{-- Precio --}}
             <section class="rounded-3xl border-2 border-brand-200 bg-brand-50 p-5 sm:p-7">
                 <h2 class="flex items-center gap-3 text-2xl font-bold text-petrol-900">
-                    <span class="text-3xl" aria-hidden="true">💲</span> ¿Cuánto cuesta el precio del aceite (CPO)?
+                    <span class="text-3xl" aria-hidden="true">💲</span> ¿Cuánto cuesta la tonelada de aceite (CPO) a precio (FEP)?
                 </h2>
                 @if ($oilPrice)
                     <p class="mt-3 text-4xl font-extrabold tabular-nums text-petrol-900 sm:text-5xl" data-testid="oil-price">{{ $money($oilPrice['price']) }}</p>

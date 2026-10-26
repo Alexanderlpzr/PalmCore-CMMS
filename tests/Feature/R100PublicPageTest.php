@@ -38,7 +38,7 @@ it('abre la calculadora R-100 sin iniciar sesión', function () {
         ->assertOk()
         ->assertSee('<title>Método R-100', false)
         ->assertSee('¿Cuánto vale su fruta?')
-        ->assertSee('¿Cuánto cuesta el precio del aceite (CPO)?')
+        ->assertSee('¿Cuánto cuesta la tonelada de aceite (CPO) a precio (FEP)?')
         ->assertSee('¿Cuánto pesó su viaje NETO?')
         ->assertSee('Escriba el porcentaje de impureza')
         ->assertSee('images/r100/maduro.jpg')
