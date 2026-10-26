@@ -281,7 +281,7 @@ it('aconseja paloterapia y cortar el tallo cuando hay podrido y pedúnculo largo
         ->set('ripe', '17600')
         ->set('rotten', '400')
         ->set('longStalkCount', '12')
-        ->assertSee('Paloterapia a los sobremaduros y podridos')
+        ->assertSee('Paloterapia a los sobremaduros (RSM) y podridos (RP)')
         ->assertSee('Corte el tallo al ras')
         ->assertDontSee('0,00 puntos de TEA');
 
@@ -295,6 +295,35 @@ it('aconseja paloterapia y cortar el tallo cuando hay podrido y pedúnculo largo
         ->set('rotten', '400')
         ->set('longStalkCount', '12')
         ->assertSee('Podría ganar: + $ 720');
+});
+
+it('calcula cuánto pierde por no hacer paloterapia, con la fórmula del ingeniero', function () {
+    // Sobremaduro: 400 × 4.000 × (50 % × 70 % × 40 % − 12,5 %) = $24.000.
+    // Podrido:     300 × 4.000 × (50 % × 70 % × 40 % − 1,5 %)  = $150.000.
+    Livewire::test(TeaCalculator::class)
+        ->set('oilPricePerTon', '4.000.000')
+        ->set('netWeight', '18.400')
+        ->set('ripe', '17.000')
+        ->set('overripe', '400')
+        ->set('unripe', '300')
+        ->set('abnormal', '400')
+        ->set('rotten', '300')
+        ->assertSee('Está perdiendo: $ 174.000')
+        ->assertSee('Sobremaduros (400 kg): $ 24.000')
+        ->assertSee('Podridos (300 kg): $ 150.000');
+});
+
+it('sin precio muestra la pérdida por no hacer paloterapia en puntos de TEA', function () {
+    // (400 × 1,5 % + 300 × 12,5 %) / 18.400 kg = 0,24 puntos.
+    Livewire::test(TeaCalculator::class)
+        ->set('netWeight', '18.400')
+        ->set('ripe', '17.000')
+        ->set('overripe', '400')
+        ->set('unripe', '300')
+        ->set('abnormal', '400')
+        ->set('rotten', '300')
+        ->assertSee('Está perdiendo: 0,24 puntos de TEA')
+        ->assertDontSee('Sobremaduros (400 kg)');
 });
 
 it('arma el mensaje de WhatsApp con el resultado y el precio usado', function () {

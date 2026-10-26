@@ -125,6 +125,14 @@ return [
             'excellent' => 0.247,
             'good' => 0.237,
         ],
+        // Lo que pierde quien no hace paloterapia (fórmula del ingeniero, 2026-10-26):
+        // kilos × precio del kilo de aceite × (fruta del racimo × lo que se recupera
+        // × valor de la fruta suelta − valor del racimo). Ej.: 400 kg de sobremaduro
+        // a $4.000 el kilo → 400 × 4.000 × (50 % × 70 % × 40 % − 12,5 %) = $24.000.
+        'threshing' => [
+            'fruit_share' => 0.50,
+            'recovered_share' => 0.70,
+        ],
     ],
 
 ];

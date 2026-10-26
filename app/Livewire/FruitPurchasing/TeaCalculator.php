@@ -281,7 +281,7 @@ class TeaCalculator extends Component
      * Consejos para el próximo viaje. Cuando se puede, cuánto ganaría con cada uno:
      * se recalcula el viaje con el cambio y se compara.
      *
-     * @return list<array{key: string, title: string, text: string, teaGain: float|null, moneyGain: float|null, gainLabel: string}>
+     * @return list<array{key: string, title: string, text: string, teaGain: float|null, moneyGain: float|null, gainLabel: string, details: list<string>, isLoss: bool}>
      */
     #[Computed]
     public function tips(): array
@@ -303,7 +303,7 @@ class TeaCalculator extends Component
         }
 
         if ($overripeAndRotten > 0) {
-            $tips[] = $this->tip('stick', 'Paloterapia a los sobremaduros y podridos', 'Meta el racimo en un saco y golpéelo para que suelte el fruto. Deje el raquis vacío en el campo y envíe solo el fruto suelto: así no pierde puntos.', null);
+            $tips[] = $this->threshingTip();
         }
 
         if ($longStalks > 0) {
@@ -359,7 +359,7 @@ class TeaCalculator extends Component
 
     /**
      * @param  array<string, float|int>|null  $changes  argumentos de la calculadora que cambian si se sigue el consejo
-     * @return array{key: string, title: string, text: string, teaGain: float|null, moneyGain: float|null, gainLabel: string}
+     * @return array{key: string, title: string, text: string, teaGain: float|null, moneyGain: float|null, gainLabel: string, details: list<string>, isLoss: bool}
      */
     private function tip(string $key, string $title, string $text, ?array $changes, string $gainLabel = 'Podría ganar'): array
     {
@@ -372,7 +372,62 @@ class TeaCalculator extends Component
             $moneyGain = $improved->tripValue !== null ? $improved->tripValue - $this->result->tripValue : null;
         }
 
-        return compact('key', 'title', 'text', 'teaGain', 'moneyGain', 'gainLabel');
+        $details = [];
+        $isLoss = false;
+
+        return compact('key', 'title', 'text', 'teaGain', 'moneyGain', 'gainLabel', 'details', 'isLoss');
+    }
+
+    /**
+     * Paloterapia: lo que pierde por mandar enteros los sobremaduros y podridos,
+     * con la fórmula del ingeniero. Por cada kilo de racimo se recupera
+     * fruta × recuperación de fruta suelta (50 % × 70 %), que paga 40 %, en vez
+     * de lo que paga el racimo (12,5 % el sobremaduro, 1,5 % el podrido):
+     *
+     *   pérdida = kilos × precio del kilo de aceite × (50 %·70 %·40 % − valor del racimo)
+     *
+     * Sin precio, la misma pérdida se muestra en puntos de TEA del viaje.
+     *
+     * @return array{key: string, title: string, text: string, teaGain: float|null, moneyGain: float|null, gainLabel: string, details: list<string>, isLoss: bool}
+     */
+    private function threshingTip(): array
+    {
+        $recoveredValue = config('palmcore.r100.threshing.fruit_share')
+            * config('palmcore.r100.threshing.recovered_share')
+            * config('palmcore.r100.loose_fruit_value');
+
+        $oilPricePerKilo = ($this->number($this->oilPricePerTon) ?? 0.0) > 0
+            ? $this->number($this->oilPricePerTon) / 1000
+            : null;
+
+        $lostOilKilos = 0.0;
+        $details = [];
+
+        foreach (['overripe' => 'Sobremaduros', 'rotten' => 'Podridos'] as $field => $label) {
+            $kilos = $this->number($this->{$field}) ?? 0.0;
+            $perKilo = $recoveredValue - $this->bunchValues[$field];
+
+            if ($kilos <= 0 || $perKilo <= 0) {
+                continue;
+            }
+
+            $lostOilKilos += $kilos * $perKilo;
+
+            if ($oilPricePerKilo !== null) {
+                $details[] = $label.' ('.ColombianNumber::format($kilos).' kg): $ '.number_format($kilos * $perKilo * $oilPricePerKilo, 0, ',', '.');
+            }
+        }
+
+        return [
+            'key' => 'stick',
+            'title' => 'Paloterapia a los sobremaduros (RSM) y podridos (RP)',
+            'text' => 'Meta el racimo en un saco y golpéelo para que suelte el fruto. Deje el raquis vacío en el campo y envíe solo el fruto suelto: así no pierde puntos.',
+            'teaGain' => $lostOilKilos / ($this->number($this->netWeight) ?: 1.0),
+            'moneyGain' => $oilPricePerKilo !== null ? $lostOilKilos * $oilPricePerKilo : null,
+            'gainLabel' => 'Está perdiendo',
+            'details' => $details,
+            'isLoss' => true,
+        ];
     }
 
     /**

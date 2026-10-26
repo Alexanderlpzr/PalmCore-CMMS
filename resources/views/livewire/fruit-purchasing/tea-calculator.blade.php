@@ -325,10 +325,21 @@
                             <div class="min-w-0 flex-1">
                                 <h3 class="text-xl font-bold text-petrol-900">{{ $tip['title'] }}</h3>
                                 <p class="mt-1 text-lg leading-snug text-gray-700">{{ $tip['text'] }}</p>
+                                @php
+                                    $chip = $tip['isLoss'] ? 'bg-red-50 text-red-800' : 'bg-brand-100 text-brand-800';
+                                    $sign = $tip['isLoss'] ? '' : '+ ';
+                                @endphp
                                 @if ($tip['moneyGain'] !== null && $tip['moneyGain'] > 0)
-                                    <p class="mt-2 inline-block rounded-full bg-brand-100 px-3 py-1 text-lg font-bold text-brand-800">{{ $tip['gainLabel'] }}: + {{ $money($tip['moneyGain']) }}</p>
+                                    <p class="mt-2 inline-block rounded-full px-3 py-1 text-lg font-bold {{ $chip }}">{{ $tip['gainLabel'] }}: {{ $sign }}{{ $money($tip['moneyGain']) }}</p>
                                 @elseif ($tip['teaGain'] !== null && $tip['teaGain'] >= 0.00005)
-                                    <p class="mt-2 inline-block rounded-full bg-brand-100 px-3 py-1 text-lg font-bold text-brand-800">{{ $tip['gainLabel'] }}: + {{ number_format($tip['teaGain'] * 100, 2, ',', '.') }} puntos de TEA</p>
+                                    <p class="mt-2 inline-block rounded-full px-3 py-1 text-lg font-bold {{ $chip }}">{{ $tip['gainLabel'] }}: {{ $sign }}{{ number_format($tip['teaGain'] * 100, 2, ',', '.') }} puntos de TEA</p>
+                                @endif
+                                @if ($tip['details'] !== [])
+                                    <ul class="mt-2 space-y-0.5 text-base text-gray-700">
+                                        @foreach ($tip['details'] as $detail)
+                                            <li wire:key="tip-{{ $tip['key'] }}-{{ $loop->index }}">• {{ $detail }}</li>
+                                        @endforeach
+                                    </ul>
                                 @endif
                             </div>
                         </div>
