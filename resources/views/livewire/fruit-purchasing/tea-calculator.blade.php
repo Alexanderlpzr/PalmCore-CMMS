@@ -76,17 +76,23 @@
                 <h2 class="flex items-center gap-3 text-2xl font-bold text-petrol-900">
                     <span class="text-3xl" aria-hidden="true">💲</span> ¿Cuánto cuesta la tonelada de aceite (CPO) a precio (FEP)?
                 </h2>
-                @if ($oilPrice)
-                    <p class="mt-3 text-4xl font-extrabold tabular-nums text-petrol-900 sm:text-5xl" data-testid="oil-price">{{ $money($oilPrice['price']) }}</p>
-                    <p class="mt-1 text-lg text-gray-700">por tonelada de aceite. Lo publica la extractora.</p>
-                    @if ($oilPrice['updatedAt'])
-                        <p class="mt-2 text-base text-gray-600">Actualizado el {{ $oilPrice['updatedAt']->timezone(config('app.timezone'))->format('d/m/Y') }}.</p>
-                    @endif
-                    <p class="mt-2 text-base text-gray-600">Precio de compra de la tonelada de aceite (CPO). Su fruta se paga a TEA × este precio.</p>
-                @else
-                    <p class="mt-3 text-xl font-bold text-petrol-900">La extractora todavía no ha publicado el precio del aceite.</p>
-                    <p class="mt-1 text-lg text-gray-700">Por ahora verá cuánto rindió su fruta (TEA), sin el valor en pesos.</p>
+                <p class="mt-1 text-lg text-gray-700">Pregúntelo en la báscula o en la oficina de la extractora.</p>
+                <label for="oilPricePerTon" class="sr-only">Precio de compra de la tonelada de aceite (CPO)</label>
+                <div class="relative mt-4 max-w-md">
+                    <span class="pointer-events-none absolute inset-y-0 left-4 flex items-center text-2xl font-bold text-gray-500">$</span>
+                    <input id="oilPricePerTon" type="text" inputmode="decimal" autocomplete="off" aria-describedby="oilPricePerTon-example"
+                           wire:model.live.debounce.500ms="oilPricePerTon" {!! $format !!} class="{{ $field }} pl-10">
+                </div>
+                @if ($this->oilPriceLooksPerKilo)
+                    <p class="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-base font-semibold text-amber-900" role="alert">Ese precio parece ser el del kilo. Aquí va el de la tonelada (1.000 kilos).</p>
                 @endif
+                <p id="oilPricePerTon-example" class="{{ $example }}">Ejemplo: 4.000.000</p>
+                @if ($oilPrice && $oilPrice['updatedAt'])
+                    <p class="mt-1 text-base text-gray-600">
+                        Precio publicado por la extractora el {{ $oilPrice['updatedAt']->timezone(config('app.timezone'))->format('d/m/Y') }}: <strong class="tabular-nums">{{ $money($oilPrice['price']) }}</strong>
+                    </p>
+                @endif
+                <p class="mt-2 text-base text-gray-600">Precio de compra de la tonelada de aceite (CPO). Su fruta se paga a TEA × este precio.</p>
             </section>
 
             {{-- Paso 1: peso neto --}}
@@ -116,7 +122,7 @@
                     <div class="space-y-5">
                         <div>
                             <label for="looseFruitKilos" class="block text-xl font-bold text-petrol-900">¿Cuántos kilos de fruta suelta?</label>
-                            <p class="text-base text-gray-600">La pepa que llega suelta, sin racimo. Se lo dan en la báscula.</p>
+                            <p class="text-base text-gray-600">La fruta que llega suelta, sin racimo. Se lo dan en la báscula.</p>
                             <div class="relative mt-3 max-w-xs">
                                 <input id="looseFruitKilos" type="text" inputmode="decimal" autocomplete="off" aria-describedby="looseFruitKilos-example"
                                        wire:model.live.debounce.500ms="looseFruitKilos" {!! $format !!} class="{{ $field }} pr-14">
@@ -251,7 +257,7 @@
                             <p class="mt-3 text-xl">Su fruta rindió <strong class="tabular-nums" data-testid="tea">{{ $pct($result->tea) }}</strong> <span class="text-base text-white/60">(TEA)</span></p>
                         @else
                             <p wire:key="tea-{{ round($result->tea * 10000) }}" class="r100-pop mt-1 text-5xl font-extrabold tabular-nums" data-testid="tea">{{ $pct($result->tea) }}</p>
-                            <p class="mt-3 text-lg text-amber-200">La extractora todavía no ha publicado el precio del aceite, por eso no se ve el valor en pesos.</p>
+                            <p class="mt-3 text-lg text-amber-200">Escriba arriba el precio de la tonelada de aceite para ver cuánta plata es.</p>
                         @endif
 
                         @if ($quality)

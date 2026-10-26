@@ -17,13 +17,16 @@ use Livewire\Component;
  *
  * La báscula da el peso neto del viaje y el de la fruta suelta; el peso de
  * racimos (TPR) es la diferencia. La tolva da el % de impureza de la fruta
- * suelta; su calidad (CFS) es 100 % menos esa impureza. El precio del aceite
- * lo publica un super admin en /r100/admin y aquí solo se lee. No guarda nada.
+ * suelta; su calidad (CFS) es 100 % menos esa impureza. El precio de la
+ * tonelada de aceite lo escribe el proveedor; arranca con el que publica un
+ * super admin en /r100/admin, si hay uno. No guarda nada.
  */
 class TeaCalculator extends Component
 {
     /** Los cinco tipos de racimo, en el orden en que se muestran. */
     public const BUNCH_FIELDS = ['ripe', 'overripe', 'unripe', 'abnormal', 'rotten'];
+
+    public string $oilPricePerTon = '';
 
     public string $netWeight = '';
 
@@ -42,6 +45,36 @@ class TeaCalculator extends Component
     public string $rotten = '';
 
     public string $longStalkCount = '';
+
+    public function mount(): void
+    {
+        $published = $this->oilPrice;
+        $this->oilPricePerTon = $published !== null ? ColombianNumber::format($published['price']) : '';
+    }
+
+    /**
+     * ¿El precio de la casilla es el que publicó la extractora? Para decirlo en
+     * la página y en el mensaje de WhatsApp solo cuando es cierto.
+     */
+    #[Computed]
+    public function usesPublishedPrice(): bool
+    {
+        return $this->oilPrice !== null
+            && $this->oilPrice['updatedAt'] !== null
+            && $this->number($this->oilPricePerTon) === $this->oilPrice['price'];
+    }
+
+    /**
+     * Un precio por tonelada tan bajo casi seguro es el del kilo. Se avisa, pero
+     * no se bloquea: el proveedor decide.
+     */
+    #[Computed]
+    public function oilPriceLooksPerKilo(): bool
+    {
+        $price = $this->number($this->oilPricePerTon);
+
+        return $price !== null && $price > 0 && $price < OilPriceService::MINIMUM_PRICE;
+    }
 
     /**
      * El precio publicado de la tonelada de aceite, o null si todavía no hay.
@@ -201,6 +234,10 @@ class TeaCalculator extends Component
             $problems[] = 'Los racimos con tallo largo se cuentan enteros: 0, 1, 2…';
         }
 
+        if (($this->number($this->oilPricePerTon) ?? 0.0) < 0) {
+            $problems[] = 'El precio no puede ser negativo.';
+        }
+
         return $problems;
     }
 
@@ -280,7 +317,7 @@ class TeaCalculator extends Component
         }
 
         if ($looseFruitPercent < 98) {
-            $tips[] = $this->tip('pick', 'Recoja la fruta suelta del suelo', 'Cada pepa cuenta: por cada 1 % más de fruta suelta en el viaje, su TEA sube 0,4 puntos. Recójala antes de 3 días.',
+            $tips[] = $this->tip('pick', 'Recoja la fruta suelta del suelo', 'Cada fruto cuenta: por cada 1 % más de fruta suelta en el viaje, su TEA sube 0,4 puntos. Recójala antes de 3 días.',
                 ['looseFruitShare' => ($looseFruitPercent + 1) / 100], 'Por cada 1 % más');
         }
 
@@ -301,9 +338,9 @@ class TeaCalculator extends Component
         ];
 
         if ($this->result->tripValue !== null) {
-            $priceLine = 'Precio del aceite usado: $ '.number_format($this->oilPrice['price'], 0, ',', '.').' la tonelada';
-            if ($this->oilPrice['updatedAt'] !== null) {
-                $priceLine .= ' (publicado el '.$this->oilPrice['updatedAt']->timezone(config('app.timezone'))->format('d/m/Y').')';
+            $priceLine = 'Precio del aceite usado: $ '.number_format($this->number($this->oilPricePerTon), 0, ',', '.').' la tonelada';
+            if ($this->usesPublishedPrice) {
+                $priceLine .= ' (publicado por la extractora el '.$this->oilPrice['updatedAt']->timezone(config('app.timezone'))->format('d/m/Y').')';
             }
 
             $lines[] = $priceLine;
@@ -355,7 +392,7 @@ class TeaCalculator extends Component
             // El FACIND es de la planta: sale solo de la configuración, el proveedor no lo ve ni lo cambia.
             'industrialFactor' => (float) config('palmcore.r100.industrial_factor'),
             'longStalkCount' => (int) ($this->number($this->longStalkCount) ?? 0),
-            'oilPricePerTon' => $this->oilPrice['price'] ?? null,
+            'oilPricePerTon' => $this->number($this->oilPricePerTon),
         ];
     }
 

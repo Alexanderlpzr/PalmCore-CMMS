@@ -14,7 +14,7 @@
 
     {{-- Precio vigente --}}
     <section class="rounded-3xl bg-petrol-800 p-6 text-white shadow-lg">
-        <p class="text-base text-white/70">Precio que ven hoy los proveedores</p>
+        <p class="text-base text-white/70">Precio con el que arranca la calculadora</p>
         @if ($current)
             <p class="mt-1 text-4xl font-extrabold tabular-nums sm:text-5xl" data-testid="current-price">$ {{ number_format($current['price'], 0, ',', '.') }}</p>
             <p class="mt-1 text-lg text-white/80">por tonelada de aceite</p>
@@ -27,14 +27,14 @@
             </p>
         @else
             <p class="mt-1 text-2xl font-bold">Todavía no hay precio publicado</p>
-            <p class="mt-2 text-base text-white/75">Mientras tanto la calculadora muestra solo el rendimiento (TEA), sin pesos.</p>
+            <p class="mt-2 text-base text-white/75">Mientras tanto la casilla del precio arranca vacía y cada proveedor escribe el suyo.</p>
         @endif
     </section>
 
     {{-- Publicar uno nuevo --}}
     <section class="mt-8 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
         <h2 class="text-2xl font-bold text-petrol-900"><label for="newPrice">Publicar un precio nuevo</label></h2>
-        <p class="mt-1 text-base text-gray-600">Precio de la tonelada de aceite (CPO) en pesos. Apenas lo guarde, la calculadora lo usa para todos.</p>
+        <p class="mt-1 text-base text-gray-600">Precio de la tonelada de aceite (CPO) en pesos. Apenas lo guarde, la casilla del precio de la calculadora arranca con este valor; el proveedor lo puede cambiar.</p>
 
         <form wire:submit="save" class="mt-4 space-y-4">
             <div class="relative max-w-sm">
@@ -55,7 +55,7 @@
         </form>
 
         @if ($saved)
-            <p class="mt-4 rounded-xl bg-brand-50 px-4 py-3 text-lg font-semibold text-brand-800" role="status">✔ Listo. La calculadora ya usa el precio nuevo.</p>
+            <p class="mt-4 rounded-xl bg-brand-50 px-4 py-3 text-lg font-semibold text-brand-800" role="status">✔ Listo. La calculadora ya arranca con el precio nuevo.</p>
         @endif
     </section>
 
