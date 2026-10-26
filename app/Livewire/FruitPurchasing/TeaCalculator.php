@@ -2,8 +2,11 @@
 
 namespace App\Livewire\FruitPurchasing;
 
+use App\Domain\FruitPurchasing\Services\OilPriceService;
+use App\Domain\FruitPurchasing\Support\ColombianNumber;
 use App\Domain\FruitPurchasing\Support\R100Calculator;
 use App\Domain\FruitPurchasing\Support\R100Result;
+use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
@@ -14,14 +17,13 @@ use Livewire\Component;
  *
  * La báscula da el peso neto del viaje y el de la fruta suelta; el peso de
  * racimos (TPR) es la diferencia. La tolva da el % de impureza de la fruta
- * suelta; su calidad (CFS) es 100 % menos esa impureza. No guarda nada.
+ * suelta; su calidad (CFS) es 100 % menos esa impureza. El precio del aceite
+ * lo publica un super admin en /r100/admin y aquí solo se lee. No guarda nada.
  */
 class TeaCalculator extends Component
 {
     /** Los cinco tipos de racimo, en el orden en que se muestran. */
     public const BUNCH_FIELDS = ['ripe', 'overripe', 'unripe', 'abnormal', 'rotten'];
-
-    public string $oilPricePerTon = '';
 
     public string $netWeight = '';
 
@@ -45,9 +47,18 @@ class TeaCalculator extends Component
 
     public function mount(): void
     {
-        $configuredPrice = config('palmcore.r100.oil_price_per_ton');
-        $this->oilPricePerTon = $configuredPrice !== null ? $this->formatForInput((float) $configuredPrice) : '';
-        $this->industrialFactorPercent = $this->formatForInput(config('palmcore.r100.industrial_factor') * 100);
+        $this->industrialFactorPercent = ColombianNumber::format(config('palmcore.r100.industrial_factor') * 100);
+    }
+
+    /**
+     * El precio publicado de la tonelada de aceite, o null si todavía no hay.
+     *
+     * @return array{price: float, updatedAt: Carbon|null, updatedBy: string|null}|null
+     */
+    #[Computed]
+    public function oilPrice(): ?array
+    {
+        return app(OilPriceService::class)->current();
     }
 
     /**
@@ -64,11 +75,11 @@ class TeaCalculator extends Component
             ->reject(fn (string $field): bool => $field === 'ripe')
             ->sum(fn (string $field): float => max(0.0, $this->number($this->{$field}) ?? 0.0));
 
-        $this->ripe = $this->formatForInput(max(0.0, $this->bunchWeight - $others));
+        $this->ripe = ColombianNumber::format(max(0.0, $this->bunchWeight - $others));
     }
 
     /**
-     * Borra el viaje y deja el precio y el FACIND, que no cambian entre viajes.
+     * Borra el viaje y deja el FACIND, que no cambia entre viajes.
      */
     public function startOver(): void
     {
@@ -175,10 +186,6 @@ class TeaCalculator extends Component
             $problems[] = 'Los racimos con tallo largo se cuentan enteros: 0, 1, 2…';
         }
 
-        if (($this->number($this->oilPricePerTon) ?? 0.0) < 0) {
-            $problems[] = 'El precio no puede ser negativo.';
-        }
-
         return $problems;
     }
 
@@ -279,6 +286,12 @@ class TeaCalculator extends Component
         ];
 
         if ($this->result->tripValue !== null) {
+            $priceLine = 'Precio del aceite usado: $ '.number_format($this->oilPrice['price'], 0, ',', '.').' la tonelada';
+            if ($this->oilPrice['updatedAt'] !== null) {
+                $priceLine .= ' (publicado el '.$this->oilPrice['updatedAt']->timezone(config('app.timezone'))->format('d/m/Y').')';
+            }
+
+            $lines[] = $priceLine;
             $lines[] = 'Valor estimado del viaje: $ '.number_format($this->result->tripValue, 0, ',', '.');
         }
 
@@ -326,35 +339,12 @@ class TeaCalculator extends Component
             'looseFruitQuality' => (100 - ($this->number($this->impurityPercent) ?? 0.0)) / 100,
             'industrialFactor' => $this->number($this->industrialFactorPercent) / 100,
             'longStalkCount' => (int) ($this->number($this->longStalkCount) ?? 0),
-            'oilPricePerTon' => $this->number($this->oilPricePerTon),
+            'oilPricePerTon' => $this->oilPrice['price'] ?? null,
         ];
     }
 
-    /**
-     * Lee el número como se escribe en Colombia: «18.000» son dieciocho mil y
-     * «4,7» es cuatro coma siete. También acepta «18000», «4.7» y «$ 4.000.000».
-     */
     private function number(string $value): ?float
     {
-        $normalized = str_replace([' ', '$', "\u{00A0}"], '', trim($value));
-
-        if (str_contains($normalized, ',') && str_contains($normalized, '.')) {
-            $normalized = str_replace(['.', ','], ['', '.'], $normalized);
-        } elseif (str_contains($normalized, ',')) {
-            $normalized = str_replace(',', '.', $normalized);
-        } elseif (preg_match('/^-?\d{1,3}(\.\d{3})+$/', $normalized) === 1) {
-            $normalized = str_replace('.', '', $normalized);
-        }
-
-        return is_numeric($normalized) ? (float) $normalized : null;
-    }
-
-    private function formatForInput(float $value): string
-    {
-        if (floor($value) === $value) {
-            return number_format($value, 0, ',', '.');
-        }
-
-        return rtrim(rtrim(number_format($value, 2, ',', '.'), '0'), ',');
+        return ColombianNumber::parse($value);
     }
 }

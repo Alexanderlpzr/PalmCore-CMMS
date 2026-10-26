@@ -37,6 +37,12 @@ Route::view('/r100', 'fruit-purchasing.r100')
     ->middleware('throttle:60,1')
     ->name('r100.calculator');
 
+// Donde se publica el precio del aceite que usa la calculadora. Solo super admin:
+// quien no haya iniciado sesión va al login y vuelve aquí.
+Route::view('/r100/admin', 'fruit-purchasing.r100-admin')
+    ->middleware(['auth', 'super-admin'])
+    ->name('r100.admin');
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::view('dashboard', 'dashboard')->name('dashboard');
 });

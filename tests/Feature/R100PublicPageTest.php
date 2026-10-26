@@ -1,8 +1,21 @@
 <?php
 
+use App\Domain\FruitPurchasing\Services\OilPriceService;
 use App\Livewire\FruitPurchasing\TeaCalculator;
+use App\Models\User;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
+
+/**
+ * El precio del aceite lo publica un super admin en /r100/admin; la calculadora
+ * solo lo lee.
+ */
+function publishOilPrice(float $pricePerTon = 4_000_000): void
+{
+    $superAdmin = User::factory()->create(['is_super_admin' => true, 'is_active' => true]);
+
+    app(OilPriceService::class)->publish($pricePerTon, $superAdmin);
+}
 
 /**
  * Ejemplo 3 de la presentación R-100: viaje neto de 20.000 kg con 2.000 kg de
@@ -12,7 +25,6 @@ use Livewire\Livewire;
 function exampleThreeTrip(): Testable
 {
     return Livewire::test(TeaCalculator::class)
-        ->set('oilPricePerTon', '4000000')
         ->set('netWeight', '20000')
         ->set('looseFruitKilos', '2000')
         ->set('impurityPercent', '0')
@@ -29,7 +41,6 @@ it('abre la calculadora R-100 sin iniciar sesión', function () {
         ->assertSee('¿Cuánto cuesta el precio del aceite (CPO)?')
         ->assertSee('¿Cuánto pesó su viaje NETO?')
         ->assertSee('Escriba el porcentaje de impureza')
-        ->assertSee('Precio de compra de la tonelada de aceite (CPO)')
         ->assertSee('images/r100/maduro.jpg')
         ->assertSee('alt="Extractora El Pajuil"', false)
         ->assertDontSeeText('Fronda');
@@ -41,12 +52,31 @@ it('sigue pidiendo inicio de sesión para el resto de la aplicación', function 
     $this->get('/admin')->assertRedirect();
 });
 
-it('arranca con el FACIND oficial y el precio configurado, escritos como en Colombia', function () {
+it('muestra el precio publicado y su fecha, sin campo para cambiarlo', function () {
+    $this->travelTo('2026-10-25 09:00');
+    publishOilPrice(4_250_000);
+
+    $this->get(route('r100.calculator'))
+        ->assertOk()
+        ->assertSee('$ 4.250.000')
+        ->assertSee('Actualizado el 25/10/2026')
+        ->assertSee('Precio de compra de la tonelada de aceite (CPO)')
+        ->assertDontSee('id="oilPricePerTon"', false);
+});
+
+it('no deja que el navegador le cambie el precio a la calculadora', function () {
+    publishOilPrice();
+
+    expect(fn () => Livewire::test(TeaCalculator::class)->set('oilPricePerTon', '99000000'))
+        ->toThrow(Exception::class);
+});
+
+it('usa el precio de la configuración mientras nadie publique uno', function () {
     config(['palmcore.r100.oil_price_per_ton' => 4000000]);
 
     Livewire::test(TeaCalculator::class)
         ->assertSet('industrialFactorPercent', '4,1')
-        ->assertSet('oilPricePerTon', '4.000.000')
+        ->assertSee('$ 4.000.000')
         ->assertSee('Escriba cuánto pesó su viaje neto.');
 });
 
@@ -62,6 +92,8 @@ it('saca el peso de racimos y el % de fruta suelta del neto y los kilos de fruta
 });
 
 it('calcula la TEA, el valor del viaje y la calidad', function () {
+    publishOilPrice();
+
     exampleThreeTrip()
         ->assertSee('Usted recibiría')
         ->assertSee('$ 16.669.556')
@@ -101,9 +133,10 @@ it('califica como buena la fruta del ejemplo 2 con terapia (20,20 % con FACIND 4
         ->assertSee('Buena');
 });
 
-it('entiende los puntos de mil, la coma decimal y el signo de pesos', function () {
+it('entiende los puntos de mil y la coma decimal', function () {
+    publishOilPrice();
+
     Livewire::test(TeaCalculator::class)
-        ->set('oilPricePerTon', '$ 4.000.000')
         ->set('netWeight', '20.000')
         ->set('looseFruitKilos', '2.000')
         ->set('ripe', '17.890')
@@ -113,12 +146,12 @@ it('entiende los puntos de mil, la coma decimal y el signo de pesos', function (
         ->assertSee('$ 16.189.556');
 });
 
-it('muestra la TEA y pide el precio cuando no hay precio', function () {
+it('muestra solo la TEA cuando la extractora no ha publicado el precio', function () {
     exampleThreeTrip()
-        ->set('oilPricePerTon', '')
+        ->assertSee('La extractora todavía no ha publicado el precio del aceite.')
         ->assertSee('Su fruta rindió')
         ->assertSee('20,84 %')
-        ->assertSee('Escriba arriba el precio de la tonelada');
+        ->assertDontSee('Usted recibiría');
 });
 
 it('pone como maduro los kilos de racimo que faltan por repartir', function () {
@@ -134,8 +167,9 @@ it('pone como maduro los kilos de racimo que faltan por repartir', function () {
 });
 
 it('no da resultado mientras los tipos de racimo no cuadren con el peso', function () {
+    publishOilPrice();
+
     Livewire::test(TeaCalculator::class)
-        ->set('oilPricePerTon', '4000000')
         ->set('netWeight', '18000')
         ->set('ripe', '17000')
         ->assertSee('Faltan 1.000 kg')
@@ -148,8 +182,9 @@ it('no da resultado mientras los tipos de racimo no cuadren con el peso', functi
 it('calcula cuánto ganaría con aguaterapia a los racimos verdes', function () {
     // 1.000 kg de verde masudo pasan de 11 % a 21 %: 1.000 × 10 % / 18.000 = 0,56 puntos.
     // 0,0055556 × $4.000.000 × 18 t = $400.000.
+    publishOilPrice();
+
     Livewire::test(TeaCalculator::class)
-        ->set('oilPricePerTon', '4000000')
         ->set('netWeight', '18000')
         ->set('ripe', '17000')
         ->set('unripe', '1000')
@@ -158,29 +193,32 @@ it('calcula cuánto ganaría con aguaterapia a los racimos verdes', function () 
 });
 
 it('aconseja paloterapia y cortar el tallo cuando hay podrido y pedúnculo largo', function () {
-    // Pedúnculo como en el Excel: 12 × 1,5 / 18.000 / 100 = 0,00001 de TEA.
-    // 0,00001 × $4.000.000 × 18 t = $720.
-    Livewire::test(TeaCalculator::class)
-        ->set('oilPricePerTon', '4000000')
-        ->set('netWeight', '18000')
-        ->set('ripe', '17600')
-        ->set('rotten', '400')
-        ->set('longStalkCount', '12')
-        ->assertSee('Paloterapia a los sobremaduros y podridos')
-        ->assertSee('Corte el tallo al ras')
-        ->assertSee('Podría ganar: + $ 720');
-
     // Sin precio, una ganancia que redondea a 0,00 puntos no se muestra.
     Livewire::test(TeaCalculator::class)
         ->set('netWeight', '18000')
         ->set('ripe', '17600')
         ->set('rotten', '400')
         ->set('longStalkCount', '12')
+        ->assertSee('Paloterapia a los sobremaduros y podridos')
         ->assertSee('Corte el tallo al ras')
         ->assertDontSee('0,00 puntos de TEA');
+
+    // Pedúnculo como en el Excel: 12 × 1,5 / 18.000 / 100 = 0,00001 de TEA.
+    // 0,00001 × $4.000.000 × 18 t = $720.
+    publishOilPrice();
+
+    Livewire::test(TeaCalculator::class)
+        ->set('netWeight', '18000')
+        ->set('ripe', '17600')
+        ->set('rotten', '400')
+        ->set('longStalkCount', '12')
+        ->assertSee('Podría ganar: + $ 720');
 });
 
-it('arma el mensaje de WhatsApp con el resultado', function () {
+it('arma el mensaje de WhatsApp con el resultado y el precio usado', function () {
+    $this->travelTo('2026-10-25 09:00');
+    publishOilPrice();
+
     $url = exampleThreeTrip()->instance()->whatsappUrl;
 
     expect($url)->toStartWith('https://wa.me/?text=')
@@ -188,18 +226,21 @@ it('arma el mensaje de WhatsApp con el resultado', function () {
         ->not->toContain('Fronda')
         ->toContain('Peso neto del viaje: 20.000 kg')
         ->toContain('20,84 %')
+        ->toContain('Precio del aceite usado: $ 4.000.000 la tonelada (publicado el 25/10/2026)')
         ->toContain('$ 16.669.556')
         ->toContain(route('r100.calculator'));
 });
 
 it('empieza otro viaje sin borrar el precio', function () {
+    publishOilPrice();
+
     exampleThreeTrip()
         ->call('startOver')
         ->assertSet('netWeight', '')
         ->assertSet('looseFruitKilos', '')
         ->assertSet('impurityPercent', '')
         ->assertSet('ripe', '')
-        ->assertSet('oilPricePerTon', '4000000')
+        ->assertSee('$ 4.000.000')
         ->assertDontSee('Usted recibiría');
 });
 
