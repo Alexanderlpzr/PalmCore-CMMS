@@ -8,7 +8,8 @@ use Livewire\Livewire;
 
 /**
  * /r100/admin: solo un super admin publica el precio de la tonelada de aceite
- * que la calculadora pública usa para todos los proveedores.
+ * con el que arranca la casilla del precio de la calculadora pública (el proveedor
+ * lo puede cambiar).
  */
 beforeEach(function (): void {
     $this->superAdmin = User::factory()->create(['is_super_admin' => true, 'is_active' => true, 'name' => 'Alex']);

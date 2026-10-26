@@ -99,30 +99,47 @@ it('sigue pidiendo inicio de sesión para el resto de la aplicación', function 
     $this->get('/admin')->assertRedirect();
 });
 
-it('muestra el precio publicado y su fecha, sin campo para cambiarlo', function () {
+it('trae el precio publicado ya escrito en la casilla, con su fecha', function () {
     $this->travelTo('2026-10-25 09:00');
     publishOilPrice(4_250_000);
 
     $this->get(route('r100.calculator'))
         ->assertOk()
+        ->assertSee('id="oilPricePerTon"', false)
+        ->assertSee('Precio publicado por la extractora el 25/10/2026')
         ->assertSee('$ 4.250.000')
-        ->assertSee('Actualizado el 25/10/2026')
-        ->assertSee('Precio de compra de la tonelada de aceite (CPO)')
-        ->assertDontSee('id="oilPricePerTon"', false);
+        ->assertSee('Ejemplo: 4.000.000')
+        ->assertSee('Precio de compra de la tonelada de aceite (CPO)');
+
+    Livewire::test(TeaCalculator::class)->assertSet('oilPricePerTon', '4.250.000');
 });
 
-it('no deja que el navegador le cambie el precio a la calculadora', function () {
-    publishOilPrice();
+it('deja que el proveedor escriba su propio precio del aceite', function () {
+    publishOilPrice(4_250_000);
 
-    expect(fn () => Livewire::test(TeaCalculator::class)->set('oilPricePerTon', '99000000'))
-        ->toThrow(Exception::class);
+    exampleThreeTrip()
+        ->set('oilPricePerTon', '4.000.000')
+        ->assertSee('$ 16.669.556');
+});
+
+it('avisa sin bloquear cuando el precio parece ser el del kilo', function () {
+    exampleThreeTrip()
+        ->set('oilPricePerTon', '4000')
+        ->assertSee('Ese precio parece ser el del kilo.')
+        ->assertSee('Usted recibiría')
+        ->set('oilPricePerTon', '4.000.000')
+        ->assertDontSee('Ese precio parece ser el del kilo.');
+});
+
+it('arranca con la casilla del precio vacía si nadie lo ha publicado', function () {
+    Livewire::test(TeaCalculator::class)->assertSet('oilPricePerTon', '');
 });
 
 it('usa el precio de la configuración mientras nadie publique uno', function () {
     config(['palmcore.r100.oil_price_per_ton' => 4000000]);
 
     Livewire::test(TeaCalculator::class)
-        ->assertSee('$ 4.000.000')
+        ->assertSet('oilPricePerTon', '4.000.000')
         ->assertSee('Escriba cuánto pesó su viaje neto.');
 });
 
@@ -210,9 +227,9 @@ it('no deja que el proveedor cambie el FACIND', function () {
         ->toThrow(Exception::class);
 });
 
-it('muestra solo la TEA cuando la extractora no ha publicado el precio', function () {
+it('muestra solo la TEA mientras no haya precio en la casilla', function () {
     exampleThreeTrip()
-        ->assertSee('La extractora todavía no ha publicado el precio del aceite.')
+        ->assertSee('Escriba arriba el precio de la tonelada de aceite para ver cuánta plata es.')
         ->assertSee('Su fruta rindió')
         ->assertSee('20,84 %')
         ->assertDontSee('Usted recibiría');
@@ -290,9 +307,18 @@ it('arma el mensaje de WhatsApp con el resultado y el precio usado', function ()
         ->not->toContain('Fronda')
         ->toContain('Peso neto del viaje: 20.000 kg')
         ->toContain('20,84 %')
-        ->toContain('Precio del aceite usado: $ 4.000.000 la tonelada (publicado el 25/10/2026)')
+        ->toContain('Precio del aceite usado: $ 4.000.000 la tonelada (publicado por la extractora el 25/10/2026)')
         ->toContain('$ 16.669.556')
         ->toContain(route('r100.calculator'));
+});
+
+it('no dice «publicado por la extractora» si el proveedor escribió otro precio', function () {
+    publishOilPrice(4_250_000);
+
+    $url = exampleThreeTrip()->set('oilPricePerTon', '4.000.000')->instance()->whatsappUrl;
+
+    expect(rawurldecode($url))->toContain('Precio del aceite usado: $ 4.000.000 la tonelada')
+        ->not->toContain('publicado por la extractora');
 });
 
 it('empieza otro viaje sin borrar el precio', function () {
@@ -304,8 +330,15 @@ it('empieza otro viaje sin borrar el precio', function () {
         ->assertSet('looseFruitKilos', '')
         ->assertSet('impurityPercent', '')
         ->assertSet('ripe', '')
-        ->assertSee('$ 4.000.000')
+        ->assertSet('oilPricePerTon', '4.000.000')
         ->assertDontSee('Usted recibiría');
+});
+
+it('dice fruta y no pepa', function () {
+    exampleThreeTrip()
+        ->assertSee('La fruta que llega suelta, sin racimo.')
+        ->assertSee('Cada fruto cuenta')
+        ->assertDontSee('pepa');
 });
 
 it('no calcula con datos fuera de rango', function () {
