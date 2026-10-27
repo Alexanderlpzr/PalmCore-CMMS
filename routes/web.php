@@ -7,6 +7,7 @@ use App\Http\Controllers\EquipmentPublicController;
 use App\Http\Controllers\HealthCheckController;
 use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\PlatformHealthController;
+use App\Http\Controllers\R100LeadsExportController;
 use App\Http\Controllers\ReportDownloadController;
 use App\Http\Controllers\WorkOrderAttachmentDownloadController;
 use Illuminate\Support\Facades\Route;
@@ -42,6 +43,10 @@ Route::view('/r100', 'fruit-purchasing.r100')
 Route::view('/r100/admin', 'fruit-purchasing.r100-admin')
     ->middleware(['auth', 'super-admin'])
     ->name('r100.admin');
+
+Route::get('/r100/admin/interesados.csv', R100LeadsExportController::class)
+    ->middleware(['auth', 'super-admin'])
+    ->name('r100.admin.leads');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::view('dashboard', 'dashboard')->name('dashboard');

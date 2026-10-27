@@ -23,5 +23,6 @@
     @include('fruit-purchasing.partials.number-format-script')
     <div class="min-h-screen bg-[#f6f4ee]">
         @livewire('fruit-purchasing.tea-calculator')
+        @livewire('fruit-purchasing.interested-signup')
     </div>
 @endsection

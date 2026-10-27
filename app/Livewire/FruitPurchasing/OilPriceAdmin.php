@@ -3,7 +3,10 @@
 namespace App\Livewire\FruitPurchasing;
 
 use App\Domain\FruitPurchasing\Services\OilPriceService;
+use App\Domain\FruitPurchasing\Services\R100UsageCounter;
 use App\Domain\FruitPurchasing\Support\ColombianNumber;
+use App\Models\R100Lead;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 use Livewire\Attributes\Computed;
@@ -32,6 +35,37 @@ class OilPriceAdmin extends Component
     public function current(): ?array
     {
         return app(OilPriceService::class)->current();
+    }
+
+    /**
+     * Uso de la calculadora en los últimos 30 días y desde el inicio.
+     *
+     * @return array{days: list<array{date: Carbon, visits: int, calculations: int}>, visits: int, calculations: int}
+     */
+    #[Computed]
+    public function usage(): array
+    {
+        return app(R100UsageCounter::class)->summary(30);
+    }
+
+    /**
+     * @return Collection<int, R100Lead>
+     */
+    #[Computed]
+    public function leads(): Collection
+    {
+        return R100Lead::query()->latest('updated_at')->get();
+    }
+
+    /**
+     * Borra el correo de un interesado (cuando pide que lo borren: Ley 1581).
+     */
+    public function deleteLead(int $leadId): void
+    {
+        $this->authorizeSuperAdmin();
+
+        R100Lead::query()->whereKey($leadId)->delete();
+        unset($this->leads);
     }
 
     public function save(): void

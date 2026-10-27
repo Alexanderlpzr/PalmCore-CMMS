@@ -3,12 +3,14 @@
 namespace App\Livewire\FruitPurchasing;
 
 use App\Domain\FruitPurchasing\Services\OilPriceService;
+use App\Domain\FruitPurchasing\Services\R100UsageCounter;
 use App\Domain\FruitPurchasing\Support\ColombianNumber;
 use App\Domain\FruitPurchasing\Support\R100Calculator;
 use App\Domain\FruitPurchasing\Support\R100Result;
 use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 /**
@@ -46,10 +48,41 @@ class TeaCalculator extends Component
 
     public string $longStalkCount = '';
 
+    /** Este viaje ya se contó como cálculo; se vuelve a contar tras «Calcular otro viaje». */
+    #[Locked]
+    public bool $calculationCounted = false;
+
     public function mount(): void
     {
         $published = $this->oilPrice;
         $this->oilPricePerTon = $published !== null ? ColombianNumber::format($published['price']) : '';
+
+        // mount solo corre al abrir la página, no en cada número que se escribe.
+        app(R100UsageCounter::class)->recordVisit(request()->userAgent());
+    }
+
+    /**
+     * Cuenta un cálculo la primera vez que el viaje da un resultado completo
+     * (los racimos cuadran). Seguir cambiando números no vuelve a contar.
+     */
+    public function updated(): void
+    {
+        $this->countCalculationOnce();
+    }
+
+    private function countCalculationOnce(): void
+    {
+        if ($this->calculationCounted) {
+            return;
+        }
+
+        // Lo que se calculó antes del cambio no sirve: se vuelve a calcular.
+        unset($this->problems, $this->result, $this->weightsBalanced, $this->bunchWeight, $this->looseFruitShare);
+
+        if ($this->result !== null && $this->weightsBalanced) {
+            app(R100UsageCounter::class)->recordCalculation();
+            $this->calculationCounted = true;
+        }
     }
 
     /**
@@ -102,6 +135,8 @@ class TeaCalculator extends Component
             ->sum(fn (string $field): float => max(0.0, $this->number($this->{$field}) ?? 0.0));
 
         $this->ripe = ColombianNumber::format(max(0.0, $this->bunchWeight - $others));
+
+        $this->countCalculationOnce();
     }
 
     /**
@@ -109,7 +144,7 @@ class TeaCalculator extends Component
      */
     public function startOver(): void
     {
-        $this->reset(['netWeight', 'looseFruitKilos', 'impurityPercent', ...self::BUNCH_FIELDS, 'longStalkCount']);
+        $this->reset(['netWeight', 'looseFruitKilos', 'impurityPercent', ...self::BUNCH_FIELDS, 'longStalkCount', 'calculationCounted']);
     }
 
     /**

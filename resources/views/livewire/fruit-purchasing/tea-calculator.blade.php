@@ -46,7 +46,7 @@
     $balanced = $this->weightsBalanced;
 @endphp
 
-<div class="mx-auto max-w-6xl px-4 pb-36 pt-6 text-lg text-gray-800 sm:pt-10 lg:pb-12">
+<div class="mx-auto max-w-6xl px-4 pb-8 pt-6 text-lg text-gray-800 sm:pt-10 lg:pb-12">
     <style>
         @keyframes r100-pop { 0% { transform: scale(.96); opacity: .4 } 60% { transform: scale(1.03) } 100% { transform: scale(1); opacity: 1 } }
         .r100-pop { animation: r100-pop .35s ease-out }
@@ -309,8 +309,7 @@
             </section>
 
             <p class="mt-4 px-2 text-sm leading-relaxed text-gray-500">
-                Fórmula R-100: TEA = (RM·21% + RSM·12,5% + RVM·11% + RVA·10% + RP·1,5%) / TPR + (%FS·40%·%CFS) − %FACIND − (NPL·1,5 / TPR)%.
-                TPR = peso neto − fruta suelta; CFS = 100 % − impureza. Es un estimado; el pago final sale de la calificación en planta.
+                Es un estimado; el pago final sale de la calificación en planta.
             </p>
         </aside>
 

@@ -59,6 +59,75 @@
         @endif
     </section>
 
+    {{-- Uso de la calculadora --}}
+    @php $usage = $this->usage; @endphp
+    <section class="mt-8 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 class="text-2xl font-bold text-petrol-900">Uso de la calculadora</h2>
+        <p class="mt-1 text-base text-gray-600">Solo se cuentan visitas y viajes calculados por día. No se guarda nada de la persona.</p>
+        <div class="mt-4 grid grid-cols-2 gap-3">
+            <div class="rounded-2xl bg-brand-50 p-4">
+                <p class="text-base text-gray-600">Visitas</p>
+                <p class="text-3xl font-extrabold tabular-nums text-petrol-900" data-testid="total-visits">{{ number_format($usage['visits'], 0, ',', '.') }}</p>
+            </div>
+            <div class="rounded-2xl bg-brand-50 p-4">
+                <p class="text-base text-gray-600">Viajes calculados</p>
+                <p class="text-3xl font-extrabold tabular-nums text-petrol-900" data-testid="total-calculations">{{ number_format($usage['calculations'], 0, ',', '.') }}</p>
+            </div>
+        </div>
+        @if ($usage['days'] !== [])
+            <table class="mt-4 w-full text-base">
+                <thead>
+                    <tr class="border-b border-gray-200 text-left text-gray-500">
+                        <th class="py-2 font-semibold">Día</th>
+                        <th class="py-2 text-right font-semibold">Visitas</th>
+                        <th class="py-2 text-right font-semibold">Viajes calculados</th>
+                    </tr>
+                </thead>
+                <tbody class="tabular-nums">
+                    @foreach ($usage['days'] as $day)
+                        <tr wire:key="usage-{{ $day['date']->toDateString() }}" class="border-b border-gray-100">
+                            <td class="py-2">{{ $day['date']->format('d/m/Y') }}</td>
+                            <td class="py-2 text-right">{{ number_format($day['visits'], 0, ',', '.') }}</td>
+                            <td class="py-2 text-right">{{ number_format($day['calculations'], 0, ',', '.') }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @else
+            <p class="mt-4 text-base text-gray-500">Todavía no hay visitas en los últimos 30 días.</p>
+        @endif
+    </section>
+
+    {{-- Interesados --}}
+    @php $leads = $this->leads; @endphp
+    <section class="mt-8 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+                <h2 class="text-2xl font-bold text-petrol-900">Interesados <span class="text-gray-400">({{ $leads->count() }})</span></h2>
+                <p class="mt-1 text-base text-gray-600">Correos que dejaron en la calculadora, con su autorización.</p>
+            </div>
+            @if ($leads->isNotEmpty())
+                <a href="{{ route('r100.admin.leads') }}" class="rounded-xl border-2 border-brand-600 px-4 py-2 text-base font-bold text-brand-700 hover:bg-brand-50">Descargar lista (CSV)</a>
+            @endif
+        </div>
+        @if ($leads->isNotEmpty())
+            <ul class="mt-4 divide-y divide-gray-100">
+                @foreach ($leads as $lead)
+                    <li wire:key="lead-{{ $lead->id }}" class="flex items-center justify-between gap-3 py-2">
+                        <div class="min-w-0">
+                            <p class="truncate text-lg font-semibold text-gray-900">{{ $lead->email }}</p>
+                            <p class="text-sm text-gray-500">Autorizó el {{ $lead->consented_at->timezone(config('app.timezone'))->format('d/m/Y') }}</p>
+                        </div>
+                        <button type="button" wire:click="deleteLead({{ $lead->id }})" wire:confirm="¿Borrar {{ $lead->email }} de la lista?"
+                                class="shrink-0 rounded-lg px-3 py-1 text-base font-semibold text-red-700 hover:bg-red-50">Borrar</button>
+                    </li>
+                @endforeach
+            </ul>
+        @else
+            <p class="mt-4 text-base text-gray-500">Todavía nadie ha dejado su correo.</p>
+        @endif
+    </section>
+
     <p class="mt-8 text-center">
         <a href="{{ route('r100.calculator') }}" class="text-lg font-semibold text-brand-700 underline underline-offset-4">Ver la calculadora →</a>
     </p>
