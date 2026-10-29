@@ -309,7 +309,7 @@
             </section>
 
             <p class="mt-4 px-2 text-sm leading-relaxed text-gray-500">
-                Es un estimado; el pago final sale de la calificación en planta.
+                Es un estimado; el pago final sale de la calificación en planta y está sujeto a retenciones de parafiscales palmeros (Cesión, Fondo de Fomento).
             </p>
         </aside>
 

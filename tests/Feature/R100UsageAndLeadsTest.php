@@ -80,7 +80,7 @@ it('oculta la fórmula y deja solo el aviso de que es un estimado', function () 
     $this->get(route('r100.calculator'))
         ->assertDontSee('Fórmula R-100')
         ->assertDontSee('RM·21%')
-        ->assertSee('Es un estimado; el pago final sale de la calificación en planta.');
+        ->assertSee('Es un estimado; el pago final sale de la calificación en planta y está sujeto a retenciones de parafiscales palmeros (Cesión, Fondo de Fomento).');
 });
 
 // ── Interesados ──────────────────────────────────────────────────────────────
