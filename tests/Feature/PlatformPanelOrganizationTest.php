@@ -47,9 +47,10 @@ function empresaDePrueba(array $attributes = []): Tenant
 
 // ── El menú ──────────────────────────────────────────────────────────────────
 
-it('organizes the menu in four groups with plain names', function (): void {
+it('organizes the menu in five groups with plain names', function (): void {
     // Antes: seis grupos para doce secciones, varios con una sola entrada, y nombres
-    // como «Observabilidad», «Contenido CMS» o «Dashboard».
+    // como «Observabilidad», «Contenido CMS» o «Dashboard». «Palmo» lleva a la
+    // calculadora R-100 (/r100) y a sus datos (/r100/admin).
     $menu = collect(Filament::getCurrentPanel()->getNavigation())
         ->mapWithKeys(fn (NavigationGroup $group): array => [
             (string) $group->getLabel() => collect($group->getItems())
@@ -62,6 +63,7 @@ it('organizes the menu in four groups with plain names', function (): void {
     expect($menu)->toBe([
         '' => ['Inicio'],
         'Clientes' => ['Empresas', 'Usuarios'],
+        'Palmo' => ['Precio, uso e interesados', 'Ver la calculadora'],
         'Seguridad' => ['Ingresos', 'Suplantaciones'],
         'Sistema' => ['Tareas en segundo plano', 'Errores', 'Respaldos'],
         'Contenido' => ['Portada del inicio', 'Fondos del login'],
