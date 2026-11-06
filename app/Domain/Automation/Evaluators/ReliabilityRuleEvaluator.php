@@ -11,6 +11,7 @@ use App\Domain\Maintenance\Enums\MaintenanceRequestPriority;
 use App\Domain\Maintenance\Enums\MaintenanceRequestType;
 use App\Domain\Maintenance\Services\MaintenanceRequestService;
 use App\Domain\Notifications\MtbfAlertNotification;
+use App\Domain\Notifications\Recipients;
 use App\Models\AutomationRule;
 use App\Models\AutomationRuleExecution;
 use App\Models\EquipmentKpi;
@@ -118,13 +119,9 @@ class ReliabilityRuleEvaluator
 
     private function notifyAdmins(string $tenantId, EquipmentKpi $kpi, float $threshold): void
     {
-        $admins = User::withoutGlobalScopes()
-            ->whereHas('tenants', fn ($q) => $q->where('tenants.id', $tenantId))
-            ->where('is_active', true)
-            ->whereHas('roles', fn ($q) => $q->where('name', 'Admin')
-                ->orWhere('name', 'like', '%supervis%')
-                ->orWhere('name', 'like', '%mantenimiento%'))
-            ->get();
+        // Mantenimiento y la administración. «Admin» y «supervisor» eran roles de la matriz
+        // retirada: con ellos el aviso de MTBF no le llegaba a nadie.
+        $admins = Recipients::withRoles($tenantId, ['mantenimiento', 'administrador-general']);
 
         foreach ($admins as $admin) {
             $admin->notify(new MtbfAlertNotification($kpi->equipment, $kpi->mtbf_hours, $threshold));

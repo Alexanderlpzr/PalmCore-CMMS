@@ -97,7 +97,8 @@ it('encuentra las tablas del proyecto', function (): void {
     // pestaña «Dónde se usa» del repuesto.
     // 94 con la pestaña de tareas de la OT: el checklist del preventivo.
     // 95 con los hallazgos de SST.
-    expect(tableFiles())->toHaveCount(95);
+    // 96 con el centro de notificaciones.
+    expect(tableFiles())->toHaveCount(96);
 });
 
 it('alinea a la derecha toda columna de dinero o cantidad', function (): void {

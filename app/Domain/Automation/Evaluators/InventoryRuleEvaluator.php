@@ -7,6 +7,7 @@ use App\Domain\Alerts\Enums\AlertCategory;
 use App\Domain\Alerts\Enums\AlertSeverity;
 use App\Domain\Alerts\Services\AlertService;
 use App\Domain\Notifications\LowStockNotification;
+use App\Domain\Notifications\Recipients;
 use App\Events\InventoryLowStockDetected;
 use App\Models\AutomationRule;
 use App\Models\AutomationRuleExecution;
@@ -103,16 +104,14 @@ class InventoryRuleEvaluator
         );
     }
 
-    /** Users who have the warehouse management role for this tenant. */
+    /**
+     * Quien lleva el almacén y la administración. Por el rol de la empresa, no por la
+     * relación de Spatie: en el job no hay empresa actual y esa consulta volvía vacía.
+     *
+     * @return Collection<int, User>
+     */
     private function warehouseManagers(string $tenantId): Collection
     {
-        return User::withoutGlobalScopes()
-            ->whereHas('tenants', fn ($q) => $q->where('tenants.id', $tenantId))
-            ->where('is_active', true)
-            ->whereHas('roles', fn ($q) => $q->where('name', 'like', '%almac%')
-                ->orWhere('name', 'like', '%warehouse%')
-                ->orWhere('name', 'like', '%inventar%')
-                ->orWhere('name', 'Admin'))
-            ->get();
+        return Recipients::withRoles($tenantId, ['almacen', 'administrador-general']);
     }
 }

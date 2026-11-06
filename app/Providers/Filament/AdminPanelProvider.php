@@ -5,13 +5,16 @@ namespace App\Providers\Filament;
 use App\Filament\Auth\EditProfile;
 use App\Filament\AvatarProviders\InitialsAvatarProvider;
 use App\Filament\Pages\Auth\Login;
+use App\Filament\Pages\Notificaciones;
 use App\Filament\Pages\Porteria;
 use App\Http\Middleware\CheckTenantSubscription;
 use App\Http\Middleware\EnforceTwoFactor;
 use App\Http\Middleware\EnsurePasswordIsChanged;
 use App\Http\Middleware\SyncSpatieTeamId;
+use App\Livewire\Notifications\Campana;
 use App\Models\Tenant;
 use App\Support\FrondaPalette;
+use Filament\Actions\Action;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -90,7 +93,19 @@ class AdminPanelProvider extends PanelProvider
             // etc.) is stored correctly but has no UI surface at all — no bell
             // icon, no polling, nothing. Users saw the initial "Generando..."
             // toast and then nothing ever again, even though the file existed.
-            ->databaseNotifications()
+            //
+            // La campana es la de Fronda: muestra también los avisos guardados para la app
+            // móvil (alertas, OT, stock, preventivos), que la de Filament no veía, y cada
+            // uno se marca leído o no leído. Revisa cada 30 s.
+            ->databaseNotifications(livewireComponent: Campana::class)
+            ->databaseNotificationsPolling('30s')
+            // El centro de notificaciones, también desde el menú del usuario.
+            ->userMenuItems([
+                'notificaciones' => Action::make('notificaciones')
+                    ->label('Mis notificaciones')
+                    ->icon('heroicon-o-bell')
+                    ->url(fn (): string => Notificaciones::getUrl()),
+            ])
             // Orden maestro del menú (UX-3). Ordenado por frecuencia de uso
             // operativo real: el ciclo de mantenimiento diario primero, la
             // administración esporádica al final.

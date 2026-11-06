@@ -4,6 +4,9 @@ namespace App\Domain\Safety\Services;
 
 use App\Domain\Assets\Enums\EquipmentStatus;
 use App\Domain\Maintenance\Enums\IssueReportStatus;
+use App\Domain\Notifications\InboxNotification;
+use App\Domain\Notifications\NotificationKind;
+use App\Domain\Notifications\Recipients;
 use App\Domain\Safety\Enums\FindingPriority;
 use App\Domain\Safety\Enums\FindingStatus;
 use App\Domain\Safety\Enums\ResponsibleArea;
@@ -16,10 +19,9 @@ use App\Models\SstFindingTask;
 use App\Models\Tenant;
 use App\Models\User;
 use Carbon\CarbonImmutable;
-use Filament\Actions\Action;
-use Filament\Notifications\Notification;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification as NotificationFacade;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -38,6 +40,9 @@ use Throwable;
  */
 class SafetyFindingService
 {
+    /** El cargo con que firma sus reportes de novedad: así no se avisa dos veces a mantenimiento. */
+    public const REPORTER_POSITION = 'Seguridad y Salud en el Trabajo';
+
     /**
      * @param  array{reported_on: string|CarbonImmutable, description?: ?string, area_id?: ?string, equipment_id?: ?string, location_detail?: ?string, priority: string|FindingPriority, action_plan?: ?string, areas: list<string|ResponsibleArea>, photo_before_path?: ?string, photo_after_path?: ?string, number?: ?int}  $data
      */
@@ -309,7 +314,7 @@ class SafetyFindingService
             'photo_path' => $finding->photo_before_path,
             'severity' => $finding->priority->issueSeverity(),
             'reporter_name' => $createdBy?->name ?? 'SST',
-            'reporter_position' => 'Seguridad y Salud en el Trabajo',
+            'reporter_position' => self::REPORTER_POSITION,
             'reporter_user_id' => $createdBy?->id,
             'status' => IssueReportStatus::Open,
         ]);
@@ -347,43 +352,36 @@ class SafetyFindingService
      */
     private function recipients(SstFinding $finding, array $roles, ?User $except = null): Collection
     {
-        $userIds = DB::table('model_has_roles')
-            ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
-            ->where('roles.team_id', $finding->tenant_id)
-            ->whereIn('roles.name', array_unique($roles))
-            ->pluck('model_has_roles.'.config('permission.column_names.model_morph_key', 'model_id'));
-
-        return User::withoutGlobalScopes()
-            ->whereIn('id', $userIds)
-            ->where('is_active', true)
-            ->when($except, fn ($query) => $query->whereKeyNot($except->id))
-            ->get();
+        return Recipients::withRoles($finding->tenant_id, $roles, $except);
     }
 
-    /** @param  Collection<int, User>  $users */
+    /**
+     * El aviso a la campana de cada uno y, si activó los avisos en el celular, también
+     * allá. «Abrir» lleva al hallazgo.
+     *
+     * @param  Collection<int, User>  $users
+     */
     private function send(Collection $users, string $title, string $body, string $status, SstFinding $finding): void
     {
         if ($users->isEmpty()) {
             return;
         }
 
-        $notification = Notification::make()->title($title)->body($body)->status($status)->icon('heroicon-o-shield-exclamation');
-
         try {
-            $tenant = Tenant::query()->find($finding->tenant_id);
-            $notification->actions([
-                Action::make('ver')
-                    ->label('Ver hallazgo')
-                    ->url(SstFindingResource::getUrl('view', ['record' => $finding], panel: 'admin', tenant: $tenant))
-                    ->markAsRead(),
-            ]);
+            $url = SstFindingResource::getUrl('view', ['record' => $finding], panel: 'admin', tenant: Tenant::query()->find($finding->tenant_id));
         } catch (Throwable) {
-            // Sin panel (consola sin ruta): el aviso llega igual, sin el botón.
+            $url = null;
         }
 
-        foreach ($users as $user) {
-            $notification->sendToDatabase($user);
-        }
+        NotificationFacade::send($users, new InboxNotification(
+            kind: NotificationKind::Sst,
+            title: $title,
+            body: $body,
+            status: $status,
+            url: $url,
+            tenantId: $finding->tenant_id,
+            actionLabel: 'Ver hallazgo',
+        ));
     }
 
     /**
