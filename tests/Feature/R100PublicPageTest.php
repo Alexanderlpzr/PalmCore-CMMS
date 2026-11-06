@@ -39,6 +39,7 @@ it('abre la calculadora R-100 sin iniciar sesión', function () {
         ->assertSee('<title>Palmo — ¿Cuánto vale su fruta?</title>', false)
         ->assertSee('<span class="sr-only">Palmo</span>', false)
         ->assertSee('Método R-100 de la')
+        ->assertSee('TEA de pago')
         ->assertSee('Director Franklin Alvarez')
         ->assertSee('© '.now()->year.' Palmo · Método R-100 de la Extractora El Pajuil')
         ->assertSee('Desarrollador Alexander Lopez')

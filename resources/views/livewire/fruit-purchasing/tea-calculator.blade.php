@@ -63,7 +63,7 @@
                     <span aria-hidden="true">palm</span>
                     <x-palmo.symbol class="ml-0.5 h-[3.1rem] w-[3.1rem] translate-y-[0.06em] sm:h-[5.6rem] sm:w-[5.6rem]" />
                 </h1>
-                <p class="palmo-display mt-3 text-3xl font-bold leading-tight text-petrol-900 sm:mt-5 sm:text-4xl">¿Cuánto vale su fruta?</p>
+                <p class="palmo-display mt-3 text-3xl font-bold leading-tight text-petrol-900 sm:mt-5 sm:text-4xl">TEA de pago</p>
             </div>
             <div class="flex items-center gap-3 rounded-2xl bg-white/70 px-4 py-3">
                 <img src="{{ asset('images/logo.png') }}" alt="Extractora El Pajuil" width="512" height="512" class="h-14 w-14 shrink-0 sm:h-16 sm:w-16">
