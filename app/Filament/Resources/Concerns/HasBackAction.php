@@ -34,7 +34,9 @@ trait HasBackAction
      */
     protected function getHistoryBackAction(): Action
     {
-        $fallback = json_encode(Filament::getUrl());
+        // Entre comillas simples: las dobles de json_encode llegaban escapadas (\") al
+        // atributo x-on:click y Alpine no podía leer la expresión.
+        $fallback = "'".str_replace(['\\', "'"], ['\\\\', "\\'"], (string) Filament::getUrl())."'";
 
         return Action::make('back')
             ->label('Volver')
