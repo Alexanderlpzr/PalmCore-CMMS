@@ -33,6 +33,24 @@ it('no deja entrar a un super admin desactivado', function () {
         ->assertForbidden();
 });
 
+it('el menú del panel de plataforma lleva a Palmo', function () {
+    $this->actingAs($this->superAdmin)
+        ->get('/platform')
+        ->assertOk()
+        ->assertSee('Palmo')
+        ->assertSee('Precio, uso e interesados')
+        ->assertSee('href="'.route('r100.admin').'"', false)
+        ->assertSee('Ver la calculadora')
+        ->assertSee('href="'.route('r100.calculator').'"', false);
+});
+
+it('desde /r100/admin se puede volver al panel de plataforma', function () {
+    $this->actingAs($this->superAdmin)
+        ->get(route('r100.admin'))
+        ->assertSee('Volver al panel de plataforma')
+        ->assertSee('href="'.url('/platform').'"', false);
+});
+
 it('abre la página para un super admin', function () {
     $this->actingAs($this->superAdmin)
         ->get(route('r100.admin'))

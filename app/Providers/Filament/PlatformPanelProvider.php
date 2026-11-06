@@ -14,9 +14,11 @@ use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Navigation\NavigationGroup;
+use Filament\Navigation\NavigationItem;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\Support\Icons\Heroicon;
 use Filament\View\PanelsRenderHook;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
@@ -69,9 +71,25 @@ class PlatformPanelProvider extends PanelProvider
             // («Observabilidad», «Contenido CMS») que había que saber traducir.
             ->navigationGroups([
                 NavigationGroup::make('Clientes'),
+                NavigationGroup::make('Palmo'),
                 NavigationGroup::make('Seguridad'),
                 NavigationGroup::make('Sistema'),
                 NavigationGroup::make('Contenido'),
+            ])
+            // Palmo (calculadora R-100) vive fuera de los paneles, en /r100: estas
+            // entradas solo llevan a ella. El precio, el uso y los interesados se
+            // ven en /r100/admin, que también exige super admin.
+            ->navigationItems([
+                NavigationItem::make('Precio, uso e interesados')
+                    ->group('Palmo')
+                    ->icon(Heroicon::OutlinedCalculator)
+                    ->url(fn (): string => route('r100.admin'))
+                    ->sort(1),
+                NavigationItem::make('Ver la calculadora')
+                    ->group('Palmo')
+                    ->icon(Heroicon::OutlinedArrowTopRightOnSquare)
+                    ->url(fn (): string => route('r100.calculator'), shouldOpenInNewTab: true)
+                    ->sort(2),
             ])
             ->renderHook(
                 PanelsRenderHook::SIDEBAR_NAV_END,

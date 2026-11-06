@@ -4,6 +4,10 @@
 @endphp
 
 <div class="mx-auto max-w-2xl px-4 py-8 text-lg text-gray-800 sm:py-12">
+    <a href="{{ url('/platform') }}" class="mb-6 inline-flex items-center gap-2 rounded-xl px-3 py-2 text-base font-semibold text-brand-700 hover:bg-white">
+        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+        Volver al panel de plataforma
+    </a>
     <header class="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
             <h1 class="flex items-baseline text-6xl font-extrabold leading-none tracking-tight text-petrol-900">
