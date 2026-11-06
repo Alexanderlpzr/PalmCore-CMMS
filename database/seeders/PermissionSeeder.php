@@ -230,6 +230,11 @@ class PermissionSeeder extends Seeder
         'carousel-slides.create',
         'carousel-slides.update',
         'carousel-slides.delete',
+
+        // Hallazgos de SST: verlos, reportarlos y verificarlos, y ejecutar la parte del área.
+        'sst-findings.view',
+        'sst-findings.manage',
+        'sst-findings.execute',
     ];
 
     public function run(): void

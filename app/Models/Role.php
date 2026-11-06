@@ -18,6 +18,7 @@ class Role extends SpatieRole
     /** Turn a kebab/snake-case role slug into a human label: "administrador-general" → "Administrador General". */
     public static function humanizeName(string $name): string
     {
-        return Str::headline(str_replace(['-', '_'], ' ', $name));
+        // Las siglas van en mayúscula: «sst» es «SST», no «Sst».
+        return $name === 'sst' ? 'SST' : Str::headline(str_replace(['-', '_'], ' ', $name));
     }
 }

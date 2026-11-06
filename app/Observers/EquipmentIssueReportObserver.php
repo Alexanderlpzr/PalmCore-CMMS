@@ -8,6 +8,7 @@ use App\Domain\Alerts\Enums\AlertSeverity;
 use App\Domain\Alerts\Services\AlertService;
 use App\Domain\Assets\Enums\IssueSeverity;
 use App\Domain\Maintenance\Enums\IssueReportStatus;
+use App\Domain\Safety\Services\SafetyFindingService;
 use App\Models\EquipmentIssueReport;
 use Illuminate\Support\Facades\Cache;
 
@@ -36,6 +37,10 @@ class EquipmentIssueReportObserver
                     'Reporte de novedad',
                 );
             }
+
+            // Si viene de un hallazgo de SST, su parte de mantenimiento se mueve con él:
+            // OT creada → «En ejecución»; OT cerrada → «Ejecutado».
+            app(SafetyFindingService::class)->syncFromIssueReport($equipmentIssueReport);
         }
     }
 

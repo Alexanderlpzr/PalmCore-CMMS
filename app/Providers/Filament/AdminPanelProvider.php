@@ -108,6 +108,7 @@ class AdminPanelProvider extends PanelProvider
                 NavigationGroup::make('Indicadores'),
                 NavigationGroup::make('Gestión de Activos'),
                 NavigationGroup::make('Inventario'),
+                NavigationGroup::make('Seguridad y Salud en el Trabajo'),
                 // Talento Humano por momento del trabajo: lo de cada día, el cierre del corte y,
                 // plegado, lo que se configura una vez.
                 NavigationGroup::make('Talento Humano · Día a día'),

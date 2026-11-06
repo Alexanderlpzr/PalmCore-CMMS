@@ -96,7 +96,8 @@ it('encuentra las tablas del proyecto', function (): void {
     // 93 con el control del almacén: Despachos, Kardex, Conteos y su planilla, y la
     // pestaña «Dónde se usa» del repuesto.
     // 94 con la pestaña de tareas de la OT: el checklist del preventivo.
-    expect(tableFiles())->toHaveCount(94);
+    // 95 con los hallazgos de SST.
+    expect(tableFiles())->toHaveCount(95);
 });
 
 it('alinea a la derecha toda columna de dinero o cantidad', function (): void {

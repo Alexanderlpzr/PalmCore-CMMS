@@ -1,5 +1,6 @@
 <?php
 
+use App\Console\Commands\NotifyOverdueSstFindingsCommand;
 use App\Console\Commands\SendOverdueMaintenanceNotificationsCommand;
 use App\Domain\Platform\Services\PlatformSettingsService;
 use App\Domain\Reports\Services\ReportManager;
@@ -51,6 +52,11 @@ Schedule::call(fn () => ReportManager::cleanupOldReports())
 
 Schedule::command(SendOverdueMaintenanceNotificationsCommand::class)
     ->dailyAt('08:00')
+    ->onOneServer();
+
+// Los hallazgos de SST que se vencieron sin corregirse: un aviso por hallazgo.
+Schedule::command(NotifyOverdueSstFindingsCommand::class)
+    ->dailyAt('07:00')
     ->onOneServer();
 
 // Dispatch one EvaluateAutomationRulesJob per active tenant every hour.

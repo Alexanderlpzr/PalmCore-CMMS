@@ -14,7 +14,7 @@ class TenantRolesSeeder extends Seeder
      * All permissions are global; roles are scoped per tenant via team_id.
      *
      * `administrador-general` controls the whole tenant; `mantenimiento`, `almacen`,
-     * `talento-humano` and `porteria` are each one area, and only the platform
+     * `talento-humano`, `porteria`, `sst` and `proceso` are each one area, and only the platform
      * (is_super_admin) assigns them. The former
      * nine-role matrix (gerencia, plant-manager, ingeniero-mantenimiento,
      * supervisor, tecnico, almacenista, compras, operario) was retired — see the
@@ -63,6 +63,7 @@ class TenantRolesSeeder extends Seeder
             'inventory.view', 'inventory.entry', 'inventory.exit', 'inventory.adjust', 'inventory.transfer',
             'announcements.view', 'announcements.create', 'announcements.update', 'announcements.delete',
             'carousel-slides.view', 'carousel-slides.create', 'carousel-slides.update', 'carousel-slides.delete',
+            'sst-findings.view', 'sst-findings.manage', 'sst-findings.execute',
 
             // Sin nómina: la lleva `talento-humano`. Ver la migración
             // 2026_09_18_204030_revoke_payroll_from_tenant_admin, que explica por qué
@@ -109,6 +110,7 @@ class TenantRolesSeeder extends Seeder
             'maintenance-budgets.view', 'maintenance-budgets.manage',
             'announcements.view', 'announcements.create', 'announcements.update', 'announcements.delete',
             'carousel-slides.view', 'carousel-slides.create', 'carousel-slides.update', 'carousel-slides.delete',
+            'sst-findings.view', 'sst-findings.execute',
         ],
 
         /*
@@ -143,6 +145,17 @@ class TenantRolesSeeder extends Seeder
             'inventory.view', 'inventory.entry', 'inventory.exit', 'inventory.adjust', 'inventory.transfer',
             'suppliers.view', 'suppliers.create', 'suppliers.update',
             'manufacturers.view',
+        ],
+
+        // Seguridad y salud en el trabajo: reporta los hallazgos, los verifica y corrige
+        // los suyos. Pedido por El Pajuil el 2026-11-05 para la cuenta sst@.
+        'sst' => [
+            'sst-findings.view', 'sst-findings.manage', 'sst-findings.execute',
+        ],
+
+        // Proceso (producción): recibe los hallazgos y corrige los de su área. Cuenta proc@.
+        'proceso' => [
+            'sst-findings.view', 'sst-findings.execute',
         ],
     ];
 

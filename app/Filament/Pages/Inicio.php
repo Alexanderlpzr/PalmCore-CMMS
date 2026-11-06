@@ -101,6 +101,13 @@ class Inicio extends Page
             return;
         }
 
+        // Las cuentas de SST y de proceso: a su tablero de hallazgos.
+        if ($user !== null && ! self::isForMaintenance() && TableroSst::canAccess()) {
+            $this->redirect(TableroSst::getUrl());
+
+            return;
+        }
+
         if ($user === null || session()->get(self::LANDING_REDIRECT_KEY, false)) {
             return;
         }

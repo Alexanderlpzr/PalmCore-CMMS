@@ -92,6 +92,8 @@ it('offers only the roles of the chosen company', function (): void {
             'almacen' => 'Almacen',
             'mantenimiento' => 'Mantenimiento',
             'porteria' => 'Porteria',
+            'proceso' => 'Proceso',
+            'sst' => 'SST',
             'talento-humano' => 'Talento Humano',
         ])
         ->and(UserForm::rolesOf(null))->toBe([]);
