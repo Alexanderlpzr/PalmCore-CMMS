@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 /**
  * Un hallazgo de seguridad y salud en el trabajo (o ambiental): una condición insegura
@@ -120,9 +121,10 @@ class SstFinding extends BaseModel
     /** Dónde está: la sección, el equipo y el detalle que se haya escrito. */
     public function locationLabel(): string
     {
+        // Sin repetir lo mismo con otra tilde: «Esterilización · Esterilizacion».
         return collect([$this->area?->name, $this->equipment?->name, $this->location_detail])
             ->filter()
-            ->unique()
+            ->unique(fn (string $part): string => Str::lower(Str::ascii(trim($part))))
             ->implode(' · ') ?: '—';
     }
 

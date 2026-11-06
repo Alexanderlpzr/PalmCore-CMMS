@@ -94,6 +94,9 @@ it('sets the deadline from the priority and opens one part per responsible area'
         ->and($finding->status)->toBe(FindingStatus::Pendiente)
         ->and($finding->tasks->pluck('area')->all())->toBe([ResponsibleArea::Mantenimiento, ResponsibleArea::Proceso]);
 
+    expect($finding->load('area', 'equipment')->locationLabel())->toBe('Esterilización · Sección dos')
+        ->and(hallazgo(['location_detail' => 'Esterilizacion'])->load('area', 'equipment')->locationLabel())->toBe('Esterilización');
+
     expect(hallazgo(['priority' => 'media'])->due_on->toDateString())->toBe('2026-11-20')
         ->and(hallazgo(['priority' => 'baja'])->due_on->toDateString())->toBe('2026-12-05');
 });
