@@ -25,5 +25,11 @@
     <div class="palmo min-h-screen">
         @livewire('fruit-purchasing.tea-calculator')
         @livewire('fruit-purchasing.interested-signup')
+
+        {{-- pb-36 en el celular: el pie queda a la vista sobre la barra fija del resultado. --}}
+        <footer class="mx-auto max-w-6xl border-t border-petrol-100 px-4 pb-36 pt-6 text-center text-base text-gray-600 lg:pb-10">
+            <p>© {{ now()->year }} Palmo · Método R-100 de la Extractora El Pajuil</p>
+            <p class="mt-1">Desarrollador Alexander Lopez</p>
+        </footer>
     </div>
 @endsection

@@ -34,7 +34,11 @@ it('no deja entrar a un super admin desactivado', function () {
 });
 
 it('el menú del panel de plataforma lleva a Palmo', function () {
-    $this->actingAs($this->superAdmin)
+    // refresh(): el panel pregunta si el usuario está borrado (deleted_at); un usuario
+    // recién hecho por la factory no trae esa columna y el modo estricto lo rechaza.
+    // /platform manda al tablero del panel (/platform/platform-dashboard).
+    $this->actingAs($this->superAdmin->refresh())
+        ->followingRedirects()
         ->get('/platform')
         ->assertOk()
         ->assertSee('Palmo')

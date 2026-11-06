@@ -67,7 +67,10 @@
             </div>
             <div class="flex items-center gap-3 rounded-2xl bg-white/70 px-4 py-3">
                 <img src="{{ asset('images/logo.png') }}" alt="Extractora El Pajuil" width="512" height="512" class="h-14 w-14 shrink-0 sm:h-16 sm:w-16">
-                <p class="text-base leading-snug text-gray-700 sm:text-lg">Método R-100 de la<br><strong class="text-petrol-900">Extractora El Pajuil</strong></p>
+                <div class="text-base leading-snug text-gray-700 sm:text-lg">
+                    <p>Método R-100 de la<br><strong class="text-petrol-900">Extractora El Pajuil</strong></p>
+                    <p class="mt-1 text-sm text-gray-600 sm:text-base">Director Franklin Alvarez</p>
+                </div>
             </div>
         </div>
         <p class="mt-5 max-w-2xl text-xl text-gray-700">Llene los pasos con lo que le dieron en la báscula. El resultado aparece solo, sin oprimir ningún botón.</p>

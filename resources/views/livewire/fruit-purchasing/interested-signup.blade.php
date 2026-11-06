@@ -1,5 +1,4 @@
-{{-- mb-36 en el celular: deja ver la casilla sobre la barra fija del resultado. --}}
-<section class="mx-auto mb-36 max-w-6xl px-4 lg:mb-12">
+<section class="mx-auto mb-8 max-w-6xl px-4">
     <div class="rounded-3xl border-2 border-petrol-100 bg-white p-5 shadow-sm sm:p-8">
         @if ($savedEmail)
             <div class="text-center" role="status">
