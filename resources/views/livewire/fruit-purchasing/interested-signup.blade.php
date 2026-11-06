@@ -40,7 +40,7 @@
                 @enderror
 
                 <button type="submit" wire:loading.attr="disabled"
-                        class="w-full rounded-2xl bg-brand-600 px-6 py-4 text-xl font-bold text-white hover:bg-brand-700 disabled:opacity-60 sm:w-auto">
+                        class="palmo-cta w-full rounded-2xl px-6 py-4 text-xl font-bold disabled:opacity-60 sm:w-auto">
                     Quiero saber más
                 </button>
             </form>

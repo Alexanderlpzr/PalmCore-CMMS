@@ -4,12 +4,16 @@
 @endphp
 
 <div class="mx-auto max-w-2xl px-4 py-8 text-lg text-gray-800 sm:py-12">
-    <header class="mb-8 flex items-center gap-4">
-        <img src="{{ asset('images/logo.png') }}" alt="Extractora El Pajuil" width="512" height="512" class="h-16 w-16 shrink-0 drop-shadow-md sm:h-20 sm:w-20">
+    <header class="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
-            <h1 class="text-3xl font-black leading-tight text-petrol-900 sm:text-4xl">Método <span class="text-brand-600">R-100</span></h1>
-            <p class="text-xl font-bold text-petrol-800">Precio del aceite (CPO)</p>
+            <h1 class="flex items-baseline text-6xl font-extrabold leading-none tracking-tight text-petrol-900">
+                <span class="sr-only">Palmo</span>
+                <span aria-hidden="true">palm</span>
+                <x-palmo.symbol class="ml-0.5 h-[2.6rem] w-[2.6rem] translate-y-[0.06em]" />
+            </h1>
+            <p class="palmo-display mt-2 text-2xl font-bold text-petrol-900">Administración · Método R-100</p>
         </div>
+        <img src="{{ asset('images/logo.png') }}" alt="Extractora El Pajuil" width="512" height="512" class="h-14 w-14 shrink-0">
     </header>
 
     {{-- Precio vigente --}}
@@ -49,7 +53,7 @@
             @enderror
 
             <button type="submit" wire:loading.attr="disabled"
-                    class="w-full rounded-2xl bg-brand-600 px-6 py-4 text-xl font-bold text-white hover:bg-brand-700 disabled:opacity-60 sm:w-auto">
+                    class="palmo-cta w-full rounded-2xl px-6 py-4 text-xl font-bold disabled:opacity-60 sm:w-auto">
                 Publicar precio
             </button>
         </form>

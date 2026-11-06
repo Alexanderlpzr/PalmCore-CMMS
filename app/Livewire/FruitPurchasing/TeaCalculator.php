@@ -367,7 +367,7 @@ class TeaCalculator extends Component
         }
 
         $lines = [
-            '*Método R-100*',
+            '*Palmo* · Método R-100 de la Extractora El Pajuil',
             'Peso neto del viaje: '.number_format($this->number($this->netWeight), 0, ',', '.').' kg',
             'Rendimiento (TEA): '.number_format($this->result->tea * 100, 2, ',', '.').' %'.($this->quality ? ' — '.$this->quality['label'] : ''),
         ];

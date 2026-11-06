@@ -36,7 +36,10 @@ function exampleThreeTrip(): Testable
 it('abre la calculadora R-100 sin iniciar sesión', function () {
     $this->get(route('r100.calculator'))
         ->assertOk()
-        ->assertSee('<title>Método R-100', false)
+        ->assertSee('<title>Palmo — ¿Cuánto vale su fruta?</title>', false)
+        ->assertSee('<span class="sr-only">Palmo</span>', false)
+        ->assertSee('Método R-100 de la')
+        ->assertSee('images/palmo/icono.svg')
         ->assertSee('¿Cuánto vale su fruta?')
         ->assertSee('¿Cuánto cuesta la tonelada de aceite (CPO) a precio (FEP)?')
         ->assertSee('¿Cuánto pesó su viaje NETO?')
@@ -88,11 +91,13 @@ it('marca en verde cada paso que ya está listo', function () {
 
 it('trae la vista previa para cuando el enlace se comparte por WhatsApp', function () {
     $this->get(route('r100.calculator'))
-        ->assertSee('<meta property="og:title" content="Método R-100 — ¿Cuánto vale su fruta?">', false)
-        ->assertSee('<meta property="og:image" content="'.asset('images/r100/compartir.jpg').'">', false)
+        ->assertSee('<meta property="og:title" content="Palmo — ¿Cuánto vale su fruta?">', false)
+        ->assertSee('<meta property="og:site_name" content="Palmo">', false)
+        ->assertSee('<meta property="og:image" content="'.asset('images/palmo/compartir.jpg').'">', false)
         ->assertSee('<meta property="og:url" content="'.route('r100.calculator').'">', false);
 
-    expect(public_path('images/r100/compartir.jpg'))->toBeFile();
+    expect(public_path('images/palmo/compartir.jpg'))->toBeFile()
+        ->and(public_path('images/palmo/icono.svg'))->toBeFile();
 });
 
 it('sigue pidiendo inicio de sesión para el resto de la aplicación', function () {
@@ -333,7 +338,7 @@ it('arma el mensaje de WhatsApp con el resultado y el precio usado', function ()
     $url = exampleThreeTrip()->instance()->whatsappUrl;
 
     expect($url)->toStartWith('https://wa.me/?text=')
-        ->and(rawurldecode($url))->toContain('*Método R-100*')
+        ->and(rawurldecode($url))->toContain('*Palmo* · Método R-100 de la Extractora El Pajuil')
         ->not->toContain('Fronda')
         ->toContain('Peso neto del viaje: 20.000 kg')
         ->toContain('20,84 %')
