@@ -167,6 +167,12 @@ final class OvertimeWorkbookReader
             return CarbonImmutable::instance($value)->startOfDay();
         }
 
+        // Una fecha de Excel sin formato de fecha llega como su número de serie: días desde
+        // el 30/12/1899. 20.000 a 80.000 son los años 1954 a 2119.
+        if ((is_int($value) || is_float($value)) && $value >= 20000 && $value < 80000) {
+            return CarbonImmutable::create(1899, 12, 30)->addDays((int) floor($value));
+        }
+
         $text = mb_strtolower(trim((string) $value));
 
         if (! preg_match('/(\d{1,2})\s*de\s*([a-záéíóú]+)/u', $text, $m) || ! isset(self::MONTHS[$m[2]])) {
@@ -184,7 +190,7 @@ final class OvertimeWorkbookReader
      */
     private function parseSheet(string $name, array $rows, array &$issues): ?array
     {
-        $headerRow = collect($rows)->search(fn (array $cells): bool => self::normalize((string) ($cells[1] ?? '')) === 'FECHA');
+        $headerRow = collect($rows)->search(fn (array $cells): bool => self::normalize(self::text($cells[1] ?? null)) === 'FECHA');
 
         if ($headerRow === false) {
             return null;
@@ -193,7 +199,7 @@ final class OvertimeWorkbookReader
         $columns = [];
 
         foreach ($rows[$headerRow] as $column => $label) {
-            $key = self::normalize((string) $label);
+            $key = self::normalize(self::text($label));
 
             if (isset(self::HEADERS[$key])) {
                 $columns[$column] = self::HEADERS[$key];
@@ -218,7 +224,7 @@ final class OvertimeWorkbookReader
         for ($r = $headerRow + 1; $r <= $headerRow + 45 && isset($rows[$r]); $r++) {
             $cells = $rows[$r];
 
-            if (str_starts_with(self::normalize((string) ($cells[1] ?? '')), 'TOTAL')) {
+            if (str_starts_with(self::normalize(self::text($cells[1] ?? null)), 'TOTAL')) {
                 break;
             }
 
@@ -235,7 +241,7 @@ final class OvertimeWorkbookReader
 
                 match ($kind) {
                     'time' => $day[$field] = self::parseTime($value),
-                    'text' => $day['notes'] = trim((string) ($value ?? '')),
+                    'text' => $day['notes'] = trim(self::text($value)),
                     default => $day[$kind][$field] += is_numeric($value) ? (float) $value : 0.0,
                 };
 
@@ -247,7 +253,7 @@ final class OvertimeWorkbookReader
             if ($date === null) {
                 // La fila de totales no tiene horas de entrada ni de salida: esa no avisa.
                 if ($day['start'] || $day['exit']) {
-                    $issues[] = "Hoja {$name}, fila {$r}: no se entiende la fecha «".trim((string) ($cells[1] ?? '')).'»; la fila no se leyó.';
+                    $issues[] = "Hoja {$name}, fila {$r}: no se entiende la fecha «".trim(self::text($cells[1] ?? null)).'»; la fila no se leyó.';
                 }
 
                 continue;
@@ -281,8 +287,8 @@ final class OvertimeWorkbookReader
         return [
             'sheet' => $name,
             'name' => $this->labelValue($rows, 'NOMBRE') ?? $name,
-            'document' => preg_replace('/\D/', '', (string) $this->labelValue($rows, 'IDENTIFICACI')),
-            'supervisor' => ($jefe = $this->labelValue($rows, 'JEFE INMEDIATO')) !== null ? trim((string) $jefe) : null,
+            'document' => preg_replace('/\D/', '', self::text($this->labelValue($rows, 'IDENTIFICACI'))),
+            'supervisor' => ($jefe = $this->labelValue($rows, 'JEFE INMEDIATO')) !== null ? trim(self::text($jefe)) : null,
             'salary' => is_numeric($salary = $this->labelValue($rows, 'SALARIO', exact: true)) ? (float) $salary : null,
             'bonusTotal' => is_numeric($bonus = $this->labelValue($rows, 'TOTAL BONO', exact: true)) ? (float) $bonus : null,
             'days' => $days,
@@ -326,7 +332,7 @@ final class OvertimeWorkbookReader
     {
         foreach ($rows as $cells) {
             foreach ($cells as $column => $value) {
-                $text = self::normalize((string) $value);
+                $text = self::normalize(self::text($value));
                 $matches = $exact ? $text === $label : str_starts_with($text, $label);
 
                 if (! $matches) {
@@ -334,7 +340,7 @@ final class OvertimeWorkbookReader
                 }
 
                 foreach ($cells as $next => $candidate) {
-                    if ($next > $column && $candidate !== null && trim((string) $candidate) !== '') {
+                    if ($next > $column && $candidate !== null && trim(self::text($candidate)) !== '') {
                         return is_string($candidate) ? trim($candidate) : $candidate;
                     }
                 }
@@ -347,6 +353,15 @@ final class OvertimeWorkbookReader
     private function value(Cell $cell): mixed
     {
         return $cell instanceof FormulaCell ? $cell->getComputedValue() : $cell->getValue();
+    }
+
+    /**
+     * El texto de una celda. Las fechas de Excel llegan como fecha y no como texto —el libro
+     * de noviembre de 2026 trae así la columna FECHA en varias hojas— y se escriben día/mes/año.
+     */
+    private static function text(mixed $value): string
+    {
+        return $value instanceof \DateTimeInterface ? $value->format('d/m/Y') : (string) ($value ?? '');
     }
 
     /** Mayúsculas, sin tildes y con un solo espacio: así se comparan los encabezados. */

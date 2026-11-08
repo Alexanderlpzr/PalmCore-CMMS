@@ -3,6 +3,7 @@
 use App\Domain\HumanResources\Enums\PayrollParameter;
 use App\Domain\HumanResources\Services\AttendanceService;
 use App\Domain\HumanResources\Services\OvertimeWorkbookImporter;
+use App\Domain\HumanResources\Services\OvertimeWorkbookReader;
 use App\Domain\HumanResources\Services\PayrollParameterService;
 use App\Filament\Pages\HorasExtras;
 use App\Infrastructure\Tenancy\CurrentTenant;
@@ -308,6 +309,34 @@ it('warns about the sheets it cannot read and the columns they lack', function (
 
     expect($avisos)->toContain('Hoja ROTA: no se leyó, le falta la fila de títulos con «FECHA» en la columna A.')
         ->toContain('Hoja SIN FIN: no tiene la columna «FIN HORARIO LABORAL»; sus días se cuentan con la jornada de cada día.');
+});
+
+it('reads a workbook whose FECHA column has real Excel dates, as the one of November 2026', function (): void {
+    // El libro de noviembre de 2026 trae la fecha como fecha de Excel y no como texto, y el
+    // lector se caía al buscar la fila de títulos: «DateTimeImmutable could not be converted
+    // to string».
+    $ruta = tempnam(sys_get_temp_dir(), 'libro').'.xlsx';
+    $writer = new Writer;
+    $writer->openToFile($ruta);
+    $writer->getCurrentSheet()->setName('MAYKOLL');
+    $writer->addRow(Row::fromValues(['NOMBRE TRABAJADOR', 'MAYKOLL JIMENEZ', 'IDENTIFICACIÓN', '1116802256']));
+    $writer->addRow(Row::fromValues(['FECHA', 'HORA INICIO', 'FIN HORARIO LABORAL', 'HORA      SALIDA', 'JUSTIFICACIÓN ']));
+    $writer->addRow(Row::fromValues([new DateTimeImmutable('2026-10-27'), '7:00am', '4:00pm', '4:00pm', 'Turno Día']));
+    $writer->addRow(Row::fromValues([new DateTimeImmutable('2026-10-28'), '7:00am', '2:00pm', '5:00pm', 'Turno Día']));
+    $writer->addRow(Row::fromValues([new DateTimeImmutable('2026-10-29'), '', '', '', '']));
+    $writer->close();
+
+    $leido = app(OvertimeWorkbookReader::class)->readWithIssues($ruta);
+    @unlink($ruta);
+
+    $dias = collect($leido['sheets'][0]['days'])->filter(fn (array $d): bool => filled($d['start']))->values();
+
+    expect($leido['issues'])->toBe([])
+        ->and($leido['sheets'][0]['document'])->toBe('1116802256')
+        ->and($dias)->toHaveCount(2)
+        ->and($dias[0]['date']->toDateString())->toBe('2026-10-27')
+        ->and($dias[1]['start'])->toBe('07:00')
+        ->and($dias[1]['exit'])->toBe('17:00');
 });
 
 it('has nothing to warn about a clean workbook, midnight written as «12:00pm» included', function (): void {
