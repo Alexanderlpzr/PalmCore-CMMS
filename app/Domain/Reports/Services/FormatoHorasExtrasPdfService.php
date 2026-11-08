@@ -10,6 +10,7 @@ use App\Domain\HumanResources\Services\AttendanceCorrectionService;
 use App\Domain\HumanResources\Services\AttendanceDayBuilder;
 use App\Domain\HumanResources\Services\OvertimeBonusSplitter;
 use App\Domain\HumanResources\Services\PayrollParameterService;
+use App\Domain\HumanResources\Services\PresumedWorkdayService;
 use App\Models\AttendanceDay;
 use App\Models\AttendanceScan;
 use App\Models\Employee;
@@ -19,6 +20,7 @@ use App\Models\Tenant;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Collection;
 
 /**
  * El formato de horas extras de un trabajador (TH-FOR-002), hecho por el sistema.
@@ -170,16 +172,17 @@ class FormatoHorasExtrasPdfService
             [$main, $apart] = $day ? $this->display($day, $legal, $bonus, $bonusRule) : [ClassifiedHours::empty(), ClassifiedHours::empty()];
             [$entry, $exit] = $day ? $this->entryAndExit($day, $timezone) : [null, null];
 
-            // El fin del horario que trajo el libro, si el día salió de él; si no, la entrada
-            // más la jornada del día.
-            $fromBook = $day ? $this->corrections->marksOfDay($day)
+            // El fin del horario que trajo el libro, si el día salió de él; si no, el momento en
+            // que se cumple la jornada del día, sin contar las salidas de en medio —el almuerzo—.
+            $marks = $day ? $this->corrections->marksOfDay($day) : collect();
+            $fromBook = $marks
                 ->first(fn (AttendanceScan $m): bool => $m->direction === AttendanceDirection::Entrada && $m->scheduled_end_at !== null)
-                ?->scheduled_end_at : null;
+                ?->scheduled_end_at;
 
             $scheduledEnd = match (true) {
                 $entry === null || (bool) $day?->rest_day_worked => null,
                 $fromBook !== null => CarbonImmutable::instance($fromBook)->setTimezone($timezone),
-                default => $entry->addMinutes((int) round($this->parameters->valueOn(PayrollParameter::OrdinaryHoursPerDay, $date, $tenantId) * 60)),
+                default => $this->ordinaryEnd($marks, $entry, $this->parameters->valueOn(PayrollParameter::OrdinaryHoursPerDay, $date, $tenantId), $timezone),
             };
 
             $legalTotal = $legalTotal->plus($legal);
@@ -203,6 +206,7 @@ class FormatoHorasExtrasPdfService
                     $day?->rest_day_worked ? 'Descanso trabajado' : null,
                     $day?->maintenance_support ? 'Apoyo a mantenimiento' : null,
                     $day?->isManuallyAdjusted() ? 'Ajustado a mano: '.$day->adjustment_reason : null,
+                    $marks->contains(fn (AttendanceScan $m): bool => $m->notes === PresumedWorkdayService::NOTE) ? 'Jornada presunta (sin marcas)' : null,
                     $day?->status === AttendanceDayStatus::Propuesta ? 'Sin confirmar' : null,
                 ])->filter()->implode(' · '),
             ];
@@ -323,6 +327,46 @@ class FormatoHorasExtrasPdfService
      *
      * @return array{0: ?CarbonImmutable, 1: ?CarbonImmutable}
      */
+    /**
+     * Cuándo se cumple la jornada ordinaria: la entrada más las horas del día, corridas por
+     * las salidas de en medio. Con almuerzo de 12 a 1, quien entra a las 6 cumple siete horas
+     * a las 2, no a la 1. Si las marcas no alcanzan la jornada, se suma lo que falte al final.
+     *
+     * @param  Collection<int, AttendanceScan>  $marks
+     */
+    private function ordinaryEnd(Collection $marks, CarbonImmutable $entry, float $hours, string $timezone): CarbonImmutable
+    {
+        $pending = (int) round($hours * 60);
+        $start = null;
+        $last = $entry;
+
+        foreach ($marks->sortBy('scanned_at') as $mark) {
+            $at = CarbonImmutable::instance($mark->scanned_at)->setTimezone($timezone);
+
+            if ($mark->direction === AttendanceDirection::Entrada) {
+                $start ??= $at;
+
+                continue;
+            }
+
+            if ($start === null) {
+                continue;
+            }
+
+            $worked = (int) $start->diffInMinutes($at);
+
+            if ($worked >= $pending) {
+                return $start->addMinutes($pending);
+            }
+
+            $pending -= $worked;
+            $last = $at;
+            $start = null;
+        }
+
+        return ($start ?? $last)->addMinutes($pending);
+    }
+
     private function entryAndExit(AttendanceDay $day, string $timezone): array
     {
         // Con el redondeo encendido el formato muestra las horas en punto con que se

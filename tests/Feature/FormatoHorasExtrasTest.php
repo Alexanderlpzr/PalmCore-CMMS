@@ -6,6 +6,7 @@ use App\Domain\HumanResources\Services\AttendanceDayBuilder;
 use App\Domain\HumanResources\Services\AttendanceService;
 use App\Domain\HumanResources\Services\PayrollParameterService;
 use App\Domain\HumanResources\Services\PayrollRunService;
+use App\Domain\HumanResources\Services\PresumedWorkdayService;
 use App\Domain\Reports\Excel\DesprendiblesExcel;
 use App\Domain\Reports\Services\FormatoHorasExtrasPdfService;
 use App\Filament\Resources\Employees\Pages\EditEmployee;
@@ -91,6 +92,23 @@ it('lists every day of the cutoff, with the times of the gate', function (): voi
         // Inicio más la jornada de siete horas.
         ->and($dia['scheduledEnd']->format('H:i'))->toBe('14:00')
         ->and($dia['exit']->format('H:i'))->toBe('18:00');
+});
+
+it('ends the schedule after the lunch break, and says when the day was presumed', function (): void {
+    // Reportado el 2026-11-08: la jornada presunta de 6 a 2 con almuerzo de 12 a 1 salía con
+    // «fin horario» a la 1 pm, como si la persona se hubiera pasado una hora.
+    $admin = Employee::factory()->create(['tenant_id' => $this->tenant->id, 'area' => 'administrativo', 'base_salary' => 2_100_000, 'hire_date' => '2025-01-01']);
+    app(PayrollParameterService::class)->setValue(PayrollParameter::PresumeAdministrativeWorkday, 1, Carbon::parse('2026-10-01'), $this->tenant->id);
+    $this->travelTo(Carbon::parse('2026-10-08 10:00', 'America/Bogota'));
+    app(PresumedWorkdayService::class)->fill($this->tenant, Carbon::parse('2026-10-06'), Carbon::parse('2026-10-06'));
+
+    $dia = collect(app(FormatoHorasExtrasPdfService::class)->data($admin, CarbonImmutable::parse('2026-09-27'), CarbonImmutable::parse('2026-10-26'))['rows'])
+        ->first(fn (array $r): bool => $r['date']->toDateString() === '2026-10-06');
+
+    expect($dia['entry']->format('H:i'))->toBe('06:00')
+        ->and($dia['scheduledEnd']->format('H:i'))->toBe('14:00')
+        ->and($dia['exit']->format('H:i'))->toBe('14:00')
+        ->and($dia['notes'])->toContain('Jornada presunta (sin marcas)');
 });
 
 it('splits the hours with the same rule as the payroll', function (): void {
