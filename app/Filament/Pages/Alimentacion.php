@@ -17,6 +17,7 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -110,6 +111,8 @@ class Alimentacion extends Page implements HasTable
                     ->money('COP', 0)
                     ->alignEnd(),
             ])
+            // El período a la vista, encima de la tabla, como en los tableros de mantenimiento.
+            ->filtersLayout(FiltersLayout::AboveContent)
             ->filters([
                 $this->periodFilter(),
             ])

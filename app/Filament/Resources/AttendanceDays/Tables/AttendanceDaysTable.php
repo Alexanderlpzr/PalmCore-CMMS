@@ -7,6 +7,7 @@ use App\Domain\HumanResources\Services\AttendanceDayConfirmer;
 use App\Domain\HumanResources\Support\DayTone;
 use App\Domain\Reports\Excel\TableExcelExport;
 use App\Filament\Filters\DateRangeFilter;
+use App\Filament\Filters\PayrollPeriodFilter;
 use App\Filament\Resources\AttendanceDays\AttendanceDayActions;
 use App\Filament\Resources\AttendanceScans\AttendanceMarkActions;
 use App\Models\AttendanceDay;
@@ -21,6 +22,7 @@ use Filament\Notifications\Notification;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Contracts\HasTable;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -113,6 +115,8 @@ class AttendanceDaysTable
                     ->placeholder('—')
                     ->toggleable(),
             ])
+            // El período a la vista, encima de la tabla, como en los tableros de mantenimiento.
+            ->filtersLayout(FiltersLayout::AboveContent)
             ->filters([
                 SelectFilter::make('status')
                     ->label('Estado')
@@ -134,8 +138,8 @@ class AttendanceDaysTable
                     ->label('Solo los que hay que revisar')
                     ->query(fn (Builder $query): Builder => $query->withAnomalies()),
 
-                // Sin período puesto: es la bandeja de lo que falta por firmar, de cuando sea.
-                DateRangeFilter::make('work_date', 'Fecha', 'periodo', DateRangeFilter::tenantCutoffDay()),
+                // Con «Todo» puesto: es la bandeja de lo que falta por firmar, de cuando sea.
+                PayrollPeriodFilter::make('work_date', 'periodo', DateRangeFilter::tenantCutoffDay(), allowAll: true),
             ])
             // Los de la lista —con sus filtros— que no tienen ningún aviso, de una vez. Los
             // que tienen avisos quedan para revisarlos uno por uno.

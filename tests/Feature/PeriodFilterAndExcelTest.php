@@ -6,6 +6,7 @@ use App\Domain\HumanResources\Services\AttendanceService;
 use App\Domain\HumanResources\Services\PayrollParameterService;
 use App\Domain\Reports\Excel\TableExcelExport;
 use App\Filament\Filters\DateRangeFilter;
+use App\Filament\Filters\PayrollPeriodFilter;
 use App\Filament\Pages\FactorDeHoras;
 use App\Filament\Pages\HorasExtras;
 use App\Filament\Resources\AttendanceDays\Pages\ListAttendanceDays;
@@ -91,12 +92,26 @@ it('turns a month, a year or a payroll cutoff into dates', function (): void {
         ->and(DateRangeFilter::periodOptions(null))->not->toHaveKey('Cortes de nómina');
 });
 
+it('turns the visible Period · Year · Month bar into dates and words', function (): void {
+    expect(PayrollPeriodFilter::window(['preset' => 'corte', 'anio' => 2026, 'mes' => 11], 26))->toBe(['2026-10-27', '2026-11-26'])
+        ->and(PayrollPeriodFilter::window(['preset' => 'mes', 'anio' => 2026, 'mes' => 2]))->toBe(['2026-02-01', '2026-02-28'])
+        ->and(PayrollPeriodFilter::window(['preset' => 'anio', 'anio' => 2025]))->toBe(['2025-01-01', '2025-12-31'])
+        ->and(PayrollPeriodFilter::window(['preset' => 'rango', 'desde' => '2026-10-05']))->toBe(['2026-10-05', null])
+        ->and(PayrollPeriodFilter::window(['preset' => 'todo']))->toBe([null, null])
+        ->and(PayrollPeriodFilter::label(['preset' => 'corte', 'anio' => 2026, 'mes' => 11], 26))->toBe('Corte de noviembre 2026 (del 27/10/2026 al 26/11/2026)')
+        ->and(PayrollPeriodFilter::label(['preset' => 'todo']))->toBeNull();
+});
+
 it('opens the overtime on the running cutoff and lets choose any other', function (): void {
-    $pantalla = Livewire::test(HorasExtras::class);
+    $pantalla = Livewire::test(HorasExtras::class)
+        // La barra está a la vista, encima de la tabla, con el corte en curso puesto.
+        ->assertSee('Periodo')
+        ->assertSee('Mes del corte')
+        ->assertSee('Del 27/10/2026 al 26/11/2026');
 
     expect(array_map(fn ($d) => $d->toDateString(), $pantalla->instance()->window()))->toBe(['2026-10-27', '2026-11-26']);
 
-    $pantalla->filterTable('periodo', ['periodo' => 'corte:2026-10', 'desde' => '2026-09-27', 'hasta' => '2026-10-26']);
+    $pantalla->filterTable('periodo', ['preset' => 'corte', 'anio' => 2026, 'mes' => 10]);
 
     expect(array_map(fn ($d) => $d->toDateString(), $pantalla->instance()->window()))->toBe(['2026-09-27', '2026-10-26']);
 
@@ -106,7 +121,7 @@ it('opens the overtime on the running cutoff and lets choose any other', functio
 
 it('filters the pending hours by period and downloads them in Excel', function (): void {
     $pantalla = Livewire::test(ListAttendanceDays::class)
-        ->filterTable('periodo', ['periodo' => 'mes:2026-11'])
+        ->filterTable('periodo', ['preset' => 'mes', 'anio' => 2026, 'mes' => 11])
         ->assertCanSeeTableRecords($this->employee->attendanceDays()->whereDate('work_date', '2026-11-03')->get())
         ->assertCanNotSeeTableRecords($this->employee->attendanceDays()->whereDate('work_date', '2026-10-05')->get())
         ->callAction(TestAction::make('excelTabla')->table())
@@ -128,7 +143,7 @@ it('filters the pending hours by period and downloads them in Excel', function (
     $texto = implode(' | ', array_map(fn ($c): string => $c instanceof DateTimeInterface ? $c->format('d/m/Y') : (string) $c, $celdas));
 
     expect($texto)->toContain('Horas por confirmar')
-        ->toContain('Fecha: noviembre 2026')
+        ->toContain('Noviembre 2026')
         ->toContain('1 fila')
         ->toContain('Diego Medina')
         ->toContain('03/11/2026')
@@ -147,7 +162,7 @@ it('filters the payrolls by month and downloads the list', function (): void {
     $septiembre = PayrollRun::factory()->create(['tenant_id' => $this->tenant->id, 'name' => 'Nómina de septiembre', 'period_start' => '2026-09-01', 'period_end' => '2026-09-30']);
 
     Livewire::test(ListPayrollRuns::class)
-        ->filterTable('periodo', ['periodo' => 'mes:2026-10'])
+        ->filterTable('periodo', ['preset' => 'mes', 'anio' => 2026, 'mes' => 10])
         ->assertCanNotSeeTableRecords([$septiembre])
         ->assertSee('Nómina de octubre')
         ->callAction(TestAction::make('excelTabla')->table())

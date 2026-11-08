@@ -4,16 +4,16 @@ namespace App\Filament\Concerns;
 
 use App\Domain\HumanResources\Enums\PayrollParameter;
 use App\Domain\HumanResources\Services\PayrollParameterService;
-use App\Filament\Filters\DateRangeFilter;
+use App\Filament\Filters\PayrollPeriodFilter;
 use App\Models\PayrollRun;
 use Carbon\CarbonImmutable;
 use Filament\Facades\Filament;
 use Filament\Tables\Filters\Filter;
 
 /**
- * El filtro «Período» de las tablas de talento humano: el corte en curso puesto (del 27 al
- * 26), y a mano cualquier otro corte, un mes, un año o un rango libre —el mismo
- * {@see DateRangeFilter} del resto de la aplicación, con los cortes de nómina—.
+ * El filtro «Periodo · Año · Mes» de las tablas de talento humano, a la vista encima de la
+ * tabla: el corte en curso puesto (del 27 al 26), y a mano cualquier otro corte, un mes, un
+ * año o un rango de fechas ({@see PayrollPeriodFilter}).
  *
  * Antes cada página ofrecía solo los seis últimos cortes, con su propio desplegable.
  */
@@ -28,13 +28,10 @@ trait PeriodoDeCorte
      */
     protected function periodFilter(?string $column = null): Filter
     {
-        return DateRangeFilter::make(
+        return PayrollPeriodFilter::make(
             column: $column,
-            label: 'Fecha',
             name: static::$periodFilterName,
-            cutoffDay: $this->cutoffDay(),
-            // Sin día de corte la ventana de horas es el mes calendario.
-            defaultPeriod: ($this->cutoffDay() > 0 ? 'corte:' : 'mes:').$this->currentCutoff()[1]->format('Y-m'),
+            cutoffDay: $this->cutoffDay() > 0 ? $this->cutoffDay() : null,
         );
     }
 
@@ -62,7 +59,7 @@ trait PeriodoDeCorte
      */
     protected function chosenWindow(): array
     {
-        return DateRangeFilter::window((array) ($this->getTableFilterState(static::$periodFilterName) ?? []), $this->cutoffDay());
+        return PayrollPeriodFilter::window((array) ($this->getTableFilterState(static::$periodFilterName) ?? []), $this->cutoffDay() > 0 ? $this->cutoffDay() : null);
     }
 
     protected function cutoffDay(): int

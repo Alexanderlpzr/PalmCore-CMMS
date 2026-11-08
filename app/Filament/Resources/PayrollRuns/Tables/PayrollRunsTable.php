@@ -6,13 +6,14 @@ use App\Domain\HumanResources\Enums\PayrollRunStatus;
 use App\Domain\HumanResources\Exceptions\PayrollRunException;
 use App\Domain\HumanResources\Services\PayrollRunService;
 use App\Domain\Reports\Excel\TableExcelExport;
-use App\Filament\Filters\DateRangeFilter;
+use App\Filament\Filters\PayrollPeriodFilter;
 use App\Models\PayrollRun;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Checkbox;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 
@@ -50,12 +51,14 @@ class PayrollRunsTable
                     ->placeholder('Sin liquidar')
                     ->toggleable(),
             ])
+            // El período a la vista, encima de la tabla, como en los tableros de mantenimiento.
+            ->filtersLayout(FiltersLayout::AboveContent)
             ->filters([
                 SelectFilter::make('status')
                     ->label('Estado')
                     ->options(PayrollRunStatus::options()),
                 // Por el mes de la nómina: «noviembre» trae la de noviembre.
-                DateRangeFilter::make('period_start', 'Período', 'periodo'),
+                PayrollPeriodFilter::make('period_start', 'periodo', allowAll: true),
             ])
             ->headerActions([
                 TableExcelExport::action('Nóminas'),

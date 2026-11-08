@@ -18,6 +18,7 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -118,6 +119,8 @@ class HorasConfirmadas extends Page implements HasTable
                     ->placeholder('—')
                     ->toggleable(),
             ])
+            // El período a la vista, encima de la tabla, como en los tableros de mantenimiento.
+            ->filtersLayout(FiltersLayout::AboveContent)
             ->filters([
                 $this->periodFilter('work_date'),
                 SelectFilter::make('employee_id')
