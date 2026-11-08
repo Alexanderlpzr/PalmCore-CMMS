@@ -3,16 +3,19 @@
 namespace App\Filament\Pages;
 
 use App\Domain\HumanResources\Services\HoursFactorReport;
+use App\Domain\Reports\Excel\FrondaWorkbook;
 use App\Models\PayrollRun;
 use App\Models\Tenant;
 use BackedEnum;
 use Carbon\CarbonImmutable;
+use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Attributes\Url;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
 use UnitEnum;
 
@@ -71,6 +74,67 @@ class FactorDeHoras extends Page
         if ($this->runId === null || ! $this->runs()->has($this->runId)) {
             $this->runId = $this->runs()->keys()->first();
         }
+    }
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Action::make('excel')
+                ->label('Descargar Excel')
+                ->icon(Heroicon::OutlinedTableCells)
+                ->color('gray')
+                ->action(fn (): ?StreamedResponse => $this->excel()),
+        ];
+    }
+
+    /**
+     * El indicador que se está mirando —el corte hasta el día elegido o la nómina— en Excel,
+     * con los renglones del TH-INF-F-002 y el período anterior al lado para comparar.
+     */
+    public function excel(): ?StreamedResponse
+    {
+        $report = $this->report();
+
+        if (! $report) {
+            return null;
+        }
+
+        $current = HoursFactorReport::excelRows($report['current']);
+        $previous = $report['previous'] ? HoursFactorReport::excelRows($report['previous']) : null;
+        $previousOf = fn (string $section, int $i, string $field): ?float => $previous ? (float) $previous[$section][$i][$field] : null;
+
+        $section = function (string $key, string $title) use ($current, $previousOf): array {
+            $rows = [[$title, '', '', '', '']];
+
+            foreach ($current[$key] as $i => $row) {
+                $rows[] = [$row['label'], (float) $row['hours'], (float) $row['amount'], $previousOf($key, $i, 'hours'), $previousOf($key, $i, 'amount')];
+            }
+
+            return $rows;
+        };
+
+        $rows = [
+            ...$section('ordinary', 'Horas ordinarias'),
+            ...$section('withSurcharges', 'Horas con recargos'),
+            ['Total nómina de personal de producción y mantenimiento', $current['payrollTotal']['hours'], $current['payrollTotal']['amount'], $previous['payrollTotal']['hours'] ?? null, $previous['payrollTotal']['amount'] ?? null],
+            ...$section('overtime', 'Horas sin recargos'),
+            ['Total horas extras de producción y mantenimiento sin recargos', $current['overtimeTotal']['hours'], $current['overtimeTotal']['amount'], $previous['overtimeTotal']['hours'] ?? null, $previous['overtimeTotal']['amount'] ?? null],
+        ];
+
+        $formats = [2 => FrondaWorkbook::HOURS, 3 => FrondaWorkbook::MONEY, 4 => FrondaWorkbook::HOURS, 5 => FrondaWorkbook::MONEY];
+
+        return FrondaWorkbook::create()
+            ->sheet('Factor de horas')
+            ->widths([1 => 70, 2 => 12, 3 => 18, 4 => 12, 5 => 18])
+            ->banner(
+                'Indicador factor de horas · '.$report['title'],
+                'Del '.$report['from']->format('d/m/Y').' al '.$report['to']->format('d/m/Y').($report['estimated'] ? ' (estimado: hay horas sin confirmar)' : '').($report['previousLabel'] ? ' · comparado con '.$report['previousLabel'] : ''),
+                Filament::getTenant()?->name,
+                5,
+            )
+            ->table(['Detalle de horas', 'Horas', 'Valor', 'Horas antes', 'Valor antes'], $rows, $formats)
+            ->footer()
+            ->download('FACTOR-DE-HORAS-'.$report['from']->format('Ymd').'-'.$report['to']->format('Ymd').'.xlsx');
     }
 
     /** El día de la planta. */

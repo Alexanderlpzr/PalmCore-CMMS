@@ -5,6 +5,8 @@ namespace App\Filament\Resources\AttendanceDays\Tables;
 use App\Domain\HumanResources\Enums\AttendanceDayStatus;
 use App\Domain\HumanResources\Services\AttendanceDayConfirmer;
 use App\Domain\HumanResources\Support\DayTone;
+use App\Domain\Reports\Excel\TableExcelExport;
+use App\Filament\Filters\DateRangeFilter;
 use App\Filament\Resources\AttendanceDays\AttendanceDayActions;
 use App\Filament\Resources\AttendanceScans\AttendanceMarkActions;
 use App\Models\AttendanceDay;
@@ -131,10 +133,14 @@ class AttendanceDaysTable
                 Filter::make('con_anomalias')
                     ->label('Solo los que hay que revisar')
                     ->query(fn (Builder $query): Builder => $query->withAnomalies()),
+
+                // Sin período puesto: es la bandeja de lo que falta por firmar, de cuando sea.
+                DateRangeFilter::make('work_date', 'Fecha', 'periodo', DateRangeFilter::tenantCutoffDay()),
             ])
             // Los de la lista —con sus filtros— que no tienen ningún aviso, de una vez. Los
             // que tienen avisos quedan para revisarlos uno por uno.
             ->headerActions([
+                TableExcelExport::action('Horas por confirmar'),
                 Action::make('confirmarBuenos')
                     ->label('Confirmar lo que está bien')
                     ->icon('heroicon-o-check-badge')

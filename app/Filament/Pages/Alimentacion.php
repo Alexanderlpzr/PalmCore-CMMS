@@ -2,14 +2,12 @@
 
 namespace App\Filament\Pages;
 
-use App\Domain\HumanResources\Enums\PayrollParameter;
 use App\Domain\HumanResources\Services\MealAllowanceCalculator;
-use App\Domain\HumanResources\Services\PayrollParameterService;
 use App\Domain\Reports\Excel\FrondaWorkbook;
+use App\Filament\Concerns\PeriodoDeCorte;
 use App\Filament\Resources\AttendanceDays\EmployeeDetailAction;
 use App\Models\AttendanceDay;
 use App\Models\Employee;
-use App\Models\PayrollRun;
 use BackedEnum;
 use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
@@ -19,7 +17,6 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
-use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -36,6 +33,7 @@ use UnitEnum;
 class Alimentacion extends Page implements HasTable
 {
     use InteractsWithTable;
+    use PeriodoDeCorte;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCake;
 
@@ -113,12 +111,7 @@ class Alimentacion extends Page implements HasTable
                     ->alignEnd(),
             ])
             ->filters([
-                SelectFilter::make('periodo')
-                    ->label('Período')
-                    ->options(fn (): array => $this->windowOptions())
-                    ->default(fn (): ?string => array_key_first($this->windowOptions()))
-                    ->selectablePlaceholder(false)
-                    ->query(fn (Builder $query): Builder => $query),
+                $this->periodFilter(),
             ])
             // Tocar la fila abre todo lo del trabajador en el corte, con sus comidas día a día.
             ->recordAction('detalleTrabajador')
@@ -135,16 +128,6 @@ class Alimentacion extends Page implements HasTable
                         return $query ? $this->excel($query->get()) : null;
                     }),
             ]);
-    }
-
-    /** @return array{0: CarbonImmutable, 1: CarbonImmutable} la ventana elegida en el filtro */
-    public function window(): array
-    {
-        $value = $this->getTableFilterState('periodo')['value'] ?? null;
-        $value = is_string($value) && str_contains($value, '|') ? $value : array_key_first($this->windowOptions());
-        [$from, $to] = explode('|', $value);
-
-        return [CarbonImmutable::parse($from), CarbonImmutable::parse($to)];
     }
 
     /**
@@ -226,14 +209,6 @@ class Alimentacion extends Page implements HasTable
             ->banner('Detalle por día', 'Entrada, salida y comidas de cada día confirmado del '.$from->format('d/m/Y').' al '.$to->format('d/m/Y'), Filament::getTenant()?->name, 7)
             ->table(['Fecha', 'Trabajador', 'Cédula', 'Entrada', 'Salida', 'Comidas', 'Cantidad'], $filas, [7 => FrondaWorkbook::INTEGER])
             ->footer();
-    }
-
-    /** @return array<string, string> */
-    private function windowOptions(): array
-    {
-        return PayrollRun::recentHoursWindows(
-            (int) app(PayrollParameterService::class)->valueOrDefault(PayrollParameter::HoursCutoffDay, CarbonImmutable::today(), Filament::getTenant()?->getKey() ?? ''),
-        );
     }
 
     /** @return array<string, mixed> las comidas del trabajador en la ventana elegida */

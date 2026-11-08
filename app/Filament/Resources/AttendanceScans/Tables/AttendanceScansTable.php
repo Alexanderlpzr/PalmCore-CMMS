@@ -4,6 +4,8 @@ namespace App\Filament\Resources\AttendanceScans\Tables;
 
 use App\Domain\HumanResources\Enums\AttendanceDirection;
 use App\Domain\HumanResources\Services\AttendanceService;
+use App\Domain\Reports\Excel\TableExcelExport;
+use App\Filament\Filters\DateRangeFilter;
 use App\Filament\Resources\AttendanceScans\AttendanceMarkActions;
 use App\Models\AttendanceScan;
 use App\Models\Employee;
@@ -70,6 +72,8 @@ class AttendanceScansTable
                 // buscar la salida que faltó se abre el rango hacia atrás.
                 Filter::make('fecha')
                     ->schema([
+                        // Un mes, un año o un corte de nómina de una vez: llena las dos fechas.
+                        DateRangeFilter::periodSelect(DateRangeFilter::tenantCutoffDay()),
                         DatePicker::make('desde')
                             ->label('Desde')
                             ->native(false)
@@ -86,8 +90,8 @@ class AttendanceScansTable
                             ->label('Solo entradas sin salida')
                             ->helperText('El turno ya terminó y nadie marcó la salida.'),
                     ])
-                    ->columns(3)
-                    ->columnSpan(3)
+                    ->columns(4)
+                    ->columnSpanFull()
                     ->query(function (Builder $query, array $data) use ($timezone): Builder {
                         $conFechas = filled($data['desde'] ?? null) || filled($data['hasta'] ?? null);
 
@@ -146,6 +150,10 @@ class AttendanceScansTable
             // Los filtros a la vista: el día se cambia sin abrir un menú.
             ->filtersLayout(FiltersLayout::AboveContentCollapsible)
             ->filtersFormColumns(4)
+            // Lo filtrado, en Excel.
+            ->headerActions([
+                TableExcelExport::action('Marcas de portería'),
+            ])
             ->recordActions([
                 AttendanceMarkActions::void(),
             ]);

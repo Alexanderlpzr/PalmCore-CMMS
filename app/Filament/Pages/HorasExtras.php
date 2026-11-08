@@ -2,20 +2,18 @@
 
 namespace App\Filament\Pages;
 
-use App\Domain\HumanResources\Enums\PayrollParameter;
 use App\Domain\HumanResources\Exceptions\AttendanceException;
 use App\Domain\HumanResources\Services\AttendanceCorrectionService;
 use App\Domain\HumanResources\Services\OvertimeSummary;
 use App\Domain\HumanResources\Services\OvertimeWorkbookImporter;
-use App\Domain\HumanResources\Services\PayrollParameterService;
 use App\Domain\Reports\Excel\FormatoHorasExtrasExcel;
 use App\Domain\Reports\Services\FormatoHorasExtrasPdfService as Formato;
+use App\Filament\Concerns\PeriodoDeCorte;
 use App\Filament\Resources\AttendanceDays\EmployeeDetailAction;
 use App\Filament\Resources\Employees\EmployeeResource;
 use App\Models\AttendanceDay;
 use App\Models\AttendanceScan;
 use App\Models\Employee;
-use App\Models\PayrollRun;
 use App\Models\User;
 use App\Support\Hours;
 use BackedEnum;
@@ -35,7 +33,6 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Filters\Filter;
-use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -57,6 +54,7 @@ use UnitEnum;
 class HorasExtras extends Page implements HasTable
 {
     use InteractsWithTable;
+    use PeriodoDeCorte;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClock;
 
@@ -151,13 +149,8 @@ class HorasExtras extends Page implements HasTable
                     ->alignEnd(),
             ])
             ->filters([
-                SelectFilter::make('periodo')
-                    ->label('Período')
-                    ->options(fn (): array => $this->windowOptions())
-                    ->default(fn (): ?string => array_key_first($this->windowOptions()))
-                    ->selectablePlaceholder(false)
-                    // Solo elige la ventana: qué filas salen lo decide el filtro de abajo.
-                    ->query(fn (Builder $query): Builder => $query),
+                // Solo elige la ventana: qué filas salen lo decide el filtro de abajo.
+                $this->periodFilter(),
                 Filter::make('solo_marcaron')
                     ->label('Solo los que marcaron')
                     ->toggle()
@@ -440,24 +433,6 @@ class HorasExtras extends Page implements HasTable
         return 'Se quitan los días del '.$window[0]->format('d/m/Y').' al '.$window[1]->format('d/m/Y')
             .', aun confirmados, y sus marcas quedan anuladas: no se borran del todo, se siguen viendo en «Marcas de portería» con el motivo. '
             .'Después puede volver a cargar las horas a mano o con «Importar libro de horas».';
-    }
-
-    /** @return array{0: CarbonImmutable, 1: CarbonImmutable} la ventana elegida en el filtro */
-    public function window(): array
-    {
-        $value = $this->getTableFilterState('periodo')['value'] ?? null;
-        $value = is_string($value) && str_contains($value, '|') ? $value : array_key_first($this->windowOptions());
-        [$from, $to] = explode('|', $value);
-
-        return [CarbonImmutable::parse($from), CarbonImmutable::parse($to)];
-    }
-
-    /** @return array<string, string> las últimas ventanas de corte, la que corre primero */
-    private function windowOptions(): array
-    {
-        return PayrollRun::recentHoursWindows(
-            (int) app(PayrollParameterService::class)->valueOrDefault(PayrollParameter::HoursCutoffDay, CarbonImmutable::today(), Filament::getTenant()?->getKey() ?? ''),
-        );
     }
 
     /**

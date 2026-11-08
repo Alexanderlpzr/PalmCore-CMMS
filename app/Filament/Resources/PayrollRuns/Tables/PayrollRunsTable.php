@@ -5,6 +5,8 @@ namespace App\Filament\Resources\PayrollRuns\Tables;
 use App\Domain\HumanResources\Enums\PayrollRunStatus;
 use App\Domain\HumanResources\Exceptions\PayrollRunException;
 use App\Domain\HumanResources\Services\PayrollRunService;
+use App\Domain\Reports\Excel\TableExcelExport;
+use App\Filament\Filters\DateRangeFilter;
 use App\Models\PayrollRun;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
@@ -52,6 +54,11 @@ class PayrollRunsTable
                 SelectFilter::make('status')
                     ->label('Estado')
                     ->options(PayrollRunStatus::options()),
+                // Por el mes de la nómina: «noviembre» trae la de noviembre.
+                DateRangeFilter::make('period_start', 'Período', 'periodo'),
+            ])
+            ->headerActions([
+                TableExcelExport::action('Nóminas'),
             ])
             ->recordActions([
                 Action::make('liquidar')
