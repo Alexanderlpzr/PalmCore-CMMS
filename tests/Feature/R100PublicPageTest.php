@@ -95,7 +95,7 @@ it('marca en verde cada paso que ya está listo', function () {
 
 it('trae la vista previa para cuando el enlace se comparte por WhatsApp', function () {
     $this->get(route('r100.calculator'))
-        ->assertSee('<meta property="og:title" content="Palmo — ¿Cuánto vale su fruta?">', false)
+        ->assertSee('<meta property="og:title" content="Palmo · Método R-100 · Extractora El Pajuil">', false)
         ->assertSee('<meta property="og:site_name" content="Palmo">', false)
         ->assertSee('<meta property="og:image" content="'.asset('images/palmo/compartir.jpg').'">', false)
         ->assertSee('<meta property="og:url" content="'.route('r100.calculator').'">', false);

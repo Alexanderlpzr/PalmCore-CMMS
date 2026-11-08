@@ -9,8 +9,9 @@
     <meta property="og:type" content="website">
     <meta property="og:locale" content="es_CO">
     <meta property="og:site_name" content="Palmo">
-    <meta property="og:title" content="Palmo — ¿Cuánto vale su fruta?">
-    <meta property="og:description" content="Mida lo que vale su fruta: la TEA y el valor de su viaje, con el Método R-100 de la Extractora El Pajuil.">
+    <meta property="og:title" content="Palmo · Método R-100 · Extractora El Pajuil">
+    <meta property="og:description" content="TEA de pago y valor de su viaje de fruta de palma.">
+
     <meta property="og:url" content="{{ route('r100.calculator') }}">
     <meta property="og:image" content="{{ asset('images/palmo/compartir.jpg') }}">
     <meta property="og:image:type" content="image/jpeg">
