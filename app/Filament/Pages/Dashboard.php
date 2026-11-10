@@ -14,6 +14,7 @@ use App\Filament\Widgets\Analytics\DowntimeByStoppageCategoryWidget;
 use App\Filament\Widgets\Analytics\DowntimeMaintenanceBreakdownWidget;
 use App\Filament\Widgets\Analytics\ParetoFailuresWidget;
 use App\Filament\Widgets\Costs\MonthlyCostByTypeWidget;
+use App\Filament\Widgets\Executive\MonthlyProductionWidget;
 use App\Filament\Widgets\Executive\PlantEfficiencyStatsWidget;
 use App\Filament\Widgets\Reliability\MaintenanceComplianceWidget;
 use App\Models\Plant;
@@ -79,6 +80,8 @@ class Dashboard extends BaseDashboard
             // Resumen
             // La tarjeta grande del Dashboard es la disponibilidad: lo que mide a mantenimiento.
             PlantEfficiencyStatsWidget::make(['heroMetric' => 'availability']),
+            // La producción de cada mes contra el año anterior, en barras y en tabla.
+            MonthlyProductionWidget::class,
             // Paros
             DowntimeMaintenanceBreakdownWidget::class,
             DowntimeByReasonWidget::class,
