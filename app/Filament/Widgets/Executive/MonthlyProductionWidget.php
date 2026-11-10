@@ -25,7 +25,8 @@ class MonthlyProductionWidget extends ChartWidget
 
     protected ?string $pollingInterval = null;
 
-    protected static ?int $sort = 2;
+    // Lo primero del Dashboard, encima de la disponibilidad (pedido 2026-11-09).
+    protected static ?int $sort = 0;
 
     protected int|string|array $columnSpan = 'full';
 

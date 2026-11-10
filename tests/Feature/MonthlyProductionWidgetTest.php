@@ -3,6 +3,7 @@
 use App\Domain\Analytics\Services\MonthlyProductionComparison;
 use App\Filament\Pages\Dashboard;
 use App\Filament\Widgets\Executive\MonthlyProductionWidget;
+use App\Filament\Widgets\Executive\PlantEfficiencyStatsWidget;
 use App\Models\Plant;
 use App\Models\PlantMonthlyKpi;
 use App\Models\Tenant;
@@ -66,7 +67,9 @@ it('draws the bars and the table on the dashboard', function (): void {
     Filament::setCurrentPanel(Filament::getPanel('admin'));
     Filament::setTenant($this->tenant);
 
-    expect((new Dashboard)->getWidgets())->toContain(MonthlyProductionWidget::class);
+    // Es lo primero del Dashboard.
+    expect((new Dashboard)->getWidgets()[0])->toBe(MonthlyProductionWidget::class)
+        ->and(MonthlyProductionWidget::getSort())->toBeLessThan(PlantEfficiencyStatsWidget::getSort());
 
     Livewire::test(MonthlyProductionWidget::class, ['pageFilters' => ['plant_id' => $this->plant->id, 'year' => 2026, 'month' => 11]])
         ->assertOk()

@@ -77,11 +77,11 @@ class Dashboard extends BaseDashboard
     public function getWidgets(): array
     {
         return [
+            // Lo primero: la producción de cada mes contra el año anterior, en barras y en tabla.
+            MonthlyProductionWidget::class,
             // Resumen
             // La tarjeta grande del Dashboard es la disponibilidad: lo que mide a mantenimiento.
             PlantEfficiencyStatsWidget::make(['heroMetric' => 'availability']),
-            // La producción de cada mes contra el año anterior, en barras y en tabla.
-            MonthlyProductionWidget::class,
             // Paros
             DowntimeMaintenanceBreakdownWidget::class,
             DowntimeByReasonWidget::class,
