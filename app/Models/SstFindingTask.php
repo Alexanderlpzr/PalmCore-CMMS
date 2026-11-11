@@ -25,6 +25,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'executed_by',
     'issue_report_id',
     'notes',
+    'evidence_paths',
 ])]
 class SstFindingTask extends BaseModel
 {
@@ -53,6 +54,7 @@ class SstFindingTask extends BaseModel
             'status' => FindingStatus::class,
             'started_at' => 'immutable_datetime',
             'executed_on' => 'immutable_date',
+            'evidence_paths' => 'array',
         ];
     }
 }

@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Safety\Pages;
 
 use App\Domain\Safety\Enums\FindingStatus;
 use App\Domain\Safety\Services\SafetyFindingService;
+use App\Filament\Forms\Components\NewPhotosUpload;
 use App\Filament\Resources\Safety\SstFindingResource;
 use App\Models\SstFinding;
 use App\Models\SstFindingTask;
@@ -58,6 +59,13 @@ class ViewSstFinding extends ViewRecord
                 ->color('primary')
                 ->visible(fn (): bool => $this->actionableTasks() !== [])
                 ->modalDescription('La fecha de corrección es el día en que quedó corregido. Cuando todas las áreas terminan, el hallazgo queda «Ejecutado» y SST lo verifica.')
+                // Los campos son de la parte del área, no del hallazgo: no se llenan con él.
+                ->fillForm(fn (): array => [
+                    'task_id' => array_key_first($this->actionableTasks()),
+                    'executed_on' => SstFinding::today()->toDateString(),
+                    'notes' => null,
+                    'evidence_paths' => [],
+                ])
                 ->schema(fn (): array => [
                     Select::make('task_id')
                         ->label('Parte de')
@@ -69,8 +77,21 @@ class ViewSstFinding extends ViewRecord
                         ->default(SstFinding::today()->toDateString())
                         ->maxDate(SstFinding::today()->toDateString())
                         ->required(),
-                    Textarea::make('notes')->label('Qué se hizo (opcional)')->rows(2),
-                    $this->afterPhotoField(),
+                    Textarea::make('notes')
+                        ->label('Qué se hizo')
+                        ->placeholder('Ej.: se instaló la guarda del dosificador y se señalizó el área.')
+                        ->rows(3)
+                        ->maxLength(2000)
+                        ->required(),
+                    NewPhotosUpload::make('evidence_paths')
+                        ->label('Fotos de lo que se hizo')
+                        ->helperText('Hasta 6 fotos. Con ellas SST verifica el arreglo.')
+                        ->maxFiles(6)
+                        ->reorderable()
+                        ->disk(persistent_disk())
+                        ->directory(fn (): string => 'sst-findings/'.$this->getRecord()->tenant_id)
+                        ->visibility(persistent_disk() === 'public' ? 'public' : 'private')
+                        ->maxSize(10240),
                 ])
                 ->action(function (array $data): void {
                     app(SafetyFindingService::class)->execute(
@@ -78,7 +99,7 @@ class ViewSstFinding extends ViewRecord
                         $this->user(),
                         CarbonImmutable::parse($data['executed_on']),
                         $data['notes'] ?? null,
-                        $data['photo_after_path'] ?? null,
+                        array_values((array) ($data['evidence_paths'] ?? [])),
                     );
                     $this->refreshRecord('Parte marcada como corregida');
                 }),

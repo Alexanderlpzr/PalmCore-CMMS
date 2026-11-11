@@ -124,24 +124,40 @@ class SafetyFindingService
     /**
      * El área terminó su parte. La fecha de corrección es el día en que quedó corregido;
      * la del hallazgo, la de la última área en terminar.
+     *
+     * Las fotos de lo que se hizo quedan en la parte de esa área; la primera, además, como
+     * foto del «después» del hallazgo si todavía no tenía. Así la de un área no pisa la de
+     * otra. Si quedan otras áreas, SST se entera de que esta ya terminó.
+     *
+     * @param  list<string>  $photos
      */
-    public function execute(SstFindingTask $task, ?User $user, ?CarbonImmutable $on = null, ?string $notes = null, ?string $photoAfterPath = null): void
+    public function execute(SstFindingTask $task, ?User $user, ?CarbonImmutable $on = null, ?string $notes = null, array $photos = []): void
     {
-        DB::transaction(function () use ($task, $user, $on, $notes, $photoAfterPath): void {
+        $photos = array_values(array_filter($photos));
+
+        DB::transaction(function () use ($task, $user, $on, $notes, $photos): void {
             $task->update([
                 'status' => FindingStatus::Ejecutado,
                 'started_at' => $task->started_at ?? now(),
                 'executed_on' => ($on ?? SstFinding::today($task->tenant_id))->toDateString(),
                 'executed_by' => $user?->id,
                 'notes' => $notes ?? $task->notes,
+                'evidence_paths' => [...($task->evidence_paths ?? []), ...$photos] ?: null,
             ]);
 
-            if ($photoAfterPath) {
-                $this->findingOf($task)->update(['photo_after_path' => $photoAfterPath]);
+            $finding = $this->findingOf($task);
+
+            if ($photos !== [] && blank($finding->photo_after_path)) {
+                $finding->update(['photo_after_path' => $photos[0]]);
             }
         });
 
-        $this->refreshStatus($this->findingOf($task));
+        $finding = $this->findingOf($task);
+        $this->refreshStatus($finding);
+
+        if ($finding->refresh()->status !== FindingStatus::Ejecutado) {
+            $this->notifyPartDone($finding, $task->refresh(), $user);
+        }
     }
 
     /** SST revisó el arreglo: el hallazgo se cierra. */
@@ -352,6 +368,25 @@ class SafetyFindingService
                 .'. Responsables: '.$finding->tasks()->get()->map(fn (SstFindingTask $task): string => $task->area->label())->implode(', ')
                 .'. Vence el '.$finding->due_on->format('d/m/Y').'.',
             $finding->priority === FindingPriority::Alta ? 'danger' : 'warning',
+            $finding,
+        );
+    }
+
+    /** Un área terminó y faltan otras: a SST, a Ambiental y a quien lo reportó. */
+    private function notifyPartDone(SstFinding $finding, SstFindingTask $task, ?User $user): void
+    {
+        $pending = $finding->tasks()->get()->filter(fn (SstFindingTask $other): bool => $other->status !== FindingStatus::Ejecutado);
+        $photos = count($task->evidence_paths ?? []);
+
+        $this->send(
+            $this->recipients($finding, self::SST_ROLES, except: $user)->push($finding->createdBy)->filter()->unique('id')
+                ->reject(fn (User $recipient): bool => $user !== null && $recipient->is($user))
+                ->values(),
+            $task->area->label().' corrigió su parte del hallazgo '.$finding->originCode(),
+            Str::limit((string) ($task->notes ?: 'Sin descripción'), 140)
+                .($photos > 0 ? ' · '.$photos.($photos === 1 ? ' foto' : ' fotos') : '')
+                .'. Falta: '.$pending->map(fn (SstFindingTask $other): string => $other->area->label())->implode(', ').'.',
+            'info',
             $finding,
         );
     }

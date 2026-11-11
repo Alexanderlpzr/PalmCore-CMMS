@@ -217,8 +217,13 @@ class SstFindingResource extends Resource
                             TextEntry::make('issue_report')->label('En mantenimiento')
                                 ->state(fn (SstFindingTask $record): ?string => self::maintenanceText($record))
                                 ->placeholder('—'),
-                            TextEntry::make('notes')->label('Observación')->placeholder('—')->columnSpanFull()
+                            TextEntry::make('notes')->label('Qué se hizo')->placeholder('—')->columnSpanFull()
                                 ->visible(fn (SstFindingTask $record): bool => filled($record->notes)),
+                            ImageEntry::make('evidence_paths')->label('Fotos de lo que se hizo')
+                                ->disk(persistent_disk())
+                                ->imageHeight(140)
+                                ->columnSpanFull()
+                                ->visible(fn (SstFindingTask $record): bool => filled($record->evidence_paths)),
                         ]),
                 ]),
         ]);

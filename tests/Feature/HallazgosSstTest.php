@@ -29,6 +29,7 @@ use Carbon\CarbonImmutable;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\TenantRolesSeeder;
 use Filament\Facades\Filament;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use OpenSpout\Common\Entity\Row;
@@ -465,4 +466,53 @@ it('imports the environmental chart after the SST one without clashing numbers',
     expect($importer->import($ambiental, $this->tenant->id, $this->sst, FindingOrigin::Ambiental))->toMatchArray(['created' => 0, 'skipped' => 2])
         ->and($importer->import($sst, $this->tenant->id, $this->sst))->toMatchArray(['created' => 0, 'skipped' => 2])
         ->and(SstFinding::query()->count())->toBe(4);
+});
+
+it('lets process receive a finding and resolve its part describing what it did with photos, like maintenance', function (): void {
+    $finding = hallazgo(['areas' => ['mantenimiento', 'proceso']]);
+
+    // Le llega como a mantenimiento.
+    expect($this->proceso->notifications()->sole()->data['title'])->toContain('Nuevo hallazgo SST H-001')
+        ->and($this->mantenimiento->notifications()->count())->toBe(1);
+
+    $this->actingAs($this->proceso);
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+    Filament::setTenant($this->tenant);
+    $parte = $finding->tasks()->where('area', 'proceso')->sole();
+
+    Livewire::test(ListSstFindings::class, ['activeTab' => 'mi-area'])->assertCanSeeTableRecords([$finding]);
+
+    // Sin decir qué se hizo no se cierra la parte.
+    Livewire::test(ViewSstFinding::class, ['record' => $finding->getRouteKey()])
+        ->callAction('ejecutar', ['task_id' => $parte->id, 'executed_on' => '2026-11-05', 'notes' => ''])
+        ->assertHasActionErrors(['notes' => 'required']);
+
+    Livewire::test(ViewSstFinding::class, ['record' => $finding->getRouteKey()])
+        ->callAction('ejecutar', [
+            'task_id' => $parte->id,
+            'executed_on' => '2026-11-05',
+            'notes' => 'Se limpió el derrame y se puso bandeja de contención',
+            'evidence_paths' => [UploadedFile::fake()->image('antes-de-cerrar.jpg'), UploadedFile::fake()->image('bandeja.jpg')],
+        ])
+        ->assertHasNoActionErrors();
+
+    $parte->refresh();
+    expect($parte->status)->toBe(FindingStatus::Ejecutado)
+        ->and($parte->notes)->toBe('Se limpió el derrame y se puso bandeja de contención')
+        ->and($parte->executed_by)->toBe($this->proceso->id)
+        ->and($parte->evidence_paths)->toHaveCount(2)
+        ->and($finding->fresh()->photo_after_path)->toBe($parte->evidence_paths[0]);
+    Storage::disk(persistent_disk())->assertExists($parte->evidence_paths[1]);
+
+    // Falta mantenimiento: SST se entera de que proceso ya terminó, con lo que hizo.
+    expect($finding->fresh()->status)->toBe(FindingStatus::EnEjecucion);
+    $aviso = $this->sst->notifications()->sole()->data;
+    expect($aviso['title'])->toBe('Proceso corrigió su parte del hallazgo SST H-001')
+        ->and($aviso['body'])->toContain('bandeja de contención')
+        ->and($aviso['body'])->toContain('2 fotos')
+        ->and($aviso['body'])->toContain('Falta: Mantenimiento');
+
+    Livewire::test(ViewSstFinding::class, ['record' => $finding->getRouteKey()])
+        ->assertSee('Fotos de lo que se hizo')
+        ->assertSee('bandeja de contención');
 });
