@@ -190,3 +190,15 @@ it('saves the new notifications in the bell format with their kind, link and com
         ->and($data['actions'][0]['label'])->toBe('Ver hallazgo')
         ->and($data['actions'][0]['url'])->toBe('https://fronda.app/x');
 });
+
+it('opens the profile, which has no company in its address, with the notifications link in the menu', function (): void {
+    // El enlace «Mis notificaciones» del menú se armaba sin empresa y el Perfil daba 500.
+    foreach ([$this->mantenimiento, $this->admin] as $user) {
+        $this->actingAs($user->fresh())->get('/admin/profile')->assertOk();
+    }
+
+    $this->actingAs($this->mantenimiento->fresh())
+        ->get(Notificaciones::getUrl(tenant: $this->tenant))
+        ->assertOk()
+        ->assertSee('Mis notificaciones');
+});

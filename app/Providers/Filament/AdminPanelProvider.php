@@ -15,6 +15,7 @@ use App\Livewire\Notifications\Campana;
 use App\Models\Tenant;
 use App\Support\FrondaPalette;
 use Filament\Actions\Action;
+use Filament\Facades\Filament;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -99,12 +100,15 @@ class AdminPanelProvider extends PanelProvider
             // uno se marca leído o no leído. Revisa cada 30 s.
             ->databaseNotifications(livewireComponent: Campana::class)
             ->databaseNotificationsPolling('30s')
-            // El centro de notificaciones, también desde el menú del usuario.
+            // El centro de notificaciones, también desde el menú del usuario. Solo donde hay
+            // empresa a la vista: el Perfil no la tiene, y armar el enlace sin ella tumbaba
+            // la página con un 500 (2026-11-10).
             ->userMenuItems([
                 'notificaciones' => Action::make('notificaciones')
                     ->label('Mis notificaciones')
                     ->icon('heroicon-o-bell')
-                    ->url(fn (): string => Notificaciones::getUrl()),
+                    ->visible(fn (): bool => Filament::getTenant() !== null)
+                    ->url(fn (): ?string => Filament::getTenant() !== null ? Notificaciones::getUrl() : null),
             ])
             // Orden maestro del menú (UX-3). Ordenado por frecuencia de uso
             // operativo real: el ciclo de mantenimiento diario primero, la
