@@ -11,15 +11,15 @@
     {{-- Degradado entre los dos colores del logo: petróleo del engranaje →
          verde de la fronda. Antes eran dos verdes inventados (#264a35 → #0d2016)
          que no salían de ninguna parte de la marca. --}}
-    <div class="relative min-h-screen w-full overflow-hidden bg-[linear-gradient(150deg,#002331,#052811_70%)]">
+    <div
+        @if ($images->count() > 1)
+            x-data="{ slide: 0 }"
+            x-init="setInterval(() => slide = (slide + 1) % {{ $images->count() }}, 6000)"
+        @endif
+        class="relative min-h-screen w-full overflow-hidden bg-[linear-gradient(150deg,#002331,#052811_70%)]"
+    >
         @if ($images->isNotEmpty())
-            <div
-                @if ($images->count() > 1)
-                    x-data="{ slide: 0 }"
-                    x-init="setInterval(() => slide = (slide + 1) % {{ $images->count() }}, 6000)"
-                @endif
-                class="absolute inset-0"
-            >
+            <div class="absolute inset-0">
                 @foreach ($images as $index => $image)
                     <div
                         @if ($images->count() > 1)
