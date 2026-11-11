@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Domain\Safety\Enums\FindingOrigin;
 use App\Domain\Safety\Enums\FindingPriority;
 use App\Domain\Safety\Enums\FindingStatus;
 use App\Models\SstFinding;
@@ -26,6 +27,7 @@ class SstFindingFactory extends Factory
         return [
             'tenant_id' => Tenant::factory(),
             'number' => $this->faker->unique()->numberBetween(1, 99_999),
+            'origin' => FindingOrigin::Sst->value,
             'reported_on' => $reportedOn,
             'description' => $this->faker->sentence(),
             'location_detail' => $this->faker->optional()->words(2, true),

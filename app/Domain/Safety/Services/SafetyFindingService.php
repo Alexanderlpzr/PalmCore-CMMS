@@ -7,6 +7,7 @@ use App\Domain\Maintenance\Enums\IssueReportStatus;
 use App\Domain\Notifications\InboxNotification;
 use App\Domain\Notifications\NotificationKind;
 use App\Domain\Notifications\Recipients;
+use App\Domain\Safety\Enums\FindingOrigin;
 use App\Domain\Safety\Enums\FindingPriority;
 use App\Domain\Safety\Enums\FindingStatus;
 use App\Domain\Safety\Enums\ResponsibleArea;
@@ -40,24 +41,38 @@ use Throwable;
  */
 class SafetyFindingService
 {
-    /** El cargo con que firma sus reportes de novedad: así no se avisa dos veces a mantenimiento. */
+    /**
+     * El cargo con que firman los hallazgos de SST sus reportes de novedad. Los de Ambiental
+     * firman «Gestión Ambiental» ({@see FindingOrigin::reporterPositions()}): con cualquiera
+     * de los dos no se avisa dos veces a mantenimiento.
+     */
     public const REPORTER_POSITION = 'Seguridad y Salud en el Trabajo';
 
     /** Quien reporta y verifica: SST y Ambiental, con los mismos permisos. */
     public const SST_ROLES = ['sst', 'ambiental'];
 
     /**
-     * @param  array{reported_on: string|CarbonImmutable, description?: ?string, area_id?: ?string, equipment_id?: ?string, location_detail?: ?string, priority: string|FindingPriority, action_plan?: ?string, areas: list<string|ResponsibleArea>, photo_before_path?: ?string, photo_after_path?: ?string, number?: ?int}  $data
+     * El origen, si no se dice, sale de quien lo reporta: la cuenta ambiental reporta
+     * ambientales; cualquier otra, de SST.
+     *
+     * @param  array{reported_on: string|CarbonImmutable, description?: ?string, area_id?: ?string, equipment_id?: ?string, location_detail?: ?string, priority: string|FindingPriority, action_plan?: ?string, areas: list<string|ResponsibleArea>, photo_before_path?: ?string, photo_after_path?: ?string, number?: ?int, origin?: string|FindingOrigin|null, source_item?: ?int}  $data
      */
     public function create(string $tenantId, array $data, ?User $createdBy, bool $notify = true, bool $reportToMaintenance = true): SstFinding
     {
         $finding = DB::transaction(function () use ($tenantId, $data, $createdBy, $reportToMaintenance): SstFinding {
             $priority = $data['priority'] instanceof FindingPriority ? $data['priority'] : FindingPriority::from($data['priority']);
             $reportedOn = CarbonImmutable::parse($data['reported_on'])->startOfDay();
+            $origin = match (true) {
+                ($data['origin'] ?? null) instanceof FindingOrigin => $data['origin'],
+                filled($data['origin'] ?? null) => FindingOrigin::from($data['origin']),
+                default => FindingOrigin::forUser($createdBy) ?? FindingOrigin::Sst,
+            };
 
             $finding = SstFinding::query()->create([
                 'tenant_id' => $tenantId,
                 'number' => $data['number'] ?? $this->nextNumber($tenantId),
+                'origin' => $origin,
+                'source_item' => $data['source_item'] ?? null,
                 'reported_on' => $reportedOn,
                 'description' => $data['description'] ?? null,
                 'area_id' => $data['area_id'] ?? null,
@@ -146,8 +161,8 @@ class SafetyFindingService
 
         $this->send(
             $this->recipients($finding, [...$this->taskRoles($finding), ...self::SST_ROLES], except: $user)->push($finding->createdBy)->filter()->unique('id')->reject(fn (User $recipient): bool => $recipient->is($user)),
-            "Hallazgo {$finding->code()} verificado",
-            Str::limit((string) ($finding->description ?: $finding->locationLabel()), 120).' — SST revisó la corrección y lo cerró.',
+            'Hallazgo '.$finding->originCode().' verificado',
+            Str::limit((string) ($finding->description ?: $finding->locationLabel()), 120).' — '.$user->name.' revisó la corrección y lo cerró.',
             'success',
             $finding,
         );
@@ -203,7 +218,7 @@ class SafetyFindingService
         if ($status === FindingStatus::Ejecutado && ! $wasExecuted) {
             $this->send(
                 $this->recipients($finding, self::SST_ROLES),
-                "Hallazgo {$finding->code()} listo para verificar",
+                'Hallazgo '.$finding->originCode().' listo para verificar',
                 'Todas las áreas responsables lo corrigieron. Revise el arreglo y verifíquelo.',
                 'info',
                 $finding,
@@ -229,7 +244,7 @@ class SafetyFindingService
 
                 $this->send(
                     $this->recipients($finding, $roles),
-                    "Hallazgo {$finding->code()} vencido",
+                    'Hallazgo '.$finding->originCode().' vencido',
                     'Prioridad '.mb_strtolower($finding->priority->label()).', vencía el '.$finding->due_on->format('d/m/Y').'. Falta: '
                         .$pending->map(fn (SstFindingTask $task): string => $task->area->label())->implode(', ').'.',
                     'danger',
@@ -310,14 +325,14 @@ class SafetyFindingService
         $report = EquipmentIssueReport::query()->create([
             'tenant_id' => $finding->tenant_id,
             'equipment_id' => $equipment->id,
-            'description' => trim("Hallazgo SST {$finding->code()}: ".($finding->description ?: 'ver foto')
+            'description' => trim('Hallazgo '.$finding->originCode().': '.($finding->description ?: 'ver foto')
                 .($finding->location_detail ? " ({$finding->location_detail})" : '')
                 .($finding->action_plan ? "\nPlan de acción: {$finding->action_plan}" : '')
                 ."\nVence el {$finding->due_on->format('d/m/Y')}."),
             'photo_path' => $finding->photo_before_path,
             'severity' => $finding->priority->issueSeverity(),
-            'reporter_name' => $createdBy?->name ?? 'SST',
-            'reporter_position' => self::REPORTER_POSITION,
+            'reporter_name' => $createdBy?->name ?? $finding->origin->label(),
+            'reporter_position' => $finding->origin->reporterPosition(),
             'reporter_user_id' => $createdBy?->id,
             'status' => IssueReportStatus::Open,
         ]);
@@ -332,7 +347,7 @@ class SafetyFindingService
 
         $this->send(
             $this->recipients($finding, $roles, except: $createdBy),
-            "Nuevo hallazgo SST {$finding->code()} · prioridad ".mb_strtolower($finding->priority->label()),
+            'Nuevo hallazgo '.$finding->originCode().' · prioridad '.mb_strtolower($finding->priority->label()),
             Str::limit((string) ($finding->description ?: 'Hallazgo con foto'), 120).' — '.$finding->locationLabel()
                 .'. Responsables: '.$finding->tasks()->get()->map(fn (SstFindingTask $task): string => $task->area->label())->implode(', ')
                 .'. Vence el '.$finding->due_on->format('d/m/Y').'.',

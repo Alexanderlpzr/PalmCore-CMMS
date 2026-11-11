@@ -6,6 +6,7 @@ use App\Domain\Maintenance\Enums\WorkOrderPriority;
 use App\Domain\Maintenance\Enums\WorkOrderStatus;
 use App\Domain\Maintenance\Enums\WorkOrderType;
 use App\Domain\Maintenance\Services\WorkOrderService;
+use App\Domain\Safety\Enums\FindingOrigin;
 use App\Domain\Safety\Enums\FindingPriority;
 use App\Domain\Safety\Enums\FindingStatus;
 use App\Domain\Safety\Enums\ResponsibleArea;
@@ -162,7 +163,7 @@ it('moves the maintenance part with its work order and marks the finding execute
     $finding->refresh();
     expect($finding->status)->toBe(FindingStatus::Ejecutado)
         ->and($finding->executed_on->toDateString())->toBe('2026-11-09')
-        ->and($this->sst->notifications()->get()->pluck('data.title')->all())->toContain('Hallazgo H-001 listo para verificar');
+        ->and($this->sst->notifications()->get()->pluck('data.title')->all())->toContain('Hallazgo SST H-001 listo para verificar');
 });
 
 it('lets SST verify an executed finding and tells the areas', function (): void {
@@ -175,7 +176,7 @@ it('lets SST verify an executed finding and tells the areas', function (): void 
 
     expect($finding->fresh()->status)->toBe(FindingStatus::Verificado)
         ->and($finding->fresh()->verified_by)->toBe($this->sst->id)
-        ->and($this->proceso->notifications()->get()->pluck('data.title')->all())->toContain('Hallazgo H-001 verificado');
+        ->and($this->proceso->notifications()->get()->pluck('data.title')->all())->toContain('Hallazgo SST H-001 verificado');
 });
 
 it('decides who can move each part', function (): void {
@@ -197,7 +198,7 @@ it('warns once about each overdue finding', function (): void {
     expect($finding->isOverdue())->toBeTrue()
         ->and($this->service->notifyOverdue())->toBe(1)
         ->and($this->service->notifyOverdue())->toBe(0)
-        ->and($this->proceso->notifications()->first()->data['title'])->toBe('Hallazgo H-001 vencido');
+        ->and($this->proceso->notifications()->first()->data['title'])->toBe('Hallazgo SST H-001 vencido');
 });
 
 it('sums up the findings for the SST dashboard', function (): void {
@@ -379,10 +380,89 @@ it('gives the environmental account the same as SST: reports, notices, its dashb
         ->and(SafetyFindingService::areasOfUser($ambiental))->toBe(['sst']);
 
     $this->service->execute($finding->tasks->first(), $ambiental);
-    expect($ambiental->notifications()->get()->pluck('data.title')->all())->toContain('Hallazgo H-001 listo para verificar');
+    expect($ambiental->notifications()->get()->pluck('data.title')->all())->toContain('Hallazgo SST H-001 listo para verificar');
 
     $this->actingAs($ambiental);
     Filament::setCurrentPanel(Filament::getPanel('admin'));
     Filament::setTenant($this->tenant);
     Livewire::test(Inicio::class)->assertRedirect(TableroSst::getUrl());
+});
+
+it('records whether each finding comes from SST or the environmental account, and says so everywhere', function (): void {
+    $ambiental = User::factory()->create(['is_active' => true, 'name' => 'Gestora ambiental']);
+    $ambiental->tenants()->attach($this->tenant->id, ['joined_at' => now()]);
+    $ambiental->assignRole('ambiental');
+
+    $deSst = hallazgo(['areas' => ['proceso']]);
+    $deAmbiental = $this->service->create($this->tenant->id, [
+        'reported_on' => '2026-11-05', 'description' => 'Derrame de ACPM junto al tanque', 'area_id' => $this->esterilizacion->id,
+        'priority' => 'alta', 'areas' => ['mantenimiento'],
+    ], $ambiental);
+
+    // El origen sale de quien lo reporta.
+    expect($deSst->origin)->toBe(FindingOrigin::Sst)
+        ->and($deAmbiental->origin)->toBe(FindingOrigin::Ambiental);
+
+    // A mantenimiento le llega firmado por Gestión Ambiental, y solo un aviso: el del hallazgo.
+    $report = $deAmbiental->load('tasks.issueReport')->tasks->first()->issueReport;
+    expect($report->reporter_position)->toBe('Gestión Ambiental')
+        ->and($report->reporter_name)->toBe('Gestora ambiental')
+        ->and($report->description)->toContain('Hallazgo ambiental H-002')
+        ->and($this->mantenimiento->notifications()->count())->toBe(1)
+        ->and($this->mantenimiento->notifications()->sole()->data['title'])->toContain('Nuevo hallazgo ambiental H-002');
+
+    // El Tablero los cuenta por separado.
+    $summary = app(SafetyFindingsDashboard::class)->summary($this->tenant->id);
+    expect(collect($summary['byOrigin'])->firstWhere('origin', 'ambiental'))->toMatchArray(['total' => 1, 'open' => 1])
+        ->and(collect($summary['byOrigin'])->firstWhere('origin', 'sst'))->toMatchArray(['total' => 1, 'open' => 1]);
+
+    // En la lista se filtran.
+    $this->actingAs($ambiental);
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+    Filament::setTenant($this->tenant);
+
+    Livewire::test(ListSstFindings::class)
+        ->filterTable('origin', 'ambiental')
+        ->assertCanSeeTableRecords([$deAmbiental])
+        ->assertCanNotSeeTableRecords([$deSst]);
+
+    Livewire::test(TableroSst::class)->assertOk()->assertSee('Ambiental · 1 hallazgo');
+
+    // El formulario lo propone según la cuenta.
+    Livewire::test(CreateSstFinding::class)
+        ->assertSchemaStateSet(['origin' => 'ambiental'])
+        ->fillForm(['reported_on' => '2026-11-05', 'priority' => 'baja', 'description' => 'Residuos sin clasificar', 'areas' => ['sst']])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    expect(SstFinding::query()->where('description', 'Residuos sin clasificar')->sole()->origin)->toBe(FindingOrigin::Ambiental);
+});
+
+it('imports the environmental chart after the SST one without clashing numbers', function (): void {
+    $sst = cuadroDeHallazgos([
+        [1, new DateTimeImmutable('2026-10-01'), 'Escalera sin pasamanos', 'Esterilizador', 'ALTA', 'Instalar pasamanos', 'Sg-sst', 'Proceso', null, null, 'Pendiente'],
+        [2, new DateTimeImmutable('2026-10-02'), 'Extintor vencido', 'Recepción', 'MEDIA', 'Recargar', 'Sg-sst', 'Sgsst', null, null, 'Pendiente'],
+    ], fotos: []);
+    $ambiental = cuadroDeHallazgos([
+        [1, new DateTimeImmutable('2026-10-10'), 'Aceite usado sin contención', 'Esterilizador', 'ALTA', 'Construir dique', 'Ambiental', 'Proceso', null, null, 'Pendiente'],
+        [2, new DateTimeImmutable('2026-10-11'), 'Residuos mezclados', 'Recepción', 'BAJA', 'Puntos ecológicos', 'Ambiental', 'Sgsst', null, null, new DateTimeImmutable('2026-10-20')],
+    ], fotos: []);
+    $importer = app(SafetyFindingsWorkbookImporter::class);
+
+    $importer->import($sst, $this->tenant->id, $this->sst);
+    $summary = $importer->import($ambiental, $this->tenant->id, $this->sst, FindingOrigin::Ambiental);
+
+    expect($summary)->toMatchArray(['created' => 2, 'skipped' => 0]);
+
+    $dique = SstFinding::query()->where('description', 'Aceite usado sin contención')->sole();
+    expect($dique->origin)->toBe(FindingOrigin::Ambiental)
+        ->and($dique->number)->toBe(3)
+        ->and($dique->source_item)->toBe(1)
+        ->and(SstFinding::query()->where('description', 'Residuos mezclados')->sole()->number)->toBe(4)
+        ->and(SstFinding::query()->where('number', 1)->sole()->origin)->toBe(FindingOrigin::Sst);
+
+    // Cada cuadro se puede volver a importar sin repetir nada.
+    expect($importer->import($ambiental, $this->tenant->id, $this->sst, FindingOrigin::Ambiental))->toMatchArray(['created' => 0, 'skipped' => 2])
+        ->and($importer->import($sst, $this->tenant->id, $this->sst))->toMatchArray(['created' => 0, 'skipped' => 2])
+        ->and(SstFinding::query()->count())->toBe(4);
 });

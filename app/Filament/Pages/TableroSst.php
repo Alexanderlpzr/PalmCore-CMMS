@@ -71,6 +71,7 @@ class TableroSst extends Page
                 ['label' => 'Por verificar', 'value' => $summary['porVerificar'], 'detail' => 'Corregidos, falta la revisión de SST', 'icon' => 'heroicon-o-eye', 'tone' => $summary['porVerificar'] > 0 ? 'warning' : 'ok', 'url' => $list('por-verificar')],
                 ['label' => 'Verificados', 'value' => $summary['verificados'], 'detail' => 'Cerrados por SST', 'icon' => 'heroicon-o-shield-check', 'tone' => 'ok', 'url' => $list('todos')],
             ],
+            'originUrl' => fn (string $origin): string => SstFindingResource::getUrl('index', ['tab' => 'todos', 'filters' => ['origin' => ['value' => $origin]]]),
             'findingUrl' => fn (SstFinding $finding): string => SstFindingResource::getUrl('view', ['record' => $finding]),
             'today' => $today,
         ];

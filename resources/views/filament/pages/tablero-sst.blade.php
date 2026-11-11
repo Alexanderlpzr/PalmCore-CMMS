@@ -33,6 +33,22 @@
             @endforeach
         </div>
 
+        {{-- SST y Ambiental por separado: de quién es cada hallazgo. --}}
+        <div class="grid gap-3 sm:grid-cols-2">
+            @foreach ($summary['byOrigin'] as $fila)
+                <a href="{{ $originUrl($fila['origin']) }}" class="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:border-primary-300 hover:bg-gray-50 dark:border-white/10 dark:bg-gray-900 dark:hover:bg-white/5">
+                    <x-filament::icon :icon="$fila['icon']" class="h-8 w-8 shrink-0 text-primary-600 dark:text-primary-400" />
+                    <div class="min-w-0 flex-1">
+                        <p class="text-sm font-semibold text-gray-950 dark:text-white">{{ $fila['label'] }} · {{ $fila['total'] }} {{ $fila['total'] === 1 ? 'hallazgo' : 'hallazgos' }}</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                            {{ $fila['open'] }} {{ $fila['open'] === 1 ? 'abierto' : 'abiertos' }} · {{ $fila['porVerificar'] }} por verificar @if ($fila['overdue'] > 0) · <span class="font-semibold text-danger-600 dark:text-danger-400">{{ $fila['overdue'] }} {{ $fila['overdue'] === 1 ? 'vencido' : 'vencidos' }}</span>@endif
+                        </p>
+                    </div>
+                    <p class="text-3xl font-bold tabular-nums text-gray-950 dark:text-white">{{ $fila['open'] }}</p>
+                </a>
+            @endforeach
+        </div>
+
         <div class="grid gap-4 lg:grid-cols-2">
             {{-- Cómo va cada área con lo que le toca. --}}
             <x-filament::section heading="Por área responsable" description="La parte de cada área: corregida sobre el total que le tocó.">
@@ -92,7 +108,7 @@
             @forelse ($summary['overdueList'] as $hallazgo)
                 <a href="{{ $findingUrl($hallazgo) }}" class="flex items-center justify-between gap-3 border-b border-gray-100 py-2 last:border-0 hover:bg-gray-50 dark:border-white/5 dark:hover:bg-white/5">
                     <div class="min-w-0">
-                        <p class="truncate text-sm font-medium text-gray-950 dark:text-white">{{ $hallazgo->code() }} · {{ $hallazgo->description ?: 'Hallazgo con foto' }}</p>
+                        <p class="truncate text-sm font-medium text-gray-950 dark:text-white">{{ $hallazgo->code() }} · {{ $hallazgo->origin->label() }} · {{ $hallazgo->description ?: 'Hallazgo con foto' }}</p>
                         <p class="truncate text-xs text-gray-500 dark:text-gray-400">
                             {{ $hallazgo->locationLabel() }} · {{ $hallazgo->tasks->map(fn ($parte) => $parte->area->label())->implode(', ') }} · prioridad {{ mb_strtolower($hallazgo->priority->label()) }}
                         </p>

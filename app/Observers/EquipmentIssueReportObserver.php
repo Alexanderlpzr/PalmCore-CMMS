@@ -11,6 +11,7 @@ use App\Domain\Maintenance\Enums\IssueReportStatus;
 use App\Domain\Notifications\InboxNotification;
 use App\Domain\Notifications\NotificationKind;
 use App\Domain\Notifications\Recipients;
+use App\Domain\Safety\Enums\FindingOrigin;
 use App\Domain\Safety\Services\SafetyFindingService;
 use App\Filament\Resources\Maintenance\IssueReport\IssueReportResource;
 use App\Models\Equipment;
@@ -38,7 +39,7 @@ class EquipmentIssueReportObserver
      */
     private function notifyMaintenance(EquipmentIssueReport $report): void
     {
-        if ($report->reporter_position === SafetyFindingService::REPORTER_POSITION) {
+        if (in_array($report->reporter_position, FindingOrigin::reporterPositions(), true)) {
             return;
         }
 

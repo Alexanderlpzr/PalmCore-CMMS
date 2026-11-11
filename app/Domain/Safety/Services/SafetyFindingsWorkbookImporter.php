@@ -2,6 +2,7 @@
 
 namespace App\Domain\Safety\Services;
 
+use App\Domain\Safety\Enums\FindingOrigin;
 use App\Domain\Safety\Enums\FindingPriority;
 use App\Domain\Safety\Enums\FindingStatus;
 use App\Domain\Safety\Enums\ResponsibleArea;
@@ -31,7 +32,10 @@ use ZipArchive;
  *  - Una fila con solo la foto entra sin descripción, a cargo de SST para completarla.
  *  - Los que ya estaban vencidos no disparan el aviso de vencido: ya se sabían.
  *
- * El número del hallazgo es el ITM: importar dos veces no repite ninguno.
+ * Cada cuadro es de SST o de Ambiental, y cada hallazgo guarda su ITM: importar el mismo
+ * cuadro dos veces no repite ninguno. En el de SST el número del hallazgo es su ITM, si
+ * está libre; los ambientales —que también empiezan en el ITM 1— siguen después del último
+ * número (pedido 2026-11-10).
  */
 class SafetyFindingsWorkbookImporter
 {
@@ -53,7 +57,7 @@ class SafetyFindingsWorkbookImporter
     /**
      * @return array{created: int, executed: int, pending: int, photos: int, skipped: int, warnings: list<string>}
      */
-    public function import(string $path, string $tenantId, ?User $importedBy): array
+    public function import(string $path, string $tenantId, ?User $importedBy, FindingOrigin $origin = FindingOrigin::Sst): array
     {
         $rows = $this->rows($path);
         $photos = $this->photos($path);
@@ -61,7 +65,8 @@ class SafetyFindingsWorkbookImporter
             ->mapWithKeys(fn (Area $area): array => [self::normalize($area->name) => $area->id]);
         // Lo que no trae fecha de reporte toma la del cuadro («Fecha:» arriba a la derecha).
         $chartDate = self::date($rows[3]['K'] ?? null) ?? SstFinding::today($tenantId);
-        $existing = SstFinding::withoutGlobalScopes()->withTrashed()->where('tenant_id', $tenantId)->pluck('number')->all();
+        $imported = SstFinding::withoutGlobalScopes()->withTrashed()->where('tenant_id', $tenantId)->where('origin', $origin->value)->whereNotNull('source_item')->pluck('source_item')->all();
+        $taken = SstFinding::withoutGlobalScopes()->withTrashed()->where('tenant_id', $tenantId)->pluck('number')->all();
 
         $summary = ['created' => 0, 'executed' => 0, 'pending' => 0, 'photos' => 0, 'skipped' => 0, 'warnings' => []];
 
@@ -72,7 +77,7 @@ class SafetyFindingsWorkbookImporter
                 continue;
             }
 
-            $number = (int) $number;
+            $item = (int) $number;
             $description = self::text($cells['C'] ?? null);
             $before = $photos[$excelRow]['I'] ?? null;
             $after = $photos[$excelRow]['J'] ?? null;
@@ -82,7 +87,7 @@ class SafetyFindingsWorkbookImporter
                 continue;
             }
 
-            if (in_array($number, $existing, true)) {
+            if (in_array($item, $imported, true)) {
                 $summary['skipped']++;
 
                 continue;
@@ -94,12 +99,16 @@ class SafetyFindingsWorkbookImporter
             $photoOnly = $description === null;
 
             if ($reportedOn === null) {
-                $summary['warnings'][] = "Fila {$excelRow} (ITM {$number}): sin fecha de reporte, se tomó la del cuadro ({$chartDate->format('d/m/Y')}).";
+                $summary['warnings'][] = "Fila {$excelRow} (ITM {$item}): sin fecha de reporte, se tomó la del cuadro ({$chartDate->format('d/m/Y')}).";
             }
 
-            $finding = DB::transaction(function () use ($tenantId, $importedBy, $number, $description, $location, $cells, $reportedOn, $correctedOn, $photoOnly, $before, $after, $areas, $chartDate): SstFinding {
+            $number = $origin === FindingOrigin::Sst && ! in_array($item, $taken, true) ? $item : max([0, ...$taken]) + 1;
+
+            $finding = DB::transaction(function () use ($tenantId, $importedBy, $origin, $item, $number, $description, $location, $cells, $reportedOn, $correctedOn, $photoOnly, $before, $after, $areas, $chartDate): SstFinding {
                 $finding = $this->findings->create($tenantId, [
                     'number' => $number,
+                    'origin' => $origin,
+                    'source_item' => $item,
                     'reported_on' => $reportedOn ?? $chartDate,
                     'description' => $description,
                     'area_id' => $this->areaFor($location, $areas),
@@ -126,7 +135,8 @@ class SafetyFindingsWorkbookImporter
                 return $finding;
             });
 
-            $existing[] = $number;
+            $imported[] = $item;
+            $taken[] = $number;
             $summary['created']++;
             $summary[$finding->status === FindingStatus::Ejecutado ? 'executed' : 'pending']++;
             $summary['photos'] += ($before ? 1 : 0) + ($after ? 1 : 0);

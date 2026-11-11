@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Domain\Safety\Enums\FindingOrigin;
 use App\Domain\Safety\Enums\FindingPriority;
 use App\Domain\Safety\Enums\FindingStatus;
 use App\Domain\Shared\Models\BaseModel;
@@ -26,6 +27,8 @@ use Illuminate\Support\Str;
 #[Fillable([
     'tenant_id',
     'number',
+    'origin',
+    'source_item',
     'reported_on',
     'description',
     'area_id',
@@ -113,6 +116,12 @@ class SstFinding extends BaseModel
         return 'H-'.str_pad((string) $this->number, 3, '0', STR_PAD_LEFT);
     }
 
+    /** «hallazgo SST H-001», «hallazgo ambiental H-027». */
+    public function originCode(): string
+    {
+        return $this->origin->adjective().' '.$this->code();
+    }
+
     public function isOverdue(?CarbonImmutable $today = null): bool
     {
         return $this->status->isOpen() && $this->due_on->toDateString() < ($today ?? self::today($this->tenant_id))->toDateString();
@@ -144,6 +153,8 @@ class SstFinding extends BaseModel
     {
         return [
             'number' => 'integer',
+            'source_item' => 'integer',
+            'origin' => FindingOrigin::class,
             'reported_on' => 'immutable_date',
             'due_on' => 'immutable_date',
             'executed_on' => 'immutable_date',

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Safety\Pages;
 
+use App\Domain\Safety\Enums\FindingOrigin;
 use App\Domain\Safety\Enums\FindingStatus;
 use App\Domain\Safety\Services\SafetyFindingService;
 use App\Domain\Safety\Services\SafetyFindingsWorkbookImporter;
@@ -11,6 +12,7 @@ use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Schemas\Components\Tabs\Tab;
@@ -33,6 +35,13 @@ class ListSstFindings extends ListRecords
                 ->modalHeading('Importar el cuadro de hallazgos')
                 ->modalDescription('El «Cuadro de hallazgos SG-SST / Ambiental» con sus fotos. Los que tienen fecha de corrección entran ejecutados en esa fecha; los «Pendiente», pendientes. Un hallazgo ya importado no se repite.')
                 ->schema([
+                    Select::make('origin')
+                        ->label('¿De quién es el cuadro?')
+                        ->options(FindingOrigin::options())
+                        ->default(fn (): string => (FindingOrigin::forUser(auth()->user()) ?? FindingOrigin::Sst)->value)
+                        ->selectablePlaceholder(false)
+                        ->helperText('Los del cuadro ambiental toman los números siguientes a los que ya hay, sin chocar con los de SST.')
+                        ->required(),
                     FileUpload::make('file')
                         ->label('Archivo de Excel (.xlsx)')
                         ->acceptedFileTypes(['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'])
@@ -47,7 +56,7 @@ class ListSstFindings extends ListRecords
                     $path = Storage::disk('local')->path($data['file']);
 
                     try {
-                        $summary = app(SafetyFindingsWorkbookImporter::class)->import($path, (string) filament()->getTenant()->getKey(), $user);
+                        $summary = app(SafetyFindingsWorkbookImporter::class)->import($path, (string) filament()->getTenant()->getKey(), $user, FindingOrigin::from($data['origin']));
                     } catch (\Throwable $e) {
                         report($e);
                         Notification::make()->title('No se pudo leer el cuadro')->body($e->getMessage())->danger()->send();

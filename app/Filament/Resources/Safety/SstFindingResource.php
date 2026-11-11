@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Safety;
 
+use App\Domain\Safety\Enums\FindingOrigin;
 use App\Domain\Safety\Enums\FindingPriority;
 use App\Domain\Safety\Enums\FindingStatus;
 use App\Domain\Safety\Enums\ResponsibleArea;
@@ -13,6 +14,7 @@ use App\Models\Area;
 use App\Models\Equipment;
 use App\Models\SstFinding;
 use App\Models\SstFindingTask;
+use App\Models\User;
 use BackedEnum;
 use Carbon\CarbonImmutable;
 use Filament\Actions\ViewAction;
@@ -53,7 +55,7 @@ class SstFindingResource extends Resource
 
     protected static ?string $modelLabel = 'Hallazgo';
 
-    protected static ?string $pluralModelLabel = 'Hallazgos SST';
+    protected static ?string $pluralModelLabel = 'Hallazgos SST y ambientales';
 
     protected static ?string $navigationLabel = 'Hallazgos';
 
@@ -78,6 +80,13 @@ class SstFindingResource extends Resource
             Section::make('El hallazgo')
                 ->columns(['default' => 1, 'sm' => 2])
                 ->schema([
+                    Select::make('origin')
+                        ->label('Origen')
+                        ->options(FindingOrigin::options())
+                        ->default(fn (): string => (FindingOrigin::forUser(self::user()) ?? FindingOrigin::Sst)->value)
+                        ->selectablePlaceholder(false)
+                        ->helperText('SST o Gestión Ambiental: quién lo levantó, para la trazabilidad.')
+                        ->required(),
                     DatePicker::make('reported_on')
                         ->label('Fecha de reporte')
                         ->default(fn (): string => SstFinding::today()->toDateString())
@@ -169,6 +178,11 @@ class SstFindingResource extends Resource
                         ->color(fn (SstFinding $record): ?string => $record->isOverdue() ? 'danger' : null)
                         ->helperText(fn (SstFinding $record): ?string => $record->isOverdue() ? 'Vencido' : null),
                     TextEntry::make('reported_on')->label('Fecha de reporte')->date('d/m/Y'),
+                    TextEntry::make('origin')->label('Origen')->badge()
+                        ->formatStateUsing(fn (FindingOrigin $state): string => $state->label())
+                        ->color(fn (FindingOrigin $state): string => $state->color())
+                        ->icon(fn (FindingOrigin $state): string => $state->icon())
+                        ->helperText(fn (SstFinding $record): ?string => $record->source_item !== null && $record->source_item !== $record->number ? "ITM {$record->source_item} de su cuadro de Excel" : null),
                     TextEntry::make('createdBy.name')->label('Lo reportó')->placeholder('—'),
                     TextEntry::make('executed_on')->label('Fecha de corrección')->date('d/m/Y')->placeholder('—'),
                     TextEntry::make('verified_at')->label('Verificado')
@@ -218,6 +232,12 @@ class SstFindingResource extends Resource
                 TextColumn::make('number')->label('N.º')
                     ->formatStateUsing(fn (SstFinding $record): string => $record->code())
                     ->sortable(),
+                // Sin píldora: la tabla ya lleva dos (prioridad y estado).
+                TextColumn::make('origin')->label('Origen')
+                    ->formatStateUsing(fn (FindingOrigin $state): string => $state->label())
+                    ->color(fn (FindingOrigin $state): string => $state->color())
+                    ->icon(fn (FindingOrigin $state): string => $state->icon())
+                    ->sortable(),
                 ImageColumn::make('photo_before_path')->label('Foto')->disk(persistent_disk())->height(44)->square(),
                 TextColumn::make('description')->label('Hallazgo')
                     ->placeholder('Ver foto')
@@ -244,6 +264,7 @@ class SstFindingResource extends Resource
                     ->color(fn (FindingStatus $state): string => $state->color()),
             ])
             ->filters([
+                SelectFilter::make('origin')->label('Origen')->options(FindingOrigin::options()),
                 SelectFilter::make('status')->label('Estado')->options(FindingStatus::options()),
                 SelectFilter::make('priority')->label('Prioridad')->options(collect(FindingPriority::cases())->mapWithKeys(fn (FindingPriority $priority): array => [$priority->value => $priority->label()])->all()),
                 SelectFilter::make('area_id')->label('Sección')->relationship('area', 'name'),
@@ -279,6 +300,13 @@ class SstFindingResource extends Resource
         }
 
         return 'Vence el '.CarbonImmutable::parse($reportedOn)->addDays($priority->days())->format('d/m/Y')." ({$priority->days()} días).";
+    }
+
+    private static function user(): ?User
+    {
+        $user = auth()->user();
+
+        return $user instanceof User ? $user : null;
     }
 
     private static function maintenanceText(SstFindingTask $task): ?string

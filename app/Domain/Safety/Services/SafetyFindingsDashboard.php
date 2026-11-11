@@ -2,6 +2,7 @@
 
 namespace App\Domain\Safety\Services;
 
+use App\Domain\Safety\Enums\FindingOrigin;
 use App\Domain\Safety\Enums\FindingPriority;
 use App\Domain\Safety\Enums\FindingStatus;
 use App\Domain\Safety\Enums\ResponsibleArea;
@@ -19,6 +20,7 @@ class SafetyFindingsDashboard
     /**
      * @return array{
      *     total: int, open: int, pendiente: int, enEjecucion: int, porVerificar: int, verificados: int, vencidos: int, altaAbiertos: int, corregidosPercent: float,
+     *     byOrigin: list<array{origin: string, label: string, icon: string, total: int, open: int, overdue: int, porVerificar: int}>,
      *     byArea: list<array{label: string, total: int, done: int, open: int, overdue: int, percent: float}>,
      *     byPriority: list<array{label: string, color: string, days: int, open: int, overdue: int}>,
      *     bySection: list<array{label: string, open: int}>,
@@ -67,6 +69,19 @@ class SafetyFindingsDashboard
                 })
                 ->filter(fn (array $row): bool => $row['total'] > 0)
                 ->values()
+                ->all(),
+
+            // SST y Ambiental por separado, para la trazabilidad de cada uno.
+            'byOrigin' => collect(FindingOrigin::cases())
+                ->map(fn (FindingOrigin $origin): array => [
+                    'origin' => $origin->value,
+                    'label' => $origin->label(),
+                    'icon' => $origin->icon(),
+                    'total' => $findings->where('origin', $origin)->count(),
+                    'open' => $open->where('origin', $origin)->count(),
+                    'overdue' => $overdue->where('origin', $origin)->count(),
+                    'porVerificar' => $findings->where('origin', $origin)->where('status', FindingStatus::Ejecutado)->count(),
+                ])
                 ->all(),
 
             'byPriority' => collect(FindingPriority::cases())
