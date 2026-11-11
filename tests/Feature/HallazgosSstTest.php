@@ -361,3 +361,28 @@ function cuadroDeHallazgos(array $filas, array $fotos): string
 
     return $ruta;
 }
+
+it('gives the environmental account the same as SST: reports, notices, its dashboard and the SST part', function (): void {
+    $ambiental = User::factory()->create(['is_active' => true]);
+    $ambiental->tenants()->attach($this->tenant->id, ['joined_at' => now()]);
+    $ambiental->assignRole('ambiental');
+
+    expect($ambiental->can('create', SstFinding::class))->toBeTrue();
+
+    // Lo que reporta Proceso con SST responsable le llega y lo puede mover.
+    $finding = $this->service->create($this->tenant->id, [
+        'reported_on' => '2026-11-05', 'description' => 'Derrame de aceite en el patio', 'priority' => 'alta', 'areas' => ['sst'],
+    ], $this->proceso);
+
+    expect($ambiental->notifications()->count())->toBe(1)
+        ->and($this->service->canActOn($ambiental, $finding->tasks->first()))->toBeTrue()
+        ->and(SafetyFindingService::areasOfUser($ambiental))->toBe(['sst']);
+
+    $this->service->execute($finding->tasks->first(), $ambiental);
+    expect($ambiental->notifications()->get()->pluck('data.title')->all())->toContain('Hallazgo H-001 listo para verificar');
+
+    $this->actingAs($ambiental);
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+    Filament::setTenant($this->tenant);
+    Livewire::test(Inicio::class)->assertRedirect(TableroSst::getUrl());
+});

@@ -43,6 +43,9 @@ class SafetyFindingService
     /** El cargo con que firma sus reportes de novedad: así no se avisa dos veces a mantenimiento. */
     public const REPORTER_POSITION = 'Seguridad y Salud en el Trabajo';
 
+    /** Quien reporta y verifica: SST y Ambiental, con los mismos permisos. */
+    public const SST_ROLES = ['sst', 'ambiental'];
+
     /**
      * @param  array{reported_on: string|CarbonImmutable, description?: ?string, area_id?: ?string, equipment_id?: ?string, location_detail?: ?string, priority: string|FindingPriority, action_plan?: ?string, areas: list<string|ResponsibleArea>, photo_before_path?: ?string, photo_after_path?: ?string, number?: ?int}  $data
      */
@@ -142,7 +145,7 @@ class SafetyFindingService
         ]);
 
         $this->send(
-            $this->recipients($finding, [...$this->taskRoles($finding), 'sst'], except: $user)->push($finding->createdBy)->filter()->unique('id')->reject(fn (User $recipient): bool => $recipient->is($user)),
+            $this->recipients($finding, [...$this->taskRoles($finding), ...self::SST_ROLES], except: $user)->push($finding->createdBy)->filter()->unique('id')->reject(fn (User $recipient): bool => $recipient->is($user)),
             "Hallazgo {$finding->code()} verificado",
             Str::limit((string) ($finding->description ?: $finding->locationLabel()), 120).' — SST revisó la corrección y lo cerró.',
             'success',
@@ -199,7 +202,7 @@ class SafetyFindingService
 
         if ($status === FindingStatus::Ejecutado && ! $wasExecuted) {
             $this->send(
-                $this->recipients($finding, ['sst']),
+                $this->recipients($finding, self::SST_ROLES),
                 "Hallazgo {$finding->code()} listo para verificar",
                 'Todas las áreas responsables lo corrigieron. Revise el arreglo y verifíquelo.',
                 'info',
@@ -222,7 +225,7 @@ class SafetyFindingService
             ->with('tasks')
             ->each(function (SstFinding $finding) use (&$count): void {
                 $pending = $finding->tasks->filter(fn (SstFindingTask $task): bool => $task->status !== FindingStatus::Ejecutado);
-                $roles = [...$pending->map(fn (SstFindingTask $task): string => $task->area->role())->all(), 'sst'];
+                $roles = [...$pending->flatMap(fn (SstFindingTask $task): array => $task->area->roles())->all(), ...self::SST_ROLES];
 
                 $this->send(
                     $this->recipients($finding, $roles),
@@ -252,7 +255,7 @@ class SafetyFindingService
             return false;
         }
 
-        return $user->hasPermissionTo('sst-findings.execute') && $user->hasRole($task->area->role());
+        return $user->hasPermissionTo('sst-findings.execute') && $user->hasAnyRole($task->area->roles());
     }
 
     /**
@@ -294,7 +297,7 @@ class SafetyFindingService
     public static function areasOfUser(User $user): array
     {
         return collect(ResponsibleArea::cases())
-            ->filter(fn (ResponsibleArea $area): bool => $user->hasRole($area->role()))
+            ->filter(fn (ResponsibleArea $area): bool => $user->hasAnyRole($area->roles()))
             ->map(fn (ResponsibleArea $area): string => $area->value)
             ->values()
             ->all();
@@ -325,7 +328,7 @@ class SafetyFindingService
     private function notifyCreated(SstFinding $finding, ?User $createdBy): void
     {
         // Proceso los recibe todos (pedido de la empresa); las demás áreas, los suyos.
-        $roles = [...$this->taskRoles($finding), 'proceso', 'sst'];
+        $roles = [...$this->taskRoles($finding), 'proceso', ...self::SST_ROLES];
 
         $this->send(
             $this->recipients($finding, $roles, except: $createdBy),
@@ -341,7 +344,7 @@ class SafetyFindingService
     /** @return list<string> */
     private function taskRoles(SstFinding $finding): array
     {
-        return $finding->tasks()->get()->map(fn (SstFindingTask $task): string => $task->area->role())->unique()->values()->all();
+        return $finding->tasks()->get()->flatMap(fn (SstFindingTask $task): array => $task->area->roles())->unique()->values()->all();
     }
 
     /**

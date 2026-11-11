@@ -26,14 +26,19 @@ enum ResponsibleArea: string
         };
     }
 
-    /** El rol de la empresa que recibe y trabaja la parte de esta área. */
-    public function role(): string
+    /**
+     * Los roles de la empresa que reciben y trabajan la parte de esta área. SST la llevan
+     * dos: «sst» y «ambiental», con los mismos permisos (pedido 2026-11-10).
+     *
+     * @return list<string>
+     */
+    public function roles(): array
     {
         return match ($this) {
-            self::Mantenimiento => 'mantenimiento',
-            self::Proceso => 'proceso',
-            self::Sst => 'sst',
-            self::Direccion => 'administrador-general',
+            self::Mantenimiento => ['mantenimiento'],
+            self::Proceso => ['proceso'],
+            self::Sst => ['sst', 'ambiental'],
+            self::Direccion => ['administrador-general'],
         };
     }
 

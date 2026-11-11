@@ -153,6 +153,11 @@ class TenantRolesSeeder extends Seeder
             'sst-findings.view', 'sst-findings.manage', 'sst-findings.execute',
         ],
 
+        // Gestión ambiental: lo mismo que SST, en su propia cuenta. Pedido 2026-11-10.
+        'ambiental' => [
+            'sst-findings.view', 'sst-findings.manage', 'sst-findings.execute',
+        ],
+
         // Proceso (producción): recibe los hallazgos y corrige los de su área. Cuenta proc@.
         'proceso' => [
             'sst-findings.view', 'sst-findings.execute',
