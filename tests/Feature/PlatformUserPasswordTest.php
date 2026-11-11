@@ -195,7 +195,6 @@ it('en el Perfil la temporal no se puede «cambiar» por ella misma', function (
         ->fillForm([
             'password' => 'Temporal8',
             'passwordConfirmation' => 'Temporal8',
-            'currentPassword' => 'Temporal8',
         ])
         ->call('save')
         ->assertHasFormErrors(['password']);
@@ -223,7 +222,6 @@ it('al elegir una propia deja de ser temporal', function (): void {
         ->fillForm([
             'password' => 'Mi-Propia-Clave-2026',
             'passwordConfirmation' => 'Mi-Propia-Clave-2026',
-            'currentPassword' => 'Temporal8',
         ])
         ->call('save')
         ->assertHasNoFormErrors();
@@ -245,4 +243,29 @@ it('la app móvil no entrega token con una contraseña temporal', function (): v
     ])
         ->assertForbidden()
         ->assertJsonFragment(['message' => 'Tu contraseña es temporal. Entra primero a fronda.app desde un navegador para elegir una propia.']);
+});
+
+it('en el Perfil solo se piden la contraseña nueva y su confirmación', function (): void {
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+    $this->actingAs($this->user->fresh());
+
+    Livewire::test(EditProfile::class)
+        ->assertFormFieldExists('password')
+        ->assertFormFieldExists('passwordConfirmation')
+        ->assertFormFieldIsVisible('passwordConfirmation')
+        ->assertFormFieldDoesNotExist('currentPassword')
+        ->assertSee('Confirmar contraseña nueva');
+
+    // Las dos tienen que coincidir.
+    Livewire::test(EditProfile::class)
+        ->fillForm(['password' => 'Mi-Propia-Clave-2026', 'passwordConfirmation' => 'Otra-Clave-2026'])
+        ->call('save')
+        ->assertHasFormErrors(['password']);
+
+    Livewire::test(EditProfile::class)
+        ->fillForm(['password' => 'Mi-Propia-Clave-2026', 'passwordConfirmation' => 'Mi-Propia-Clave-2026'])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect(Hash::check('Mi-Propia-Clave-2026', $this->user->fresh()->password))->toBeTrue();
 });

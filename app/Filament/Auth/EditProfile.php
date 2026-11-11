@@ -8,6 +8,7 @@ use App\Models\User;
 use Filament\Auth\Pages\EditProfile as BaseEditProfile;
 use Filament\Facades\Filament;
 use Filament\Schemas\Components\Component;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\Facades\Hash;
@@ -43,8 +44,17 @@ class EditProfile extends BaseEditProfile
             $this->getEmailFormComponent(),
             $this->getPasswordFormComponent(),
             $this->getPasswordConfirmationFormComponent(),
-            $this->getCurrentPasswordFormComponent(),
+            // Sin «contraseña actual»: solo la nueva y su confirmación (pedido 2026-11-10).
         ]);
+    }
+
+    /** Siempre a la vista, al lado de la nueva; se exige en cuanto se escribe una. */
+    protected function getPasswordConfirmationFormComponent(): Component
+    {
+        return parent::getPasswordConfirmationFormComponent()
+            ->label('Confirmar contraseña nueva')
+            ->visible(true)
+            ->required(fn (Get $get): bool => filled($get('password')) || $this->mustChangePassword());
     }
 
     protected function getPasswordFormComponent(): Component
