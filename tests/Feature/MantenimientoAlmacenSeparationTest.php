@@ -90,8 +90,9 @@ it('lets work orders keep taking spare parts from the warehouse', function (): v
 it('shows the warehouse account only the inventory and what it shares', function (): void {
     actuarConRol('almacen', $this->tenant);
 
+    // Notificaciones es la bandeja propia de cada persona: solo muestra sus avisos.
     $ajenas = array_values(array_filter(pantallasVisibles(), fn (string $p): bool => ! str_starts_with($p, 'Inventario')
-        && ! in_array($p, ['Sin grupo / Inicio', 'Gestión de Activos / SupplierResource', 'Gestión de Activos / ManufacturerResource'], true)));
+        && ! in_array($p, ['Sin grupo / Inicio', 'Sin grupo / Notificaciones', 'Gestión de Activos / SupplierResource', 'Gestión de Activos / ManufacturerResource'], true)));
 
     expect($ajenas)->toBe([])
         ->and(SparePartResource::canAccess())->toBeTrue();

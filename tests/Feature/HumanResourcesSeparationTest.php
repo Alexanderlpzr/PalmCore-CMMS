@@ -74,8 +74,9 @@ it('talento humano solo entra a las pantallas de Talento Humano', function (): v
     $outside = array_values(array_filter(
         accessibleNavigationGroups(),
         // Inicio es la raíz del panel y tiene que dejar entrar para redirigir a Personal.
+        // Notificaciones es la bandeja propia de cada persona: solo muestra sus avisos.
         fn (string $screen): bool => ! str_starts_with($screen, 'Talento Humano')
-            && $screen !== 'Sin grupo / Inicio',
+            && ! in_array($screen, ['Sin grupo / Inicio', 'Sin grupo / Notificaciones'], true),
     ));
 
     expect($outside)->toBe([]);
