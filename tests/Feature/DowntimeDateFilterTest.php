@@ -13,7 +13,8 @@ use Livewire\Livewire;
 use Spatie\Permission\PermissionRegistrar;
 
 /*
- * El filtro por fechas de Paros. La pregunta habitual sobre los paros es «qué pasó la
+ * El filtro por fechas de Paros —desde 2026-11-16 la barra «Periodo · Año · Mes» a la vista,
+ * la misma de talento humano ({@see \App\Filament\Filters\PeriodFilter})—. La pregunta habitual sobre los paros es «qué pasó la
  * semana pasada», y hasta ahora había que ordenar por fecha y desplazarse.
  *
  * Lo que más se prueba aquí es el borde: que «hasta el 10» incluya el día 10 entero. Es
@@ -64,7 +65,7 @@ it('filtra desde una fecha', function (): void {
     $nuevo = paroEl('2026-09-05 08:00');
 
     Livewire::test(ListDowntimeEvents::class)
-        ->filterTable('rango_de_fechas', ['desde' => '2026-09-01'])
+        ->filterTable('periodo', ['preset' => 'rango', 'desde' => '2026-09-01'])
         ->assertCanSeeTableRecords([$nuevo])
         ->assertCanNotSeeTableRecords([$viejo]);
 });
@@ -74,7 +75,7 @@ it('filtra hasta una fecha', function (): void {
     $nuevo = paroEl('2026-09-05 08:00');
 
     Livewire::test(ListDowntimeEvents::class)
-        ->filterTable('rango_de_fechas', ['hasta' => '2026-08-31'])
+        ->filterTable('periodo', ['preset' => 'rango', 'hasta' => '2026-08-31'])
         ->assertCanSeeTableRecords([$viejo])
         ->assertCanNotSeeTableRecords([$nuevo]);
 });
@@ -86,7 +87,7 @@ it('incluye el día final entero', function (): void {
     $alFilo = paroEl('2026-08-10 23:30');
 
     Livewire::test(ListDowntimeEvents::class)
-        ->filterTable('rango_de_fechas', ['desde' => '2026-08-01', 'hasta' => '2026-08-10'])
+        ->filterTable('periodo', ['preset' => 'rango', 'desde' => '2026-08-01', 'hasta' => '2026-08-10'])
         ->assertCanSeeTableRecords([$alFilo]);
 });
 
@@ -94,7 +95,7 @@ it('incluye el día inicial desde la medianoche', function (): void {
     $alFilo = paroEl('2026-08-01 00:15');
 
     Livewire::test(ListDowntimeEvents::class)
-        ->filterTable('rango_de_fechas', ['desde' => '2026-08-01'])
+        ->filterTable('periodo', ['preset' => 'rango', 'desde' => '2026-08-01'])
         ->assertCanSeeTableRecords([$alFilo]);
 });
 
@@ -104,7 +105,7 @@ it('filtra por los dos extremos a la vez', function (): void {
     $despues = paroEl('2026-09-01 10:00');
 
     Livewire::test(ListDowntimeEvents::class)
-        ->filterTable('rango_de_fechas', ['desde' => '2026-08-01', 'hasta' => '2026-08-31'])
+        ->filterTable('periodo', ['preset' => 'mes', 'anio' => 2026, 'mes' => 8])
         ->assertCanSeeTableRecords([$dentro])
         ->assertCanNotSeeTableRecords([$antes, $despues]);
 });
@@ -120,38 +121,32 @@ it('el filtro de fecha convive con los demás filtros', function (): void {
     ]);
 
     Livewire::test(ListDowntimeEvents::class)
-        ->filterTable('rango_de_fechas', ['desde' => '2026-08-01', 'hasta' => '2026-08-31'])
+        ->filterTable('periodo', ['preset' => 'mes', 'anio' => 2026, 'mes' => 8])
         ->filterTable('ended_at', false)
         ->assertCanSeeTableRecords([$enCursoEnAgosto])
         ->assertCanNotSeeTableRecords([$cerradoEnAgosto]);
 });
 
-// ── Los atajos ───────────────────────────────────────────────────────────────
+// ── Mes, año y últimos días ──────────────────────────────────────────────────
 
-it('«este mes» deja fuera el mes pasado', function (): void {
+it('un mes deja fuera el mes anterior', function (): void {
     Carbon::setTestNow('2026-08-14');
 
     $esteMes = paroEl('2026-08-05 08:00');
     $mesPasado = paroEl('2026-07-20 08:00');
 
     Livewire::test(ListDowntimeEvents::class)
-        ->filterTable('rango_de_fechas', ['atajo' => 'este_mes'])
+        ->filterTable('periodo', ['preset' => 'mes', 'anio' => 2026, 'mes' => 8])
         ->assertCanSeeTableRecords([$esteMes])
         ->assertCanNotSeeTableRecords([$mesPasado]);
 
     Carbon::setTestNow();
 });
 
-it('«mes pasado» sigue siendo el mes entero un 31 de mayo', function (): void {
-    // La fecha está elegida, no puesta al azar. `now()->subMonth()` desde un 31 de mayo
-    // cae en el 31 de abril, que no existe, y Carbon lo desborda al 1 de mayo: el atajo
-    // devolvería mayo en vez de abril.
-    //
-    // Un 31 de agosto NO sirve para este test: agosto menos un mes es el 31 de julio, que
-    // sí existe, y el fallo no aparece. La primera versión usaba agosto y pasaba tan
-    // contenta con el desbordamiento puesto. Los meses que lo destapan son aquellos cuyo
-    // mes anterior tiene treinta días: mayo, julio, octubre y diciembre — y marzo, por
-    // febrero.
+it('el mes anterior elegido un 31 de mayo es abril entero', function (): void {
+    // Un 31 de mayo, «el mes anterior» calculado con `subMonth()` cae en el 31 de abril, que
+    // no existe, y Carbon lo desborda al 1 de mayo. La barra elige el mes por su número y
+    // no resta, pero el caso queda probado.
     Carbon::setTestNow('2026-05-31');
 
     $primeroDeAbril = paroEl('2026-04-01 08:00');
@@ -159,7 +154,7 @@ it('«mes pasado» sigue siendo el mes entero un 31 de mayo', function (): void 
     $mayo = paroEl('2026-05-02 08:00');
 
     Livewire::test(ListDowntimeEvents::class)
-        ->filterTable('rango_de_fechas', ['atajo' => 'mes_pasado'])
+        ->filterTable('periodo', ['preset' => 'mes', 'anio' => 2026, 'mes' => 4])
         ->assertCanSeeTableRecords([$primeroDeAbril, $ultimoDeAbril])
         ->assertCanNotSeeTableRecords([$mayo]);
 
@@ -174,45 +169,47 @@ it('«últimos 7 días» incluye hoy y el séptimo día hacia atrás', function 
     $octavo = paroEl('2026-08-07 23:00');
 
     Livewire::test(ListDowntimeEvents::class)
-        ->filterTable('rango_de_fechas', ['atajo' => 'ultimos_7'])
+        ->filterTable('periodo', ['preset' => 'ultimos_7'])
         ->assertCanSeeTableRecords([$hoy, $septimo])
         ->assertCanNotSeeTableRecords([$octavo]);
 
     Carbon::setTestNow();
 });
 
-it('«este año» deja fuera el año pasado', function (): void {
+it('un año deja fuera el anterior', function (): void {
     Carbon::setTestNow('2026-08-14');
 
     $esteAnio = paroEl('2026-01-02 08:00');
     $anioPasado = paroEl('2025-12-30 08:00');
 
     Livewire::test(ListDowntimeEvents::class)
-        ->filterTable('rango_de_fechas', ['atajo' => 'este_anio'])
+        ->filterTable('periodo', ['preset' => 'anio', 'anio' => 2026])
         ->assertCanSeeTableRecords([$esteAnio])
         ->assertCanNotSeeTableRecords([$anioPasado]);
 
     Carbon::setTestNow();
 });
 
-// ── Quién manda cuando el atajo y las fechas no coinciden ────────────────────
+// ── Las fechas del rango solo cuentan en «Rango de fechas» ───────────────────
 
-it('la consulta hace caso a las fechas, no al atajo', function (): void {
-    // El atajo es la mano que escribe las fechas, no una segunda fuente de verdad. Si
-    // llegaran a discrepar —y con el filtro guardado en sesión pueden— mandan las fechas.
+it('las fechas que quedaron de un rango no pisan el mes elegido', function (): void {
+    // Al pasar de «Rango de fechas» a «Un mes» las fechas siguen en el estado, solo que
+    // escondidas. Con el filtro guardado en sesión pueden quedar ahí: manda lo elegido.
     Carbon::setTestNow('2026-08-14');
 
     $julio = paroEl('2026-07-10 08:00');
     $agosto = paroEl('2026-08-10 08:00');
 
     Livewire::test(ListDowntimeEvents::class)
-        ->filterTable('rango_de_fechas', [
-            'atajo' => 'este_mes',
+        ->filterTable('periodo', [
+            'preset' => 'mes',
+            'anio' => 2026,
+            'mes' => 8,
             'desde' => '2026-07-01',
             'hasta' => '2026-07-31',
         ])
-        ->assertCanSeeTableRecords([$julio])
-        ->assertCanNotSeeTableRecords([$agosto]);
+        ->assertCanSeeTableRecords([$agosto])
+        ->assertCanNotSeeTableRecords([$julio]);
 
     Carbon::setTestNow();
 });
@@ -226,7 +223,7 @@ it('recuerda el filtro al volver a la pantalla', function (): void {
     $mesPasado = paroEl('2026-07-20 08:00');
 
     Livewire::test(ListDowntimeEvents::class)
-        ->filterTable('rango_de_fechas', ['atajo' => 'este_mes']);
+        ->filterTable('periodo', ['preset' => 'mes', 'anio' => 2026, 'mes' => 8]);
 
     // Montar la página otra vez es lo que hace un usuario al volver del menú. Sin
     // persistencia tendría que elegir el mes de nuevo cada vez.
@@ -245,8 +242,8 @@ it('deja ver qué filtro está puesto, para que nadie crea que faltan datos', fu
     paroEl('2026-08-05 08:00');
 
     Livewire::test(ListDowntimeEvents::class)
-        ->filterTable('rango_de_fechas', ['atajo' => 'este_mes'])
-        ->assertSee('este mes');
+        ->filterTable('periodo', ['preset' => 'mes', 'anio' => 2026, 'mes' => 8])
+        ->assertSee('Fecha del paro: agosto 2026');
 
     Carbon::setTestNow();
 });

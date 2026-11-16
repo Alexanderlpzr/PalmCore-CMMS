@@ -81,26 +81,25 @@ it('trae solo las OT del rango de fechas elegido', function (): void {
     $despues = otDeInforme('2026-09-01');
 
     $componente = Livewire::test(ListWorkOrders::class)
-        ->filterTable('rango_de_fechas', ['desde' => '2026-08-01', 'hasta' => '2026-08-31']);
+        ->filterTable('periodo', ['preset' => 'rango', 'desde' => '2026-08-01', 'hasta' => '2026-08-31']);
 
     $datos = informeDeLaPantalla($componente);
 
     expect($datos['ordenes']->pluck('id')->all())->toBe([$dentro->id])
-        ->and($datos['filtros'])->toContain('Fecha planificada desde 01/08/2026')
-        ->and($datos['filtros'])->toContain('Fecha planificada hasta 31/08/2026');
+        ->and($datos['filtros'])->toContain('Fecha planificada: del 01/08/2026 al 31/08/2026');
 });
 
-it('respeta el atajo de período igual que la tabla', function (): void {
+it('respeta el mes elegido igual que la tabla', function (): void {
     $esteMes = otDeInforme('2026-09-05');
     otDeInforme('2026-08-20');
 
     $componente = Livewire::test(ListWorkOrders::class)
-        ->filterTable('rango_de_fechas', ['atajo' => 'este_mes']);
+        ->filterTable('periodo', ['preset' => 'mes', 'anio' => 2026, 'mes' => 9]);
 
     $datos = informeDeLaPantalla($componente);
 
     expect($datos['ordenes']->pluck('id')->all())->toBe([$esteMes->id])
-        ->and($datos['filtros'])->toContain('Fecha planificada: este mes');
+        ->and($datos['filtros'])->toContain('Fecha planificada: septiembre 2026');
 });
 
 it('obedece a la pestaña y lo escribe en el documento', function (): void {

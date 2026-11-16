@@ -2,15 +2,14 @@
 
 namespace App\Filament\Resources\Audit\Tables;
 
+use App\Domain\Reports\Excel\TableExcelExport;
+use App\Filament\Filters\PeriodFilter;
 use App\Models\AuditLog;
 use Filament\Actions\ViewAction;
-use Filament\Forms\Components\DatePicker;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\Filter;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Carbon;
 
 class AuditLogTable
 {
@@ -55,7 +54,13 @@ class AuditLogTable
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('created_at', 'desc')
+            ->headerActions([
+                TableExcelExport::action('Auditoría'),
+            ])
+            // El período a la vista, encima de la tabla, como en talento humano.
+            ->filtersLayout(FiltersLayout::AboveContent)
             ->filters([
+                PeriodFilter::make('created_at', 'Fecha'),
                 SelectFilter::make('event')
                     ->label('Acción')
                     ->options([
@@ -79,34 +84,6 @@ class AuditLogTable
                 SelectFilter::make('tenant_id')
                     ->label('Empresa')
                     ->relationship('tenant', 'name'),
-
-                Filter::make('date_from')
-                    ->label('Desde')
-                    ->form([
-                        DatePicker::make('date_from')
-                            ->label('Desde')
-                            ->native(false),
-                    ])
-                    ->query(fn (Builder $query, array $data): Builder => $query
-                        ->when(
-                            $data['date_from'],
-                            fn (Builder $q, string $date): Builder => $q->where('created_at', '>=', Carbon::parse($date)->startOfDay())
-                        )
-                    ),
-
-                Filter::make('date_to')
-                    ->label('Hasta')
-                    ->form([
-                        DatePicker::make('date_to')
-                            ->label('Hasta')
-                            ->native(false),
-                    ])
-                    ->query(fn (Builder $query, array $data): Builder => $query
-                        ->when(
-                            $data['date_to'],
-                            fn (Builder $q, string $date): Builder => $q->where('created_at', '<=', Carbon::parse($date)->endOfDay())
-                        )
-                    ),
             ])
             ->actions([
                 ViewAction::make(),

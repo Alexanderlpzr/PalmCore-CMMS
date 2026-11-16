@@ -8,7 +8,8 @@ use App\Domain\Maintenance\Enums\PlantProcess;
 use App\Domain\Maintenance\Enums\WorkOrderPriority;
 use App\Domain\Maintenance\Enums\WorkOrderStatus;
 use App\Domain\Maintenance\Enums\WorkOrderType;
-use App\Filament\Filters\DateRangeFilter;
+use App\Domain\Reports\Excel\TableExcelExport;
+use App\Filament\Filters\PeriodFilter;
 use App\Models\Area;
 use App\Models\Equipment;
 use App\Models\WorkOrder;
@@ -151,6 +152,9 @@ class WorkOrderTable
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
+            ->headerActions([
+                TableExcelExport::action('Órdenes de trabajo'),
+            ])
             ->filters([
                 // Primero el de fecha, con sus atajos: «las OT de este mes» es la pregunta
                 // que más se hace y costaba abrir el embudo y navegar dos calendarios.
@@ -160,7 +164,7 @@ class WorkOrderTable
                 // esta es la del que planifica —qué hay por delante— y es la primera que se
                 // ve. Las cerradas en un mes se miran por «Fecha ejecutada», que es otra
                 // pregunta y hoy no tiene atajo.
-                DateRangeFilter::make('planned_start_at', 'Fecha planificada'),
+                PeriodFilter::make('planned_start_at', 'Fecha planificada'),
                 // Hoja de vida del equipo: se elige la sección y el selector de
                 // equipo queda reducido a los de esa sección. Con el equipo puesto,
                 // el Histórico muestra todas sus OT y nada más.

@@ -28,8 +28,10 @@ class PayrollPeriodFilter
      *                           con que la página calcula (las que listan trabajadores)
      * @param  bool  $allowAll  ofrece «Todo», y lo trae puesto: para las bandejas, donde
      *                          esconder lo viejo hace creer que no hay pendientes
+     * @param  bool  $lastDays  ofrece «Últimos 7 días», el atajo que paros y órdenes de trabajo
+     *                          tenían en su filtro anterior ({@see PeriodFilter})
      */
-    public static function make(?string $column = null, string $name = 'periodo', ?int $cutoffDay = null, bool $allowAll = false): Filter
+    public static function make(?string $column = null, string $name = 'periodo', ?int $cutoffDay = null, bool $allowAll = false, bool $lastDays = false): Filter
     {
         $current = self::currentCutoffMonth($cutoffDay);
 
@@ -42,6 +44,7 @@ class PayrollPeriodFilter
                         'corte' => $cutoffDay ? 'Corte de nómina' : null,
                         'mes' => 'Un mes',
                         'anio' => 'Año completo',
+                        'ultimos_7' => $lastDays ? 'Últimos 7 días' : null,
                         'rango' => 'Rango de fechas',
                     ]))
                     ->default($allowAll ? 'todo' : ($cutoffDay ? 'corte' : 'mes'))
@@ -122,6 +125,7 @@ class PayrollPeriodFilter
             'corte' => $cutoffDay ? PayrollRun::hoursWindowFor($first, $cutoffDay) : null,
             'mes' => [$first, $first->endOfMonth()->startOfDay()],
             'anio' => [CarbonImmutable::create($year, 1, 1), CarbonImmutable::create($year, 12, 31)],
+            'ultimos_7' => [CarbonImmutable::today()->subDays(6), CarbonImmutable::today()],
             'rango' => [
                 filled($data['desde'] ?? null) ? CarbonImmutable::parse($data['desde']) : null,
                 filled($data['hasta'] ?? null) ? CarbonImmutable::parse($data['hasta']) : null,
@@ -144,6 +148,7 @@ class PayrollPeriodFilter
             ($data['preset'] ?? null) === 'corte' && $desde !== null => 'Corte de '.mb_strtolower((string) $month).' '.$year.' (del '.$fecha($desde).' al '.$fecha($hasta).')',
             ($data['preset'] ?? null) === 'mes' => ucfirst((string) $month).' '.$year,
             ($data['preset'] ?? null) === 'anio' => 'Año '.$year,
+            ($data['preset'] ?? null) === 'ultimos_7' => 'Últimos 7 días',
             $desde !== null && $hasta !== null => 'Del '.$fecha($desde).' al '.$fecha($hasta),
             $desde !== null => 'Desde el '.$fecha($desde),
             $hasta !== null => 'Hasta el '.$fecha($hasta),

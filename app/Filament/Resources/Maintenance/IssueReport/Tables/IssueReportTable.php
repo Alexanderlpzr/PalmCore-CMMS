@@ -4,6 +4,8 @@ namespace App\Filament\Resources\Maintenance\IssueReport\Tables;
 
 use App\Domain\Assets\Enums\IssueSeverity;
 use App\Domain\Maintenance\Enums\IssueReportStatus;
+use App\Domain\Reports\Excel\TableExcelExport;
+use App\Filament\Filters\PeriodFilter;
 use App\Models\EquipmentIssueReport;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
@@ -12,6 +14,7 @@ use Filament\Actions\RestoreAction;
 use Filament\Actions\RestoreBulkAction;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
@@ -55,7 +58,13 @@ class IssueReportTable
                     ->dateTime('d/m/Y H:i')
                     ->sortable(),
             ])
+            ->headerActions([
+                TableExcelExport::action('Reportes de novedad'),
+            ])
+            // El período a la vista, encima de la tabla, como en talento humano.
+            ->filtersLayout(FiltersLayout::AboveContent)
             ->filters([
+                PeriodFilter::make('created_at', 'Fecha del reporte'),
                 SelectFilter::make('severity')
                     ->label('Criticidad')
                     ->options(IssueSeverity::options()),

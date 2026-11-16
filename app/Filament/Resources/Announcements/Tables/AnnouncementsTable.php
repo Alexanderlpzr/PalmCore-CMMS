@@ -3,6 +3,8 @@
 namespace App\Filament\Resources\Announcements\Tables;
 
 use App\Domain\Home\Enums\AnnouncementCategory;
+use App\Domain\Reports\Excel\TableExcelExport;
+use App\Filament\Filters\PeriodFilter;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -10,6 +12,7 @@ use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
@@ -47,7 +50,13 @@ class AnnouncementsTable
                     ->sortable()
                     ->toggleable(),
             ])
+            ->headerActions([
+                TableExcelExport::action('Comunicados'),
+            ])
+            // El período a la vista, encima de la tabla, como en talento humano.
+            ->filtersLayout(FiltersLayout::AboveContent)
             ->filters([
+                PeriodFilter::make('published_at', 'Fecha de publicación'),
                 SelectFilter::make('category')
                     ->label('Categoría')
                     ->options(AnnouncementCategory::options()),

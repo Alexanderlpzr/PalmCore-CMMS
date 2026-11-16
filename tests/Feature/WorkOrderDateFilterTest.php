@@ -49,14 +49,14 @@ it('«este mes» deja fuera la OT del mes pasado', function (): void {
     $mesPasado = otPlanificadaEl('2026-07-20 08:00');
 
     Livewire::test(ListWorkOrders::class)
-        ->filterTable('rango_de_fechas', ['atajo' => 'este_mes'])
+        ->filterTable('periodo', ['preset' => 'mes', 'anio' => 2026, 'mes' => 8])
         ->assertCanSeeTableRecords([$esteMes])
         ->assertCanNotSeeTableRecords([$mesPasado]);
 
     Carbon::setTestNow();
 });
 
-it('«mes pasado» sigue siendo el mes entero un 31 de mayo', function (): void {
+it('el mes anterior elegido un 31 de mayo es abril entero', function (): void {
     // Un 31 de mayo destapa el desbordamiento de Carbon —abril no tiene 31— y un 31 de
     // agosto no, porque julio sí lo tiene. La fecha está elegida, no puesta al azar.
     Carbon::setTestNow('2026-05-31');
@@ -66,7 +66,7 @@ it('«mes pasado» sigue siendo el mes entero un 31 de mayo', function (): void 
     $mayo = otPlanificadaEl('2026-05-02 08:00');
 
     Livewire::test(ListWorkOrders::class)
-        ->filterTable('rango_de_fechas', ['atajo' => 'mes_pasado'])
+        ->filterTable('periodo', ['preset' => 'mes', 'anio' => 2026, 'mes' => 4])
         ->assertCanSeeTableRecords([$primeroDeAbril, $ultimoDeAbril])
         ->assertCanNotSeeTableRecords([$mayo]);
 
@@ -85,7 +85,7 @@ it('filtra por la fecha planificada, no por la de creación', function (): void 
     $nuevaParaOtroMes = otPlanificadaEl('2026-09-03 08:00');
 
     Livewire::test(ListWorkOrders::class)
-        ->filterTable('rango_de_fechas', ['atajo' => 'este_mes'])
+        ->filterTable('periodo', ['preset' => 'mes', 'anio' => 2026, 'mes' => 8])
         ->assertCanSeeTableRecords([$viejaParaEsteMes])
         ->assertCanNotSeeTableRecords([$nuevaParaOtroMes]);
 
@@ -99,7 +99,7 @@ it('recuerda el filtro al volver a la pantalla', function (): void {
     $mesPasado = otPlanificadaEl('2026-07-20 08:00');
 
     Livewire::test(ListWorkOrders::class)
-        ->filterTable('rango_de_fechas', ['atajo' => 'este_mes']);
+        ->filterTable('periodo', ['preset' => 'mes', 'anio' => 2026, 'mes' => 8]);
 
     Livewire::test(ListWorkOrders::class)
         ->assertCanSeeTableRecords([$esteMes])

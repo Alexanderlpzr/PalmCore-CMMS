@@ -6,6 +6,8 @@ use App\Domain\Inventory\Services\WarehouseDashboard;
 use App\Domain\Maintenance\Enums\WorkOrderPartStatus;
 use App\Domain\Maintenance\Enums\WorkOrderStatus;
 use App\Domain\Maintenance\Services\WorkOrderInventoryService;
+use App\Domain\Reports\Excel\TableExcelExport;
+use App\Filament\Filters\PeriodFilter;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\WarehouseSparePart;
@@ -21,6 +23,7 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -138,7 +141,13 @@ class Despachos extends Page implements HasTable
                     ->since()
                     ->sortable(),
             ])
+            ->headerActions([
+                TableExcelExport::action('Despachos'),
+            ])
+            // El período a la vista, encima de la tabla, como en talento humano.
+            ->filtersLayout(FiltersLayout::AboveContent)
             ->filters([
+                PeriodFilter::make('created_at', 'Fecha del pedido'),
                 SelectFilter::make('warehouse_id')
                     ->label('Almacén')
                     ->relationship('warehouse', 'name'),

@@ -5,6 +5,8 @@ namespace App\Filament\Resources\Inventory\InventoryCount;
 use App\Domain\Inventory\Enums\InventoryCountScope;
 use App\Domain\Inventory\Enums\InventoryCountStatus;
 use App\Domain\Inventory\Services\InventoryCountService;
+use App\Domain\Reports\Excel\TableExcelExport;
+use App\Filament\Filters\PeriodFilter;
 use App\Filament\Resources\Inventory\InventoryCount\Pages\CreateInventoryCount;
 use App\Filament\Resources\Inventory\InventoryCount\Pages\ListInventoryCounts;
 use App\Filament\Resources\Inventory\InventoryCount\Pages\ViewInventoryCount;
@@ -22,6 +24,7 @@ use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use UnitEnum;
@@ -119,7 +122,13 @@ class InventoryCountResource extends Resource
                     ->color(fn (InventoryCountStatus $state): string => $state->color()),
                 TextColumn::make('created_at')->label('Abierto')->dateTime('d/m/Y')->sortable(),
             ])
+            ->headerActions([
+                TableExcelExport::action('Conteos de inventario'),
+            ])
+            // El período a la vista, encima de la tabla, como en talento humano.
+            ->filtersLayout(FiltersLayout::AboveContent)
             ->filters([
+                PeriodFilter::make('created_at', 'Fecha de apertura'),
                 SelectFilter::make('status')->label('Estado')->options(InventoryCountStatus::options()),
             ])
             ->recordActions([ViewAction::make()])

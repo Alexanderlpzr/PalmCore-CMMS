@@ -4,6 +4,8 @@ namespace App\Filament\Pages;
 
 use App\Domain\Notifications\NotificationKind;
 use App\Domain\Notifications\NotificationPresenter;
+use App\Domain\Reports\Excel\TableExcelExport;
+use App\Filament\Filters\PeriodFilter;
 use App\Models\User;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -15,6 +17,7 @@ use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -130,7 +133,13 @@ class Notificaciones extends Page implements HasTable
                     ->dateTimeTooltip('d/m/Y h:i a')
                     ->sortable(),
             ])
+            ->headerActions([
+                TableExcelExport::action('Notificaciones'),
+            ])
+            // El período a la vista, encima de la tabla, como en talento humano.
+            ->filtersLayout(FiltersLayout::AboveContent)
             ->filters([
+                PeriodFilter::make('created_at', 'Fecha del aviso'),
                 SelectFilter::make('kind')
                     ->label('Tipo')
                     ->options(NotificationKind::options())

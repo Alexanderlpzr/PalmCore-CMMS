@@ -2,10 +2,13 @@
 
 namespace App\Filament\Resources\MaintenanceBudgets\Tables;
 
+use App\Domain\Reports\Excel\TableExcelExport;
+use App\Filament\Filters\PeriodFilter;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Table;
 
 class MaintenanceBudgetsTable
@@ -40,6 +43,14 @@ class MaintenanceBudgetsTable
                     ->label('Registró')
                     ->placeholder('—')
                     ->toggleable(),
+            ])
+            ->headerActions([
+                TableExcelExport::action('Presupuesto de mantenimiento'),
+            ])
+            // El período a la vista, encima de la tabla, como en talento humano.
+            ->filtersLayout(FiltersLayout::AboveContent)
+            ->filters([
+                PeriodFilter::yearMonth('year', 'month', 'Mes del presupuesto'),
             ])
             ->recordActions([
                 EditAction::make(),

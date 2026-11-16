@@ -2,10 +2,12 @@
 
 namespace App\Filament\Resources\Safety;
 
+use App\Domain\Reports\Excel\TableExcelExport;
 use App\Domain\Safety\Enums\FindingOrigin;
 use App\Domain\Safety\Enums\FindingPriority;
 use App\Domain\Safety\Enums\FindingStatus;
 use App\Domain\Safety\Enums\ResponsibleArea;
+use App\Filament\Filters\PeriodFilter;
 use App\Filament\Resources\Safety\Pages\CreateSstFinding;
 use App\Filament\Resources\Safety\Pages\EditSstFinding;
 use App\Filament\Resources\Safety\Pages\ListSstFindings;
@@ -35,6 +37,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -268,7 +271,13 @@ class SstFindingResource extends Resource
                     ->formatStateUsing(fn (FindingStatus $state): string => $state->label())
                     ->color(fn (FindingStatus $state): string => $state->color()),
             ])
+            ->headerActions([
+                TableExcelExport::action('Hallazgos'),
+            ])
+            // El período a la vista, encima de la tabla, como en talento humano.
+            ->filtersLayout(FiltersLayout::AboveContent)
             ->filters([
+                PeriodFilter::make('reported_on', 'Fecha de reporte'),
                 SelectFilter::make('origin')->label('Origen')->options(FindingOrigin::options()),
                 SelectFilter::make('status')->label('Estado')->options(FindingStatus::options()),
                 SelectFilter::make('priority')->label('Prioridad')->options(collect(FindingPriority::cases())->mapWithKeys(fn (FindingPriority $priority): array => [$priority->value => $priority->label()])->all()),

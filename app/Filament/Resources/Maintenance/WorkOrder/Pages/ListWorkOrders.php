@@ -59,7 +59,8 @@ class ListWorkOrders extends ListRecords
         return [
             ProgramaDelDiaAction::make(),
             Action::make('export_excel')
-                ->label('Exportar Excel')
+                ->label('Reporte completo (Excel)')
+                ->tooltip('Toda la base, sin filtros: llega como notificación cuando está listo')
                 ->icon(Heroicon::OutlinedTableCells)
                 ->color('gray')
                 ->action(function (ExcelReportManager $manager): void {

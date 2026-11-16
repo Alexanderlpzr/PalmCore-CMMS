@@ -107,6 +107,14 @@ final class TableExcelExport
             return '';
         }
 
+        // «hace 3 días» se lee bien en pantalla, pero en un archivo guardado deja de ser
+        // cierto al día siguiente: las columnas que muestran la fecha así bajan la fecha.
+        if ($state instanceof CarbonInterface) {
+            $formatted = $this->text($column->formatState($state));
+
+            return preg_match('/\d/', $formatted) && ! preg_match('/^(hace|dentro de)\b|\b(ago|from now)$/iu', $formatted) ? $formatted : $state->format('d/m/Y H:i');
+        }
+
         // Las cifras sin formato de pantalla quedan como número, para poder sumarlas en Excel.
         if (is_int($state) || is_float($state)) {
             $formatted = $this->text($column->formatState($state));

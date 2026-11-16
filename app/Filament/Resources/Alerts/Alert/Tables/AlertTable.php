@@ -5,8 +5,11 @@ namespace App\Filament\Resources\Alerts\Alert\Tables;
 use App\Domain\Alerts\Enums\AlertCategory;
 use App\Domain\Alerts\Enums\AlertSeverity;
 use App\Domain\Alerts\Enums\AlertStatus;
+use App\Domain\Reports\Excel\TableExcelExport;
+use App\Filament\Filters\PeriodFilter;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 
@@ -64,7 +67,13 @@ class AlertTable
                     ->sortable(),
             ])
             ->defaultSort('created_at', 'desc')
+            ->headerActions([
+                TableExcelExport::action('Alertas'),
+            ])
+            // El período a la vista, encima de la tabla, como en talento humano.
+            ->filtersLayout(FiltersLayout::AboveContent)
             ->filters([
+                PeriodFilter::make('created_at', 'Fecha de la alerta'),
                 SelectFilter::make('severity')
                     ->label('Criticidad')
                     ->options(AlertSeverity::options())

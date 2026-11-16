@@ -5,6 +5,8 @@ namespace App\Filament\Resources\Maintenance\MaintenancePlan\Tables;
 use App\Domain\Maintenance\Enums\MaintenanceTimeFrequency;
 use App\Domain\Maintenance\Enums\MaintenanceTriggerSource;
 use App\Domain\Maintenance\Services\EquipmentMeterReadingService;
+use App\Domain\Reports\Excel\TableExcelExport;
+use App\Filament\Filters\PeriodFilter;
 use App\Filament\Resources\Maintenance\MaintenancePlan\Actions\RegisterManualExecutionAction;
 use App\Models\MaintenancePlan;
 use Filament\Actions\BulkActionGroup;
@@ -13,6 +15,7 @@ use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
@@ -96,7 +99,13 @@ class MaintenancePlanTable
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
+            ->headerActions([
+                TableExcelExport::action('Planes de mantenimiento'),
+            ])
+            // El período a la vista, encima de la tabla, como en talento humano.
+            ->filtersLayout(FiltersLayout::AboveContent)
             ->filters([
+                PeriodFilter::make('created_at', 'Fecha de creación'),
                 // Los de las tarjetas de arriba.
                 Filter::make('vencidos')
                     ->label('Vencidos')

@@ -6,7 +6,9 @@ use App\Domain\Inventory\Enums\SparePartAbcClassification;
 use App\Domain\Inventory\Enums\SparePartCategoryType;
 use App\Domain\Inventory\Enums\SparePartCriticality;
 use App\Domain\Inventory\Services\WarehouseDashboard;
+use App\Domain\Reports\Excel\TableExcelExport;
 use App\Domain\Reports\Services\SparePartLabelsPdfService;
+use App\Filament\Filters\PeriodFilter;
 use App\Models\Tenant;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
@@ -22,6 +24,7 @@ use Filament\Facades\Filament;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
@@ -81,7 +84,13 @@ class SparePartTable
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
+            ->headerActions([
+                TableExcelExport::action('Repuestos'),
+            ])
+            // El período a la vista, encima de la tabla, como en talento humano.
+            ->filtersLayout(FiltersLayout::AboveContent)
             ->filters([
+                PeriodFilter::make('created_at', 'Fecha de creación'),
                 SelectFilter::make('category_type')
                     ->label('Categoría')
                     ->options(SparePartCategoryType::options()),

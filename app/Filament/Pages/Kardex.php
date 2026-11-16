@@ -4,18 +4,17 @@ namespace App\Filament\Pages;
 
 use App\Domain\Inventory\Enums\InventoryTransactionType;
 use App\Domain\Reports\Excel\KardexExcel;
+use App\Filament\Filters\PeriodFilter;
 use App\Models\InventoryTransaction;
 use App\Models\SparePart;
 use BackedEnum;
-use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
-use Filament\Forms\Components\DatePicker;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
-use Filament\Tables\Filters\Filter;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -122,19 +121,11 @@ class Kardex extends Page implements HasTable
                 TextColumn::make('recipient_name')->label('Recibió')->placeholder('—')->searchable(),
                 TextColumn::make('performedBy.name')->label('Registró')->toggleable(isToggledHiddenByDefault: true),
             ])
+            // El período a la vista, encima de la tabla, como en talento humano.
+            ->filtersLayout(FiltersLayout::AboveContent)
             ->filters([
-                Filter::make('fechas')
-                    ->schema([
-                        DatePicker::make('desde')->label('Desde'),
-                        DatePicker::make('hasta')->label('Hasta'),
-                    ])
-                    ->columns(2)
-                    ->query(fn (Builder $query, array $data): Builder => $query
-                        ->when($data['desde'] ?? null, fn (Builder $q, string $from) => $q->where('performed_at', '>=', CarbonImmutable::parse($from, 'America/Bogota')->startOfDay()->utc()))
-                        ->when($data['hasta'] ?? null, fn (Builder $q, string $to) => $q->where('performed_at', '<=', CarbonImmutable::parse($to, 'America/Bogota')->endOfDay()->utc())))
-                    ->indicateUsing(fn (array $data): ?string => ($data['desde'] ?? null) || ($data['hasta'] ?? null)
-                        ? 'Del '.($data['desde'] ? CarbonImmutable::parse($data['desde'])->format('d/m/Y') : 'inicio').' al '.($data['hasta'] ? CarbonImmutable::parse($data['hasta'])->format('d/m/Y') : 'hoy')
-                        : null),
+                // El día se corta a medianoche de Colombia, como cuenta el almacén.
+                PeriodFilter::make('performed_at', 'Fecha del movimiento', timezone: 'America/Bogota'),
                 SelectFilter::make('type')->label('Tipo')->options(InventoryTransactionType::options())->multiple(),
                 SelectFilter::make('warehouse_id')->label('Almacén')->relationship('warehouse', 'name'),
                 SelectFilter::make('spare_part_id')

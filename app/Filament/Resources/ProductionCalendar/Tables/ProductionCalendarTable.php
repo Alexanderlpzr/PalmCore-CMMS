@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\ProductionCalendar\Tables;
 
+use App\Domain\Reports\Excel\TableExcelExport;
+use App\Filament\Filters\PeriodFilter;
 use App\Models\Plant;
 use App\Models\ProductionCalendarDay;
 use Filament\Actions\BulkActionGroup;
@@ -10,6 +12,7 @@ use Filament\Actions\EditAction;
 use Filament\Tables\Columns\Summarizers\Sum;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\TextInputColumn;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
@@ -67,7 +70,13 @@ class ProductionCalendarTable
                     ->placeholder('—')
                     ->toggleable(),
             ])
+            ->headerActions([
+                TableExcelExport::action('Calendario de producción'),
+            ])
+            // El período a la vista, encima de la tabla, como en talento humano.
+            ->filtersLayout(FiltersLayout::AboveContent)
             ->filters([
+                PeriodFilter::make('calendar_date', 'Fecha'),
                 SelectFilter::make('plant_id')
                     ->label('Planta')
                     ->options(fn (): array => Plant::orderBy('name')->pluck('name', 'id')->all()),

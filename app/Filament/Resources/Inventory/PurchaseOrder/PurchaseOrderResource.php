@@ -3,6 +3,8 @@
 namespace App\Filament\Resources\Inventory\PurchaseOrder;
 
 use App\Domain\Inventory\Enums\PurchaseOrderStatus;
+use App\Domain\Reports\Excel\TableExcelExport;
+use App\Filament\Filters\PeriodFilter;
 use App\Filament\Resources\Inventory\PurchaseOrder\Pages\CreatePurchaseOrder;
 use App\Filament\Resources\Inventory\PurchaseOrder\Pages\ListPurchaseOrders;
 use App\Filament\Resources\Inventory\PurchaseOrder\Pages\ViewPurchaseOrder;
@@ -25,6 +27,7 @@ use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -172,7 +175,13 @@ class PurchaseOrderResource extends Resource
                 TextColumn::make('expected_at')->label('Esperada')->date('d/m/Y')->placeholder('—')->sortable(),
             ])
             // Los de las tarjetas de arriba, y el estado.
+            ->headerActions([
+                TableExcelExport::action('Órdenes de compra'),
+            ])
+            // El período a la vista, encima de la tabla, como en talento humano.
+            ->filtersLayout(FiltersLayout::AboveContent)
             ->filters([
+                PeriodFilter::make('created_at', 'Fecha de la orden'),
                 Filter::make('abiertas')
                     ->label('Abiertas')
                     ->toggle()
