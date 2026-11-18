@@ -204,6 +204,7 @@ class MonthlyManagementReport
                 'overdue' => round(array_sum(array_column($aging, 'overdue')), 2),
             ],
             'products' => $products,
+            'mix' => $this->report->marketMix($plan, $tenantId, $year, $month),
             'invoicing' => $invoicing,
             'fruit' => $fruit,
             'fruit_plan_months' => $fruitPlanMonths,

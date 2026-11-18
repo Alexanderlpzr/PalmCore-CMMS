@@ -54,7 +54,7 @@
         </span>
     </div>
 
-    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         @php $tanques = $datos['tanks']; @endphp
         <x-fronda.kpi label="Aceite disponible hoy"
             :value="! $tanques ? 'Sin medir' : ($tanques['stale'] ? 'Hay que medir' : $tn($tanques['available']).' tn')"
@@ -67,6 +67,15 @@
         <x-fronda.kpi label="Aceite proyectado" :value="$tn($proyectadoCpo).' tn'" icon="heroicon-o-calendar-days"
             :detail="'Despachado '.$tn($despachadoCpo).' tn · '.$pct($proyectadoCpo > 0 ? $despachadoCpo / $proyectadoCpo : null)"
             :percent="$proyectadoCpo > 0 ? min(100, $despachadoCpo / $proyectadoCpo * 100) : null" color="#1A7E42" />
+        @php
+            $mezcla = $datos['mix'];
+            $tonoMezcla = \App\Domain\Commercial\Enums\Market::nationalShareTone($mezcla['year']['real_share']);
+        @endphp
+        <x-fronda.kpi label="Ventas nacionales" :value="$pct($mezcla['year']['real_share'])" icon="heroicon-o-flag"
+            :tone="match ($tonoMezcla) { 'danger' => 'danger', 'warning' => 'warning', 'success' => 'ok', default => 'neutral' }"
+            :percent="$mezcla['year']['real_share'] === null ? null : $mezcla['year']['real_share'] * 100"
+            :color="match ($tonoMezcla) { 'danger' => '#dc2626', 'warning' => '#d97706', default => '#1A7E42' }"
+            :detail="'Del aceite despachado en el año · el plan dice '.$pct($mezcla['year']['plan_share']).' · rojo con 50 % o menos'" />
         <x-fronda.kpi label="Pendiente por despachar" :value="$tn(max($proyectadoCpo - $despachadoCpo - $transitoCpo, 0)).' tn'" icon="heroicon-o-truck"
             :detail="($transitoCpo > 0 ? $tn($transitoCpo).' tn van en camino' : 'Nada en camino').($porConcretarCpo > 0 ? ' · '.$tn($porConcretarCpo).' tn más por concretar' : '')" :href="$despachosUrl.'?tab=cargado'" />
         <x-fronda.kpi label="Fruta recibida" :value="$tn($frutaReal).' tn'" icon="heroicon-o-scale"
@@ -76,6 +85,63 @@
         <x-fronda.kpi label="Por cobrar" :value="$millones($cartera)" icon="heroicon-o-banknotes" :tone="$vencido > 0 ? 'danger' : ($cartera > 0 ? 'warning' : 'ok')"
             :detail="($vencido > 0 ? 'Vencido '.$millones($vencido).' · ' : 'Nada vencido · ').'facturado '.$millones($facturado)" :href="$despachosUrl.'?tab=facturado'" />
     </div>
+
+    {{-- Nacional contra exportación, con el semáforo de la Directora: lo nacional debe ser
+         más de la mitad; con 50 % o menos, rojo; desde 70 %, verde. --}}
+    @php
+        $semaforo = fn (?float $s): string => match (\App\Domain\Commercial\Enums\Market::nationalShareTone($s)) {
+            'danger' => 'bg-danger-100 text-danger-700 dark:bg-danger-500/20 dark:text-danger-300',
+            'warning' => 'bg-warning-100 text-warning-700 dark:bg-warning-500/20 dark:text-warning-300',
+            'success' => 'bg-success-100 text-success-700 dark:bg-success-500/20 dark:text-success-300',
+            default => '',
+        };
+        $filasMezcla = [
+            ['Proyectado nacional (tn)', 'plan_national', false],
+            ['Proyectado exportación (tn)', 'plan_export', false],
+            ['% nacional proyectado', 'plan_share', true],
+            ['Despachado nacional (tn)', 'real_national', false],
+            ['Despachado exportación (tn)', 'real_export', false],
+            ['% nacional despachado', 'real_share', true],
+        ];
+    @endphp
+    <x-filament::section>
+        <x-slot name="heading">Aceite nacional y de exportación</x-slot>
+        <x-slot name="description">
+            Semáforo de la parte nacional: <span class="font-semibold text-danger-600 dark:text-danger-400">rojo</span> con 50 % o menos,
+            <span class="font-semibold text-warning-600 dark:text-warning-400">ámbar</span> entre 50 % y 70 %,
+            <span class="font-semibold text-success-600 dark:text-success-400">verde</span> desde 70 %. Lo proyectado va por el destino de cada cliente; lo despachado, por el de cada cargue. «Por concretar» no entra: aún no tiene destino.
+        </x-slot>
+        <div class="overflow-x-auto -mx-2 px-2">
+            <table class="w-full text-sm border-separate border-spacing-0">
+                <thead>
+                    <tr class="text-gray-600 dark:text-gray-300">
+                        <th class="sticky left-0 z-10 bg-white dark:bg-gray-900 text-left font-semibold px-2 py-2 border-b border-gray-200 dark:border-white/10"></th>
+                        @foreach ($meses as $mesCorto)
+                            <th class="{{ $celdaTh }}">{{ $mesCorto }}</th>
+                        @endforeach
+                        <th class="{{ $celdaTh }} border-l">Año</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($filasMezcla as [$nombreFila, $claveFila, $esPorcentaje])
+                        <tr wire:key="mezcla-{{ $claveFila }}" @class(['font-semibold' => $esPorcentaje])>
+                            <td class="sticky left-0 z-10 bg-white dark:bg-gray-900 px-2 py-1.5 border-b border-gray-100 dark:border-white/5 whitespace-nowrap">{{ $nombreFila }}</td>
+                            @foreach (array_keys($meses) as $numero)
+                                @php $valor = $mezcla['months'][$numero][$claveFila]; @endphp
+                                <td @class([$celda, $semaforo($valor) => $esPorcentaje])>
+                                    {{ $esPorcentaje ? ($valor === null ? '' : $pct($valor)) : ($valor > 0 ? $tn($valor, 0) : '') }}
+                                </td>
+                            @endforeach
+                            @php $anual = $mezcla['year'][$claveFila]; @endphp
+                            <td @class([$celda, 'border-l', $semaforo($anual) => $esPorcentaje])>
+                                {{ $esPorcentaje ? $pct($anual) : $tn($anual, 0) }}
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    </x-filament::section>
 
     {{-- Avance por cliente: el «Resumen anual por cliente» del Cuadro Cruce. --}}
     @foreach (['cpo' => 'Aceite de palma (CPO)', 'pko' => 'Palmiste (PKO)'] as $clave => $titulo)

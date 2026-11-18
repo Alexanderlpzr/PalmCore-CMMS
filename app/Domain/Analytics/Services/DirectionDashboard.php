@@ -3,6 +3,7 @@
 namespace App\Domain\Analytics\Services;
 
 use App\Domain\Commercial\Enums\CommercialProduct;
+use App\Domain\Commercial\Services\AnnualPlanService;
 use App\Domain\Commercial\Services\CommercialPlanReport;
 use App\Domain\Commercial\Services\OilTankService;
 use App\Domain\HumanResources\Services\LaborCostReport;
@@ -99,6 +100,7 @@ class DirectionDashboard
         $personnelMonth = $selected->greaterThan($today) ? null : $this->personnel($tenant, $selected, $today);
         $maintenanceMonth = $selected->greaterThan($today) ? null : $this->maintenance($tenantId, $plants, $year, $month);
         $aging = $this->commercial->aging($tenantId);
+        $mix = $this->commercial->marketMix(app(AnnualPlanService::class)->current($tenantId, $year), $tenantId, $year, $month);
 
         return [
             'year' => $year,
@@ -125,6 +127,7 @@ class DirectionDashboard
                 ->values()->all(),
             'personnel_estimated' => (bool) ($personnelMonth['estimated'] ?? false),
             'maintenance_month' => $maintenanceMonth,
+            'mix' => $mix,
             'receivable' => round(array_sum(array_column($aging, 'total')), 2),
             'overdue' => round(array_sum(array_column($aging, 'overdue')), 2),
             'sst_open' => SstFinding::withoutGlobalScopes()->where('tenant_id', $tenantId)->whereNull('deleted_at')->open()->count(),

@@ -39,6 +39,8 @@ final class ManagementReportExcel
             ['Fruta proyectada (tn)', $s['fruit_month_projected'], $s['fruit_ytd_projected'], self::TONS],
             ['Fruta recibida (tn)', $s['fruit_month_received'], $s['fruit_ytd_received'], self::TONS],
             ['Cumplimiento de la fruta', $s['fruit_month_ratio'], $s['fruit_ytd_ratio'], self::PERCENT],
+            ['Aceite nacional despachado (% del aceite)', $data['mix']['months'][$month]['real_share'], $data['mix']['year']['real_share'], self::PERCENT],
+            ['Aceite nacional proyectado (% del aceite)', $data['mix']['months'][$month]['plan_share'], $data['mix']['year']['plan_share'], self::PERCENT],
             ['Palmiste despachado (tn)', $s['pko_month_dispatched'], $s['pko_ytd_dispatched'], self::TONS],
             ['Facturado', $s['invoiced_month'], $s['invoiced_ytd'], FrondaWorkbook::MONEY],
             ['Precio del aceite por tonelada', $s['oil_price_month'], null, FrondaWorkbook::MONEY],

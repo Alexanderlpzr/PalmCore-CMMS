@@ -4,10 +4,12 @@ namespace App\Domain\Commercial\Services;
 
 use App\Domain\Commercial\Enums\CommercialProduct;
 use App\Domain\Commercial\Enums\DispatchStatus;
+use App\Domain\Commercial\Enums\Market;
 use App\Models\AnnualPlan;
 use App\Models\AnnualPlanFruit;
 use App\Models\AnnualPlanMonth;
 use App\Models\AnnualPlanSale;
+use App\Models\Customer;
 use App\Models\FruitReception;
 use App\Models\ProductionCalendarDay;
 use App\Models\SalesDispatch;
@@ -202,6 +204,64 @@ class CommercialPlanReport
         }
 
         return $result;
+    }
+
+    /**
+     * Nacional contra exportación del aceite (CPO), mes a mes y en el año: lo proyectado
+     * —por el destino de cada cliente— y lo despachado —por el destino de cada cargue,
+     * peso de llegada—. «Por concretar» no entra: todavía no tiene destino.
+     *
+     * @return array{months: array<int, array{plan_national: float, plan_export: float, plan_share: ?float, real_national: float, real_export: float, real_share: ?float}>, year: array{plan_national: float, plan_export: float, plan_share: ?float, real_national: float, real_export: float, real_share: ?float}}
+     */
+    public function marketMix(?AnnualPlan $plan, string $tenantId, int $year, ?int $upToMonth = null): array
+    {
+        $markets = Customer::withoutGlobalScopes()->where('tenant_id', $tenantId)->pluck('market', 'id')
+            ->map(fn ($market): string => $market instanceof Market ? $market->value : (string) $market);
+        $planned = $this->salesPlan($plan, CommercialProduct::Cpo);
+        unset($planned[AnnualPlanService::UNASSIGNED]);
+
+        $real = SalesDispatch::withoutGlobalScopes()
+            ->where('tenant_id', $tenantId)
+            ->whereNull('deleted_at')
+            ->where('product', CommercialProduct::Cpo->value)
+            ->whereYear('loaded_on', $year)
+            ->whereNotNull('arrival_weight_tons')
+            ->groupBy('market')
+            ->groupByRaw('extract(month from loaded_on)')
+            ->selectRaw('market, extract(month from loaded_on)::int as month, sum(arrival_weight_tons) as tons')
+            ->get();
+
+        $share = fn (float $national, float $export): ?float => $national + $export > 0 ? $national / ($national + $export) : null;
+        $months = [];
+
+        foreach (range(1, 12) as $m) {
+            $pn = $pe = 0.0;
+
+            foreach ($planned as $customerId => $tons) {
+                $value = (float) ($tons[$m] ?? 0);
+                ($markets[$customerId] ?? Market::Nacional->value) === Market::Exportacion->value ? $pe += $value : $pn += $value;
+            }
+
+            $rows = $real->where('month', $m);
+            $rn = (float) $rows->filter(fn ($r): bool => ($r->market?->value ?? $r->market) === Market::Nacional->value)->sum('tons');
+            $re = (float) $rows->filter(fn ($r): bool => ($r->market?->value ?? $r->market) === Market::Exportacion->value)->sum('tons');
+
+            $months[$m] = [
+                'plan_national' => round($pn, 2), 'plan_export' => round($pe, 2), 'plan_share' => $share($pn, $pe),
+                'real_national' => round($rn, 2), 'real_export' => round($re, 2), 'real_share' => $share($rn, $re),
+            ];
+        }
+
+        $upTo = array_filter($months, fn (int $m): bool => $upToMonth === null || $m <= $upToMonth, ARRAY_FILTER_USE_KEY);
+        $sum = fn (string $key): float => round(array_sum(array_column($upTo, $key)), 2);
+
+        return [
+            'months' => $months,
+            'year' => [
+                'plan_national' => $sum('plan_national'), 'plan_export' => $sum('plan_export'), 'plan_share' => $share($sum('plan_national'), $sum('plan_export')),
+                'real_national' => $sum('real_national'), 'real_export' => $sum('real_export'), 'real_share' => $share($sum('real_national'), $sum('real_export')),
+            ],
+        ];
     }
 
     /** Los tramos de antigüedad de la cartera: días de atraso hasta los que llega cada uno. */

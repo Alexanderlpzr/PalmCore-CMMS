@@ -118,6 +118,23 @@
                             <td class="{{ $celda }} border-l font-semibold">{{ $anual }}</td>
                         </tr>
                     @endforeach
+                    {{-- El semáforo de la Directora: lo nacional debe ser más de la mitad del aceite. --}}
+                    @php
+                        $semaforo = fn (?float $s): string => match (\App\Domain\Commercial\Enums\Market::nationalShareTone($s)) {
+                            'danger' => 'bg-danger-100 text-danger-700 dark:bg-danger-500/20 dark:text-danger-300',
+                            'warning' => 'bg-warning-100 text-warning-700 dark:bg-warning-500/20 dark:text-warning-300',
+                            'success' => 'bg-success-100 text-success-700 dark:bg-success-500/20 dark:text-success-300',
+                            default => '',
+                        };
+                    @endphp
+                    <tr wire:key="dir-nacional" class="font-semibold">
+                        <td class="sticky left-0 z-10 bg-white dark:bg-gray-900 px-2 py-1.5 border-b border-gray-100 dark:border-white/5 whitespace-nowrap">% aceite nacional</td>
+                        @foreach ($cortos as $n => $corto)
+                            @php $parte = $d['mix']['months'][$n]['real_share']; @endphp
+                            <td @class([$celda, $semaforo($parte)])>{{ $parte === null ? '' : $pct($parte * 100) }}</td>
+                        @endforeach
+                        <td @class([$celda, 'border-l', $semaforo($d['mix']['year']['real_share'])])>{{ $d['mix']['year']['real_share'] === null ? '—' : $pct($d['mix']['year']['real_share'] * 100) }}</td>
+                    </tr>
                 </tbody>
             </table>
         </div>

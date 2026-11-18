@@ -149,6 +149,39 @@
                 </tr>
             </tbody>
         </table>
+        {{-- Nacional contra exportación, con el semáforo: rojo con 50 % o menos, verde desde 70 %. --}}
+        @php
+            $mezMes = $mix['months'][$month];
+            $mezAno = $mix['year'];
+            $semaforo = fn (?float $s): string => match (\App\Domain\Commercial\Enums\Market::nationalShareTone($s)) { 'danger' => 'bad', 'warning' => 'warn', 'success' => 'ok', default => '' };
+        @endphp
+        <table class="data-table" style="margin-top:6px;">
+            <thead>
+                <tr>
+                    <th>Aceite nacional y de exportación</th>
+                    <th class="num">Nacional {{ $monthName }}</th>
+                    <th class="num">Exportación {{ $monthName }}</th>
+                    <th class="num">% nacional mes</th>
+                    <th class="num">Nacional año</th>
+                    <th class="num">Exportación año</th>
+                    <th class="num">% nacional año</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (['plan' => 'Proyectado', 'real' => 'Despachado'] as $k => $nombreFila)
+                    <tr>
+                        <td>{{ $nombreFila }}</td>
+                        <td class="num">{{ $tn($mezMes[$k.'_national']) }}</td>
+                        <td class="num">{{ $tn($mezMes[$k.'_export']) }}</td>
+                        <td class="num {{ $semaforo($mezMes[$k.'_share']) }}">{{ $pct($mezMes[$k.'_share']) }}</td>
+                        <td class="num">{{ $tn($mezAno[$k.'_national']) }}</td>
+                        <td class="num">{{ $tn($mezAno[$k.'_export']) }}</td>
+                        <td class="num {{ $semaforo($mezAno[$k.'_share']) }}">{{ $pct($mezAno[$k.'_share']) }}</td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+        <p class="note">La parte nacional debe ser más de la mitad: rojo con 50 % o menos, ámbar entre 50 % y 70 %, verde desde 70 %.</p>
         @if ($pko['rows'] !== [])
             <p class="note">Palmiste (PKO): {{ $tn($pko['month_dispatched']) }} tn en {{ $monthName }} y {{ $tn($pko['ytd_dispatched']) }} tn en el año, de {{ $tn($pko['ytd_projected']) }} tn proyectadas.</p>
         @endif

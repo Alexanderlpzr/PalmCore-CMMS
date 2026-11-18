@@ -334,3 +334,32 @@ function libroDelPlan(): string
 
     return $ruta;
 }
+
+it('splits the oil into national and export with the director traffic light', function (): void {
+    $plan = planDe2026();
+    // Enero: Manuelita (nacional) 450,53 y Acepalma (exportación) 300; «por concretar» no entra.
+    $this->planes->setSale($plan, $this->acepalma->id, CommercialProduct::Cpo, 1, 300);
+    SalesDispatch::factory()->unloaded(60)->create(['customer_id' => $this->manuelita->id, 'loaded_on' => '2026-01-10', 'market' => 'nacional']);
+    SalesDispatch::factory()->unloaded(40)->create(['customer_id' => $this->acepalma->id, 'loaded_on' => '2026-01-12', 'market' => 'exportacion']);
+    SalesDispatch::factory()->unloaded(50)->create(['customer_id' => $this->acepalma->id, 'loaded_on' => '2026-02-12', 'market' => 'exportacion']);
+    SalesDispatch::factory()->unloaded(50)->create(['customer_id' => $this->manuelita->id, 'loaded_on' => '2026-02-15', 'market' => 'nacional']);
+
+    $mezcla = app(CommercialPlanReport::class)->marketMix($plan, $this->tenant->id, 2026);
+
+    expect(round($mezcla['months'][1]['plan_share'], 4))->toBe(round(450.53 / 750.53, 4))
+        ->and($mezcla['months'][1]['real_share'])->toBe(0.6)
+        // Mitad y mitad: rojo.
+        ->and($mezcla['months'][2]['real_share'])->toBe(0.5)
+        ->and($mezcla['year']['real_national'])->toBe(110.0)
+        ->and(Market::nationalShareTone(0.5))->toBe('danger')
+        ->and(Market::nationalShareTone(0.51))->toBe('warning')
+        ->and(Market::nationalShareTone(0.7))->toBe('success')
+        ->and(Market::nationalShareTone(null))->toBeNull();
+
+    enElPanelComercial($this->directora);
+
+    Livewire::test(CuadroCruce::class, ['year' => 2026])
+        ->assertSee('Ventas nacionales')
+        ->assertSee('Aceite nacional y de exportación')
+        ->assertSee('55,0 %');
+});
