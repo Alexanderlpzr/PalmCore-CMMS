@@ -235,6 +235,10 @@ class PermissionSeeder extends Seeder
         'sst-findings.view',
         'sst-findings.manage',
         'sst-findings.execute',
+
+        // Comercial: clientes, ofertas mercantiles y despachos de aceite y palmiste.
+        'commercial.view',
+        'commercial.manage',
     ];
 
     public function run(): void

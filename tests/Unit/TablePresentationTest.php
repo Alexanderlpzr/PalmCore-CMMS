@@ -98,7 +98,9 @@ it('encuentra las tablas del proyecto', function (): void {
     // 94 con la pestaña de tareas de la OT: el checklist del preventivo.
     // 95 con los hallazgos de SST.
     // 96 con el centro de notificaciones.
-    expect(tableFiles())->toHaveCount(96);
+    // 101 con el módulo comercial: clientes, transportadoras, ofertas, sus despachos y
+    // los despachos.
+    expect(tableFiles())->toHaveCount(101);
 });
 
 it('alinea a la derecha toda columna de dinero o cantidad', function (): void {

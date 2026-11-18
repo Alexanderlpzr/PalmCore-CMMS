@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Domain\Home\Services\HomePageService;
+use App\Filament\Resources\Commercial\SalesDispatch\SalesDispatchResource;
 use App\Models\Equipment;
 use App\Models\Role;
 use BackedEnum;
@@ -104,6 +105,13 @@ class Inicio extends Page
         // Las cuentas de SST y de proceso: a su tablero de hallazgos.
         if ($user !== null && ! self::isForMaintenance() && TableroSst::canAccess()) {
             $this->redirect(TableroSst::getUrl());
+
+            return;
+        }
+
+        // La Directora Administrativa: a sus despachos.
+        if ($user !== null && ! self::isForMaintenance() && SalesDispatchResource::canViewAny()) {
+            $this->redirect(SalesDispatchResource::getUrl());
 
             return;
         }
