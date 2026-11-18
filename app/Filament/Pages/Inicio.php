@@ -3,7 +3,6 @@
 namespace App\Filament\Pages;
 
 use App\Domain\Home\Services\HomePageService;
-use App\Filament\Resources\Commercial\SalesDispatch\SalesDispatchResource;
 use App\Models\Equipment;
 use App\Models\Role;
 use BackedEnum;
@@ -109,9 +108,9 @@ class Inicio extends Page
             return;
         }
 
-        // La Directora Administrativa: a sus despachos.
-        if ($user !== null && ! self::isForMaintenance() && SalesDispatchResource::canViewAny()) {
-            $this->redirect(SalesDispatchResource::getUrl());
+        // La Directora Administrativa: a su cuadro cruce, el resumen de su Excel.
+        if ($user !== null && ! self::isForMaintenance() && CuadroCruce::canAccess()) {
+            $this->redirect(CuadroCruce::getUrl());
 
             return;
         }

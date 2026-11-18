@@ -100,7 +100,8 @@ it('encuentra las tablas del proyecto', function (): void {
     // 96 con el centro de notificaciones.
     // 101 con el módulo comercial: clientes, transportadoras, ofertas, sus despachos y
     // los despachos.
-    expect(tableFiles())->toHaveCount(101);
+    // 102 con los proveedores de fruta del plan anual.
+    expect(tableFiles())->toHaveCount(102);
 });
 
 it('alinea a la derecha toda columna de dinero o cantidad', function (): void {

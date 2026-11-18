@@ -4,6 +4,7 @@ use App\Domain\Commercial\Enums\CommercialProduct;
 use App\Domain\Commercial\Enums\DispatchStatus;
 use App\Domain\Commercial\Enums\Market;
 use App\Domain\Commercial\Services\DispatchWorkbookImporter;
+use App\Filament\Pages\CuadroCruce;
 use App\Filament\Pages\Inicio;
 use App\Filament\Resources\Commercial\Customer\CustomerResource;
 use App\Filament\Resources\Commercial\SalesDispatch\Pages\CreateSalesDispatch;
@@ -192,14 +193,14 @@ it('keeps sales to the administrative director: not the general admin nor mainte
         ->and(CustomerResource::shouldRegisterNavigation())->toBeFalse();
 });
 
-it('lands the director on her loads with the cycle in four numbers', function (): void {
+it('lands the director on her cross table and shows the loads cycle in four numbers', function (): void {
     SalesDispatch::factory()->create(['customer_id' => $this->manuelita->id]);
     SalesDispatch::factory()->invoiced(150_000_000)->create(['customer_id' => $this->manuelita->id]);
     SalesDispatch::factory()->paid()->create(['customer_id' => $this->acepalma->id]);
 
     enElPanel($this->directora);
 
-    Livewire::test(Inicio::class)->assertRedirect(SalesDispatchResource::getUrl());
+    Livewire::test(Inicio::class)->assertRedirect(CuadroCruce::getUrl());
 
     Livewire::test(ListSalesDispatches::class)
         ->assertOk()
