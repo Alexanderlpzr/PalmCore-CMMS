@@ -241,6 +241,9 @@ class PermissionSeeder extends Seeder
         'commercial.manage',
         // Medir los tanques de aceite cada día: proceso y la Directora Administrativa.
         'oil-tanks.record',
+
+        // El tablero de Dirección, que cruza las áreas: solo consulta.
+        'management.view',
     ];
 
     public function run(): void

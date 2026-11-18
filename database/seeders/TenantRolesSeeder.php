@@ -171,6 +171,13 @@ class TenantRolesSeeder extends Seeder
         'direccion-administrativa' => [
             'commercial.view', 'commercial.manage', 'oil-tanks.record',
         ],
+
+        // El gerente o la junta: solo el tablero de Dirección, con los totales de todas las
+        // áreas y sin sueldos individuales ni permiso para cambiar nada. Pedido 2026-11-18.
+        // No es el «gerencia» retirado en agosto.
+        'gerencia-general' => [
+            'management.view',
+        ],
     ];
 
     public function run(Tenant $tenant): void

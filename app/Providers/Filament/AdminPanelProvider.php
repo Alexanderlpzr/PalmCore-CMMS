@@ -122,6 +122,7 @@ class AdminPanelProvider extends PanelProvider
             // ningún recurso usaba ya. Hay un test que vigila que no vuelva a pasar.
             ->navigationGroups([
                 NavigationGroup::make('Portal de Inicio'),
+                NavigationGroup::make('Dirección'),
                 NavigationGroup::make('Mantenimiento'),
                 NavigationGroup::make('Centro de Alertas'),
                 NavigationGroup::make('Indicadores'),

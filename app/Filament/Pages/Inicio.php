@@ -108,6 +108,13 @@ class Inicio extends Page
             return;
         }
 
+        // La gerencia: a su tablero de Dirección.
+        if ($user !== null && ! self::isForMaintenance() && ! $user->is_super_admin && TableroDireccion::canAccess()) {
+            $this->redirect(TableroDireccion::getUrl());
+
+            return;
+        }
+
         // La Directora Administrativa: a su cuadro cruce, el resumen de su Excel.
         if ($user !== null && ! self::isForMaintenance() && CuadroCruce::canAccess()) {
             $this->redirect(CuadroCruce::getUrl());
