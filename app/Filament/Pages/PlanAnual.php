@@ -6,7 +6,9 @@ use App\Domain\Commercial\Enums\CommercialProduct;
 use App\Domain\Commercial\Enums\PlanVersion;
 use App\Domain\Commercial\Services\AnnualPlanService;
 use App\Domain\Commercial\Services\CommercialPlanReport;
+use App\Domain\Commercial\Services\OilTankService;
 use App\Domain\Commercial\Services\PlanWorkbookImporter;
+use App\Domain\Commercial\Services\ProductionWorkbookImporter;
 use App\Models\AnnualPlan;
 use App\Models\Customer;
 use App\Models\FruitSupplier;
@@ -98,7 +100,7 @@ class PlanAnual extends Page
                 ->color('gray')
                 ->visible(fn (): bool => $this->canManage())
                 ->modalHeading('Importar el plan del Excel')
-                ->modalDescription('Del libro «Proyección vs Despacho»: la proyección de fruta por proveedor, la capacidad y la TEA de la planta, la proyección de ventas por cliente y la fruta que entregó cada proveedor. Entra como plan original aprobado y su reproyección. Si el año ya tiene plan, no se toca.')
+                ->modalDescription('Del libro «Proyección vs Despacho»: la proyección de fruta por proveedor, la capacidad y la TEA de la planta, la proyección de ventas por cliente y la fruta que entregó cada proveedor; y de la planta, las mediciones de los tanques, la maquila y los cortes de inventario de palmiste. El plan entra como original aprobado y su reproyección; si el año ya tiene plan, no se toca. Nada de lo ya importado se repite.')
                 ->schema([
                     FileUpload::make('file')
                         ->label('Archivo de Excel (.xlsx)')
@@ -113,6 +115,7 @@ class PlanAnual extends Page
 
                     try {
                         $summary = app(PlanWorkbookImporter::class)->import($path, $this->tenantId(), (int) $this->year, $this->user());
+                        $production = app(ProductionWorkbookImporter::class)->import($path, $this->tenantId(), $this->user());
                     } catch (\Throwable $e) {
                         report($e);
                         Notification::make()->title('No se pudo leer el Excel')->body($e->getMessage())->danger()->send();
@@ -126,7 +129,7 @@ class PlanAnual extends Page
 
                     Notification::make()
                         ->title($summary['plan'] ? "Plan {$this->year} importado" : "El plan {$this->year} ya existía: no se tocó")
-                        ->body("{$summary['suppliers']} proveedores nuevos, {$summary['receptions']} meses de fruta recibida.".($summary['warnings'] !== [] ? ' Revise: '.implode(' ', $summary['warnings']) : ''))
+                        ->body("{$summary['suppliers']} proveedores nuevos, {$summary['receptions']} meses de fruta recibida, {$production['tank_days']} días de tanques, {$production['toll_loads']} cargues a maquila y {$production['inventory_counts']} cortes de inventario.".($summary['warnings'] !== [] ? ' Revise: '.implode(' ', $summary['warnings']) : ''))
                         ->success()
                         ->persistent()
                         ->send();
@@ -251,6 +254,8 @@ class PlanAnual extends Page
             'fruit' => $report->fruitPlan($plan),
             'cpo' => $report->salesPlan($plan, CommercialProduct::Cpo),
             'pko' => $report->salesPlan($plan, CommercialProduct::Pko),
+            // El aceite que de verdad salió, según la medición de los tanques.
+            'produced' => app(OilTankService::class)->monthlyProduction($this->tenantId(), (int) $this->year),
         ];
     }
 

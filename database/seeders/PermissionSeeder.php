@@ -239,6 +239,8 @@ class PermissionSeeder extends Seeder
         // Comercial: clientes, ofertas mercantiles y despachos de aceite y palmiste.
         'commercial.view',
         'commercial.manage',
+        // Medir los tanques de aceite cada día: proceso y la Directora Administrativa.
+        'oil-tanks.record',
     ];
 
     public function run(): void

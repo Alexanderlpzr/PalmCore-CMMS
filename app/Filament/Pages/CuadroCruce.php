@@ -6,6 +6,7 @@ use App\Domain\Commercial\Enums\CommercialProduct;
 use App\Domain\Commercial\Enums\PlanVersion;
 use App\Domain\Commercial\Services\AnnualPlanService;
 use App\Domain\Commercial\Services\CommercialPlanReport;
+use App\Domain\Commercial\Services\OilTankService;
 use App\Models\AnnualPlan;
 use App\Models\Customer;
 use App\Models\FruitSupplier;
@@ -132,6 +133,7 @@ class CuadroCruce extends Page
             'fruit_plan_months' => $report->monthTotals($fruitPlan),
             'fruit_real_months' => $report->monthTotals($fruitReal),
             'last_loaded_on' => SalesDispatch::query()->whereYear('loaded_on', $year)->max('loaded_on'),
+            'tanks' => app(OilTankService::class)->latest($tenantId),
         ];
     }
 

@@ -101,7 +101,8 @@ it('encuentra las tablas del proyecto', function (): void {
     // 101 con el módulo comercial: clientes, transportadoras, ofertas, sus despachos y
     // los despachos.
     // 102 con los proveedores de fruta del plan anual.
-    expect(tableFiles())->toHaveCount(102);
+    // 105 con los tanques, la maquila y el inventario de palmiste.
+    expect(tableFiles())->toHaveCount(105);
 });
 
 it('alinea a la derecha toda columna de dinero o cantidad', function (): void {

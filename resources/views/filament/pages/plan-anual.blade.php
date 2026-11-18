@@ -88,6 +88,7 @@
                         ['key' => 'fruta', 'label' => 'Fruta proyectada', 'values' => $columna('fruit')],
                         ['key' => 'real', 'label' => 'Fruta recibida', 'hint' => 'Según «Fruta recibida»', 'values' => $columna('real_fruit')],
                         ['key' => 'cpo', 'label' => 'Aceite esperado (CPO)', 'values' => $columna('cpo'), 'strong' => true],
+                        ['key' => 'producido', 'label' => 'Aceite producido', 'hint' => 'Según la medición de los tanques', 'values' => $datos['produced']],
                         ['key' => 'ventas', 'label' => 'Ventas de aceite planeadas', 'values' => $columna('sales_cpo')],
                         ['key' => 'dif', 'label' => 'Diferencia', 'values' => $columna('balance'), 'tone' => fn (float $v): ?string => $v < 0 ? 'danger' : null],
                         ['key' => 'saldo', 'label' => 'Saldo acumulado', 'values' => $columna('cumulative'), 'total' => false, 'strong' => true, 'tone' => fn (float $v): ?string => $v < 0 ? 'danger' : null],

@@ -54,7 +54,16 @@
         </span>
     </div>
 
-    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        @php $tanques = $datos['tanks']; @endphp
+        <x-fronda.kpi label="Aceite disponible hoy"
+            :value="! $tanques ? 'Sin medir' : ($tanques['stale'] ? 'Hay que medir' : $tn($tanques['available']).' tn')"
+            icon="heroicon-o-beaker"
+            :tone="$tanques && ($tanques['stale'] || $tanques['available'] < 0) ? 'warning' : 'neutral'"
+            :detail="! $tanques ? 'Mida los tanques en «Tanques de aceite»' : ($tanques['stale']
+                ? 'La última medición es del '.$tanques['date']->format('d/m/Y').', hace '.$tanques['age_days'].' días'
+                : 'Tanques al '.$tanques['date']->format('d/m/Y').($tanques['acidity'] !== null ? ' · acidez '.number_format($tanques['acidity'], 2, ',', '.').' %' : ''))"
+            :href="\App\Filament\Pages\TanquesAceite::getUrl()" />
         <x-fronda.kpi label="Aceite proyectado" :value="$tn($proyectadoCpo).' tn'" icon="heroicon-o-calendar-days"
             :detail="'Despachado '.$tn($despachadoCpo).' tn · '.$pct($proyectadoCpo > 0 ? $despachadoCpo / $proyectadoCpo : null)"
             :percent="$proyectadoCpo > 0 ? min(100, $despachadoCpo / $proyectadoCpo * 100) : null" color="#1A7E42" />

@@ -162,12 +162,14 @@ class TenantRolesSeeder extends Seeder
         // Proceso (producción): recibe los hallazgos y corrige los de su área. Cuenta proc@.
         'proceso' => [
             'sst-findings.view', 'sst-findings.execute',
+            // Y mide los tanques de aceite cada día (2026-11-18); nada más de lo comercial.
+            'oil-tanks.record',
         ],
 
         // La Directora Administrativa: clientes, ofertas mercantiles, despachos, facturas y
         // cartera. Solo ella: el administrador general no ve las ventas. Pedido 2026-11-17.
         'direccion-administrativa' => [
-            'commercial.view', 'commercial.manage',
+            'commercial.view', 'commercial.manage', 'oil-tanks.record',
         ],
     ];
 
