@@ -6,15 +6,23 @@ use App\Domain\Commercial\Enums\CommercialProduct;
 use App\Domain\Commercial\Enums\PlanVersion;
 use App\Domain\Commercial\Services\AnnualPlanService;
 use App\Domain\Commercial\Services\CommercialPlanReport;
+use App\Domain\Commercial\Services\MonthlyManagementReport;
 use App\Domain\Commercial\Services\OilTankService;
+use App\Domain\Reports\Excel\ManagementReportExcel;
+use App\Domain\Reports\Services\ManagementReportPdfService;
 use App\Models\AnnualPlan;
 use App\Models\Customer;
 use App\Models\FruitSupplier;
 use App\Models\SalesDispatch;
+use App\Models\Tenant;
 use BackedEnum;
+use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
+use Filament\Forms\Components\Select;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
 use Livewire\Attributes\Url;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use UnitEnum;
 
 /**
@@ -61,6 +69,54 @@ class CuadroCruce extends Page
         if (! in_array($this->against, [PlanVersion::Original->value, PlanVersion::Reproyeccion->value], true)) {
             $this->against = PlanVersion::Reproyeccion->value;
         }
+    }
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            ActionGroup::make([
+                $this->reportAction('informePdf', 'En PDF', Heroicon::OutlinedDocumentText, function (Tenant $tenant, int $month): StreamedResponse {
+                    $service = app(ManagementReportPdfService::class);
+                    $bytes = $service->generate($tenant, (int) $this->year, $month);
+
+                    return response()->streamDownload(fn () => print ($bytes), $service->filename((int) $this->year, $month), ['Content-Type' => 'application/pdf']);
+                }),
+                $this->reportAction('informeExcel', 'En Excel', Heroicon::OutlinedTableCells, fn (Tenant $tenant, int $month): StreamedResponse => app(ManagementReportExcel::class)->download($tenant, (int) $this->year, $month)),
+            ])
+                ->label('Informe de gerencia')
+                ->icon(Heroicon::OutlinedPresentationChartLine)
+                ->button()
+                ->color('primary'),
+        ];
+    }
+
+    /**
+     * El informe mensual de gerencia de un mes del año que se mira: el mes y lo acumulado
+     * del año hasta él. Propone el último mes con despachos.
+     *
+     * @param  callable(Tenant, int): StreamedResponse  $download
+     */
+    private function reportAction(string $name, string $label, Heroicon $icon, callable $download): Action
+    {
+        return Action::make($name)
+            ->label($label)
+            ->icon($icon)
+            ->modalHeading(fn (): string => "Informe de gerencia {$this->year}")
+            ->modalDescription('El mes elegido y lo acumulado del año hasta ese mes: aceite y palmiste por cliente, facturación, cartera, fruta por proveedor, planta y ofertas abiertas.')
+            ->modalSubmitActionLabel('Descargar')
+            ->schema([
+                Select::make('month')
+                    ->label('Mes')
+                    ->options(MonthlyManagementReport::MONTHS)
+                    ->default(function (): int {
+                        $latest = app(MonthlyManagementReport::class)->latestMonth($this->tenantId());
+
+                        return $latest->year === (int) $this->year ? $latest->month : 12;
+                    })
+                    ->selectablePlaceholder(false)
+                    ->required(),
+            ])
+            ->action(fn (array $data): StreamedResponse => $download(filament()->getTenant(), (int) $data['month']));
     }
 
     public function plan(): ?AnnualPlan
