@@ -20,6 +20,7 @@ use Illuminate\Support\Str;
     'tenant_id',
     'name',
     'market',
+    'payment_terms_days',
     'tax_id',
     'aliases',
     'is_active',
@@ -61,6 +62,7 @@ class Customer extends BaseModel
             'market' => Market::class,
             'aliases' => 'array',
             'is_active' => 'boolean',
+            'payment_terms_days' => 'integer',
         ];
     }
 }

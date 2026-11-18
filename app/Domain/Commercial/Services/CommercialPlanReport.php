@@ -11,6 +11,7 @@ use App\Models\AnnualPlanSale;
 use App\Models\FruitReception;
 use App\Models\ProductionCalendarDay;
 use App\Models\SalesDispatch;
+use Carbon\CarbonImmutable;
 
 /**
  * Las cuentas del plan y del cuadro cruce, en arreglos listos para pintar.
@@ -201,6 +202,45 @@ class CommercialPlanReport
         }
 
         return $result;
+    }
+
+    /** Los tramos de antigüedad de la cartera: días de atraso hasta los que llega cada uno. */
+    public const AGING_BUCKETS = ['current' => 0, 'd30' => 30, 'd60' => 60, 'd90' => 90, 'over90' => PHP_INT_MAX];
+
+    /**
+     * La cartera por antigüedad: lo que cada cliente debe, repartido por días de atraso
+     * (al día, 1–30, 31–60, 61–90, más de 90), de todas las facturas sin pagar, sin
+     * importar el año. Ordenada de la que más debe a la que menos.
+     *
+     * @return array<string, array{current: float, d30: float, d60: float, d90: float, over90: float, total: float, overdue: float, invoices: int, oldest_days: int}>
+     */
+    public function aging(string $tenantId, ?CarbonImmutable $today = null): array
+    {
+        $today ??= CarbonImmutable::parse(SalesDispatch::today());
+        $rows = [];
+
+        SalesDispatch::withoutGlobalScopes()
+            ->where('tenant_id', $tenantId)
+            ->whereNull('deleted_at')
+            ->where('status', DispatchStatus::Facturado->value)
+            ->with(['customer' => fn ($query) => $query->withoutGlobalScopes()])
+            ->get()
+            ->each(function (SalesDispatch $dispatch) use (&$rows, $today): void {
+                $days = $dispatch->daysOverdue($today);
+                $bucket = collect(self::AGING_BUCKETS)->search(fn (int $limit): bool => $days <= $limit);
+                $amount = (float) $dispatch->invoice_amount;
+                $row = &$rows[$dispatch->customer_id];
+                $row ??= ['current' => 0.0, 'd30' => 0.0, 'd60' => 0.0, 'd90' => 0.0, 'over90' => 0.0, 'total' => 0.0, 'overdue' => 0.0, 'invoices' => 0, 'oldest_days' => 0];
+                $row[$bucket] = round($row[$bucket] + $amount, 2);
+                $row['total'] = round($row['total'] + $amount, 2);
+                $row['overdue'] = round($row['overdue'] + ($days > 0 ? $amount : 0), 2);
+                $row['invoices']++;
+                $row['oldest_days'] = max($row['oldest_days'], $days);
+            });
+
+        uasort($rows, fn (array $a, array $b): int => $b['total'] <=> $a['total']);
+
+        return $rows;
     }
 
     /** @return array<int, float> la suma de cada mes de una cuadrícula */

@@ -6,8 +6,10 @@ use App\Domain\Commercial\Enums\CommercialProduct;
 use App\Domain\Commercial\Enums\DispatchStatus;
 use App\Domain\Commercial\Enums\Market;
 use App\Domain\Shared\Models\BaseModel;
+use Carbon\CarbonImmutable;
 use Database\Factories\SalesDispatchFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -44,6 +46,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'invoiced_on',
     'invoice_amount',
     'paid_on',
+    'overdue_notified_at',
+    'uninvoiced_notified_at',
     'status',
     'notes',
     'import_key',
@@ -56,6 +60,9 @@ class SalesDispatch extends BaseModel
 
     /** Acidez por encima de esto se marca en rojo, como en la hoja de tanques. */
     public const ACIDITY_LIMIT = 5.0;
+
+    /** El plazo de pago si el cliente no tiene uno. */
+    public const DEFAULT_PAYMENT_TERMS_DAYS = 30;
 
     protected static function booted(): void
     {
@@ -171,6 +178,39 @@ class SalesDispatch extends BaseModel
         return (float) ($this->arrival_acidity ?? $this->departure_acidity ?? 0) > self::ACIDITY_LIMIT;
     }
 
+    // ── Cartera ───────────────────────────────────────────────────────────────
+
+    /** Cuándo vence la factura: su fecha más el plazo de pago del cliente. */
+    public function dueOn(): ?CarbonImmutable
+    {
+        return $this->invoiced_on === null
+            ? null
+            : CarbonImmutable::instance($this->invoiced_on)->addDays($this->customer?->payment_terms_days ?? self::DEFAULT_PAYMENT_TERMS_DAYS);
+    }
+
+    /** Días de atraso de una factura por cobrar; 0 si todavía no vence o ya se pagó. */
+    public function daysOverdue(?CarbonImmutable $today = null): int
+    {
+        $due = $this->dueOn();
+
+        if ($this->status !== DispatchStatus::Facturado || $due === null) {
+            return 0;
+        }
+
+        return max(0, (int) $due->diffInDays($today ?? CarbonImmutable::parse(self::today()), false));
+    }
+
+    /** Facturadas, sin pagar y con el plazo cumplido. */
+    public function scopeOverdue(Builder $query, ?string $today = null): Builder
+    {
+        return $query
+            ->where('sales_dispatches.status', DispatchStatus::Facturado->value)
+            ->whereRaw(
+                'sales_dispatches.invoiced_on + (select coalesce(c.payment_terms_days, ?) from customers c where c.id = sales_dispatches.customer_id) < ?::date',
+                [self::DEFAULT_PAYMENT_TERMS_DAYS, $today ?? self::today()],
+            );
+    }
+
     /** Hoy en la planta, como fecha (el servidor corre en UTC). */
     public static function today(): string
     {
@@ -195,6 +235,8 @@ class SalesDispatch extends BaseModel
             'unloaded_on' => 'date',
             'invoiced_on' => 'date',
             'paid_on' => 'date',
+            'overdue_notified_at' => 'datetime',
+            'uninvoiced_notified_at' => 'datetime',
             'departure_weight_tons' => 'decimal:2',
             'departure_acidity' => 'decimal:2',
             'arrival_weight_tons' => 'decimal:2',

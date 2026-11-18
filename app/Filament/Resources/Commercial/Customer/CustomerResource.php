@@ -68,6 +68,16 @@ class CustomerResource extends Resource
             TextInput::make('tax_id')
                 ->label('NIT')
                 ->maxLength(30),
+            TextInput::make('payment_terms_days')
+                ->label('Plazo de pago')
+                ->numeric()
+                ->integer()
+                ->minValue(0)
+                ->maxValue(365)
+                ->default(30)
+                ->suffix('días')
+                ->helperText('La factura vence en su fecha más este plazo.')
+                ->required(),
             Toggle::make('is_active')
                 ->label('Activo')
                 ->default(true)
@@ -94,6 +104,7 @@ class CustomerResource extends Resource
                     ->formatStateUsing(fn (Market $state): string => $state->label())
                     ->sortable(),
                 TextColumn::make('tax_id')->label('NIT')->placeholder('—')->toggleable(),
+                TextColumn::make('payment_terms_days')->label('Plazo (días)')->numeric()->alignEnd()->sortable(),
                 TextColumn::make('offers_count')->label('Ofertas')->counts('offers')->alignEnd()->sortable(),
                 TextColumn::make('dispatches_count')->label('Despachos')->counts('dispatches')->alignEnd()->sortable(),
                 IconColumn::make('is_active')->label('Activo')->boolean(),

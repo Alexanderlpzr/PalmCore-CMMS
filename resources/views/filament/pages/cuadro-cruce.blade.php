@@ -72,8 +72,9 @@
         <x-fronda.kpi label="Fruta recibida" :value="$tn($frutaReal).' tn'" icon="heroicon-o-scale"
             :detail="'De '.$tn($frutaPlan).' tn proyectadas · '.$pct($frutaPlan > 0 ? $frutaReal / $frutaPlan : null)"
             :percent="$frutaPlan > 0 ? min(100, $frutaReal / $frutaPlan * 100) : null" color="#00384C" />
-        <x-fronda.kpi label="Por cobrar" :value="$millones($cartera)" icon="heroicon-o-banknotes" :tone="$cartera > 0 ? 'danger' : 'ok'"
-            :detail="'Facturado '.$millones($facturado).' · pagado '.$millones($pagado)" :href="$despachosUrl.'?tab=facturado'" />
+        @php $vencido = round(array_sum(array_column($datos['aging'], 'overdue')), 2); @endphp
+        <x-fronda.kpi label="Por cobrar" :value="$millones($cartera)" icon="heroicon-o-banknotes" :tone="$vencido > 0 ? 'danger' : ($cartera > 0 ? 'warning' : 'ok')"
+            :detail="($vencido > 0 ? 'Vencido '.$millones($vencido).' · ' : 'Nada vencido · ').'facturado '.$millones($facturado)" :href="$despachosUrl.'?tab=facturado'" />
     </div>
 
     {{-- Avance por cliente: el «Resumen anual por cliente» del Cuadro Cruce. --}}
@@ -146,6 +147,60 @@
             </div>
         </x-filament::section>
     @endforeach
+
+    {{-- Cartera por antigüedad: todas las facturas sin pagar, de cualquier año. --}}
+    @php
+        $antiguedad = $datos['aging'];
+        $tramos = ['current' => 'Al día', 'd30' => '1–30 días', 'd60' => '31–60 días', 'd90' => '61–90 días', 'over90' => 'Más de 90'];
+        $totalTramo = fn (string $t): float => round(array_sum(array_column($antiguedad, $t)), 2);
+    @endphp
+    <x-filament::section>
+        <x-slot name="heading">Cartera por antigüedad</x-slot>
+        <x-slot name="description">Lo que debe cada cliente, de todas las facturas sin pagar, por días de atraso. Una factura vence en su fecha más el plazo de pago del cliente (se cambia en «Clientes»).</x-slot>
+        @if ($antiguedad === [])
+            <p class="text-sm text-gray-500 dark:text-gray-400">No hay facturas por cobrar.</p>
+        @else
+            <div class="overflow-x-auto -mx-2 px-2">
+                <table class="w-full text-sm border-separate border-spacing-0">
+                    <thead>
+                        <tr class="text-gray-600 dark:text-gray-300">
+                            <th class="text-left font-semibold px-2 py-2 border-b border-gray-200 dark:border-white/10">Cliente</th>
+                            @foreach ($tramos as $nombreTramo)
+                                <th class="{{ $celdaTh }}">{{ $nombreTramo }}</th>
+                            @endforeach
+                            <th class="{{ $celdaTh }} border-l">Total</th>
+                            <th class="{{ $celdaTh }}">Facturas</th>
+                            <th class="{{ $celdaTh }}">La más vieja</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($antiguedad as $id => $fila)
+                            <tr wire:key="cartera-{{ $id }}">
+                                <td class="px-2 py-1.5 border-b border-gray-100 dark:border-white/5 whitespace-nowrap font-medium">
+                                    <a href="{{ $despachosUrl.'?tab=facturado&filters[customer_id][value]='.$id }}" class="hover:underline">{{ $nombre($id) }}</a>
+                                </td>
+                                @foreach (array_keys($tramos) as $t)
+                                    <td @class([$celda, 'text-danger-600 dark:text-danger-400 font-semibold' => $t !== 'current' && $fila[$t] > 0])>{{ $fila[$t] > 0 ? $pesos($fila[$t]) : '' }}</td>
+                                @endforeach
+                                <td class="{{ $celda }} border-l font-semibold">{{ $pesos($fila['total']) }}</td>
+                                <td class="{{ $celda }}">{{ $fila['invoices'] }}</td>
+                                <td @class([$celda, 'text-danger-600 dark:text-danger-400' => $fila['oldest_days'] > 0])>{{ $fila['oldest_days'] > 0 ? $fila['oldest_days'].' días vencida' : 'al día' }}</td>
+                            </tr>
+                        @endforeach
+                        <tr class="font-semibold bg-gray-50 dark:bg-white/5">
+                            <td class="px-2 py-2">Total</td>
+                            @foreach (array_keys($tramos) as $t)
+                                <td @class([$celda, 'text-danger-600 dark:text-danger-400' => $t !== 'current' && $totalTramo($t) > 0])>{{ $pesos($totalTramo($t)) }}</td>
+                            @endforeach
+                            <td class="{{ $celda }} border-l">{{ $pesos($totalTramo('total')) }}</td>
+                            <td class="{{ $celda }}">{{ array_sum(array_column($antiguedad, 'invoices')) }}</td>
+                            <td></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        @endif
+    </x-filament::section>
 
     {{-- Mes a mes: despachado sobre proyectado, cliente por cliente. --}}
     <x-filament::section>

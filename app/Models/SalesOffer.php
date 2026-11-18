@@ -24,6 +24,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'contracted_tons',
     'signed_on',
     'notes',
+    'nearly_closed_notified_at',
     'created_by',
 ])]
 class SalesOffer extends BaseModel
@@ -116,6 +117,7 @@ class SalesOffer extends BaseModel
             'product' => CommercialProduct::class,
             'contracted_tons' => 'decimal:2',
             'signed_on' => 'date',
+            'nearly_closed_notified_at' => 'datetime',
         ];
     }
 }

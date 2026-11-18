@@ -134,6 +134,7 @@ class CuadroCruce extends Page
             'fruit_real_months' => $report->monthTotals($fruitReal),
             'last_loaded_on' => SalesDispatch::query()->whereYear('loaded_on', $year)->max('loaded_on'),
             'tanks' => app(OilTankService::class)->latest($tenantId),
+            'aging' => $report->aging($tenantId),
         ];
     }
 

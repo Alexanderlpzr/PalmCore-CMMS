@@ -1,5 +1,6 @@
 <?php
 
+use App\Console\Commands\NotifyCommercialCommand;
 use App\Console\Commands\NotifyOverdueSstFindingsCommand;
 use App\Console\Commands\SendOverdueMaintenanceNotificationsCommand;
 use App\Domain\Platform\Services\PlatformSettingsService;
@@ -57,6 +58,12 @@ Schedule::command(SendOverdueMaintenanceNotificationsCommand::class)
 // Los hallazgos de SST que se vencieron sin corregirse: un aviso por hallazgo.
 Schedule::command(NotifyOverdueSstFindingsCommand::class)
     ->dailyAt('07:00')
+    ->onOneServer();
+
+// Lo comercial: cartera vencida, cargues sin facturar, ofertas por cumplirse y tanques
+// sin medir o con acidez alta. Un aviso por tema, solo con lo nuevo.
+Schedule::command(NotifyCommercialCommand::class)
+    ->dailyAt('07:15')
     ->onOneServer();
 
 // Dispatch one EvaluateAutomationRulesJob per active tenant every hour.

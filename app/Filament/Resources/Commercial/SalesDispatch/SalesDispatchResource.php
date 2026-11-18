@@ -33,6 +33,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\FiltersLayout;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -282,6 +283,13 @@ class SalesDispatchResource extends Resource
                     ->placeholder('—')
                     ->alignEnd()
                     ->toggleable(isToggledHiddenByDefault: true),
+                // Solo las por cobrar: cuándo vence y, si ya venció, hace cuánto.
+                TextColumn::make('due_on')->label('Vence')
+                    ->state(fn (SalesDispatch $record): ?string => $record->status === DispatchStatus::Facturado ? $record->dueOn()?->format('d/m/Y') : null)
+                    ->description(fn (SalesDispatch $record): ?string => ($days = $record->daysOverdue()) > 0 ? "hace {$days} días" : null)
+                    ->color(fn (SalesDispatch $record): ?string => $record->daysOverdue() > 0 ? 'danger' : null)
+                    ->weight(fn (SalesDispatch $record): ?string => $record->daysOverdue() > 0 ? 'bold' : null)
+                    ->placeholder('—'),
                 TextColumn::make('paid_on')->label('Pago')->date('d/m/Y')->placeholder('—')->sortable()->toggleable(),
                 TextColumn::make('status')->label('Estado')->badge()
                     ->formatStateUsing(fn (DispatchStatus $state): string => $state->label())
@@ -297,6 +305,7 @@ class SalesDispatchResource extends Resource
                 SelectFilter::make('product')->label('Producto')->options(CommercialProduct::options()),
                 SelectFilter::make('market')->label('Destino')->options(Market::options()),
                 SelectFilter::make('carrier_id')->label('Transportadora')->relationship('carrier', 'name')->preload(),
+                Filter::make('overdue')->label('Solo facturas vencidas')->query(fn (Builder $query): Builder => $query->overdue()),
             ])
             ->recordActions([
                 ActionGroup::make([

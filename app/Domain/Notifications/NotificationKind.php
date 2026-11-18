@@ -9,6 +9,8 @@ namespace App\Domain\Notifications;
 enum NotificationKind: string
 {
     case Sst = 'sst';
+    case Commercial = 'comercial';
+    case Production = 'produccion';
     case WorkOrder = 'work_order';
     case IssueReport = 'issue_report';
     case Alert = 'alert';
@@ -23,6 +25,8 @@ enum NotificationKind: string
     {
         return match ($this) {
             self::Sst => 'Hallazgos SST',
+            self::Commercial => 'Comercial',
+            self::Production => 'Producción',
             self::WorkOrder => 'Órdenes de trabajo',
             self::IssueReport => 'Reportes de novedad',
             self::Alert => 'Alertas',
@@ -39,6 +43,8 @@ enum NotificationKind: string
     {
         return match ($this) {
             self::Sst => 'heroicon-o-shield-exclamation',
+            self::Commercial => 'heroicon-o-banknotes',
+            self::Production => 'heroicon-o-beaker',
             self::WorkOrder => 'heroicon-o-wrench-screwdriver',
             self::IssueReport => 'heroicon-o-megaphone',
             self::Alert => 'heroicon-o-bell-alert',

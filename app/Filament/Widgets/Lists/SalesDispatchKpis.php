@@ -39,6 +39,7 @@ class SalesDispatchKpis extends ListKpis
         $kernel = $thisYear->get(CommercialProduct::Pko->value);
 
         $receivableAmount = (float) ($receivable->invoiced ?? 0);
+        $overdueAmount = (float) SalesDispatch::query()->overdue()->sum('invoice_amount');
 
         return [
             [
@@ -60,10 +61,13 @@ class SalesDispatchKpis extends ListKpis
             [
                 'label' => 'Por cobrar',
                 'value' => '$'.number_format($receivableAmount / 1_000_000, 0, ',', '.').' M',
-                'detail' => number_format((int) ($receivable->loads ?? 0), 0, ',', '.').' facturas · $'.number_format($receivableAmount, 0, ',', '.'),
+                'detail' => number_format((int) ($receivable->loads ?? 0), 0, ',', '.').' facturas'
+                    .($overdueAmount > 0 ? ' · vencido $'.number_format($overdueAmount / 1_000_000, 0, ',', '.').' M' : ' · nada vencido'),
                 'icon' => 'heroicon-o-banknotes',
-                'tone' => $receivableAmount > 0 ? 'danger' : 'ok',
-                'link' => ['tab' => DispatchStatus::Facturado->value],
+                'tone' => $overdueAmount > 0 ? 'danger' : ($receivableAmount > 0 ? 'warning' : 'ok'),
+                'percent' => $receivableAmount > 0 ? $overdueAmount * 100 / $receivableAmount : null,
+                'color' => '#dc2626',
+                'link' => ['tab' => DispatchStatus::Facturado->value, 'filters' => ['overdue' => ['isActive' => true]]],
             ],
             [
                 'label' => 'Aceite despachado en '.$year->year,
