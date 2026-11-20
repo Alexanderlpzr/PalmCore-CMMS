@@ -21,6 +21,9 @@ class CreateSstFinding extends CreateRecord
         /** @var User $user */
         $user = auth()->user();
 
+        // El origen nunca sale del formulario: lo decide la cuenta que reporta.
+        unset($data['origin']);
+
         try {
             return app(SafetyFindingService::class)->create((string) filament()->getTenant()->getKey(), $data, $user);
         } catch (\DomainException $e) {

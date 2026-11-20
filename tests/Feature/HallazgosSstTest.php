@@ -16,6 +16,7 @@ use App\Domain\Safety\Services\SafetyFindingsWorkbookImporter;
 use App\Filament\Pages\Inicio;
 use App\Filament\Pages\TableroSst;
 use App\Filament\Resources\Safety\Pages\CreateSstFinding;
+use App\Filament\Resources\Safety\Pages\EditSstFinding;
 use App\Filament\Resources\Safety\Pages\ListSstFindings;
 use App\Filament\Resources\Safety\Pages\ViewSstFinding;
 use App\Infrastructure\Tenancy\CurrentTenant;
@@ -436,7 +437,30 @@ it('records whether each finding comes from SST or the environmental account, an
         ->call('create')
         ->assertHasNoFormErrors();
 
-    expect(SstFinding::query()->where('description', 'Residuos sin clasificar')->sole()->origin)->toBe(FindingOrigin::Ambiental);
+    $residuos = SstFinding::query()->where('description', 'Residuos sin clasificar')->sole();
+    expect($residuos->origin)->toBe(FindingOrigin::Ambiental);
+
+    // No se elige ni se cambia: aunque llegue otro valor, manda la cuenta que reporta.
+    Livewire::test(CreateSstFinding::class)
+        ->assertFormFieldIsDisabled('origin')
+        ->fillForm(['origin' => 'sst', 'reported_on' => '2026-11-05', 'priority' => 'baja', 'description' => 'Aceite en la canaleta', 'areas' => ['sst']])
+        ->call('create')
+        ->assertHasNoFormErrors();
+    expect(SstFinding::query()->where('description', 'Aceite en la canaleta')->sole()->origin)->toBe(FindingOrigin::Ambiental);
+
+    Livewire::test(EditSstFinding::class, ['record' => $residuos->getRouteKey()])
+        ->assertFormFieldIsDisabled('origin')
+        ->fillForm(['origin' => 'sst'])
+        ->call('save')
+        ->assertHasNoFormErrors();
+    expect($residuos->fresh()->origin)->toBe(FindingOrigin::Ambiental);
+
+    $this->actingAs($this->sst);
+    Livewire::test(CreateSstFinding::class)
+        ->fillForm(['origin' => 'ambiental', 'reported_on' => '2026-11-05', 'priority' => 'baja', 'description' => 'Extintor sin señal', 'areas' => ['sst']])
+        ->call('create')
+        ->assertHasNoFormErrors();
+    expect(SstFinding::query()->where('description', 'Extintor sin señal')->sole()->origin)->toBe(FindingOrigin::Sst);
 });
 
 it('imports the environmental chart after the SST one without clashing numbers', function (): void {

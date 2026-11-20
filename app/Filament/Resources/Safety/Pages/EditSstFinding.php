@@ -20,6 +20,9 @@ class EditSstFinding extends EditRecord
         /** @var SstFinding $finding */
         $finding = $this->getRecord();
 
+        // El origen no se corrige: lo fijó la cuenta que lo reportó.
+        unset($data['origin']);
+
         $dueOn = CarbonImmutable::parse($data['reported_on'])->addDays(FindingPriority::from($data['priority'])->days());
 
         if (! $finding->due_on->isSameDay($dueOn)) {

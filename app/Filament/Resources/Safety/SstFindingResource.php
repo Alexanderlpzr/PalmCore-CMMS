@@ -83,13 +83,18 @@ class SstFindingResource extends Resource
             Section::make('El hallazgo')
                 ->columns(['default' => 1, 'sm' => 2])
                 ->schema([
+                    // No se elige: lo fija la cuenta que reporta, y no se cambia después
+                    // (trazabilidad, pedido 2026-11-19). Se muestra, pero no viaja en el formulario.
                     Select::make('origin')
                         ->label('Origen')
                         ->options(FindingOrigin::options())
                         ->default(fn (): string => (FindingOrigin::forUser(self::user()) ?? FindingOrigin::Sst)->value)
                         ->selectablePlaceholder(false)
-                        ->helperText('SST o Gestión Ambiental: quién lo levantó, para la trazabilidad.')
-                        ->required(),
+                        ->disabled()
+                        ->dehydrated(false)
+                        ->helperText(fn (string $operation): string => $operation === 'create'
+                            ? 'Lo fija su cuenta: '.(FindingOrigin::forUser(self::user()) ?? FindingOrigin::Sst)->label().'.'
+                            : 'Lo fijó la cuenta que lo reportó; no se cambia.'),
                     DatePicker::make('reported_on')
                         ->label('Fecha de reporte')
                         ->default(fn (): string => SstFinding::today()->toDateString())
