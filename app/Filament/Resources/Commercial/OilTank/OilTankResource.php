@@ -22,7 +22,7 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Validation\Rules\Unique;
 use UnitEnum;
 
-/** Los tanques de aceite de la planta. Los administra la Directora; proceso solo los mide. */
+/** Los tanques de aceite de la planta. Los administra la Directora; producción solo los mide. */
 class OilTankResource extends Resource
 {
     protected static ?string $model = OilTank::class;

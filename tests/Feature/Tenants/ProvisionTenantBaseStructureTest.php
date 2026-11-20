@@ -69,7 +69,7 @@ it('provisions the administrator role plus the payroll and warehouse roles', fun
     // Y el de almacén, desde 2026-10: repuestos e inventario, sin equipos ni personal.
     // Y los de SST y proceso, desde 2026-11: los hallazgos de seguridad.
     // Y el de la Directora Administrativa, desde 2026-11-17: ventas y despachos.
-    expect($roles)->toEqualCanonicalizing(['administrador-general', 'mantenimiento', 'talento-humano', 'porteria', 'almacen', 'sst', 'proceso', 'ambiental', 'direccion-administrativa', 'gerencia-general']);
+    expect($roles)->toEqualCanonicalizing(['administrador-general', 'mantenimiento', 'talento-humano', 'porteria', 'almacen', 'sst', 'produccion', 'ambiental', 'direccion-administrativa', 'gerencia-general']);
 });
 
 it('self-heals a missing permission catalogue instead of throwing', function () {

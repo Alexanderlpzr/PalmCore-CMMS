@@ -53,7 +53,7 @@ beforeEach(function (): void {
     };
 
     $this->directora = $persona('direccion-administrativa');
-    $this->proceso = $persona('proceso');
+    $this->proceso = $persona('produccion');
     $this->mantenimiento = $persona('mantenimiento');
 
     $this->tanque1 = OilTank::factory()->create(['tenant_id' => $this->tenant->id, 'name' => 'Tanque 1', 'sort_order' => 1]);
@@ -117,20 +117,15 @@ it('works out the production from the tank levels and the loads, and what is lef
         ->and(fn () => medir('2026-11-30', [['level' => '10']]))->toThrow(DomainException::class);
 });
 
-it('lets the director measure the tanks and keeps process out of production', function (): void {
-    // Proceso no ve producción (2026-11-19): ni los tanques, ni ventas, ni el cuadro, ni la maquila.
+it('lets process measure the tanks without seeing sales, the plan or the toll', function (): void {
     enLaPlanta($this->proceso);
 
-    expect(TanquesAceite::canAccess())->toBeFalse()
-        ->and($this->proceso->can('record', OilTank::class))->toBeFalse()
+    expect(TanquesAceite::canAccess())->toBeTrue()
         ->and(SalesDispatchResource::canViewAny())->toBeFalse()
         ->and(CuadroCruce::canAccess())->toBeFalse()
         ->and(KernelTollLoadResource::canViewAny())->toBeFalse()
+        // El catálogo de tanques es de la Directora.
         ->and(OilTankResource::shouldRegisterNavigation())->toBeFalse();
-
-    $this->actingAs($this->proceso->fresh())->get(TanquesAceite::getUrl(tenant: $this->tenant))->assertForbidden();
-
-    enLaPlanta($this->directora);
 
     Livewire::test(TanquesAceite::class)
         ->assertOk()
@@ -141,8 +136,9 @@ it('lets the director measure the tanks and keeps process out of production', fu
         ->set("levels.{$this->tanque2->id}.level", '180')
         ->call('guardar')
         ->assertSee('412,30')
-        // La acidez por encima del límite se marca.
-        ->assertSee('5,40 %');
+        // La acidez por encima del límite se marca; proceso no ve lo que esperaba el plan.
+        ->assertSee('5,40 %')
+        ->assertDontSee('El plan esperaba');
 
     expect((float) OilTankReading::query()->where('oil_tank_id', $this->tanque1->id)->sole()->level_tons)->toBe(412.3);
 

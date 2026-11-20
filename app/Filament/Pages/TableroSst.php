@@ -15,7 +15,7 @@ use Filament\Support\Icons\Heroicon;
 use UnitEnum;
 
 /**
- * El tablero de SST: lo primero que ven las cuentas de SST y de proceso al entrar.
+ * El tablero de SST: lo primero que ven las cuentas de SST y de producción al entrar.
  * Cuántos hallazgos siguen abiertos, cuáles se vencieron, cómo va cada área responsable
  * y en qué secciones se concentran. Cada tarjeta abre la lista ya filtrada.
  */

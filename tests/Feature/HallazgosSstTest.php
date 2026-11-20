@@ -69,7 +69,7 @@ beforeEach(function (): void {
     };
 
     $this->sst = $persona('sst', 'Seguridad');
-    $this->proceso = $persona('proceso', 'Producción');
+    $this->proceso = $persona('produccion', 'Producción');
     $this->mantenimiento = $persona('mantenimiento', 'Mantenimiento');
     $this->service = app(SafetyFindingService::class);
 });
@@ -83,7 +83,7 @@ function hallazgo(array $datos = []): SstFinding
         'location_detail' => 'Sección dos',
         'priority' => FindingPriority::Alta->value,
         'action_plan' => 'Enderezar o cambiar el escalón',
-        'areas' => [ResponsibleArea::Mantenimiento->value, ResponsibleArea::Proceso->value],
+        'areas' => [ResponsibleArea::Mantenimiento->value, ResponsibleArea::Produccion->value],
         ...$datos,
     ], test()->sst);
 }
@@ -95,7 +95,7 @@ it('sets the deadline from the priority and opens one part per responsible area'
         ->and($finding->code())->toBe('H-001')
         ->and($finding->due_on->toDateString())->toBe('2026-11-13')
         ->and($finding->status)->toBe(FindingStatus::Pendiente)
-        ->and($finding->tasks->pluck('area')->all())->toBe([ResponsibleArea::Mantenimiento, ResponsibleArea::Proceso]);
+        ->and($finding->tasks->pluck('area')->all())->toBe([ResponsibleArea::Mantenimiento, ResponsibleArea::Produccion]);
 
     expect($finding->load('area', 'equipment')->locationLabel())->toBe('Esterilización · Sección dos')
         ->and(hallazgo(['location_detail' => 'Esterilizacion'])->load('area', 'equipment')->locationLabel())->toBe('Esterilización');
@@ -160,7 +160,7 @@ it('moves the maintenance part with its work order and marks the finding execute
         ->and($finding->fresh()->status)->toBe(FindingStatus::EnEjecucion);
 
     // Falta proceso. Cuando termina, el hallazgo queda ejecutado con la última fecha.
-    $this->service->execute($finding->tasks()->where('area', 'proceso')->first(), $this->proceso, CarbonImmutable::parse('2026-11-09'));
+    $this->service->execute($finding->tasks()->where('area', 'produccion')->first(), $this->proceso, CarbonImmutable::parse('2026-11-09'));
 
     $finding->refresh();
     expect($finding->status)->toBe(FindingStatus::Ejecutado)
@@ -169,7 +169,7 @@ it('moves the maintenance part with its work order and marks the finding execute
 });
 
 it('lets SST verify an executed finding and tells the areas', function (): void {
-    $finding = hallazgo(['areas' => ['proceso']]);
+    $finding = hallazgo(['areas' => ['produccion']]);
 
     expect(fn () => $this->service->verify($finding, $this->sst))->toThrow(DomainException::class);
 
@@ -184,7 +184,7 @@ it('lets SST verify an executed finding and tells the areas', function (): void 
 it('decides who can move each part', function (): void {
     $finding = hallazgo();
     $mantenimiento = $finding->tasks->firstWhere('area', ResponsibleArea::Mantenimiento);
-    $proceso = $finding->tasks->firstWhere('area', ResponsibleArea::Proceso);
+    $proceso = $finding->tasks->firstWhere('area', ResponsibleArea::Produccion);
 
     expect($this->service->canActOn($this->proceso, $proceso))->toBeTrue()
         ->and($this->service->canActOn($this->proceso, $mantenimiento))->toBeFalse()
@@ -194,7 +194,7 @@ it('decides who can move each part', function (): void {
 });
 
 it('warns once about each overdue finding', function (): void {
-    $finding = hallazgo(['reported_on' => '2026-10-20', 'areas' => ['proceso']]);
+    $finding = hallazgo(['reported_on' => '2026-10-20', 'areas' => ['produccion']]);
     $this->proceso->notifications()->delete();
 
     expect($finding->isOverdue())->toBeTrue()
@@ -205,7 +205,7 @@ it('warns once about each overdue finding', function (): void {
 
 it('sums up the findings for the SST dashboard', function (): void {
     hallazgo(['reported_on' => '2026-10-20']);
-    $hecho = hallazgo(['areas' => ['proceso'], 'priority' => 'baja']);
+    $hecho = hallazgo(['areas' => ['produccion'], 'priority' => 'baja']);
     $this->service->execute($hecho->tasks->first(), $this->proceso);
 
     $summary = app(SafetyFindingsDashboard::class)->summary($this->tenant->id);
@@ -215,7 +215,7 @@ it('sums up the findings for the SST dashboard', function (): void {
         ->and($summary['vencidos'])->toBe(1)
         ->and($summary['porVerificar'])->toBe(1)
         ->and($summary['altaAbiertos'])->toBe(1)
-        ->and(collect($summary['byArea'])->firstWhere('label', 'Proceso'))->toMatchArray(['total' => 2, 'done' => 1, 'overdue' => 1]);
+        ->and(collect($summary['byArea'])->firstWhere('label', 'Producción'))->toMatchArray(['total' => 2, 'done' => 1, 'overdue' => 1]);
 });
 
 it('imports the Excel chart with its photos: dated rows executed, pending rows to maintenance', function (): void {
@@ -244,12 +244,12 @@ it('imports the Excel chart with its photos: dated rows executed, pending rows t
     $pendiente = SstFinding::query()->where('number', 11)->with('tasks.issueReport.equipment')->first();
     expect($pendiente->status)->toBe(FindingStatus::Pendiente)
         ->and($pendiente->priority)->toBe(FindingPriority::Alta)
-        ->and($pendiente->tasks->pluck('area')->all())->toBe([ResponsibleArea::Mantenimiento, ResponsibleArea::Proceso])
+        ->and($pendiente->tasks->pluck('area')->all())->toBe([ResponsibleArea::Mantenimiento, ResponsibleArea::Produccion])
         ->and($pendiente->tasks->first()->issueReport->equipment->code)->toBe('INF-EST-01')
         // Ya estaba vencido al importarlo: no se avisa otra vez.
         ->and($pendiente->overdue_notified_at)->not->toBeNull();
 
-    expect(SstFinding::query()->where('number', 15)->first()->tasks->pluck('area')->all())->toBe([ResponsibleArea::Proceso, ResponsibleArea::Sst]);
+    expect(SstFinding::query()->where('number', 15)->first()->tasks->pluck('area')->all())->toBe([ResponsibleArea::Produccion, ResponsibleArea::Sst]);
 
     // La fila con solo foto entra sin descripción, a cargo de SST; la vacía no entra.
     $soloFoto = SstFinding::query()->where('number', 24)->first();
@@ -286,7 +286,7 @@ it('lets SST report a finding from the form and process mark its part corrected'
             'priority' => 'media',
             'description' => 'Extintor en el piso',
             'area_id' => $this->recepcion->id,
-            'areas' => ['proceso'],
+            'areas' => ['produccion'],
             'action_plan' => 'Instalar soporte',
         ])
         ->call('create')
@@ -395,7 +395,7 @@ it('records whether each finding comes from SST or the environmental account, an
     $ambiental->tenants()->attach($this->tenant->id, ['joined_at' => now()]);
     $ambiental->assignRole('ambiental');
 
-    $deSst = hallazgo(['areas' => ['proceso']]);
+    $deSst = hallazgo(['areas' => ['produccion']]);
     $deAmbiental = $this->service->create($this->tenant->id, [
         'reported_on' => '2026-11-05', 'description' => 'Derrame de ACPM junto al tanque', 'area_id' => $this->esterilizacion->id,
         'priority' => 'alta', 'areas' => ['mantenimiento'],
@@ -493,7 +493,7 @@ it('imports the environmental chart after the SST one without clashing numbers',
 });
 
 it('lets process receive a finding and resolve its part describing what it did with photos, like maintenance', function (): void {
-    $finding = hallazgo(['areas' => ['mantenimiento', 'proceso']]);
+    $finding = hallazgo(['areas' => ['mantenimiento', 'produccion']]);
 
     // Le llega como a mantenimiento.
     expect($this->proceso->notifications()->sole()->data['title'])->toContain('Nuevo hallazgo SST H-001')
@@ -502,7 +502,7 @@ it('lets process receive a finding and resolve its part describing what it did w
     $this->actingAs($this->proceso);
     Filament::setCurrentPanel(Filament::getPanel('admin'));
     Filament::setTenant($this->tenant);
-    $parte = $finding->tasks()->where('area', 'proceso')->sole();
+    $parte = $finding->tasks()->where('area', 'produccion')->sole();
 
     Livewire::test(ListSstFindings::class, ['activeTab' => 'mi-area'])->assertCanSeeTableRecords([$finding]);
 
@@ -531,7 +531,7 @@ it('lets process receive a finding and resolve its part describing what it did w
     // Falta mantenimiento: SST se entera de que proceso ya terminó, con lo que hizo.
     expect($finding->fresh()->status)->toBe(FindingStatus::EnEjecucion);
     $aviso = $this->sst->notifications()->sole()->data;
-    expect($aviso['title'])->toBe('Proceso corrigió su parte del hallazgo SST H-001')
+    expect($aviso['title'])->toBe('Producción corrigió su parte del hallazgo SST H-001')
         ->and($aviso['body'])->toContain('bandeja de contención')
         ->and($aviso['body'])->toContain('2 fotos')
         ->and($aviso['body'])->toContain('Falta: Mantenimiento');

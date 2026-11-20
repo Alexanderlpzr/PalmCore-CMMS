@@ -28,7 +28,7 @@ use Throwable;
  *    siguen sin factura (a la Directora).
  *  - Ofertas a las que les queda una tractomula o menos (a la Directora).
  *  - Tanques sin medir hace más de {@see OilTankService::STALE_AFTER_DAYS} días, y acidez
- *    por encima del límite (a la Directora; proceso ya no mide los tanques desde 2026-11-19).
+ *    por encima del límite (a producción y a la Directora).
  */
 class CommercialNotices
 {
@@ -39,8 +39,7 @@ class CommercialNotices
 
     private const DIRECTOR = ['direccion-administrativa'];
 
-    /** Quien mide los tanques. Proceso salió el 2026-11-19: ya no ve producción. */
-    private const PLANT = ['direccion-administrativa'];
+    private const PLANT = ['produccion', 'direccion-administrativa'];
 
     public function __construct(private OilTankService $tanks) {}
 
@@ -172,7 +171,7 @@ class CommercialNotices
                 $this->notify($tenant, self::PLANT,
                     $latest === null ? 'Los tanques de aceite no se han medido' : "Los tanques llevan {$latest['age_days']} días sin medir",
                     'Sin la medición del día no se sabe cuánto aceite hay para vender ni cuánto se produjo.',
-                    'warning', $url, 'Medir tanques', NotificationKind::Production,
+                    'warning', $url, 'Medir tanques',
                 );
                 $sent++;
             }
@@ -188,7 +187,7 @@ class CommercialNotices
                 'Acidez alta en los tanques',
                 $high->map(fn (array $tank, string $id): string => ($names[$id] ?? 'Tanque').' '.number_format($tank['acidity'], 2, ',', '.').' %')->implode(', ')
                     .' el '.$latest['date']->format('d/m/Y').' (límite '.number_format(OilTankService::ACIDITY_LIMIT, 0).' %).',
-                'danger', $url, 'Ver tanques', NotificationKind::Production,
+                'danger', $url, 'Ver tanques',
             );
             $sent++;
         }
@@ -200,7 +199,7 @@ class CommercialNotices
      * @param  list<string>  $roles
      * @param  callable(): string  $url
      */
-    private function notify(Tenant $tenant, array $roles, string $title, string $body, string $status, callable $url, string $actionLabel, NotificationKind $kind = NotificationKind::Commercial): void
+    private function notify(Tenant $tenant, array $roles, string $title, string $body, string $status, callable $url, string $actionLabel): void
     {
         $users = Recipients::withRoles($tenant->id, $roles);
 
@@ -215,7 +214,7 @@ class CommercialNotices
         }
 
         Notification::send($users, new InboxNotification(
-            kind: $kind,
+            kind: in_array('produccion', $roles, true) ? NotificationKind::Production : NotificationKind::Commercial,
             title: $title,
             body: $body,
             status: $status,

@@ -14,7 +14,7 @@ class TenantRolesSeeder extends Seeder
      * All permissions are global; roles are scoped per tenant via team_id.
      *
      * `administrador-general` controls the whole tenant; `mantenimiento`, `almacen`,
-     * `talento-humano`, `porteria`, `sst`, `ambiental`, `proceso` and `direccion-administrativa`
+     * `talento-humano`, `porteria`, `sst`, `ambiental`, `produccion` and `direccion-administrativa`
      * are each one area, and only the platform
      * (is_super_admin) assigns them. The former
      * nine-role matrix (gerencia, plant-manager, ingeniero-mantenimiento,
@@ -159,10 +159,12 @@ class TenantRolesSeeder extends Seeder
             'sst-findings.view', 'sst-findings.manage', 'sst-findings.execute',
         ],
 
-        // Proceso (producción): recibe los hallazgos y corrige los de su área. Cuenta proc@.
-        // Sin producción: los tanques de aceite los tuvo del 2026-11-18 al 2026-11-19.
-        'proceso' => [
+        // Producción (antes «proceso», 2026-11-19): recibe los hallazgos y corrige los de su
+        // área. Cuenta prod@.
+        'produccion' => [
             'sst-findings.view', 'sst-findings.execute',
+            // Y mide los tanques de aceite cada día (2026-11-18); nada más de lo comercial.
+            'oil-tanks.record',
         ],
 
         // La Directora Administrativa: clientes, ofertas mercantiles, despachos, facturas y

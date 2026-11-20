@@ -21,6 +21,7 @@ class Role extends SpatieRole
         // Las siglas van en mayúscula: «sst» es «SST», no «Sst»; y las tildes, donde van.
         return match ($name) {
             'sst' => 'SST',
+            'produccion' => 'Producción',
             'direccion-administrativa' => 'Dirección Administrativa',
             default => Str::headline(str_replace(['-', '_'], ' ', $name)),
         };

@@ -95,7 +95,7 @@ it('offers only the roles of the chosen company', function (): void {
             'gerencia-general' => 'Gerencia General',
             'mantenimiento' => 'Mantenimiento',
             'porteria' => 'Porteria',
-            'proceso' => 'Proceso',
+            'produccion' => 'Producción',
             'sst' => 'SST',
             'talento-humano' => 'Talento Humano',
         ])

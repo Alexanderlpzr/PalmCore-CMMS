@@ -358,8 +358,8 @@ class SafetyFindingService
 
     private function notifyCreated(SstFinding $finding, ?User $createdBy): void
     {
-        // Proceso los recibe todos (pedido de la empresa); las demás áreas, los suyos.
-        $roles = [...$this->taskRoles($finding), 'proceso', ...self::SST_ROLES];
+        // Producción los recibe todos (pedido de la empresa); las demás áreas, los suyos.
+        $roles = [...$this->taskRoles($finding), 'produccion', ...self::SST_ROLES];
 
         $this->send(
             $this->recipients($finding, $roles, except: $createdBy),

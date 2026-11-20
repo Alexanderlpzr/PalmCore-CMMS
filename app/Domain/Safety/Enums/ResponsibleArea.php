@@ -12,7 +12,7 @@ namespace App\Domain\Safety\Enums;
 enum ResponsibleArea: string
 {
     case Mantenimiento = 'mantenimiento';
-    case Proceso = 'proceso';
+    case Produccion = 'produccion';
     case Sst = 'sst';
     case Direccion = 'direccion';
 
@@ -20,7 +20,7 @@ enum ResponsibleArea: string
     {
         return match ($this) {
             self::Mantenimiento => 'Mantenimiento',
-            self::Proceso => 'Proceso',
+            self::Produccion => 'Producción',
             self::Sst => 'SST',
             self::Direccion => 'Dirección',
         };
@@ -36,7 +36,7 @@ enum ResponsibleArea: string
     {
         return match ($this) {
             self::Mantenimiento => ['mantenimiento'],
-            self::Proceso => ['proceso'],
+            self::Produccion => ['produccion'],
             self::Sst => ['sst', 'ambiental'],
             self::Direccion => ['administrador-general'],
         };
@@ -63,7 +63,7 @@ enum ResponsibleArea: string
             $area = match (true) {
                 $part === '' => null,
                 str_starts_with($part, 'mant') => self::Mantenimiento,
-                str_starts_with($part, 'proc') => self::Proceso,
+                str_starts_with($part, 'proc'), str_starts_with($part, 'prod') => self::Produccion,
                 str_contains($part, 'sst') => self::Sst,
                 str_starts_with($part, 'dir') => self::Direccion,
                 default => null,
