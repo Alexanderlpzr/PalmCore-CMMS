@@ -541,6 +541,9 @@ it('adds up what each equipment took and shows the reports page', function (): v
         ->assertOk()
         ->assertSee('ABC por consumo')
         ->assertSee('Correa B-52')
+        // En pestañas; tocar una clase deja en la tabla solo esa clase.
+        ->assertSeeHtml('data-pestana="vales"')
+        ->assertSeeHtml('data-clase="A"')
         ->callAction('aplicarAbc')
         ->assertNotified();
 });

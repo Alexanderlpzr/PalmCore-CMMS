@@ -27,7 +27,10 @@
         </x-slot>
     </x-fronda.hero>
 
-    {{-- El ABC en tres tarjetas: cuántos repuestos y cuánta plata en cada clase. --}}
+    {{-- Lo demás, en pestañas (2026-11-19). --}}
+    <x-fronda.pestanas :pestanas="['abc' => 'ABC por consumo', 'quieta' => 'Plata quieta', 'equipos' => 'Consumo por equipo', 'vales' => 'Salidas con vale']">
+    <x-fronda.pestana nombre="abc" x-data="{ clase: null }">
+    {{-- El ABC en tres tarjetas; tocar una deja en la tabla solo esa clase. --}}
     <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
         @foreach (['A' => 'Clase A · cada mes', 'B' => 'Clase B · cada trimestre', 'C' => 'Clase C · cada semestre'] as $clase => $rotulo)
             <x-fronda.kpi
@@ -35,6 +38,11 @@
                 :value="number_format($abcTotals[$clase]['parts'] ?? 0, 0, ',', '.').' repuestos'"
                 :detail="$pesos((float) ($abcTotals[$clase]['value'] ?? 0)).' consumidos en el año'"
                 icon="heroicon-o-squares-2x2"
+                role="button"
+                tabindex="0"
+                class="cursor-pointer transition hover:-translate-y-0.5 hover:shadow-md"
+                x-on:click="clase = clase === '{{ $clase }}' ? null : '{{ $clase }}'"
+                x-bind:class="clase === '{{ $clase }}' ? 'ring-2 ring-primary-500' : ''"
             />
         @endforeach
     </div>
@@ -57,7 +65,7 @@
                     </thead>
                     <tbody>
                         @foreach ($abc->take(60) as $fila)
-                            <tr class="border-t border-gray-100 dark:border-white/5">
+                            <tr class="border-t border-gray-100 dark:border-white/5" data-clase="{{ $fila['proposed']->value }}" x-show="clase === null || clase === '{{ $fila['proposed']->value }}'">
                                 <td class="py-2 pe-3">
                                     <p class="font-medium text-gray-950 dark:text-white">{{ $fila['name'] }}</p>
                                     <p class="text-xs text-gray-500 dark:text-gray-400">{{ $fila['code'] }}</p>
@@ -79,8 +87,9 @@
             </div>
         @endif
     </x-filament::section>
+    </x-fronda.pestana>
 
-    <div class="grid gap-6 lg:grid-cols-2">
+    <x-fronda.pestana nombre="quieta">
         <x-filament::section heading="Plata quieta" description="Repuestos con existencia y sin una sola salida en los últimos seis meses.">
             @forelse ($idle->take(15) as $fila)
                 <div class="flex items-center justify-between gap-3 border-b border-gray-100 py-2 last:border-0 dark:border-white/5">
@@ -94,7 +103,9 @@
                 <x-fronda.empty-state icon="heroicon-o-check-circle" heading="Nada quieto">Todo lo que hay en el estante ha tenido salidas en los últimos seis meses.</x-fronda.empty-state>
             @endforelse
         </x-filament::section>
+    </x-fronda.pestana>
 
+    <x-fronda.pestana nombre="equipos">
         <x-filament::section heading="Consumo por equipo" description="Lo despachado a órdenes de trabajo en el último año.">
             @forelse ($byEquipment->take(15) as $fila)
                 <div class="flex items-center justify-between gap-3 border-b border-gray-100 py-2 last:border-0 dark:border-white/5">
@@ -108,7 +119,10 @@
                 <x-fronda.empty-state icon="heroicon-o-wrench-screwdriver" heading="Sin despachos todavía">Cuando el almacén entregue repuestos a órdenes de trabajo, aquí aparece lo que se lleva cada equipo.</x-fronda.empty-state>
             @endforelse
         </x-filament::section>
+    </x-fronda.pestana>
 
+    <x-fronda.pestana nombre="vales">
+    <div class="grid gap-6 lg:grid-cols-2">
         <x-filament::section heading="Salidas sin orden, por motivo" description="Lo que salió con vale en el último año.">
             @forelse ($reasons as $fila)
                 <div class="flex items-center justify-between gap-3 border-b border-gray-100 py-2 last:border-0 dark:border-white/5">
@@ -131,4 +145,6 @@
             @endforelse
         </x-filament::section>
     </div>
+    </x-fronda.pestana>
+    </x-fronda.pestanas>
 </x-filament-panels::page>
