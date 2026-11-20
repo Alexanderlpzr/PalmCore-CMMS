@@ -2,7 +2,7 @@
 
 namespace App\Filament\Pages;
 
-use App\Filament\Concerns\RequiresMaintenanceAccess;
+use App\Filament\Concerns\RequiresMaintenanceOrProductionAccess;
 use App\Filament\Widgets\Executive\PlantEfficiencyStatsWidget;
 use App\Filament\Widgets\Executive\PlantMonthlyEfficiencyHistoryWidget;
 use App\Models\Plant;
@@ -24,7 +24,7 @@ use UnitEnum;
 class EficienciaDePlanta extends BaseDashboard
 {
     use HasFiltersForm;
-    use RequiresMaintenanceAccess;
+    use RequiresMaintenanceOrProductionAccess;
 
     protected static string $routePath = '/eficiencia-de-planta';
 

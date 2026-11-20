@@ -14,7 +14,7 @@ class TenantRolesSeeder extends Seeder
      * All permissions are global; roles are scoped per tenant via team_id.
      *
      * `administrador-general` controls the whole tenant; `mantenimiento`, `almacen`,
-     * `talento-humano`, `porteria`, `sst`, `ambiental`, `produccion` and `direccion-administrativa`
+     * `talento-humano`, `porteria`, `sst`, `ambiental`, `produccion`, `direccion-produccion` and `direccion-administrativa`
      * are each one area, and only the platform
      * (is_super_admin) assigns them. The former
      * nine-role matrix (gerencia, plant-manager, ingeniero-mantenimiento,
@@ -178,6 +178,13 @@ class TenantRolesSeeder extends Seeder
         // No es el «gerencia» retirado en agosto.
         'gerencia-general' => [
             'management.view',
+        ],
+
+        // Dirección de Producción: solo consulta (2026-11-19). Ve los tanques, la maquila y el
+        // inventario de palmiste, el Dashboard con paros y energía, y los hallazgos; no mide,
+        // no registra ni corrige nada, y no ve ventas ni cartera.
+        'direccion-produccion' => [
+            'production.view', 'production-calendar.view', 'downtime-events.view', 'energy.view', 'sst-findings.view',
         ],
     ];
 

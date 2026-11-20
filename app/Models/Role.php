@@ -22,6 +22,7 @@ class Role extends SpatieRole
         return match ($name) {
             'sst' => 'SST',
             'produccion' => 'Producción',
+            'direccion-produccion' => 'Dirección de Producción',
             'direccion-administrativa' => 'Dirección Administrativa',
             default => Str::headline(str_replace(['-', '_'], ' ', $name)),
         };

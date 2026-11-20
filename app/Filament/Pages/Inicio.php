@@ -101,7 +101,15 @@ class Inicio extends Page
             return;
         }
 
-        // Las cuentas de SST y de proceso: a su tablero de hallazgos.
+        // La Dirección de Producción, que solo consulta: al Dashboard, con la producción
+        // del mes arriba (antes que los hallazgos, que también ve).
+        if ($user !== null && ! self::isForMaintenance() && ! $user->is_super_admin && $user->checkPermissionTo('production.view')) {
+            $this->redirect(Dashboard::getUrl());
+
+            return;
+        }
+
+        // Las cuentas de SST y de producción: a su tablero de hallazgos.
         if ($user !== null && ! self::isForMaintenance() && TableroSst::canAccess()) {
             $this->redirect(TableroSst::getUrl());
 
