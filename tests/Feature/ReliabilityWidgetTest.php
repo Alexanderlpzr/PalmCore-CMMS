@@ -317,7 +317,13 @@ it('the dashboard renders the curated indicator widgets', function () {
     // El Dashboard se consolidó en un set curado por bloques (Resumen, Paros,
     // Confiabilidad, Costos). Estos deben seguir cableados; las pantallas de
     // Eficiencia/Paros/Ejecutivo/Gastos se fusionaron aquí y salieron del menú.
-    $configured = collect((new Dashboard)->getWidgets());
+    // Repartidos en pestañas: se juntan los de todas.
+    $configured = collect(array_keys(Dashboard::SECTIONS))->flatMap(function (string $section): array {
+        $dashboard = new Dashboard;
+        $dashboard->seccion = $section;
+
+        return $dashboard->getWidgets();
+    });
     $widgets = $configured->map(fn ($widget): string => $widget instanceof WidgetConfiguration ? $widget->widget : $widget)->all();
 
     // La tarjeta grande del Dashboard es la disponibilidad, no la eficiencia.

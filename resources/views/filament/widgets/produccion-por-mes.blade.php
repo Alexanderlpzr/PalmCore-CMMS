@@ -68,6 +68,22 @@
             </x-slot>
         @endif
 
+        @php
+            $comparacion = $this->comparison();
+            $toneladas = fn (?float $valor): string => $valor === null ? '—' : number_format($valor, 1, ',', '.');
+            $horas = fn (?float $valor): string => $valor === null ? '—' : number_format($valor, 1, ',', '.');
+        @endphp
+
+        {{-- Tocar una barra abre la ficha de ese mes; la tabla completa queda plegada. --}}
+        <div
+            wire:key="produccion-{{ $comparacion['year'] }}-{{ $this->pageFilters['plant_id'] ?? 'planta' }}"
+            x-data="{
+                mes: null,
+                meses: @js($comparacion['rows']),
+                cifra(v, decimales = 1) { return v === null ? '—' : Number(v).toLocaleString('es-CO', { minimumFractionDigits: decimales === 2 ? 2 : 0, maximumFractionDigits: decimales }) },
+            }"
+            x-on:fronda-barra="mes = (mes === $event.detail ? null : $event.detail)"
+        >
         <div
             @if ($pollingInterval = $this->getPollingInterval())
                 wire:poll.{{ $pollingInterval }}="updateChartData"
@@ -123,18 +139,56 @@
             </div>
         </div>
 
-        {{--
-            La tabla de la gráfica: la vista de ChartWidget de Filament con las cifras de cada
-            mes debajo. Ver App\Filament\Widgets\Executive\MonthlyProductionWidget.
-        --}}
-        @php
-            $comparacion = $this->comparison();
-            $toneladas = fn (?float $valor): string => $valor === null ? '—' : number_format($valor, 1, ',', '.');
-            $horas = fn (?float $valor): string => $valor === null ? '—' : number_format($valor, 1, ',', '.');
-        @endphp
-
         @if ($comparacion['rows'] !== [])
-            <div class="mt-6 overflow-x-auto rounded-lg border border-gray-200 dark:border-white/10">
+            {{-- La ficha del mes tocado. --}}
+            <p x-show="mes === null" class="mt-3 text-center text-xs text-gray-500 dark:text-gray-400">
+                Toque una barra para ver el detalle de ese mes.
+            </p>
+
+            <template x-if="mes !== null">
+                <div class="mt-4 rounded-xl border border-primary-200 bg-primary-50/60 p-4 dark:border-primary-500/30 dark:bg-primary-500/10">
+                    <div class="mb-3 flex items-center justify-between">
+                        <p class="text-sm font-semibold text-gray-950 dark:text-white">
+                            <span x-text="meses[mes].label"></span> {{ $comparacion['year'] }}
+                        </p>
+                        <button type="button" x-on:click="mes = null" class="text-xs font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">Cerrar ✕</button>
+                    </div>
+                    <dl class="grid grid-cols-2 gap-3 text-sm sm:grid-cols-5">
+                        <div>
+                            <dt class="text-xs text-gray-500 dark:text-gray-400">Toneladas {{ $comparacion['year'] }}</dt>
+                            <dd class="text-lg font-bold tabular-nums text-gray-950 dark:text-white" x-text="cifra(meses[mes].tons)"></dd>
+                        </div>
+                        <div>
+                            <dt class="text-xs text-gray-500 dark:text-gray-400">Toneladas {{ $comparacion['previousYear'] }}</dt>
+                            <dd class="text-lg font-semibold tabular-nums text-gray-700 dark:text-gray-200" x-text="cifra(meses[mes].previousTons)"></dd>
+                        </div>
+                        <div>
+                            <dt class="text-xs text-gray-500 dark:text-gray-400">Variación</dt>
+                            <dd
+                                class="text-lg font-bold tabular-nums"
+                                x-bind:class="meses[mes].change > 0 ? 'text-success-600 dark:text-success-400' : (meses[mes].change < 0 ? 'text-danger-600 dark:text-danger-400' : 'text-gray-500')"
+                                x-text="meses[mes].change === null ? '—' : (meses[mes].change > 0 ? '▲ ' : (meses[mes].change < 0 ? '▼ ' : '')) + Math.abs(meses[mes].change).toLocaleString('es-CO', { maximumFractionDigits: 1 }) + ' %'"
+                            ></dd>
+                        </div>
+                        <div>
+                            <dt class="text-xs text-gray-500 dark:text-gray-400">Horas efectivas</dt>
+                            <dd class="text-lg font-semibold tabular-nums text-gray-950 dark:text-white" x-text="cifra(meses[mes].effectiveHours)"></dd>
+                        </div>
+                        <div>
+                            <dt class="text-xs text-gray-500 dark:text-gray-400">t / hora</dt>
+                            <dd class="text-lg font-semibold tabular-nums text-gray-950 dark:text-white" x-text="cifra(meses[mes].tonsPerHour, 2)"></dd>
+                        </div>
+                    </dl>
+                </div>
+            </template>
+
+            {{-- La tabla de todos los meses, plegada: se abre si se necesita. --}}
+            <details class="group mt-4">
+                <summary class="cursor-pointer select-none text-sm font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400">
+                    <span class="group-open:hidden">▸ Ver la tabla de todos los meses</span>
+                    <span class="hidden group-open:inline">▾ Ocultar la tabla</span>
+                </summary>
+            <div class="mt-3 overflow-x-auto rounded-lg border border-gray-200 dark:border-white/10">
                 <table class="w-full min-w-[640px] divide-y divide-gray-200 text-sm dark:divide-white/10">
                     <thead class="bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:bg-white/5 dark:text-gray-400">
                         <tr>
@@ -206,6 +260,8 @@
                     @endif
                 </table>
             </div>
+            </details>
         @endif
+        </div>
     </x-filament::section>
 </x-filament-widgets::widget>

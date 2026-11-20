@@ -2,7 +2,11 @@
 
 use App\Domain\Analytics\Services\MonthlyProductionComparison;
 use App\Filament\Pages\Dashboard;
+use App\Filament\Widgets\Analytics\CostByEquipmentWidget;
+use App\Filament\Widgets\Analytics\DowntimeByEquipmentWidget;
 use App\Filament\Widgets\Analytics\DowntimeBySectionWidget;
+use App\Filament\Widgets\Costs\MonthlyCostByTypeWidget;
+use App\Filament\Widgets\Executive\DashboardSummaryWidget;
 use App\Filament\Widgets\Executive\MonthlyProductionWidget;
 use App\Filament\Widgets\Executive\PlantEfficiencyStatsWidget;
 use App\Models\Plant;
@@ -12,6 +16,7 @@ use App\Models\User;
 use Carbon\CarbonImmutable;
 use Database\Seeders\PermissionSeeder;
 use Filament\Facades\Filament;
+use Filament\Widgets\WidgetConfiguration;
 use Livewire\Livewire;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -68,8 +73,8 @@ it('draws the bars and the table on the dashboard', function (): void {
     Filament::setCurrentPanel(Filament::getPanel('admin'));
     Filament::setTenant($this->tenant);
 
-    // Es lo primero del Dashboard.
-    expect((new Dashboard)->getWidgets()[0])->toBe(MonthlyProductionWidget::class)
+    // Es lo primero del Dashboard, debajo del resumen, en la pestaña que abre.
+    expect((new Dashboard)->getWidgets()[1])->toBe(MonthlyProductionWidget::class)
         ->and(MonthlyProductionWidget::getSort())->toBeLessThan(PlantEfficiencyStatsWidget::getSort());
 
     Livewire::test(MonthlyProductionWidget::class, ['pageFilters' => ['plant_id' => $this->plant->id, 'year' => 2026, 'month' => 11]])
@@ -78,6 +83,8 @@ it('draws the bars and the table on the dashboard', function (): void {
         ->assertSee('Toneladas 2025')
         ->assertSee('4.670,0')
         ->assertSee('mejor mes')
+        ->assertSee('Toque una barra para ver el detalle de ese mes.')
+        ->assertSee('Ver la tabla de todos los meses')
         ->assertSee('▼ 6,6 %', false);
 
     // Un año sin cierres dice que no hay datos, sin ejes vacíos.
@@ -97,4 +104,50 @@ it('paints the bar figures with the theme color, readable in dark mode', functio
     expect(file_get_contents(resource_path('js/filament-chart-js-plugins.js')))
         ->toContain('BarElement')
         ->toContain('window.frondaChartLabelColor');
+});
+
+it('sums the production of a period against the same months of the year before', function (): void {
+    $service = app(MonthlyProductionComparison::class);
+
+    expect($service->forWindow($this->tenant->id, $this->plant->id, CarbonImmutable::parse('2026-10-01'), CarbonImmutable::parse('2026-10-31')))
+        ->toBe(['tons' => 4670.0, 'previousTons' => 5000.0, 'change' => -6.6, 'includesCurrentMonth' => false])
+        // Septiembre a noviembre: noviembre no tiene año anterior, pero va en curso.
+        ->and($service->forWindow($this->tenant->id, $this->plant->id, CarbonImmutable::parse('2026-09-01'), CarbonImmutable::parse('2026-11-30')))
+        ->toBe(['tons' => 9970.0, 'previousTons' => 9000.0, 'change' => 10.8, 'includesCurrentMonth' => true]);
+});
+
+it('shows a summary on top and only the charts of the chosen tab', function (): void {
+    $user = User::factory()->create(['is_active' => true, 'is_super_admin' => true]);
+    $user->tenants()->attach($this->tenant->id, ['joined_at' => now()]);
+    setPermissionsTeamId($this->tenant->id);
+    app(PermissionRegistrar::class)->forgetCachedPermissions();
+    $this->actingAs($user);
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+    Filament::setTenant($this->tenant);
+
+    $widgetsOf = function (string $section): array {
+        $dashboard = new Dashboard;
+        $dashboard->seccion = $section;
+
+        return collect($dashboard->getWidgets())->map(fn ($widget): string => $widget instanceof WidgetConfiguration ? $widget->widget : $widget)->all();
+    };
+
+    expect($widgetsOf('produccion'))->toBe([DashboardSummaryWidget::class, MonthlyProductionWidget::class, PlantEfficiencyStatsWidget::class])
+        ->and($widgetsOf('paros'))->toContain(DowntimeByEquipmentWidget::class)->not->toContain(MonthlyProductionWidget::class)
+        ->and($widgetsOf('costos'))->toBe([DashboardSummaryWidget::class, CostByEquipmentWidget::class, MonthlyCostByTypeWidget::class])
+        // Una pestaña inventada abre la de producción.
+        ->and($widgetsOf('cualquiera'))->toBe($widgetsOf('produccion'));
+
+    Livewire::test(DashboardSummaryWidget::class, ['seccion' => 'paros', 'pageFilters' => ['plant_id' => $this->plant->id, 'preset' => 'month', 'year' => 2026, 'month' => 10]])
+        ->assertOk()
+        ->assertSee('Producción')
+        ->assertSee('4.670 t')
+        ->assertSee('▼ 6,6 % contra 2025')
+        ->assertSee('Disponibilidad')
+        ->assertSee('Horas de paro')
+        ->assertSee('Preventivos al día')
+        ->assertSee('Gasto de mantenimiento')
+        ->assertSeeHtml("\$parent.set('seccion', 'costos')");
+
+    $this->actingAs($user->fresh())->get(Dashboard::getUrl(['ver' => 'paros'], tenant: $this->tenant))->assertOk()->assertSee('Horas de paro')->assertSee('Confiabilidad');
 });

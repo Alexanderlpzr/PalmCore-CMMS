@@ -97,6 +97,59 @@ class MonthlyProductionComparison
         return round(($current - $previous) / $previous * 100, 1);
     }
 
+    /**
+     * Las toneladas de un período —los meses de $from a $to— y las de los mismos meses del
+     * año anterior: la tarjeta de producción del resumen del Dashboard. Solo compara los
+     * meses que tienen dato este año, como el total de {@see forYear()}.
+     *
+     * @return array{tons: ?float, previousTons: ?float, change: ?float, includesCurrentMonth: bool}
+     */
+    public function forWindow(string $tenantId, string $plantId, CarbonImmutable $from, CarbonImmutable $to, ?CarbonImmutable $today = null): array
+    {
+        $today ??= CarbonImmutable::today();
+        $months = [];
+
+        for ($month = $from->startOfMonth(); $month->lte($to) && $month->lte($today); $month = $month->addMonth()) {
+            $months[] = [$month->year, $month->month];
+        }
+
+        if ($months === []) {
+            return ['tons' => null, 'previousTons' => null, 'change' => null, 'includesCurrentMonth' => false];
+        }
+
+        $kpis = PlantMonthlyKpi::withoutGlobalScopes()
+            ->where('tenant_id', $tenantId)
+            ->where('plant_id', $plantId)
+            ->whereIn('year', collect($months)->flatMap(fn (array $m): array => [$m[0], $m[0] - 1])->unique()->all())
+            ->get(['year', 'month', 'processed_tons'])
+            ->keyBy(fn (PlantMonthlyKpi $kpi): string => $kpi->year.'-'.$kpi->month);
+
+        $tons = 0.0;
+        $previous = 0.0;
+        $withData = 0;
+
+        foreach ($months as [$year, $month]) {
+            $current = self::positive($kpis->get("{$year}-{$month}")?->processed_tons);
+
+            if ($current === null) {
+                continue;
+            }
+
+            $tons += $current;
+            $previous += self::positive($kpis->get(($year - 1)."-{$month}")?->processed_tons) ?? 0.0;
+            $withData++;
+        }
+
+        $last = end($months);
+
+        return [
+            'tons' => $withData > 0 ? round($tons, 2) : null,
+            'previousTons' => $previous > 0 ? round($previous, 2) : null,
+            'change' => $withData > 0 ? self::change($tons, $previous > 0 ? $previous : null) : null,
+            'includesCurrentMonth' => $last[0] === $today->year && $last[1] === $today->month,
+        ];
+    }
+
     private static function positive(?float $value): ?float
     {
         return $value !== null && $value > 0 ? round($value, 2) : null;

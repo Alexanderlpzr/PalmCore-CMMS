@@ -14,6 +14,7 @@ use App\Filament\Widgets\Analytics\DowntimeByStoppageCategoryWidget;
 use App\Filament\Widgets\Analytics\DowntimeMaintenanceBreakdownWidget;
 use App\Filament\Widgets\Analytics\ParetoFailuresWidget;
 use App\Filament\Widgets\Costs\MonthlyCostByTypeWidget;
+use App\Filament\Widgets\Executive\DashboardSummaryWidget;
 use App\Filament\Widgets\Executive\MonthlyProductionWidget;
 use App\Filament\Widgets\Executive\PlantEfficiencyStatsWidget;
 use App\Filament\Widgets\Reliability\MaintenanceComplianceWidget;
@@ -26,6 +27,7 @@ use Filament\Pages\Dashboard\Concerns\HasFiltersForm;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Widgets\WidgetConfiguration;
+use Livewire\Attributes\Url;
 use UnitEnum;
 
 /**
@@ -68,33 +70,69 @@ class Dashboard extends BaseDashboard
         return ['default' => 1, 'md' => 2, 'xl' => 3];
     }
 
+    public const DEFAULT_SECTION = 'produccion';
+
+    /** Las pestañas del Dashboard, en orden. */
+    public const SECTIONS = [
+        'produccion' => 'Producción',
+        'paros' => 'Paros',
+        'confiabilidad' => 'Confiabilidad',
+        'costos' => 'Costos',
+    ];
+
     /**
-     * Selección curada, agrupada por bloque (el orden final lo fija el $sort de
-     * cada widget): Resumen → Paros → Confiabilidad → Costos.
+     * La pestaña que se mira. Va en la dirección (`?ver=paros`) para que un enlace o
+     * recargar la página la conserve.
+     */
+    #[Url(as: 'ver')]
+    public string $seccion = self::DEFAULT_SECTION;
+
+    /**
+     * Arriba, el resumen —cinco cifras y las pestañas—; debajo, solo las gráficas de la
+     * pestaña elegida. Antes eran once bloques seguidos, con tablas, y había que bajar
+     * mucho para ver los costos (pedido 2026-11-19).
      *
      * @return array<class-string|WidgetConfiguration>
      */
     public function getWidgets(): array
     {
         return [
-            // Lo primero: la producción de cada mes contra el año anterior, en barras y en tabla.
-            MonthlyProductionWidget::class,
-            // Resumen
-            // La tarjeta grande del Dashboard es la disponibilidad: lo que mide a mantenimiento.
-            PlantEfficiencyStatsWidget::make(['heroMetric' => 'availability']),
-            // Paros
-            DowntimeMaintenanceBreakdownWidget::class,
-            DowntimeByReasonWidget::class,
-            DowntimeBySectionWidget::class,
-            DowntimeByStoppageCategoryWidget::class,
-            DowntimeByEquipmentWidget::class,
-            // Confiabilidad
-            MaintenanceComplianceWidget::class,
-            ParetoFailuresWidget::class,
-            // Costos
-            CostByEquipmentWidget::class,
-            MonthlyCostByTypeWidget::class,
+            DashboardSummaryWidget::class,
+            ...match ($this->section()) {
+                // La producción de cada mes contra el año anterior, y los tres indicadores de planta.
+                'produccion' => [
+                    MonthlyProductionWidget::class,
+                    PlantEfficiencyStatsWidget::make(['heroMetric' => 'availability']),
+                ],
+                'paros' => [
+                    DowntimeMaintenanceBreakdownWidget::class,
+                    DowntimeByReasonWidget::class,
+                    DowntimeBySectionWidget::class,
+                    DowntimeByStoppageCategoryWidget::class,
+                    DowntimeByEquipmentWidget::class,
+                ],
+                'confiabilidad' => [
+                    MaintenanceComplianceWidget::class,
+                    ParetoFailuresWidget::class,
+                ],
+                'costos' => [
+                    CostByEquipmentWidget::class,
+                    MonthlyCostByTypeWidget::class,
+                ],
+            },
         ];
+    }
+
+    /** @return array<string, mixed> */
+    public function getWidgetData(): array
+    {
+        return ['seccion' => $this->section()];
+    }
+
+    /** Una pestaña que no existe —un enlace viejo o tecleado— abre la primera. */
+    private function section(): string
+    {
+        return array_key_exists($this->seccion, self::SECTIONS) ? $this->seccion : self::DEFAULT_SECTION;
     }
 
     /**
