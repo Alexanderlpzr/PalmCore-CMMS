@@ -136,6 +136,14 @@ it('opens for human resources with its cards, shortcuts and charts', function ()
     Livewire::test(NoveltiesByTypeChart::class)->assertOk();
 
     expect(app(HumanResourcesDashboard::class)->noveltiesByType($this->tenant))->toBe(['Vacaciones' => 5]);
+
+    // Tocar una porción o una barra abre su ficha.
+    $ficha = (new NoveltiesByTypeChart)->detalles()[0];
+    expect($ficha['titulo'])->toBe('Vacaciones')
+        ->and(collect($ficha['cifras'])->pluck('valor', 'etiqueta')->only(['Días en el corte', 'Novedades', 'Trabajadores'])->all())
+        ->toBe(['Días en el corte' => '5', 'Novedades' => '1', 'Trabajadores' => '1'])
+        ->and((new OvertimeByGroupChart)->detalles())->toHaveCount(6)
+        ->and((new OvertimeByGroupChart)->detalles()[0]['cifras'][0]['etiqueta'])->toBe('Total');
 });
 
 it('shows the hours factor indicator of human resources for what goes of the cutoff', function (): void {
