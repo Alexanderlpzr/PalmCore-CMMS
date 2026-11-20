@@ -49,6 +49,21 @@ enum ResponsibleArea: string
     }
 
     /**
+     * Las que se marcan al reportar un hallazgo. Dirección no (pedido 2026-11-19): sigue
+     * existiendo para los que ya la tienen —los importados del cuadro—, para filtrarlos y
+     * para que la gerencia mueva su parte, pero no se le asignan hallazgos nuevos.
+     *
+     * @return array<string, string>
+     */
+    public static function reportableOptions(): array
+    {
+        return collect(self::cases())
+            ->reject(fn (self $case): bool => $case === self::Direccion)
+            ->mapWithKeys(fn (self $case): array => [$case->value => $case->label()])
+            ->all();
+    }
+
+    /**
      * Las del cuadro de Excel: «Mantenimiento / Proceso», «Proceso / Sgsst»,
      * «Mantenimiento / Direccion», «Manteniiento»…
      *

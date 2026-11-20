@@ -540,3 +540,21 @@ it('lets process receive a finding and resolve its part describing what it did w
         ->assertSee('Fotos de lo que se hizo')
         ->assertSee('bandeja de contención');
 });
+
+it('does not offer management as a responsible area when reporting', function (): void {
+    $this->actingAs($this->sst);
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+    Filament::setTenant($this->tenant);
+
+    expect(ResponsibleArea::reportableOptions())->not->toHaveKey('direccion')
+        ->and(ResponsibleArea::reportableOptions())->toHaveKeys(['mantenimiento', 'produccion', 'sst']);
+
+    // Ni forzándolo desde la página.
+    Livewire::test(CreateSstFinding::class)
+        ->assertDontSee('Dirección')
+        ->fillForm(['reported_on' => '2026-11-05', 'priority' => 'baja', 'description' => 'Techo roto', 'areas' => ['direccion']])
+        ->call('create')
+        ->assertHasFormErrors(['areas']);
+
+    expect(SstFinding::query()->exists())->toBeFalse();
+});

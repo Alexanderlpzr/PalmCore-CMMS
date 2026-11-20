@@ -156,8 +156,14 @@ class SstFindingResource extends Resource
                 ->schema([
                     CheckboxList::make('areas')
                         ->label('Áreas responsables')
-                        ->options(ResponsibleArea::options())
-                        ->columns(2)
+                        ->options(ResponsibleArea::reportableOptions())
+                        // Que no entre por la página un área que ya no se ofrece (Dirección).
+                        ->rule(fn (): \Closure => function (string $attribute, mixed $value, \Closure $fail): void {
+                            if (array_diff((array) $value, array_keys(ResponsibleArea::reportableOptions())) !== []) {
+                                $fail('Elija solo entre Mantenimiento, Producción y SST.');
+                            }
+                        })
+                        ->columns(1)
                         ->live()
                         ->required()
                         ->visibleOn('create')
