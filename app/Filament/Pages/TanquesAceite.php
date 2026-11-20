@@ -24,8 +24,8 @@ use UnitEnum;
  * cuánto hay en cada tanque y con qué acidez. De ahí salen solas la producción del día,
  * el aceite disponible para vender y la acidez de la mezcla.
  *
- * La mide proceso en planta, o la Directora Administrativa. Proceso solo ve esto: ni
- * ventas ni cartera.
+ * La mide la Directora Administrativa. Proceso la tuvo un día y se le quitó (2026-11-19):
+ * no ve producción.
  */
 class TanquesAceite extends Page
 {

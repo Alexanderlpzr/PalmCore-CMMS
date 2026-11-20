@@ -140,7 +140,7 @@ it('warns the director once about new overdue invoices, loads left uninvoiced an
     expect(app(CommercialNotices::class)->send())->toBe(['overdue' => 0, 'uninvoiced' => 0, 'offers' => 0, 'tanks' => 0]);
 });
 
-it('warns process and the director when the tanks go unmeasured and when the acidity is high, once each', function (): void {
+it('warns the director, not process, when the tanks go unmeasured and when the acidity is high, once each', function (): void {
     Notification::fake();
     $tanque = OilTank::factory()->create(['tenant_id' => $this->tenant->id, 'name' => 'Tanque 1']);
     $tanques = app(OilTankService::class);
@@ -149,15 +149,17 @@ it('warns process and the director when the tanks go unmeasured and when the aci
 
     expect(app(CommercialNotices::class)->send()['tanks'])->toBe(1)
         ->and(app(CommercialNotices::class)->send()['tanks'])->toBe(0);
-    Notification::assertSentTo([$this->proceso, $this->directora], InboxNotification::class, fn (InboxNotification $n): bool => $n->title === 'Los tanques llevan 8 días sin medir'
+    Notification::assertSentTo($this->directora, InboxNotification::class, fn (InboxNotification $n): bool => $n->title === 'Los tanques llevan 8 días sin medir'
         && $n->kind === NotificationKind::Production);
+    // Proceso ya no ve producción (2026-11-19).
+    Notification::assertNotSentTo($this->proceso, InboxNotification::class);
 
     // Se midió hoy, con la acidez alta.
     $tanques->record($this->tenant->id, CarbonImmutable::parse('2026-11-18'), [$tanque->id => ['level' => 320, 'acidity' => '5,6']], null);
 
     expect(app(CommercialNotices::class)->send()['tanks'])->toBe(1)
         ->and(app(CommercialNotices::class)->send()['tanks'])->toBe(0);
-    Notification::assertSentTo($this->proceso, InboxNotification::class, fn (InboxNotification $n): bool => $n->title === 'Acidez alta en los tanques'
+    Notification::assertSentTo($this->directora, InboxNotification::class, fn (InboxNotification $n): bool => $n->title === 'Acidez alta en los tanques'
         && str_contains((string) $n->body, 'Tanque 1 5,60 %'));
 });
 

@@ -5,8 +5,8 @@ namespace App\Policies;
 use App\Models\User;
 
 /**
- * Los tanques de aceite: los ve y los mide quien lleva oil-tanks.record (proceso y la
- * Directora Administrativa) o lo comercial; el catálogo de tanques lo administra la
+ * Los tanques de aceite: los ve y los mide quien lleva oil-tanks.record (la Directora
+ * Administrativa; proceso ya no, desde 2026-11-19) o lo comercial; el catálogo de tanques lo administra la
  * Directora (commercial.manage). Ver {@see CommercialPolicy}.
  */
 class OilTankPolicy extends CommercialPolicy

@@ -160,10 +160,9 @@ class TenantRolesSeeder extends Seeder
         ],
 
         // Proceso (producción): recibe los hallazgos y corrige los de su área. Cuenta proc@.
+        // Sin producción: los tanques de aceite los tuvo del 2026-11-18 al 2026-11-19.
         'proceso' => [
             'sst-findings.view', 'sst-findings.execute',
-            // Y mide los tanques de aceite cada día (2026-11-18); nada más de lo comercial.
-            'oil-tanks.record',
         ],
 
         // La Directora Administrativa: clientes, ofertas mercantiles, despachos, facturas y
