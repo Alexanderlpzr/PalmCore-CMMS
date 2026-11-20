@@ -10,7 +10,8 @@
             <x-fronda.pestana nombre="cartera"> … </x-fronda.pestana>
         </x-fronda.pestanas>
 
-    `aside` va a la derecha de las pestañas (el período, una nota).
+    `aside` va a la derecha de las pestañas (el período, una nota). Una tarjeta fuera del
+    bloque abre una pestaña con x-on:click="$dispatch('fronda-ver', 'cartera')".
 --}}
 @props([
     'pestanas',
@@ -43,6 +44,8 @@
             });
         },
     }"
+    {{-- Una tarjeta de fuera puede abrir una pestaña: $dispatch('fronda-ver', 'cartera'). --}}
+    x-on:fronda-ver.window="if (@js($claves).includes($event.detail)) ver = $event.detail"
     {{ $attributes->class(['space-y-6']) }}
 >
     <div class="flex flex-wrap items-center justify-between gap-3">

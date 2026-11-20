@@ -66,9 +66,9 @@
                 $diciembre = $meses[12]['cumulative'];
             @endphp
             <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <x-fronda.kpi label="Fruta proyectada" :value="$tn(array_sum($columna('fruit'))).' tn'" icon="heroicon-o-sun" :detail="'Recibida en el año: '.$tn(array_sum($columna('real_fruit'))).' tn'" />
-                <x-fronda.kpi label="Aceite esperado (CPO)" :value="$tn($totalCpo).' tn'" icon="heroicon-o-beaker" detail="Fruta × TEA de cada mes" />
-                <x-fronda.kpi label="Ventas de aceite planeadas" :value="$tn($totalVentas).' tn'" icon="heroicon-o-truck" :detail="$totalCpo > 0 ? number_format($totalVentas / $totalCpo * 100, 1, ',', '.').' % del aceite esperado' : null" />
+                <x-fronda.kpi label="Fruta proyectada" :value="$tn(array_sum($columna('fruit'))).' tn'" icon="heroicon-o-sun" :detail="'Recibida en el año: '.$tn(array_sum($columna('real_fruit'))).' tn'" role="button" tabindex="0" class="cursor-pointer transition hover:-translate-y-0.5 hover:shadow-md" wire:click="$set('tab', 'fruta')" />
+                <x-fronda.kpi label="Aceite esperado (CPO)" :value="$tn($totalCpo).' tn'" icon="heroicon-o-beaker" detail="Fruta × TEA de cada mes" role="button" tabindex="0" class="cursor-pointer transition hover:-translate-y-0.5 hover:shadow-md" wire:click="$set('tab', 'planta')" />
+                <x-fronda.kpi label="Ventas de aceite planeadas" :value="$tn($totalVentas).' tn'" icon="heroicon-o-truck" :detail="$totalCpo > 0 ? number_format($totalVentas / $totalCpo * 100, 1, ',', '.').' % del aceite esperado' : null" role="button" tabindex="0" class="cursor-pointer transition hover:-translate-y-0.5 hover:shadow-md" wire:click="$set('tab', 'ventas')" />
                 <x-fronda.kpi label="Saldo de aceite a diciembre" :value="$tn($diciembre).' tn'" icon="heroicon-o-scale"
                     :tone="$diciembre < 0 ? 'danger' : 'ok'"
                     :detail="$diciembre < 0 ? 'Se vende más aceite del que saldría: comprar a terceros o mover ventas' : 'Inventario inicial + aceite − ventas'" />

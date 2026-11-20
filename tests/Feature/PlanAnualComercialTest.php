@@ -177,6 +177,9 @@ it('crosses the plan with the loads: dispatched, in transit, pending, billed and
         ->assertOk()
         ->assertSee('Avance por cliente')
         ->assertSee('Manuelita')
+        // En pestañas; las tarjetas sin otra pantalla abren la suya.
+        ->assertSeeHtml('data-pestana="cartera"')
+        ->assertSeeHtml('$dispatch(\'fronda-ver\', \'fruta\')')
         ->assertSee('Por concretar');
 });
 
@@ -217,6 +220,8 @@ it('lets the director fill the plan cell by cell and approve it from the page', 
         ->call('guardarVenta', $this->manuelita->id, 'cpo', 3, '484,73')
         ->set('tab', 'resumen')
         ->assertSee('Aceite: ¿alcanza para lo que se va a vender?')
+        // Las tarjetas del resumen abren su hoja.
+        ->assertSeeHtml('wire:click="$set(\'tab\', \'ventas\')"')
         ->callAction('aprobar')
         ->assertSet('version', 'reproyeccion');
 

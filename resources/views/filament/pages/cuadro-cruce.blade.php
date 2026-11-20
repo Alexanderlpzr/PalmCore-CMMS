@@ -66,7 +66,8 @@
             :href="\App\Filament\Pages\TanquesAceite::getUrl()" />
         <x-fronda.kpi label="Aceite proyectado" :value="$tn($proyectadoCpo).' tn'" icon="heroicon-o-calendar-days"
             :detail="'Despachado '.$tn($despachadoCpo).' tn · '.$pct($proyectadoCpo > 0 ? $despachadoCpo / $proyectadoCpo : null)"
-            :percent="$proyectadoCpo > 0 ? min(100, $despachadoCpo / $proyectadoCpo * 100) : null" color="#1A7E42" />
+            :percent="$proyectadoCpo > 0 ? min(100, $despachadoCpo / $proyectadoCpo * 100) : null" color="#1A7E42"
+            role="button" tabindex="0" class="cursor-pointer transition hover:-translate-y-0.5 hover:shadow-md" x-on:click="$dispatch('fronda-ver', 'mes')" />
         @php
             $mezcla = $datos['mix'];
             $tonoMezcla = \App\Domain\Commercial\Enums\Market::nationalShareTone($mezcla['year']['real_share']);
@@ -75,17 +76,22 @@
             :tone="match ($tonoMezcla) { 'danger' => 'danger', 'warning' => 'warning', 'success' => 'ok', default => 'neutral' }"
             :percent="$mezcla['year']['real_share'] === null ? null : $mezcla['year']['real_share'] * 100"
             :color="match ($tonoMezcla) { 'danger' => '#dc2626', 'warning' => '#d97706', default => '#1A7E42' }"
-            :detail="'Del aceite despachado en el año · el plan dice '.$pct($mezcla['year']['plan_share']).' · rojo con 50 % o menos'" />
+            :detail="'Del aceite despachado en el año · el plan dice '.$pct($mezcla['year']['plan_share']).' · rojo con 50 % o menos'"
+            role="button" tabindex="0" class="cursor-pointer transition hover:-translate-y-0.5 hover:shadow-md" x-on:click="$dispatch('fronda-ver', 'mezcla')" />
         <x-fronda.kpi label="Pendiente por despachar" :value="$tn(max($proyectadoCpo - $despachadoCpo - $transitoCpo, 0)).' tn'" icon="heroicon-o-truck"
             :detail="($transitoCpo > 0 ? $tn($transitoCpo).' tn van en camino' : 'Nada en camino').($porConcretarCpo > 0 ? ' · '.$tn($porConcretarCpo).' tn más por concretar' : '')" :href="$despachosUrl.'?tab=cargado'" />
         <x-fronda.kpi label="Fruta recibida" :value="$tn($frutaReal).' tn'" icon="heroicon-o-scale"
             :detail="'De '.$tn($frutaPlan).' tn proyectadas · '.$pct($frutaPlan > 0 ? $frutaReal / $frutaPlan : null)"
-            :percent="$frutaPlan > 0 ? min(100, $frutaReal / $frutaPlan * 100) : null" color="#00384C" />
+            :percent="$frutaPlan > 0 ? min(100, $frutaReal / $frutaPlan * 100) : null" color="#00384C"
+            role="button" tabindex="0" class="cursor-pointer transition hover:-translate-y-0.5 hover:shadow-md" x-on:click="$dispatch('fronda-ver', 'fruta')" />
         @php $vencido = round(array_sum(array_column($datos['aging'], 'overdue')), 2); @endphp
         <x-fronda.kpi label="Por cobrar" :value="$millones($cartera)" icon="heroicon-o-banknotes" :tone="$vencido > 0 ? 'danger' : ($cartera > 0 ? 'warning' : 'ok')"
             :detail="($vencido > 0 ? 'Vencido '.$millones($vencido).' · ' : 'Nada vencido · ').'facturado '.$millones($facturado)" :href="$despachosUrl.'?tab=facturado'" />
     </div>
 
+    {{-- Lo demás, en pestañas (2026-11-19); las tablas largas siguen plegables. --}}
+    <x-fronda.pestanas :pestanas="['mezcla' => 'Nacional y exportación', 'clientes' => 'Por cliente', 'mes' => 'Mes a mes', 'cartera' => 'Cartera', 'fruta' => 'Fruta']">
+    <x-fronda.pestana nombre="mezcla">
     {{-- Nacional contra exportación, con el semáforo de la Directora: lo nacional debe ser
          más de la mitad; con 50 % o menos, rojo; desde 70 %, verde. --}}
     @php
@@ -143,6 +149,9 @@
         </div>
     </x-filament::section>
 
+    </x-fronda.pestana>
+
+    <x-fronda.pestana nombre="clientes">
     {{-- Avance por cliente: el «Resumen anual por cliente» del Cuadro Cruce. --}}
     @foreach (['cpo' => 'Aceite de palma (CPO)', 'pko' => 'Palmiste (PKO)'] as $clave => $titulo)
         @php $producto = $datos['products'][$clave]; @endphp
@@ -214,6 +223,9 @@
         </x-filament::section>
     @endforeach
 
+    </x-fronda.pestana>
+
+    <x-fronda.pestana nombre="cartera">
     {{-- Cartera por antigüedad: todas las facturas sin pagar, de cualquier año. --}}
     @php
         $antiguedad = $datos['aging'];
@@ -268,6 +280,9 @@
         @endif
     </x-filament::section>
 
+    </x-fronda.pestana>
+
+    <x-fronda.pestana nombre="mes">
     {{-- Mes a mes: despachado sobre proyectado, cliente por cliente. --}}
     <x-filament::section>
         <x-slot name="heading">Aceite mes a mes: despachado / proyectado (tn)</x-slot>
@@ -365,6 +380,9 @@
         </div>
     </x-filament::section>
 
+    </x-fronda.pestana>
+
+    <x-fronda.pestana nombre="fruta">
     {{-- Fruta: proyectada contra recibida, por proveedor. --}}
     <x-filament::section collapsible>
         <x-slot name="heading">Fruta: recibida / proyectada por proveedor (tn)</x-slot>
@@ -412,4 +430,6 @@
             </table>
         </div>
     </x-filament::section>
+    </x-fronda.pestana>
+    </x-fronda.pestanas>
 </x-filament-panels::page>
