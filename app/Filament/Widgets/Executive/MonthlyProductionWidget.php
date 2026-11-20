@@ -105,15 +105,6 @@ class MonthlyProductionWidget extends ChartWidget
         return RawJs::make(<<<'JS'
             {
                 layout: { padding: { top: 18 } },
-                // Tocar una barra abre la ficha de ese mes debajo de la gráfica (ver la vista).
-                onClick: (event, elements, chart) => {
-                    if (elements.length) {
-                        chart.canvas.dispatchEvent(new CustomEvent('fronda-barra', { bubbles: true, detail: elements[0].index }));
-                    }
-                },
-                onHover: (event, elements) => {
-                    event.native.target.style.cursor = elements.length ? 'pointer' : 'default';
-                },
                 scales: {
                     y: {
                         beginAtZero: true,

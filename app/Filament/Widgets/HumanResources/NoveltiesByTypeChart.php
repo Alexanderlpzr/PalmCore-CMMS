@@ -4,8 +4,10 @@ namespace App\Filament\Widgets\HumanResources;
 
 use App\Domain\HumanResources\Services\HumanResourcesDashboard;
 use App\Filament\Pages\TableroTalentoHumano;
+use App\Filament\Widgets\Concerns\DespliegaDetalle;
 use App\Filament\Widgets\Concerns\DiceCuandoNoHayDatos;
 use App\Filament\Widgets\Concerns\MuestraLosValores;
+use App\Models\EmployeeNovelty;
 use App\Models\Tenant;
 use App\Support\FrondaPalette;
 use Filament\Facades\Filament;
@@ -17,6 +19,7 @@ use Filament\Widgets\ChartWidget;
  */
 class NoveltiesByTypeChart extends ChartWidget
 {
+    use DespliegaDetalle;
     use DiceCuandoNoHayDatos;
     use MuestraLosValores;
 
@@ -63,6 +66,35 @@ class NoveltiesByTypeChart extends ChartWidget
     protected function valueUnit(): string
     {
         return 'días';
+    }
+
+    /** Tocar un tipo abre su ficha: días, cuántas novedades y de quién (2026-11-19). */
+    protected string $view = 'filament.widgets.grafica-con-detalle';
+
+    public function detalles(): array
+    {
+        /** @var Tenant $tenant */
+        $tenant = Filament::getTenant();
+        $dashboard = app(HumanResourcesDashboard::class);
+        [$from, $to] = $dashboard->currentWindow($tenant);
+        $byType = EmployeeNovelty::query()
+            ->forTenant($tenant->id)
+            ->overlapping($from, $to)
+            ->with('employee')
+            ->get()
+            ->groupBy(fn (EmployeeNovelty $novelty): string => $novelty->type->label());
+
+        return array_map(function (string $type, int $days) use ($byType): array {
+            $novelties = $byType[$type] ?? collect();
+            $people = $novelties->map(fn (EmployeeNovelty $novelty): string => $novelty->employee?->fullName() ?? '—')->unique()->values();
+
+            return self::ficha($type, [
+                'Días en el corte' => (string) $days,
+                'Novedades' => (string) $novelties->count(),
+                'Trabajadores' => (string) $people->count(),
+                'Quiénes' => $people->take(4)->implode(', ').($people->count() > 4 ? ' y '.($people->count() - 4).' más' : ''),
+            ]);
+        }, array_keys($dashboard->noveltiesByType($tenant)), array_values($dashboard->noveltiesByType($tenant)));
     }
 
     protected function getType(): string

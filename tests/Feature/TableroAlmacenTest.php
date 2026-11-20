@@ -96,7 +96,15 @@ it('lets the warehouse account register an entry, an exit and a count from the d
         ->and(app(WarehouseDashboard::class)->mostUsed($this->tenant))->toBe(['Correa B-52' => 1.0]);
 
     Livewire::test(MonthlyOutgoingValueChart::class)->assertOk();
-    Livewire::test(MostUsedSparePartsChart::class)->assertOk();
+    Livewire::test(MostUsedSparePartsChart::class)->assertOk()
+        // Tocar la barra abre su ficha.
+        ->assertSeeHtml('data-detalle')
+        ->assertSee('Toque una barra para ver su detalle.');
+
+    $ficha = (new MostUsedSparePartsChart)->detalles()[0];
+    expect($ficha['titulo'])->toBe('Correa B-52')
+        ->and(collect($ficha['cifras'])->pluck('valor', 'etiqueta')->all())->toMatchArray(['Cantidad' => '1', 'Salidas' => '1']);
+    expect(collect((new MonthlyOutgoingValueChart)->detalles())->last()['cifras'][3])->toBe(['etiqueta' => 'Salidas', 'valor' => '1']);
 });
 
 it('opens the panel on the warehouse dashboard for the warehouse account, and nowhere else', function (): void {

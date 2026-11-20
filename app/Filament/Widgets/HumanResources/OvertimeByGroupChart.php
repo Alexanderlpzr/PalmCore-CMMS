@@ -4,6 +4,7 @@ namespace App\Filament\Widgets\HumanResources;
 
 use App\Domain\HumanResources\Services\HumanResourcesDashboard;
 use App\Filament\Pages\TableroTalentoHumano;
+use App\Filament\Widgets\Concerns\DespliegaDetalle;
 use App\Filament\Widgets\Concerns\DiceCuandoNoHayDatos;
 use App\Models\Tenant;
 use App\Support\FrondaPalette;
@@ -16,6 +17,7 @@ use Filament\Widgets\ChartWidget;
  */
 class OvertimeByGroupChart extends ChartWidget
 {
+    use DespliegaDetalle;
     use DiceCuandoNoHayDatos;
 
     /** Verde y petróleo de la marca, y dos neutros para los grupos menores. */
@@ -69,6 +71,30 @@ class OvertimeByGroupChart extends ChartWidget
             ],
             'plugins' => ['legend' => ['position' => 'bottom']],
         ];
+    }
+
+    /** Tocar un corte abre su ficha: las horas extra de cada grupo y el total (2026-11-19). */
+    protected string $view = 'filament.widgets.grafica-con-detalle';
+
+    public function detalles(): array
+    {
+        /** @var Tenant $tenant */
+        $tenant = Filament::getTenant();
+        $data = app(HumanResourcesDashboard::class)->overtimeByGroup($tenant);
+        $horas = fn (float $valor): string => number_format($valor, 1, ',', '.').' h';
+
+        return array_map(function (string $label, int $index) use ($data, $horas): array {
+            $cifras = [];
+            $total = 0.0;
+
+            foreach ($data['groups'] as $group => $values) {
+                $value = (float) ($values[$index] ?? 0);
+                $total += $value;
+                $cifras[$group] = $horas($value);
+            }
+
+            return self::ficha('Corte '.mb_strtolower($label), ['Total' => $horas($total), ...$cifras]);
+        }, $data['labels'], array_keys($data['labels']));
     }
 
     protected function getType(): string

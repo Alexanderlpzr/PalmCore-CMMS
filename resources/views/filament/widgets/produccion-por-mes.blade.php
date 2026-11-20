@@ -83,6 +83,7 @@
                 cifra(v, decimales = 1) { return v === null ? '—' : Number(v).toLocaleString('es-CO', { minimumFractionDigits: decimales === 2 ? 2 : 0, maximumFractionDigits: decimales }) },
             }"
             x-on:fronda-barra="mes = (mes === $event.detail ? null : $event.detail)"
+            data-detalle
         >
         <div
             @if ($pollingInterval = $this->getPollingInterval())

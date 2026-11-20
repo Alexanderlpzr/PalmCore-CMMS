@@ -30,6 +30,34 @@ for (const Element of [ArcElement, BarElement, PointElement]) {
 }
 
 /*
+ * Tocar una barra o una porción de una gráfica que tiene ficha (la envuelve un elemento
+ * con `data-detalle`) avisa cuál fue, con el evento `fronda-barra`; la vista abre la
+ * ficha. Sobre esas gráficas el puntero es una mano (2026-11-19).
+ */
+window.filamentChartJsPlugins.push({
+    id: 'frondaDetalle',
+    afterEvent(chart, args) {
+        const evento = args.event
+
+        if (!['click', 'mousemove'].includes(evento.type) || !chart.canvas.closest('[data-detalle]')) {
+            return
+        }
+
+        const puntos = chart.getElementsAtEventForMode(evento, 'nearest', { intersect: true }, false)
+
+        if (evento.type === 'mousemove') {
+            chart.canvas.style.cursor = puntos.length ? 'pointer' : 'default'
+
+            return
+        }
+
+        if (puntos.length) {
+            chart.canvas.dispatchEvent(new CustomEvent('fronda-barra', { bubbles: true, detail: puntos[0].index }))
+        }
+    },
+})
+
+/*
  * El color de las cifras según el tema: casi negro en claro, casi blanco en oscuro. Un
  * gris fijo se perdía sobre el fondo oscuro. Las gráficas lo usan con
  * `color: window.frondaChartLabelColor`.

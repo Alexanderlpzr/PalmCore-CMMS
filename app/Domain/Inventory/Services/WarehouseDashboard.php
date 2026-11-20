@@ -142,6 +142,65 @@ class WarehouseDashboard
     }
 
     /**
+     * La ficha de cada repuesto de {@see mostUsed()}: cuántas salidas, cuánta plata, a
+     * cuántas OT y la última vez que salió. Para desplegarla al tocar su barra.
+     *
+     * @param  list<string>  $names
+     * @return array<string, array{movements: int, value: float, workOrders: int, lastOut: ?CarbonImmutable}>
+     */
+    public function partDetails(Tenant $tenant, array $names, int $days = 90): array
+    {
+        return InventoryTransaction::query()
+            ->forTenant($tenant->id)
+            ->whereIn('type', self::OUTGOING_TYPES)
+            ->where('performed_at', '>=', CarbonImmutable::now()->subDays($days))
+            ->whereIn('spare_part_name_snapshot', $names)
+            ->selectRaw('spare_part_name_snapshot as nombre, count(*) as salidas, sum(abs(total_cost)) as valor, count(distinct work_order_id) as ordenes, max(performed_at) as ultima')
+            ->groupBy('spare_part_name_snapshot')
+            ->get()
+            ->mapWithKeys(fn ($row): array => [(string) $row->nombre => [
+                'movements' => (int) $row->salidas,
+                'value' => round((float) $row->valor, 0),
+                'workOrders' => (int) $row->ordenes,
+                'lastOut' => $row->ultima ? CarbonImmutable::parse($row->ultima) : null,
+            ]])
+            ->all();
+    }
+
+    /**
+     * La ficha de cada mes de {@see monthlyOutgoingValue()}: cuánto salió a OT, cuánto con
+     * vale y cuántas salidas hubo.
+     *
+     * @return list<array{label: string, value: float, toWorkOrders: float, withVoucher: float, movements: int}>
+     */
+    public function monthlyOutgoingDetails(Tenant $tenant, int $months = 6): array
+    {
+        $now = CarbonImmutable::now($tenant->plantTimezone())->startOfMonth();
+        $rows = [];
+
+        for ($i = $months - 1; $i >= 0; $i--) {
+            $month = $now->subMonthsNoOverflow($i);
+            $query = fn () => InventoryTransaction::query()
+                ->forTenant($tenant->id)
+                ->whereIn('type', self::OUTGOING_TYPES)
+                ->whereBetween('performed_at', [$month->utc(), $month->endOfMonth()->utc()]);
+
+            $toWorkOrders = abs((float) $query()->whereNotNull('work_order_id')->sum('total_cost'));
+            $all = abs((float) $query()->sum('total_cost'));
+
+            $rows[] = [
+                'label' => ucfirst($month->locale('es')->translatedFormat('F Y')),
+                'value' => round($all, 0),
+                'toWorkOrders' => round($toWorkOrders, 0),
+                'withVoucher' => round(max(0, $all - $toWorkOrders), 0),
+                'movements' => $query()->count(),
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
      * Los últimos movimientos, para ver de un vistazo qué entró y qué salió.
      *
      * @return Collection<int, InventoryTransaction>
