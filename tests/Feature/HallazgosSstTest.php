@@ -19,9 +19,12 @@ use App\Filament\Resources\Safety\Pages\CreateSstFinding;
 use App\Filament\Resources\Safety\Pages\EditSstFinding;
 use App\Filament\Resources\Safety\Pages\ListSstFindings;
 use App\Filament\Resources\Safety\Pages\ViewSstFinding;
+use App\Filament\Resources\Safety\SstFindingResource;
 use App\Infrastructure\Tenancy\CurrentTenant;
+use App\Models\Alert;
 use App\Models\Area;
 use App\Models\Equipment;
+use App\Models\EquipmentIssueReport;
 use App\Models\Plant;
 use App\Models\SstFinding;
 use App\Models\Tenant;
@@ -561,4 +564,66 @@ it('does not offer management as a responsible area when reporting', function ()
         ->assertHasFormErrors(['areas']);
 
     expect(SstFinding::query()->exists())->toBeFalse();
+});
+
+it('lets only the account of its origin correct or delete a finding', function (): void {
+    $ambiental = User::factory()->create(['is_active' => true]);
+    $ambiental->tenants()->attach($this->tenant->id, ['joined_at' => now()]);
+    $ambiental->assignRole('ambiental');
+    $admin = User::factory()->create(['is_active' => true]);
+    $admin->tenants()->attach($this->tenant->id, ['joined_at' => now()]);
+    $admin->assignRole('administrador-general');
+
+    $deSst = hallazgo(['areas' => ['produccion']]);
+    $deAmbiental = $this->service->create($this->tenant->id, [
+        'reported_on' => '2026-11-05', 'description' => 'Residuos mezclados', 'priority' => 'baja', 'areas' => ['sst'],
+    ], $ambiental);
+
+    expect($this->sst->can('update', $deSst))->toBeTrue()
+        ->and($this->sst->can('delete', $deSst))->toBeTrue()
+        ->and($this->sst->can('update', $deAmbiental))->toBeFalse()
+        ->and($this->sst->can('delete', $deAmbiental))->toBeFalse()
+        ->and($ambiental->can('delete', $deAmbiental))->toBeTrue()
+        ->and($ambiental->can('update', $deSst))->toBeFalse()
+        // Ni la administración ni las áreas que lo corrigen.
+        ->and($admin->can('update', $deSst))->toBeFalse()
+        ->and($admin->can('delete', $deAmbiental))->toBeFalse()
+        ->and($this->proceso->can('delete', $deSst))->toBeFalse();
+
+    $this->actingAs($this->sst);
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+    Filament::setTenant($this->tenant);
+
+    Livewire::test(ViewSstFinding::class, ['record' => $deAmbiental->getRouteKey()])
+        ->assertActionHidden('borrar')
+        ->assertActionHidden('edit');
+    $this->actingAs($this->sst->fresh())->get(SstFindingResource::getUrl('edit', ['record' => $deAmbiental]))->assertForbidden();
+
+    $this->actingAs($this->sst);
+    Livewire::test(ViewSstFinding::class, ['record' => $deSst->getRouteKey()])
+        ->assertActionVisible('edit')
+        ->callAction('borrar')
+        ->assertRedirect(SstFindingResource::getUrl('index'));
+
+    expect(SstFinding::query()->find($deSst->id))->toBeNull()
+        ->and(SstFinding::withTrashed()->find($deSst->id)?->trashed())->toBeTrue()
+        ->and(SstFinding::query()->find($deAmbiental->id))->not->toBeNull();
+});
+
+it('withdraws the maintenance report and its alert when deleting, but not once it became a work order', function (): void {
+    $finding = hallazgo(['areas' => ['mantenimiento']]);
+    $report = $finding->tasks()->sole()->issueReport()->first();
+    $alert = Alert::query()->where('entity_id', $report->id)->sole();
+
+    $this->service->delete($finding);
+
+    expect(EquipmentIssueReport::query()->find($report->id))->toBeNull()
+        ->and($alert->fresh()->status->value)->toBe('resolved');
+
+    // Ya es OT: se corrige, no se borra.
+    $conOt = hallazgo(['areas' => ['mantenimiento']]);
+    $conOt->tasks()->sole()->issueReport()->first()->forceFill(['status' => IssueReportStatus::ConvertedToWO])->saveQuietly();
+
+    expect(fn () => $this->service->delete($conOt))->toThrow(DomainException::class, 'corrija los datos del hallazgo en vez de borrarlo')
+        ->and(SstFinding::query()->find($conOt->id))->not->toBeNull();
 });

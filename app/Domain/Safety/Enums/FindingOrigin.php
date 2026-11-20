@@ -32,6 +32,15 @@ enum FindingOrigin: string
         };
     }
 
+    /** El rol de la cuenta dueña: la única que corrige o borra sus hallazgos (2026-11-20). */
+    public function role(): string
+    {
+        return match ($this) {
+            self::Sst => 'sst',
+            self::Ambiental => 'ambiental',
+        };
+    }
+
     /** El cargo con que firma el reporte de novedad que le llega a mantenimiento. */
     public function reporterPosition(): string
     {

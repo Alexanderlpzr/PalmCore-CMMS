@@ -2,6 +2,7 @@
 
 namespace App\Domain\Safety\Services;
 
+use App\Domain\Alerts\Services\AlertService;
 use App\Domain\Assets\Enums\EquipmentStatus;
 use App\Domain\Maintenance\Enums\IssueReportStatus;
 use App\Domain\Notifications\InboxNotification;
@@ -19,6 +20,7 @@ use App\Models\SstFinding;
 use App\Models\SstFindingTask;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Policies\SstFindingPolicy;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -182,6 +184,36 @@ class SafetyFindingService
             'success',
             $finding,
         );
+    }
+
+    /**
+     * Borra un hallazgo mal reportado, con sus partes. El reporte de novedad que le llegó a
+     * mantenimiento se retira también, con su alerta. Si mantenimiento ya lo volvió OT, no
+     * se borra: quedaría una orden sin su hallazgo; se corrige en vez de borrarse
+     * (2026-11-20). Quién puede, lo dice {@see SstFindingPolicy::delete()}.
+     */
+    public function delete(SstFinding $finding): void
+    {
+        $tasks = $finding->tasks()->with('issueReport')->get();
+        $withWorkOrder = $tasks->first(fn (SstFindingTask $task): bool => $task->issueReport !== null
+            && ! in_array($task->issueReport->status, [IssueReportStatus::Open, IssueReportStatus::Acknowledged], true));
+
+        if ($withWorkOrder !== null) {
+            throw new \DomainException("Mantenimiento ya lo atendió ({$withWorkOrder->issueReport->status->label()}): corrija los datos del hallazgo en vez de borrarlo.");
+        }
+
+        DB::transaction(function () use ($finding, $tasks): void {
+            foreach ($tasks as $task) {
+                if ($task->issueReport !== null) {
+                    app(AlertService::class)->autoResolveForEntity($finding->tenant_id, EquipmentIssueReport::class, $task->issueReport->id, 'Hallazgo '.$finding->originCode().' borrado');
+                    $task->issueReport->delete();
+                }
+
+                $task->delete();
+            }
+
+            $finding->delete();
+        });
     }
 
     /**

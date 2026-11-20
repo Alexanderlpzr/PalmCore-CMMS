@@ -32,6 +32,11 @@ class EditSstFinding extends EditRecord
         return [...$data, 'due_on' => $dueOn->toDateString()];
     }
 
+    protected function getHeaderActions(): array
+    {
+        return [SstFindingResource::deleteAction()];
+    }
+
     protected function getRedirectUrl(): string
     {
         return $this->getResource()::getUrl('view', ['record' => $this->getRecord()]);

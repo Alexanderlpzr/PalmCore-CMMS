@@ -119,7 +119,9 @@ class ViewSstFinding extends ViewRecord
                     $this->refreshRecord('Hallazgo verificado');
                 }),
 
+            // Solo la cuenta de su origen (SST o Ambiental) corrige o borra (2026-11-20).
             EditAction::make()->label('Corregir datos')->color('gray'),
+            SstFindingResource::deleteAction(),
         ];
     }
 

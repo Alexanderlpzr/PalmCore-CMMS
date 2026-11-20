@@ -7,6 +7,7 @@ use App\Domain\Safety\Enums\FindingOrigin;
 use App\Domain\Safety\Enums\FindingPriority;
 use App\Domain\Safety\Enums\FindingStatus;
 use App\Domain\Safety\Enums\ResponsibleArea;
+use App\Domain\Safety\Services\SafetyFindingService;
 use App\Filament\Filters\PeriodFilter;
 use App\Filament\Resources\Safety\Pages\CreateSstFinding;
 use App\Filament\Resources\Safety\Pages\EditSstFinding;
@@ -19,6 +20,7 @@ use App\Models\SstFindingTask;
 use App\Models\User;
 use BackedEnum;
 use Carbon\CarbonImmutable;
+use Filament\Actions\Action;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\DatePicker;
@@ -29,6 +31,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Infolists\Components\ImageEntry;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
@@ -325,6 +328,34 @@ class SstFindingResource extends Resource
         }
 
         return 'Vence el '.CarbonImmutable::parse($reportedOn)->addDays($priority->days())->format('d/m/Y')." ({$priority->days()} días).";
+    }
+
+    /**
+     * Borrar un hallazgo mal reportado: solo la cuenta de su origen, con confirmación, y no
+     * si mantenimiento ya lo volvió OT (2026-11-20).
+     */
+    public static function deleteAction(): Action
+    {
+        return Action::make('borrar')
+            ->label('Borrar hallazgo')
+            ->icon(Heroicon::OutlinedTrash)
+            ->color('danger')
+            ->authorize(fn (SstFinding $record): bool => self::user()?->can('delete', $record) ?? false)
+            ->requiresConfirmation()
+            ->modalHeading(fn (SstFinding $record): string => 'Borrar el hallazgo '.$record->code())
+            ->modalDescription('Para los que quedaron mal hechos. Se borra con sus áreas responsables y se retira el reporte de novedad que le llegó a mantenimiento.')
+            ->modalSubmitActionLabel('Sí, borrarlo')
+            ->action(function (SstFinding $record, Action $action): void {
+                try {
+                    app(SafetyFindingService::class)->delete($record);
+                } catch (\DomainException $e) {
+                    Notification::make()->title('No se puede borrar')->body($e->getMessage())->warning()->persistent()->send();
+                    $action->halt();
+                }
+
+                Notification::make()->title('Hallazgo '.$record->code().' borrado')->success()->send();
+                $action->redirect(self::getUrl('index'));
+            });
     }
 
     private static function user(): ?User
