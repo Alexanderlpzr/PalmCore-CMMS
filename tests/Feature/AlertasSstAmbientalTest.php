@@ -9,6 +9,7 @@ use App\Domain\Safety\Services\SafetyFindingService;
 use App\Filament\Resources\Alerts\Alert\Pages\ListAlerts;
 use App\Filament\Resources\Alerts\AlertResource;
 use App\Filament\Resources\Maintenance\IssueReport\IssueReportResource;
+use App\Filament\Widgets\Lists\AlertKpis;
 use App\Infrastructure\Tenancy\CurrentTenant;
 use App\Models\Alert;
 use App\Models\Area;
@@ -106,4 +107,35 @@ it('moves the alerts the findings had already opened to their own category', fun
 
     expect($alerta->fresh()->category)->toBe(AlertCategory::Safety)
         ->and($alerta->fresh()->title)->toBe('Hallazgo ambiental pendiente en mantenimiento: Prensa 1');
+});
+
+it('counts in the cards on top only the alerts of the tab being looked at', function (): void {
+    app(SafetyFindingService::class)->create($this->tenant->id, [
+        'reported_on' => now()->toDateString(), 'description' => 'Escalón doblado', 'area_id' => $this->area->id,
+        'priority' => 'alta', 'areas' => ['mantenimiento'],
+    ], $this->sst);
+    EquipmentIssueReport::factory()->create([
+        'tenant_id' => $this->tenant->id, 'equipment_id' => $this->equipo->id, 'status' => 'open',
+        'severity' => IssueSeverity::Medium->value, 'description' => 'Ruido en la prensa',
+    ]);
+
+    $this->actingAs($this->mantenimiento);
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+    Filament::setTenant($this->tenant);
+
+    $cifras = function (?string $tab): array {
+        $widget = new AlertKpis;
+        $widget->activeTab = $tab;
+        $kpis = collect((fn (): array => $this->kpis())->call($widget))->pluck('value', 'label');
+
+        return [$kpis['Abiertas'], $kpis['Críticas abiertas']];
+    };
+
+    // El hallazgo es crítico; el reporte de mantenimiento, no.
+    expect($cifras('mantenimiento'))->toBe(['1', '0'])
+        ->and($cifras(null))->toBe(['1', '0'])
+        ->and($cifras(ListAlerts::SAFETY_TAB))->toBe(['1', '1'])
+        ->and($cifras('todas'))->toBe(['2', '1']);
+
+    expect(Livewire::test(ListAlerts::class)->instance()->getWidgetData())->toBe(['activeTab' => 'mantenimiento']);
 });

@@ -44,6 +44,12 @@ class ListAlerts extends ListRecords
         ];
     }
 
+    /** Las tarjetas de arriba cuentan solo lo de la pestaña que se mira. */
+    public function getWidgetData(): array
+    {
+        return ['activeTab' => $this->activeTab];
+    }
+
     public function getDefaultActiveTab(): string|int|null
     {
         return 'mantenimiento';
