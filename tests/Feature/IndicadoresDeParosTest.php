@@ -4,6 +4,7 @@ use App\Domain\Analytics\Services\AnalyticsService;
 use App\Domain\Assets\Enums\PlantSection;
 use App\Domain\Assets\Enums\StoppageReason;
 use App\Domain\Assets\Services\DowntimeService;
+use App\Filament\Pages\Dashboard;
 use App\Filament\Pages\IndicadoresDeParos;
 use App\Models\Equipment;
 use App\Models\Plant;
@@ -67,10 +68,11 @@ it('agrupa las horas de paro por sección y por Tipo II', function (): void {
         ->and($byReason->get('Atascamiento')?->value)->toBe(2.0);
 });
 
-it('la página de indicadores de paros carga', function (): void {
-    Livewire::test(IndicadoresDeParos::class)->assertOk();
+it('la página de indicadores de paros lleva a la pestaña Paros del Dashboard', function (): void {
+    // Mostraba lo mismo que esa pestaña (2026-11-19).
+    Livewire::test(IndicadoresDeParos::class)->assertRedirect(Dashboard::getUrl(['ver' => 'paros']));
 });
 
 it('el dashboard consolidado carga', function (): void {
-    Livewire::test(App\Filament\Pages\Dashboard::class)->assertOk();
+    Livewire::test(Dashboard::class)->assertOk();
 });

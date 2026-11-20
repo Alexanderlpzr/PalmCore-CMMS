@@ -17,6 +17,7 @@ use App\Filament\Resources\Commercial\KernelTollLoad\Pages\ManageKernelTollLoads
 use App\Filament\Resources\Commercial\SalesDispatch\SalesDispatchResource;
 use App\Filament\Resources\Downtime\DowntimeEventResource;
 use App\Filament\Resources\Safety\SstFindingResource;
+use App\Filament\Widgets\Executive\IndicadoresNavWidget;
 use App\Infrastructure\Tenancy\CurrentTenant;
 use App\Models\EnergyMeter;
 use App\Models\KernelTollLoad;
@@ -101,4 +102,15 @@ it('lands on the dashboard', function (): void {
     Livewire::test(Inicio::class)->assertRedirect(Dashboard::getUrl());
 
     $this->actingAs($this->direccion->fresh())->get(TanquesAceite::getUrl(tenant: $this->tenant))->assertOk();
+});
+
+it('reaches efficiency and energy from the indicators tab bar, but not the maintenance budget', function (): void {
+    expect(array_keys(IndicadoresNavWidget::extras()))->toBe(['eficiencia', 'energia']);
+
+    Livewire::test(IndicadoresNavWidget::class, ['activo' => 'energia'])
+        ->assertOk()
+        ->assertSee('Producción')
+        ->assertSee('Eficiencia')
+        ->assertSee('Energía')
+        ->assertDontSee('Presupuesto');
 });

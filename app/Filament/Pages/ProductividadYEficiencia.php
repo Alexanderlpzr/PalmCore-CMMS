@@ -7,6 +7,7 @@ use App\Filament\Concerns\DescargaInformePdf;
 use App\Filament\Concerns\HasPeriodFilterForm;
 use App\Filament\Concerns\RequiresMaintenanceOrProductionAccess;
 use App\Filament\Resources\ProductionCalendar\ProductionCalendarResource;
+use App\Filament\Widgets\Executive\IndicadoresNavWidget;
 use App\Filament\Widgets\Executive\PlantEfficiencyStatsWidget;
 use App\Filament\Widgets\Executive\PlantHoursBreakdownWidget;
 use App\Filament\Widgets\Executive\PlantMonthlyEfficiencyHistoryWidget;
@@ -59,6 +60,15 @@ class ProductividadYEficiencia extends BaseDashboard
 
     protected static ?int $navigationSort = 2;
 
+    /**
+     * Fuera del menú: se abre desde la barra de los indicadores, en el Dashboard y arriba de
+     * esta misma pantalla (2026-11-19).
+     */
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
+
     public function getColumns(): array|int
     {
         return 1;
@@ -70,6 +80,7 @@ class ProductividadYEficiencia extends BaseDashboard
     public function getWidgets(): array
     {
         return [
+            IndicadoresNavWidget::make(['activo' => 'eficiencia']),
             PlantEfficiencyStatsWidget::class,
             PlantHoursBreakdownWidget::class,
             PlantMonthlyEfficiencyHistoryWidget::class,

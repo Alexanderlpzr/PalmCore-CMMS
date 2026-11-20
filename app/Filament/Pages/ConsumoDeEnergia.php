@@ -5,6 +5,7 @@ namespace App\Filament\Pages;
 use App\Domain\Reports\Services\EnergiaPdfService;
 use App\Filament\Concerns\DescargaInformePdf;
 use App\Filament\Concerns\HasPeriodFilterForm;
+use App\Filament\Widgets\Executive\IndicadoresNavWidget;
 use App\Filament\Widgets\Executive\PlantEnergyStatsWidget;
 use App\Filament\Widgets\Executive\PlantEnergyYearTableWidget;
 use App\Models\EnergyMeter;
@@ -55,9 +56,13 @@ class ConsumoDeEnergia extends BaseDashboard
         return auth()->user()?->can('viewAny', EnergyMeter::class) ?? false;
     }
 
+    /**
+     * Fuera del menú: se abre desde la barra de los indicadores, en el Dashboard y arriba de
+     * esta misma pantalla (2026-11-19).
+     */
     public static function shouldRegisterNavigation(): bool
     {
-        return static::canAccess();
+        return false;
     }
 
     public function getColumns(): array|int
@@ -71,6 +76,7 @@ class ConsumoDeEnergia extends BaseDashboard
     public function getWidgets(): array
     {
         return [
+            IndicadoresNavWidget::make(['activo' => 'energia']),
             PlantEnergyStatsWidget::class,
             PlantEnergyYearTableWidget::class,
         ];

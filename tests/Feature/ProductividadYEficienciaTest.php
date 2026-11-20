@@ -3,6 +3,7 @@
 use App\Domain\Analytics\Support\DashboardPeriod;
 use App\Filament\Pages\Dashboard;
 use App\Filament\Pages\ProductividadYEficiencia;
+use App\Filament\Widgets\Executive\IndicadoresNavWidget;
 use App\Filament\Widgets\Executive\PlantEfficiencyStatsWidget;
 use App\Filament\Widgets\Executive\PlantHoursBreakdownWidget;
 use App\Filament\Widgets\Executive\PlantMonthlyEfficiencyHistoryWidget;
@@ -14,6 +15,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Filament\Facades\Filament;
+use Filament\Widgets\WidgetConfiguration;
 use Livewire\Livewire;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -55,15 +57,20 @@ it('renders with no plants at all', function (): void {
     Livewire::test(ProductividadYEficiencia::class)->assertOk();
 });
 
-it('is reachable from the navigation menu', function (): void {
-    expect(ProductividadYEficiencia::shouldRegisterNavigation())->toBeTrue()
-        ->and(ProductividadYEficiencia::getNavigationLabel())->toBe('Productividad y Eficiencia');
+it('is reachable from the indicators tab bar, not from the side menu', function (): void {
+    // Salió del menú: se abre desde la barra de los indicadores (2026-11-19).
+    expect(ProductividadYEficiencia::shouldRegisterNavigation())->toBeFalse()
+        ->and(IndicadoresNavWidget::extras())->toHaveKey('eficiencia')
+        ->and(IndicadoresNavWidget::extras()['eficiencia']['url'])->toBe(ProductividadYEficiencia::getUrl());
 });
 
 it('gathers the three indicators, the hours behind them and both histories', function (): void {
-    $widgets = (new ProductividadYEficiencia)->getWidgets();
+    $widgets = collect((new ProductividadYEficiencia)->getWidgets())
+        ->map(fn ($widget): string => $widget instanceof WidgetConfiguration ? $widget->widget : $widget)
+        ->all();
 
     expect($widgets)->toBe([
+        IndicadoresNavWidget::class,
         PlantEfficiencyStatsWidget::class,
         PlantHoursBreakdownWidget::class,
         PlantMonthlyEfficiencyHistoryWidget::class,

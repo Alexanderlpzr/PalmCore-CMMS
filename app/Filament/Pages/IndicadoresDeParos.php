@@ -51,6 +51,15 @@ class IndicadoresDeParos extends BaseDashboard
     }
 
     /**
+     * Un enlace guardado a esta pantalla abre la pestaña Paros del Dashboard, que muestra
+     * lo mismo (2026-11-19).
+     */
+    public function mount(): void
+    {
+        $this->redirect(Dashboard::getUrl(['ver' => 'paros']));
+    }
+
+    /**
      * @return array<class-string>
      */
     public function getWidgets(): array

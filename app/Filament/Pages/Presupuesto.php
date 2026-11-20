@@ -10,6 +10,7 @@ use App\Filament\Widgets\Budget\BudgetByCategoryChartWidget;
 use App\Filament\Widgets\Budget\BudgetExpensesTableWidget;
 use App\Filament\Widgets\Budget\BudgetProgressChartWidget;
 use App\Filament\Widgets\Budget\BudgetStatsWidget;
+use App\Filament\Widgets\Executive\IndicadoresNavWidget;
 use App\Models\MaintenanceBudget;
 use App\Models\MaintenanceBudgetExpense;
 use App\Models\Plant;
@@ -48,6 +49,15 @@ class Presupuesto extends BaseDashboard
 
     protected static ?int $navigationSort = 3;
 
+    /**
+     * Fuera del menú: se abre desde la barra de los indicadores, en el Dashboard y arriba de
+     * esta misma pantalla (2026-11-19).
+     */
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
+
     public function getColumns(): array|int
     {
         return ['default' => 1, 'md' => 2, 'xl' => 3];
@@ -59,6 +69,7 @@ class Presupuesto extends BaseDashboard
     public function getWidgets(): array
     {
         return [
+            IndicadoresNavWidget::make(['activo' => 'presupuesto']),
             BudgetStatsWidget::class,
             BudgetProgressChartWidget::class,
             BudgetByCategoryChartWidget::class,

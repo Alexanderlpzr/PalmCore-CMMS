@@ -35,6 +35,13 @@
                         {{ $nombre }}
                     </x-filament::tabs.item>
                 @endforeach
+
+                {{-- Las pantallas de indicadores que salieron del menú (2026-11-19). --}}
+                @foreach (\App\Filament\Widgets\Executive\IndicadoresNavWidget::extras() as $pestana)
+                    <x-filament::tabs.item tag="a" :href="$pestana['url']">
+                        {{ $pestana['label'] }}
+                    </x-filament::tabs.item>
+                @endforeach
             </x-filament::tabs>
 
             <p class="text-sm text-gray-500 dark:text-gray-400">{{ $resumen['period'] }}</p>
