@@ -225,6 +225,9 @@ it('shows the dashboard to human resources, by day and by cutoff', function (): 
         // Las entradas y la tabla por trabajador se buscan por nombre.
         ->assertSee('Buscar persona o área')
         ->assertSee('Buscar trabajador, cargo o área')
+        // En pestañas; tocar un área abre a sus trabajadores.
+        ->assertSeeHtml('data-pestana="trabajadores"')
+        ->assertSeeHtml('x-on:fronda-buscar.window')
         ->assertSeeHtml('data-buscar="ana')
         ->assertSee('Horas extras y recargos por área')
         ->assertSee('Alimentación por área')

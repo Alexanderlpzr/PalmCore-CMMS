@@ -201,6 +201,9 @@
             @endif
         </x-fronda.empty-state>
     @else
+    {{-- Las tortas, el resumen por área y el detalle por trabajador, en pestañas (2026-11-19). --}}
+    <x-fronda.pestanas :pestanas="['graficas' => 'Gráficas', 'areas' => 'Por área', 'trabajadores' => 'Por trabajador']">
+    <x-fronda.pestana nombre="graficas">
     {{-- Las tortas. --}}
     <div class="grid gap-4 lg:grid-cols-2">
         @foreach ($this->charts() as $clave => $grafico)
@@ -211,8 +214,10 @@
             ], key('torta-'.$contar.'-'.$clave))
         @endforeach
     </div>
+    </x-fronda.pestana>
 
-    {{-- Resumen por área. --}}
+    <x-fronda.pestana nombre="areas">
+    {{-- Resumen por área: tocar un área abre a sus trabajadores. --}}
     <x-filament::section
         heading="Por área"
         :description="$esCorte ? 'Del '.$desde->format('d/m').' al '.$hasta->format('d/m/Y').'.' : 'El '.$fechaLarga.'.'"
@@ -232,7 +237,10 @@
                 </thead>
                 <tbody>
                     @forelse ($informe['areas'] as $area)
-                        <tr class="even:bg-gray-50 dark:even:bg-white/5">
+                        <tr class="cursor-pointer even:bg-gray-50 hover:bg-primary-50 dark:even:bg-white/5 dark:hover:bg-primary-500/10"
+                            title="Ver los trabajadores de {{ $area['label'] }}"
+                            data-area="{{ $area['label'] }}"
+                            x-on:click="$dispatch('fronda-ver', 'trabajadores'); $dispatch('fronda-buscar', @js($area['label']))">
                             <td class="whitespace-nowrap border-b border-gray-100 px-3 py-2 dark:border-white/5">
                                 <span class="mr-1.5 inline-block h-2.5 w-2.5 rounded-full" style="background-color: {{ $area['color'] }}"></span>{{ $area['label'] }}
                             </td>
@@ -266,15 +274,20 @@
                 @endif
             </table>
         </div>
+        @if ($informe['areas'])
+            <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">Toque un área para ver a sus trabajadores.</p>
+        @endif
     </x-filament::section>
+    </x-fronda.pestana>
 
+    <x-fronda.pestana nombre="trabajadores">
     {{-- El detalle por trabajador: cuánto cuesta el día (o el corte) de cada uno. --}}
     <x-filament::section
         heading="Por trabajador"
         :description="($esCorte ? 'Lo que va del corte' : 'El día').' de cada persona, de mayor a menor costo. «Estimado» quiere decir que tiene horas sin confirmar o que sigue adentro.'"
         collapsible
     >
-        <div x-data="{ q: '', norm(t) { return (t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() }, hay(el) { return ! this.q || el.dataset.buscar.includes(this.norm(this.q)) } }">
+        <div x-data="{ q: '', norm(t) { return (t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() }, hay(el) { return ! this.q || el.dataset.buscar.includes(this.norm(this.q)) } }" x-on:fronda-buscar.window="q = $event.detail">
         <div class="mb-3 max-w-sm">
             <x-filament::input.wrapper prefix-icon="heroicon-m-magnifying-glass">
                 <x-filament::input type="search" x-model="q" placeholder="Buscar trabajador, cargo o área" aria-label="Buscar en la tabla por trabajador" />
@@ -375,6 +388,8 @@
             </p>
         </div>
     </x-filament::section>
+    </x-fronda.pestana>
+    </x-fronda.pestanas>
 
     @endif
 
