@@ -59,13 +59,16 @@
 
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <x-fronda.kpi label="Costo de personal" :value="$millones($c['personnel'])" icon="heroicon-o-user-group"
-            :detail="'Año: '.$millones($y['personnel']).($d['personnel_estimated'] ? ' · estimado: hay horas sin confirmar' : '')" />
+            :detail="'Año: '.$millones($y['personnel']).($d['personnel_estimated'] ? ' · estimado: hay horas sin confirmar' : '')"
+            role="button" tabindex="0" class="cursor-pointer transition hover:-translate-y-0.5 hover:shadow-md" x-on:click="$dispatch('fronda-ver', 'composicion')" />
         <x-fronda.kpi label="Costo de mantenimiento" :value="$millones($c['maintenance'])" icon="heroicon-o-wrench-screwdriver"
             :tone="$presupuestoMes !== null && ($c['maintenance'] ?? 0) > $presupuestoMes ? 'danger' : 'neutral'"
             :percent="$presupuestoMes ? min(100, ($c['maintenance'] ?? 0) / $presupuestoMes * 100) : null" color="#00384C"
-            :detail="$presupuestoMes !== null ? 'De '.$millones($presupuestoMes).' presupuestados · '.($mt['work_orders'] ?? 0).' OT' : ($mt['work_orders'] ?? 0).' OT cerradas · sin presupuesto'" />
+            :detail="$presupuestoMes !== null ? 'De '.$millones($presupuestoMes).' presupuestados · '.($mt['work_orders'] ?? 0).' OT' : ($mt['work_orders'] ?? 0).' OT cerradas · sin presupuesto'"
+            role="button" tabindex="0" class="cursor-pointer transition hover:-translate-y-0.5 hover:shadow-md" x-on:click="$dispatch('fronda-ver', 'composicion')" />
         <x-fronda.kpi label="Energía por tonelada" :value="$c['kwh_per_ton'] === null ? '—' : $tn($c['kwh_per_ton'], 1).' kWh'" icon="heroicon-o-bolt"
-            :detail="'Año: '.($y['kwh_per_ton'] === null ? '—' : $tn($y['kwh_per_ton'], 1).' kWh/tn')" />
+            :detail="'Año: '.($y['kwh_per_ton'] === null ? '—' : $tn($y['kwh_per_ton'], 1).' kWh/tn')"
+            role="button" tabindex="0" class="cursor-pointer transition hover:-translate-y-0.5 hover:shadow-md" x-on:click="$dispatch('fronda-ver', 'mes')" />
         <x-fronda.kpi label="Disponibilidad de planta" :value="$pct($c['availability'])" icon="heroicon-o-cog-6-tooth"
             :detail="'Eficiencia '.$pct($c['efficiency'])" />
         <x-fronda.kpi label="Hallazgos SST abiertos" :value="(string) $d['sst_open']" icon="heroicon-o-shield-exclamation"
@@ -79,9 +82,13 @@
         <x-fronda.kpi label="Aceite despachado en el año" :value="$tn($y['oil'], 1).' tn'" icon="heroicon-o-truck"
             :detail="'Facturado en el año '.$millones($y['invoiced'])" />
         <x-fronda.kpi label="Costo en el año" :value="$millones($y['cost'])" icon="heroicon-o-calculator"
-            :detail="'Mantenimiento '.$millones($y['maintenance']).($y['maintenance_budget'] > 0 ? ' de '.$millones($y['maintenance_budget']) : '')" />
+            :detail="'Mantenimiento '.$millones($y['maintenance']).($y['maintenance_budget'] > 0 ? ' de '.$millones($y['maintenance_budget']) : '')"
+            role="button" tabindex="0" class="cursor-pointer transition hover:-translate-y-0.5 hover:shadow-md" x-on:click="$dispatch('fronda-ver', 'mes')" />
     </div>
 
+    {{-- El detalle, en pestañas (2026-11-19); las tarjetas de costos abren la suya. --}}
+    <x-fronda.pestanas :pestanas="['mes' => 'Mes a mes', 'composicion' => 'De qué se compone']">
+    <x-fronda.pestana nombre="mes">
     <x-filament::section>
         <x-slot name="heading">Mes a mes</x-slot>
         <x-slot name="description">Cada fila es el total de un área; el mes elegido va resaltado. Los costos de los meses que no han llegado quedan en blanco.</x-slot>
@@ -142,7 +149,9 @@
             Personal: jornales, novedades pagadas, recargos, horas extras y alimentación, sin prestaciones ni aportes (el mismo cálculo de «Costo de personal»). Mantenimiento: el costo real de las OT cerradas en el mes. Fruta y energía: los indicadores mensuales de planta.
         </p>
     </x-filament::section>
+    </x-fronda.pestana>
 
+    <x-fronda.pestana nombre="composicion">
     <div class="grid gap-4 lg:grid-cols-2">
         @livewire(\App\Filament\Widgets\HumanResources\LaborCostPieChart::class, [
             'chartHeading' => 'Personal por área · '.$mes,
@@ -180,4 +189,6 @@
             </table>
         </x-filament::section>
     </div>
+    </x-fronda.pestana>
+    </x-fronda.pestanas>
 </x-filament-panels::page>

@@ -113,6 +113,9 @@ it('is for management only, read-only, and lands the management account on it', 
         ->assertSee('Costo de transformación por tonelada')
         ->assertSee('$120.000 por tonelada')
         ->assertSee('Personal por área')
+        // El detalle va en pestañas; las tarjetas de costos abren la suya.
+        ->assertSeeHtml('data-pestana="composicion"')
+        ->assertSeeHtml('$dispatch(\'fronda-ver\', \'composicion\')')
         ->assertDontSee('Nadie debe ver esto');
 
     foreach ([$this->directora, $this->administrador] as $otro) {
