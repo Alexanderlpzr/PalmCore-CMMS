@@ -6,6 +6,7 @@ use App\Domain\Assets\Services\ReferenceDataService;
 use App\Domain\HumanResources\Services\PayrollParameterService;
 use App\Domain\Shared\Enums\SubscriptionStatus;
 use App\Filament\Resources\Equipment\Pages\ListEquipment;
+use App\Http\Responses\LoginResponse;
 use App\Models\Alert;
 use App\Models\Announcement;
 use App\Models\Area;
@@ -50,6 +51,7 @@ use App\Observers\WorkOrderObserver;
 use App\Observers\WorkOrderPartObserver;
 use App\Security\SsrfValidator;
 use Carbon\CarbonImmutable;
+use Filament\Auth\Http\Responses\Contracts\LoginResponse as FilamentLoginResponse;
 use Filament\Facades\Filament;
 use Filament\Support\Assets\Js;
 use Filament\Support\Facades\FilamentAsset;
@@ -85,6 +87,9 @@ class AppServiceProvider extends ServiceProvider
          * jornada 48 veces, y sin instancia compartida serían 48 consultas idénticas.
          */
         $this->app->singleton(PayrollParameterService::class);
+
+        // El superadministrador entra a la plataforma, no a la primera empresa.
+        $this->app->bind(FilamentLoginResponse::class, LoginResponse::class);
     }
 
     public function boot(): void

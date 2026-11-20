@@ -206,3 +206,49 @@ it('does not report Livewire requests tampered with by hand', function (): void 
     Exceptions::assertReportedCount(1);
     Exceptions::assertReported(fn (TypeError $e): bool => str_contains($e->getMessage(), 'Foo::bar'));
 });
+
+// ── A dónde entra el superadministrador ─────────────────────────────────────
+
+it('lands the super admin on the platform, not inside the first company', function (): void {
+    // Pedido 2026-11-19: entraba directo a ELPAJUIL y no tenía cómo escoger empresa.
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+    $this->superAdmin->forceFill(['password' => bcrypt('password')])->save();
+    session()->put('url.intended', url('/admin'));
+
+    Livewire::test(Login::class)
+        ->fillForm(['email' => $this->superAdmin->email, 'password' => 'password'])
+        ->call('authenticate')
+        ->assertHasNoFormErrors()
+        ->assertRedirect(Filament::getPanel('platform')->getUrl());
+});
+
+it('still takes the super admin to the page a link pointed to', function (): void {
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+    $this->superAdmin->forceFill(['password' => bcrypt('password')])->save();
+    $deep = url('/admin/'.$this->tenant->slug.'/cuadro-cruce');
+    session()->put('url.intended', $deep);
+
+    Livewire::test(Login::class)
+        ->fillForm(['email' => $this->superAdmin->email, 'password' => 'password'])
+        ->call('authenticate')
+        ->assertRedirect($deep);
+});
+
+it('keeps sending a company user to their company', function (): void {
+    Filament::setCurrentPanel(Filament::getPanel('admin'));
+    $user = User::factory()->create(['is_active' => true, 'is_super_admin' => false, 'password' => bcrypt('password')]);
+    $user->tenants()->attach($this->tenant->id, ['joined_at' => now()]);
+
+    Livewire::test(Login::class)
+        ->fillForm(['email' => $user->email, 'password' => 'password'])
+        ->call('authenticate')
+        ->assertRedirect(Filament::getPanel('admin')->getUrl());
+});
+
+it('lets the super admin enter each company from the platform home', function (): void {
+    $this->actingAs($this->superAdmin->fresh());
+
+    Livewire::test(PlatformDashboard::class)
+        ->assertSee('Entrar al panel de Extractora El Pajuil', false)
+        ->assertSee(url('/admin/'.$this->tenant->slug), false);
+});

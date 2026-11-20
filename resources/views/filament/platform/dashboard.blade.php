@@ -113,7 +113,8 @@
                     @foreach ($tenants as $row)
                         <tr class="border-b border-gray-100 last:border-0 dark:border-gray-800">
                             <td class="p-3">
-                                <span class="font-medium text-gray-900 dark:text-white">{{ $row['tenant']->name }}</span>
+                                {{-- El nombre entra al panel de la empresa: es lo que el superadministrador viene a hacer aquí. --}}
+                                <a href="{{ url('/admin/'.$row['tenant']->slug) }}" class="font-medium text-gray-900 hover:text-primary-600 hover:underline dark:text-white dark:hover:text-primary-400" title="Entrar al panel de {{ $row['tenant']->name }}">{{ $row['tenant']->name }} →</a>
                                 @if ($row['is_dormant'])
                                     {{-- «Sin uso reciente» y no «Inactiva»: la tarjeta de arriba ya usa
                                          «Activas» para el estado de la suscripción, y una empresa

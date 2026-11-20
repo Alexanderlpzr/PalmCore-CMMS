@@ -101,6 +101,14 @@ class TenantsTable
             // En un menú y no en línea: cinco acciones a la vista se salían de la
             // pantalla («Entrar c…»), y «Suspender» quedaba en rojo junto a «Editar».
             ->recordActions([
+                // El atajo del superadministrador: entrar al panel de la empresa.
+                Action::make('enter')
+                    ->label('Entrar')
+                    ->icon(Heroicon::OutlinedArrowRightEndOnRectangle)
+                    ->button()
+                    ->size('sm')
+                    ->hidden(fn (Tenant $record): bool => $record->trashed())
+                    ->url(fn (Tenant $record): string => url('/admin/'.$record->slug)),
                 ActionGroup::make([
                     ViewAction::make()->label('Ver ficha'),
                     EditAction::make()->label('Editar datos'),
