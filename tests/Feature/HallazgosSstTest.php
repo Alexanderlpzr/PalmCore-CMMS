@@ -270,7 +270,11 @@ it('opens the SST dashboard for the SST account and lands it there from Inicio',
     Livewire::test(TableroSst::class)
         ->assertOk()
         ->assertSee('Hallazgos abiertos')
-        ->assertSee('Por área responsable');
+        ->assertSee('Por área responsable')
+        // En pestañas; cada área despliega lo que le falta.
+        ->assertSeeHtml('data-pestana="areas"')
+        ->assertSeeHtml('data-area="Mantenimiento"')
+        ->assertSee('H-001 · SST · Escalón doblado en la subida a esterilización');
 
     Livewire::test(Inicio::class)->assertRedirect(TableroSst::getUrl());
 });

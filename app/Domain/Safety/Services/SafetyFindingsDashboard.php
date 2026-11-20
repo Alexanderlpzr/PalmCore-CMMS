@@ -21,9 +21,9 @@ class SafetyFindingsDashboard
      * @return array{
      *     total: int, open: int, pendiente: int, enEjecucion: int, porVerificar: int, verificados: int, vencidos: int, altaAbiertos: int, corregidosPercent: float,
      *     byOrigin: list<array{origin: string, label: string, icon: string, total: int, open: int, overdue: int, porVerificar: int}>,
-     *     byArea: list<array{label: string, total: int, done: int, open: int, overdue: int, percent: float}>,
+     *     byArea: list<array{label: string, total: int, done: int, open: int, overdue: int, percent: float, findings: Collection<int, SstFinding>}>,
      *     byPriority: list<array{label: string, color: string, days: int, open: int, overdue: int}>,
-     *     bySection: list<array{label: string, open: int}>,
+     *     bySection: list<array{label: string, open: int, findings: Collection<int, SstFinding>}>,
      *     overdueList: Collection<int, SstFinding>
      * }
      */
@@ -65,6 +65,11 @@ class SafetyFindingsDashboard
                         'open' => $pending->count(),
                         'overdue' => $pending->filter(fn (array $pair): bool => $pair[1]->isOverdue($today))->count(),
                         'percent' => $mine->isEmpty() ? 0.0 : round($done / $mine->count() * 100, 1),
+                        // Lo que le falta, para desplegarlo al tocar el área: lo más atrasado primero.
+                        'findings' => $pending->map(fn (array $pair): SstFinding => $pair[1])
+                            ->filter(fn (SstFinding $finding): bool => $finding->status->isOpen())
+                            ->sortBy(fn (SstFinding $finding): string => $finding->due_on->toDateString())
+                            ->values(),
                     ];
                 })
                 ->filter(fn (array $row): bool => $row['total'] > 0)
@@ -96,7 +101,11 @@ class SafetyFindingsDashboard
 
             'bySection' => $open
                 ->groupBy(fn (SstFinding $finding): string => $finding->area?->name ?? 'Sin sección')
-                ->map(fn (Collection $group, string $label): array => ['label' => $label, 'open' => $group->count()])
+                ->map(fn (Collection $group, string $label): array => [
+                    'label' => $label,
+                    'open' => $group->count(),
+                    'findings' => $group->sortBy(fn (SstFinding $finding): string => $finding->due_on->toDateString())->values(),
+                ])
                 ->sortByDesc('open')
                 ->values()
                 ->all(),
