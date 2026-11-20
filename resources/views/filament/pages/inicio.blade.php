@@ -158,17 +158,31 @@
         @endif
 
         {{-- ═══════════════════ 2 · ATENCIÓN REQUERIDA ═══════════════════ --}}
-        <section aria-labelledby="attention-heading">
+        {{-- Cada tarjeta con casos los despliega debajo al tocarla, sin salir del Inicio. --}}
+        <section aria-labelledby="attention-heading" x-data="{ abierta: null }">
             <h2 id="attention-heading" class="mb-5 text-xl font-bold tracking-tight text-gray-900 dark:text-white">
                 Atención requerida
             </h2>
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 @foreach ($home->attentionItems as $item)
-                    @php $isZero = (int) $item['count'] === 0; @endphp
-                    <a href="{{ $item['route'] }}"
+                    @php
+                        $isZero = (int) $item['count'] === 0;
+                        $despliega = ! empty($item['preview'] ?? []);
+                        $etiqueta = $despliega ? 'button' : 'a';
+                        $clave = \Illuminate\Support\Js::from($item['key']);
+                    @endphp
+                    <{{ $etiqueta }}
+                       @if ($despliega)
+                           type="button"
+                           x-on:click="abierta = abierta === {{ $clave }} ? null : {{ $clave }}"
+                           x-bind:aria-expanded="abierta === {{ $clave }}"
+                           x-bind:class="abierta === {{ $clave }} ? 'ring-2 !ring-emerald-500' : ''"
+                       @else
+                           href="{{ $item['route'] }}"
+                       @endif
                        aria-label="{{ $item['count'] }}{{ $item['suffix'] ?? '' }} {{ $item['label'] }} — {{ $item['hint'] }}"
                        @class([
-                            'group relative flex flex-col gap-3 rounded-2xl border p-5 shadow-sm ring-1 ring-transparent transition duration-200 hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500',
+                            'group relative flex flex-col gap-3 rounded-2xl border p-5 text-left shadow-sm ring-1 ring-transparent transition duration-200 hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500',
                             'border-gray-100 bg-white dark:border-gray-700 dark:bg-gray-800' => ! $isZero,
                             $toneRing[$item['tone']] => ! $isZero,
                             // Zero → the whole card recedes: it requires no attention.
@@ -208,14 +222,52 @@
                             <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{{ $item['hint'] }}</p>
                         </div>
                         <span aria-hidden="true"
-                              class="absolute bottom-4 right-4 text-gray-300 opacity-0 transition group-hover:translate-x-0.5 group-hover:opacity-100 dark:text-gray-500">
-                            <x-filament::icon icon="heroicon-m-arrow-right" class="h-4 w-4" />
+                              @class([
+                                  'absolute bottom-4 right-4 text-gray-300 transition dark:text-gray-500',
+                                  'opacity-0 group-hover:translate-x-0.5 group-hover:opacity-100' => ! $despliega,
+                              ])
+                              @if ($despliega) x-bind:class="abierta === {{ $clave }} ? 'rotate-180' : ''" @endif>
+                            <x-filament::icon :icon="$despliega ? 'heroicon-m-chevron-down' : 'heroicon-m-arrow-right'" class="h-4 w-4" />
                         </span>
-                    </a>
+                    </{{ $etiqueta }}>
                 @endforeach
             </div>
+
+            {{-- Los primeros casos de la tarjeta tocada; el resto, en su lista. --}}
+            @foreach ($home->attentionItems as $item)
+                @if (! empty($item['preview'] ?? []))
+                    <div x-show="abierta === {{ \Illuminate\Support\Js::from($item['key']) }}" x-collapse x-cloak class="mt-4" data-casos="{{ $item['key'] }}">
+                        <div class="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                            <div class="mb-2 flex items-center justify-between gap-3">
+                                <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ $item['label'] }}</p>
+                                <a href="{{ $item['route'] }}" class="text-sm font-medium text-emerald-600 hover:text-emerald-500 dark:text-emerald-400">
+                                    {{ (int) $item['count'] > count($item['preview']) ? 'Ver los '.$item['count'] : 'Ver la lista' }} →
+                                </a>
+                            </div>
+                            <ul class="divide-y divide-gray-100 dark:divide-gray-700">
+                                @foreach ($item['preview'] as $caso)
+                                    <li>
+                                        <a @if ($caso['url']) href="{{ $caso['url'] }}" @endif class="flex items-center justify-between gap-3 rounded-lg px-2 py-2 text-sm hover:bg-gray-50 dark:hover:bg-white/5">
+                                            <span class="min-w-0">
+                                                <span class="block truncate font-medium text-gray-900 dark:text-white">{{ $caso['title'] }}</span>
+                                                @if ($caso['detail'])
+                                                    <span class="block truncate text-xs text-gray-500 dark:text-gray-400">{{ $caso['detail'] }}</span>
+                                                @endif
+                                            </span>
+                                            <x-filament::icon icon="heroicon-m-chevron-right" class="h-4 w-4 shrink-0 text-gray-300 dark:text-gray-500" />
+                                        </a>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    </div>
+                @endif
+            @endforeach
         </section>
 
+        {{-- Lo demás, en pestañas: menos que bajar (2026-11-19). --}}
+        <x-fronda.pestanas :pestanas="['acciones' => 'Acciones rápidas', 'noticias' => 'Noticias y comunicados', 'actividad' => 'Actividad reciente']">
+        <x-fronda.pestana nombre="acciones">
         {{-- ═══════════════════ 3 · ACCIONES RÁPIDAS ═══════════════════ --}}
         <section aria-labelledby="actions-heading">
             <h2 id="actions-heading" class="mb-5 text-xl font-bold tracking-tight text-gray-900 dark:text-white">
@@ -238,6 +290,9 @@
             </div>
         </section>
 
+        </x-fronda.pestana>
+
+        <x-fronda.pestana nombre="noticias">
         {{-- ═══════════════════ 4 · CARRUSEL INSTITUCIONAL ═══════════════════ --}}
         @if (count($home->carouselSlides))
             <section
@@ -398,6 +453,9 @@
             @endif
         </section>
 
+        </x-fronda.pestana>
+
+        <x-fronda.pestana nombre="actividad">
         {{-- ═══════════════════ 6 · ACTIVIDAD ═══════════════════ --}}
         <section aria-labelledby="activity-heading">
             <h2 id="activity-heading" class="mb-5 text-xl font-bold tracking-tight text-gray-900 dark:text-white">
@@ -435,6 +493,8 @@
                 </div>
             @endif
         </section>
+        </x-fronda.pestana>
+        </x-fronda.pestanas>
 
     </div>
 </x-filament-panels::page>

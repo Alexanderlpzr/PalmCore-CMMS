@@ -2,11 +2,14 @@
 
 use App\Filament\Pages\Dashboard;
 use App\Filament\Pages\Inicio;
+use App\Infrastructure\Tenancy\CurrentTenant;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Models\WorkOrder;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\TenantRolesSeeder;
 use Filament\Facades\Filament;
+use Illuminate\Support\Facades\Cache;
 use Livewire\Livewire;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -63,4 +66,23 @@ it('redirects only once per session, honoring later visits to Inicio', function 
 
     // ...but a deliberate return to Inicio afterwards is honored.
     Livewire::test(Inicio::class)->assertNoRedirect();
+});
+
+it('draws the maintenance portal with cards that unfold their cases and the rest in tabs', function () {
+    Cache::flush();
+    actAsLanding($this->tenant, 'mantenimiento');
+    // Ya entró una vez: el salto al Dashboard solo ocurre al iniciar sesión.
+    session()->put('landing_redirect_done', true);
+    CurrentTenant::set($this->tenant);
+    WorkOrder::factory()->create(['tenant_id' => $this->tenant->id, 'status' => 'in_progress', 'title' => 'Cambiar rodamiento']);
+
+    Livewire::test(Inicio::class)
+        ->assertNoRedirect()
+        ->assertSee('Atención requerida')
+        ->assertSeeHtml('data-casos="open_work_orders"')
+        ->assertSee('Cambiar rodamiento')
+        ->assertSee('Acciones rápidas')
+        ->assertSee('Noticias y comunicados')
+        ->assertSee('Actividad reciente')
+        ->assertSeeHtml('data-pestana="actividad"');
 });

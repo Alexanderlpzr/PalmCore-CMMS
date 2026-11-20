@@ -2,6 +2,7 @@
 
 namespace App\Domain\Home\Services;
 
+use App\Domain\Alerts\Enums\AlertCategory;
 use App\Domain\Home\Enums\AnnouncementCategory;
 use App\Domain\Maintenance\Services\StaleMeterReadingService;
 use App\Models\Alert;
@@ -16,6 +17,7 @@ use App\Models\WorkOrder;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 
 /**
  * Aggregates every data source the tenant "Inicio" portal renders.
@@ -115,9 +117,11 @@ class HomePageService
     public function attentionRequired(string $tenantSlug): array
     {
         return $this->remember('attention', function () use ($tenantSlug): array {
+            // Las de los hallazgos de SST y Ambiental tienen su propio menú (2026-11-19).
             $criticalAlerts = Alert::query()
                 ->where('severity', 'critical')
                 ->where('status', 'open')
+                ->where('category', '!=', AlertCategory::Safety->value)
                 ->count();
 
             // Paros en curso (sin hora de fin): lo más urgente de vigilar.
@@ -144,7 +148,7 @@ class HomePageService
 
             $budgetPercent = $this->budgetUsedPercent();
 
-            return [
+            $items = [
                 [
                     'key' => 'critical_alerts',
                     'count' => $criticalAlerts,
@@ -217,7 +221,79 @@ class HomePageService
                     },
                 ],
             ];
+
+            return $this->withPreviews($items, $tenantSlug);
         });
+    }
+
+    /**
+     * Los primeros casos de cada tarjeta de «Atención requerida», para desplegarlos debajo
+     * al tocarla sin salir del Inicio (2026-11-19). Cinco por tarjeta; el resto, en su lista.
+     *
+     * @param  list<array<string, mixed>>  $items
+     * @return list<array<string, mixed>>
+     */
+    private function withPreviews(array $items, string $tenantSlug): array
+    {
+        $date = fn (?CarbonInterface $at): string => $at ? $at->locale('es')->diffForHumans() : '';
+
+        $previews = [
+            'critical_alerts' => fn (): array => Alert::query()
+                ->where('severity', 'critical')->where('status', 'open')
+                ->where('category', '!=', AlertCategory::Safety->value)
+                ->latest()->limit(5)->get()
+                ->map(fn (Alert $alert): array => [
+                    'title' => $alert->title,
+                    'detail' => $date($alert->created_at),
+                    'url' => "/admin/{$tenantSlug}/alerts/{$alert->id}",
+                ])->all(),
+            'equipos_parados' => fn (): array => EquipmentDowntimeEvent::query()->ongoing()
+                ->with('equipment')->orderBy('started_at')->limit(5)->get()
+                ->map(fn (EquipmentDowntimeEvent $event): array => [
+                    'title' => $event->equipment?->name ?? 'Equipo',
+                    'detail' => 'Parado desde '.$date($event->started_at),
+                    'url' => "/admin/{$tenantSlug}/downtime/downtime-events/{$event->id}/edit",
+                ])->all(),
+            'pending_issue_reports' => fn (): array => EquipmentIssueReport::query()->open()
+                ->with('equipment')->latest()->limit(5)->get()
+                ->map(fn (EquipmentIssueReport $report): array => [
+                    'title' => $report->equipment?->name ?? 'Equipo',
+                    'detail' => Str::limit((string) $report->description, 70).' · '.$date($report->created_at),
+                    'url' => "/admin/{$tenantSlug}/maintenance/issue-report/issue-reports/{$report->id}",
+                ])->all(),
+            'open_work_orders' => fn (): array => WorkOrder::query()
+                ->whereNotIn('status', ['closed', 'cancelled'])
+                ->with('equipment')->latest()->limit(5)->get()
+                ->map(fn (WorkOrder $workOrder): array => [
+                    'title' => trim($workOrder->work_order_number.' · '.$workOrder->title, ' ·'),
+                    'detail' => trim(($workOrder->equipment?->name ?? '').' · '.$date($workOrder->created_at), ' ·'),
+                    'url' => "/admin/{$tenantSlug}/maintenance/work-order/work-orders/{$workOrder->id}",
+                ])->all(),
+            'upcoming_preventives' => fn (): array => MaintenanceSchedule::query()
+                ->where('tenant_id', $this->tenantId)
+                ->whereNotNull('next_due_at')
+                ->whereBetween('next_due_at', [now(), now()->addDays(7)])
+                ->with(['plan' => fn ($query) => $query->withoutGlobalScopes()])
+                ->orderBy('next_due_at')->limit(5)->get()
+                ->map(fn (MaintenanceSchedule $schedule): array => [
+                    'title' => $schedule->plan?->name ?? 'Preventivo',
+                    'detail' => 'Vence '.$date($schedule->next_due_at),
+                    'url' => $schedule->plan ? "/admin/{$tenantSlug}/maintenance/maintenance-plan/maintenance-plans/{$schedule->plan->id}" : null,
+                ])->all(),
+            'stale_meters' => fn (): array => collect(app(StaleMeterReadingService::class)->detect($this->tenantId))
+                ->take(5)
+                ->map(fn (array $stale): array => [
+                    'title' => $stale['equipment']?->name ?? 'Equipo',
+                    'detail' => $stale['days_without_reading'] === null ? 'Nunca se ha leído' : $stale['days_without_reading'].' días sin lectura',
+                    'url' => "/admin/{$tenantSlug}/meter-readings",
+                ])->values()->all(),
+        ];
+
+        return array_map(function (array $item) use ($previews): array {
+            $build = $previews[$item['key']] ?? null;
+
+            return $item + ['preview' => $build !== null && (int) $item['count'] > 0 ? $build() : []];
+        }, $items);
     }
 
     /**

@@ -265,3 +265,30 @@ it('myWorkOrders is empty for a user with no assigned work orders', function () 
 afterEach(function () {
     CurrentTenant::clear();
 });
+
+it('attentionRequired brings the first cases of each card to unfold them, without the SST findings alerts', function () {
+    $tenant = homePageTenant();
+
+    $orden = WorkOrder::factory()->for($tenant)->create(['status' => 'in_progress', 'title' => 'Cambiar rodamiento']);
+    Alert::query()->forceCreate([
+        'tenant_id' => $tenant->id, 'severity' => 'critical', 'category' => 'maintenance',
+        'title' => 'Prensa 2 sin presión', 'message' => 'x', 'entity_type' => 'equipment',
+        'entity_id' => $tenant->id, 'status' => 'open',
+    ]);
+    // La de un hallazgo tiene su propio menú: no cuenta aquí (2026-11-19).
+    Alert::query()->forceCreate([
+        'tenant_id' => $tenant->id, 'severity' => 'critical', 'category' => 'safety',
+        'title' => 'Hallazgo SST pendiente', 'message' => 'x', 'entity_type' => 'equipment',
+        'entity_id' => $orden->id, 'status' => 'open',
+    ]);
+
+    $items = collect((new HomePageService($tenant->id))->attentionRequired('acme'))->keyBy('key');
+
+    expect($items['critical_alerts']['count'])->toBe(1)
+        ->and($items['critical_alerts']['preview'])->toHaveCount(1)
+        ->and($items['critical_alerts']['preview'][0]['title'])->toBe('Prensa 2 sin presión')
+        ->and($items['open_work_orders']['preview'][0]['title'])->toContain('Cambiar rodamiento')
+        ->and($items['open_work_orders']['preview'][0]['url'])->toBe("/admin/acme/maintenance/work-order/work-orders/{$orden->id}")
+        // Sin casos, nada que desplegar.
+        ->and($items['equipos_parados']['preview'])->toBe([]);
+});
