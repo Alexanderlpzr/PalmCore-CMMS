@@ -39,3 +39,16 @@
     background-color: var(--fronda-surface);
     color: var(--fronda-text);
 }
+
+/*
+ * El texto de las gráficas —las cifras de los ejes, los meses, la leyenda— más firme.
+ * Filament lo deja en gris 500 (claro) y 400 (oscuro), y sobre el fondo oscuro del panel
+ * apenas se leía (2026-11-19). Chart.js toma el color de este elemento al dibujar.
+ */
+.fi-wi-chart-text-color {
+    color: var(--gray-700);
+}
+
+.fi-wi-chart-text-color:where(.dark, .dark *) {
+    color: var(--gray-200);
+}

@@ -1,4 +1,4 @@
-import { ArcElement } from 'chart.js'
+import { ArcElement, BarElement, PointElement } from 'chart.js'
 import ChartDataLabels from 'chartjs-plugin-datalabels'
 
 /*
@@ -17,11 +17,22 @@ window.filamentChartJsPlugins.push(ChartDataLabels)
 
 /*
  * El complemento trae su propia copia de Chart.js y Filament dibuja con otra, así que
- * `porción instanceof ArcElement` daba falso: el complemento ubicaba la etiqueta de cada
- * porción de una torta como si fuera una barra, buscando un eje que las tortas no tienen,
- * y la gráfica entera se caía sin dibujar nada. Se compara por el `id` de la clase, que
- * es el mismo en las dos copias.
+ * `elemento instanceof ArcElement` (o BarElement, o PointElement) daba falso:
+ *  - en las tortas buscaba un eje que no tienen y la gráfica entera se caía;
+ *  - en las barras caía en su ubicación de respaldo y pintaba la cifra abajo, junto a la
+ *    base, en vez de encima de la barra (2026-11-19).
+ * Se compara por el `id` de la clase, que es el mismo en las dos copias.
  */
-Object.defineProperty(ArcElement, Symbol.hasInstance, {
-    value: (element) => element?.constructor?.id === ArcElement.id,
-})
+for (const Element of [ArcElement, BarElement, PointElement]) {
+    Object.defineProperty(Element, Symbol.hasInstance, {
+        value: (element) => element?.constructor?.id === Element.id,
+    })
+}
+
+/*
+ * El color de las cifras según el tema: casi negro en claro, casi blanco en oscuro. Un
+ * gris fijo se perdía sobre el fondo oscuro. Las gráficas lo usan con
+ * `color: window.frondaChartLabelColor`.
+ */
+window.frondaChartLabelColor = () =>
+    document.documentElement.classList.contains('dark') ? '#f1f5f9' : '#0f172a'

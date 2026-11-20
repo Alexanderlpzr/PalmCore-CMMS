@@ -28,8 +28,8 @@ trait MuestraLosValoresEnBarras
                         anchor: 'end',
                         align: 'end',
                         offset: 2,
-                        color: '#475569',
-                        font: { weight: 'bold', size: 10 },
+                        color: () => (window.frondaChartLabelColor ? window.frondaChartLabelColor() : '#0f172a'),
+                        font: { weight: 'bold', size: 12 },
                         formatter: (value) => {
                             if (!value) {
                                 return null;

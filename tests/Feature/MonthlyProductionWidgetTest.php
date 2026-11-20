@@ -2,6 +2,7 @@
 
 use App\Domain\Analytics\Services\MonthlyProductionComparison;
 use App\Filament\Pages\Dashboard;
+use App\Filament\Widgets\Analytics\DowntimeBySectionWidget;
 use App\Filament\Widgets\Executive\MonthlyProductionWidget;
 use App\Filament\Widgets\Executive\PlantEfficiencyStatsWidget;
 use App\Models\Plant;
@@ -82,4 +83,18 @@ it('draws the bars and the table on the dashboard', function (): void {
     // Un año sin cierres dice que no hay datos, sin ejes vacíos.
     Livewire::test(MonthlyProductionWidget::class, ['pageFilters' => ['plant_id' => $this->plant->id, 'year' => 2024, 'month' => 1]])
         ->assertSee('Todavía no hay meses cerrados');
+});
+
+it('paints the bar figures with the theme color, readable in dark mode', function (): void {
+    // Un gris fijo (#475569) se perdía sobre el fondo oscuro (2026-11-19).
+    foreach ([MonthlyProductionWidget::class, DowntimeBySectionWidget::class] as $widget) {
+        $options = (string) (fn () => $this->getOptions())->call(new $widget);
+
+        expect($options)->toContain('frondaChartLabelColor')
+            ->not->toContain('#475569');
+    }
+
+    expect(file_get_contents(resource_path('js/filament-chart-js-plugins.js')))
+        ->toContain('BarElement')
+        ->toContain('window.frondaChartLabelColor');
 });
