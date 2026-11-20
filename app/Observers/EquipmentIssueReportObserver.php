@@ -112,15 +112,21 @@ class EquipmentIssueReportObserver
      * Un reporte nuevo entra al Centro de Alertas para que no dependa de que
      * alguien entre a la pantalla de reportes a mirarlo.
      */
+    /**
+     * La alerta del Centro de Alertas. La de un hallazgo de SST o Ambiental va en su propia
+     * categoría —y su propio menú—, para no mezclarse con las fallas de equipo.
+     */
     private function raiseAlert(EquipmentIssueReport $report): void
     {
         $equipment = $report->equipment;
+        $origin = collect(FindingOrigin::cases())->first(fn (FindingOrigin $origin): bool => $origin->reporterPosition() === $report->reporter_position);
 
         app(AlertService::class)->create(new CreateAlertData(
             tenantId: $report->tenant_id,
             severity: $this->alertSeverity($report->severity),
-            category: AlertCategory::Maintenance,
-            title: 'Reporte de novedad pendiente: '.($equipment?->name ?? 'equipo sin nombre'),
+            category: $origin !== null ? AlertCategory::Safety : AlertCategory::Maintenance,
+            title: ($origin !== null ? 'Hallazgo '.$origin->adjective().' pendiente en mantenimiento: ' : 'Reporte de novedad pendiente: ')
+                .($equipment?->name ?? 'equipo sin nombre'),
             message: sprintf(
                 '%s reportó: %s%s',
                 $report->reporter_name ?: 'Alguien',

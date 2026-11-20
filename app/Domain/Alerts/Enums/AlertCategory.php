@@ -10,6 +10,8 @@ enum AlertCategory: string
     case Automation = 'automation';
     case WorkOrder = 'work_order';
     case System = 'system';
+    /** Los hallazgos de SST y Ambiental que esperan a mantenimiento: su propio menú (2026-11-19). */
+    case Safety = 'safety';
 
     public function label(): string
     {
@@ -20,6 +22,7 @@ enum AlertCategory: string
             self::Automation => 'Automatización',
             self::WorkOrder => 'Órdenes de Trabajo',
             self::System => 'Sistema',
+            self::Safety => 'SST y Ambiental',
         };
     }
 
@@ -32,6 +35,7 @@ enum AlertCategory: string
             self::Automation => 'purple',
             self::WorkOrder => 'orange',
             self::System => 'gray',
+            self::Safety => 'success',
         };
     }
 
