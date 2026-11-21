@@ -134,6 +134,7 @@ class CommercialPlanReport
             ->selectRaw('customer_id as row, extract(month from loaded_on)::int as month, sum(arrival_weight_tons) as tons')
             ->groupBy('customer_id')
             ->groupByRaw('extract(month from loaded_on)')
+            ->orderByRaw('extract(month from loaded_on)')
             ->get());
     }
 

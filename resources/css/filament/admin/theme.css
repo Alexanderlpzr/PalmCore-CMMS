@@ -9,6 +9,7 @@
  */
 @import '../../../../vendor/filament/filament/resources/css/theme.css';
 @import '../../fronda-tokens.css';
+@import '../compact-table-filters.css';
 
 @source '../../../../app/Filament/**/*.php';
 @source '../../../../resources/views/filament/**/*.blade.php';

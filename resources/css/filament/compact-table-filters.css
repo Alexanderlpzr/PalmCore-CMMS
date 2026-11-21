@@ -1,0 +1,140 @@
+/*
+ * Los filtros de las tablas, en una barra compacta (2026-11-20).
+ *
+ * Filament los apila en bloques: título, una fila entera para el período, otra para los
+ * demás y otra para «Aplicar». En Despachos eran 277 px antes de la primera fila de datos.
+ * Siguen a la vista —esconderlos en un botón fue lo que se pidió quitar el 2026-11-08—,
+ * pero cada campo es ahora una pieza de una sola fila que se parte si no cabe.
+ *
+ * Va aquí y no tabla por tabla porque son una treintena y la siguiente lo hereda.
+ */
+.fi-ta-filters-above-content-ctn {
+    padding-block: 0.625rem;
+}
+
+.fi-ta-filters-above-content-ctn > .fi-ta-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 0.5rem 0.75rem;
+}
+
+/* Las rejillas anidadas desaparecen: sus campos pasan a ser piezas de la misma fila. */
+.fi-ta-filters-above-content-ctn .fi-sc.fi-grid:not(.fi-hidden),
+.fi-ta-filters-above-content-ctn .fi-grid-col:has(.fi-sc.fi-grid):not(.fi-hidden),
+.fi-ta-filters-above-content-ctn .fi-sc-component:has(.fi-sc.fi-grid),
+.fi-ta-filters-above-content-ctn .fi-sc-component:has(.fi-sc.fi-grid) > div {
+    display: contents;
+}
+
+/* En el celular, dos por fila; desde tableta, el ancho que quepa. */
+.fi-ta-filters-above-content-ctn .fi-grid-col:not(:has(.fi-sc.fi-grid)) {
+    flex: 1 1 calc(50% - 0.375rem);
+    min-width: 0;
+}
+
+@media (min-width: 40rem) {
+    .fi-ta-filters-above-content-ctn .fi-grid-col:not(:has(.fi-sc.fi-grid)) {
+        flex: 1 1 8rem;
+        max-width: 17rem;
+    }
+}
+
+/* Lo que no es un campo de escribir ocupa solo lo suyo: la casilla y los atajos. */
+.fi-ta-filters-above-content-ctn .fi-grid-col:not(:has(.fi-sc.fi-grid)):has(input[type='checkbox'], .fi-toggle),
+.fi-ta-filters-above-content-ctn .fi-grid-col:not(:has(.fi-sc.fi-grid)):has(.fi-fo-toggle-buttons) {
+    flex: 0 0 auto;
+    max-width: 100%;
+}
+
+/*
+ * Se alinean por arriba para que la ayuda de un campo («Del 27/10 al 26/11») no descuadre a
+ * los demás; lo que no tiene etiqueta baja lo que ella mide y queda a la altura del control.
+ */
+.fi-ta-filters-above-content-ctn .fi-grid-col:not(:has(.fi-sc.fi-grid)):has(input[type='checkbox'], .fi-toggle) {
+    padding-block-start: 0.5rem;
+}
+
+@media (min-width: 40rem) {
+    .fi-ta-filters-above-content-ctn .fi-grid-col:not(:has(.fi-sc.fi-grid)):has(input[type='checkbox'], .fi-toggle) {
+        padding-block-start: 1.75rem;
+    }
+
+    .fi-ta-filters-above-content-ctn .fi-grid-col:not(:has(.fi-sc.fi-grid)):has(input[type='checkbox'], .fi-toggle) .fi-fo-field-label-content {
+        white-space: nowrap;
+    }
+
+    .fi-ta-filters-above-content-ctn .fi-ta-filters-actions-ctn,
+    .fi-ta-filters-above-content-ctn .fi-ta-filters-header {
+        margin-block-start: 1.25rem;
+    }
+}
+
+/* «Seleccione una opción» en dos renglones hacía más alta toda la fila. */
+.fi-ta-filters-above-content-ctn .fi-select-input-placeholder,
+.fi-ta-filters-above-content-ctn .fi-select-input-value-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fi-ta-filters-above-content-ctn .fi-fo-field {
+    row-gap: 0.25rem;
+}
+
+.fi-ta-filters-above-content-ctn .fi-fo-field-label-content {
+    font-size: 0.75rem;
+    line-height: 1rem;
+}
+
+/* «Aplicar» y «Limpiar» cierran la fila; el título «Filtros» sobra. */
+.fi-ta-filters-above-content-ctn .fi-ta-filters-actions-ctn {
+    order: 2;
+}
+
+.fi-ta-filters-above-content-ctn .fi-ta-filters-header {
+    order: 3;
+    min-height: 2.25rem;
+    white-space: nowrap;
+}
+
+.fi-ta-filters-above-content-ctn .fi-ta-filters-heading {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+}
+
+/*
+ * «Descargar Excel» sube a la fila de la búsqueda en vez de ocupar una para él solo. Solo
+ * cuando la cabecera trae únicamente acciones: una tabla con título o descripción la
+ * conserva, porque el texto no cabe al lado de la búsqueda.
+ */
+.fi-ta-header-ctn:has(> .fi-ta-header):has(> .fi-ta-filters-above-content-ctn):has(> .fi-ta-header-toolbar):not(:has(.fi-ta-header-heading, .fi-ta-header-description)) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+}
+
+.fi-ta-header-ctn:has(> .fi-ta-header):has(> .fi-ta-filters-above-content-ctn):has(> .fi-ta-header-toolbar):not(:has(.fi-ta-header-heading, .fi-ta-header-description)) > * {
+    grid-column: 1 / -1;
+}
+
+.fi-ta-header-ctn:has(> .fi-ta-header):has(> .fi-ta-filters-above-content-ctn):has(> .fi-ta-header-toolbar):not(:has(.fi-ta-header-heading, .fi-ta-header-description)) > .fi-ta-filters-above-content-ctn {
+    grid-row: 1;
+}
+
+.fi-ta-header-ctn:has(> .fi-ta-header):has(> .fi-ta-filters-above-content-ctn):has(> .fi-ta-header-toolbar):not(:has(.fi-ta-header-heading, .fi-ta-header-description)) > .fi-ta-header-toolbar {
+    grid-row: 2;
+    grid-column: 1;
+    border-block-end: 0;
+    padding-block: 0.5rem;
+}
+
+.fi-ta-header-ctn:has(> .fi-ta-header):has(> .fi-ta-filters-above-content-ctn):has(> .fi-ta-header-toolbar):not(:has(.fi-ta-header-heading, .fi-ta-header-description)) > .fi-ta-header {
+    grid-row: 2;
+    grid-column: 2;
+    padding: 0.5rem 1rem 0.5rem 0;
+    border-block-end: 0;
+}

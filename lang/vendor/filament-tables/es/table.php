@@ -146,7 +146,7 @@ return [
         'actions' => [
 
             'apply' => [
-                'label' => 'Aplicar filtros',
+                'label' => 'Aplicar',
             ],
 
             'remove' => [
@@ -159,7 +159,7 @@ return [
             ],
 
             'reset' => [
-                'label' => 'Resetear los filtros',
+                'label' => 'Limpiar',
             ],
 
         ],
