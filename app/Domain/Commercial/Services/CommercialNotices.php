@@ -39,6 +39,9 @@ class CommercialNotices
 
     private const DIRECTOR = ['direccion-administrativa'];
 
+    /** Las facturas las lleva también la auxiliar de la Directora. */
+    private const INVOICING = ['direccion-administrativa', 'auxiliar-direccion-administrativa'];
+
     private const PLANT = ['produccion', 'direccion-administrativa'];
 
     public function __construct(private OilTankService $tanks) {}
@@ -76,7 +79,7 @@ class CommercialNotices
         $amount = $invoices->sum(fn (SalesDispatch $d): float => (float) $d->invoice_amount);
         $count = $invoices->count();
 
-        $this->notify($tenant, self::DIRECTOR,
+        $this->notify($tenant, self::INVOICING,
             $count === 1 ? 'Se venció una factura sin pagar' : "Se vencieron {$count} facturas sin pagar",
             'Por $'.self::millions($amount).': '.self::byCustomer($invoices).'.',
             'danger',
@@ -109,7 +112,7 @@ class CommercialNotices
         $tons = $loads->sum(fn (SalesDispatch $d): float => (float) $d->arrival_weight_tons);
         $count = $loads->count();
 
-        $this->notify($tenant, self::DIRECTOR,
+        $this->notify($tenant, self::INVOICING,
             ($count === 1 ? 'Un cargue recibido' : "{$count} cargues recibidos").' sin facturar',
             'El cliente los recibió hace más de '.self::UNINVOICED_AFTER_DAYS.' días ('.number_format($tons, 2, ',', '.').' tn): '.self::byCustomer($loads).'.',
             'warning',

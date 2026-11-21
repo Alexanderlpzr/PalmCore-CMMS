@@ -186,6 +186,12 @@ class TenantRolesSeeder extends Seeder
         'direccion-produccion' => [
             'production.view', 'production-calendar.view', 'downtime-events.view', 'energy.view', 'sst-findings.view',
         ],
+
+        // La auxiliar de la Directora Administrativa (2026-11-20): ve los despachos y lleva
+        // el número, la fecha, el valor y el estado de la factura. Nada más.
+        'auxiliar-direccion-administrativa' => [
+            'commercial-invoices.manage',
+        ],
     ];
 
     public function run(Tenant $tenant): void

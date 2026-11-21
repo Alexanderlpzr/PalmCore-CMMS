@@ -59,7 +59,7 @@ class CuadroCruce extends Page
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->can('viewAny', SalesDispatch::class) ?? false;
+        return auth()->user()?->can('viewAny', Customer::class) ?? false;
     }
 
     public function mount(): void

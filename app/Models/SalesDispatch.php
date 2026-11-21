@@ -100,21 +100,29 @@ class SalesDispatch extends BaseModel
      * facturar; si no, en tránsito.
      *
      * Lo importado del Excel puede venir «Pagado» sin fecha de pago (la hoja tiene 293
-     * pagados y 188 fechas): ese pagado se respeta mientras siga facturado y nadie haya
-     * borrado una fecha de pago.
+     * pagados y 188 fechas): ese pagado se respeta mientras siga facturado, nadie haya
+     * borrado una fecha de pago y nadie lo haya devuelto a «por cobrar» a propósito.
      */
     public function resolveStatus(): DispatchStatus
     {
         $hasInvoice = filled($this->invoice_number);
-        $wasPaidWithoutDate = ($this->exists ? $this->getOriginal('status') : $this->status) === DispatchStatus::Pagado;
+        $wasPaidWithoutDate = ($this->exists ? $this->getOriginal('status') : $this->status) === DispatchStatus::Pagado
+            && $this->getOriginal('paid_on') === null;
+        $wasReturnedToReceivable = $this->exists && $this->isDirty('status');
 
         return match (true) {
             $this->paid_on !== null => DispatchStatus::Pagado,
-            $hasInvoice && $wasPaidWithoutDate && $this->getOriginal('paid_on') === null => DispatchStatus::Pagado,
+            $hasInvoice && $wasPaidWithoutDate && ! $wasReturnedToReceivable => DispatchStatus::Pagado,
             $hasInvoice => DispatchStatus::Facturado,
             $this->arrival_weight_tons !== null || $this->unloaded_on !== null => DispatchStatus::Descargado,
             default => DispatchStatus::Cargado,
         };
+    }
+
+    /** Pagada según el Excel, que no trae la fecha del pago. */
+    public function isPaidWithoutDate(): bool
+    {
+        return $this->status === DispatchStatus::Pagado && $this->paid_on === null;
     }
 
     // ── Cifras ────────────────────────────────────────────────────────────────

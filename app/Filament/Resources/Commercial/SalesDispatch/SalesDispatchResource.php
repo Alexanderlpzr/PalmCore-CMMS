@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Commercial\SalesDispatch;
 use App\Domain\Commercial\Enums\CommercialProduct;
 use App\Domain\Commercial\Enums\DispatchStatus;
 use App\Domain\Commercial\Enums\Market;
+use App\Domain\Commercial\Services\InvoiceHistory;
 use App\Domain\Reports\Excel\TableExcelExport;
 use App\Filament\Filters\PeriodFilter;
 use App\Filament\Resources\Commercial\SalesDispatch\Pages\CreateSalesDispatch;
@@ -165,7 +166,8 @@ class SalesDispatchResource extends Resource
                 ->columns(['default' => 1, 'sm' => 2, 'lg' => 3])
                 ->schema([
                     TextInput::make('invoice_number')->label('N.º de factura')->maxLength(30)
-                        ->requiredWith('invoice_amount'),
+                        ->required(fn (Get $get, ?SalesDispatch $record): bool => filled($get('invoice_amount'))
+                            || (filled($get('paid_on')) && filled($record?->invoice_number))),
                     DatePicker::make('invoiced_on')->label('Fecha de factura')
                         ->requiredWith('invoice_number'),
                     TextInput::make('invoice_amount')->label('Valor de la factura')->numeric()->prefix('$')
@@ -192,7 +194,7 @@ class SalesDispatchResource extends Resource
                     TextEntry::make('customer.name')->label('Cliente'),
                     TextEntry::make('market')->label('Destino')->formatStateUsing(fn (Market $state): string => $state->label()),
                     TextEntry::make('offer.number')->label('Oferta mercantil')->placeholder('Sin oferta')
-                        ->url(fn (SalesDispatch $record): ?string => $record->offer ? SalesOfferResource::getUrl('view', ['record' => $record->offer]) : null),
+                        ->url(fn (SalesDispatch $record): ?string => $record->offer && SalesOfferResource::canViewAny() ? SalesOfferResource::getUrl('view', ['record' => $record->offer]) : null),
                     TextEntry::make('loaded_on')->label('Fecha de cargue')->date('d/m/Y'),
                     TextEntry::make('plate')->label('Placa'),
                     TextEntry::make('carrier.name')->label('Transportadora')->placeholder('—'),
@@ -242,6 +244,16 @@ class SalesDispatchResource extends Resource
                         ->helperText('Factura menos flete, sobre el peso de salida.')
                         ->placeholder('—'),
                     TextEntry::make('notes')->label('Notas')->placeholder('—')->columnSpanFull(),
+                ]),
+            Section::make('Historial de la factura')
+                ->description('Quién cambió el número, la fecha, el valor o el estado.')
+                ->collapsible()
+                ->visible(fn (SalesDispatch $record): bool => self::canEdit($record))
+                ->schema([
+                    TextEntry::make('invoice_history')->hiddenLabel()
+                        ->state(fn (SalesDispatch $record): array => app(InvoiceHistory::class)->lines($record))
+                        ->listWithLineBreaks()
+                        ->placeholder('Sin cambios todavía.'),
                 ]),
         ]);
     }
@@ -312,6 +324,7 @@ class SalesDispatchResource extends Resource
                     DispatchActions::unload(),
                     DispatchActions::invoice(),
                     DispatchActions::pay(),
+                    DispatchActions::editInvoice(),
                     ViewAction::make(),
                     EditAction::make(),
                 ]),

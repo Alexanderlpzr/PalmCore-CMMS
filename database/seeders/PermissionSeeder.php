@@ -239,6 +239,8 @@ class PermissionSeeder extends Seeder
         // Comercial: clientes, ofertas mercantiles y despachos de aceite y palmiste.
         'commercial.view',
         'commercial.manage',
+        // Llevar la factura de los despachos: la auxiliar de la Directora.
+        'commercial-invoices.manage',
         // Medir los tanques de aceite cada día: producción y la Directora Administrativa.
         'oil-tanks.record',
         // Ver producción sin tocar nada: tanques, maquila e inventario de palmiste.

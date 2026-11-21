@@ -24,6 +24,7 @@ class Role extends SpatieRole
             'produccion' => 'Producción',
             'direccion-produccion' => 'Dirección de Producción',
             'direccion-administrativa' => 'Dirección Administrativa',
+            'auxiliar-direccion-administrativa' => 'Auxiliar de Dirección Administrativa',
             default => Str::headline(str_replace(['-', '_'], ' ', $name)),
         };
     }

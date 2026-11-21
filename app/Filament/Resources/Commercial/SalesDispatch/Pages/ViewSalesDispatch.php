@@ -18,6 +18,7 @@ class ViewSalesDispatch extends ViewRecord
             DispatchActions::unload(),
             DispatchActions::invoice(),
             DispatchActions::pay(),
+            DispatchActions::editInvoice(),
             EditAction::make()->color('gray'),
         ];
     }

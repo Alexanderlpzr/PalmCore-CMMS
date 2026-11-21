@@ -91,6 +91,7 @@ it('offers only the roles of the chosen company', function (): void {
             'administrador-general' => 'Administrador General',
             'almacen' => 'Almacen',
             'ambiental' => 'Ambiental',
+            'auxiliar-direccion-administrativa' => 'Auxiliar de Dirección Administrativa',
             'direccion-administrativa' => 'Dirección Administrativa',
             'direccion-produccion' => 'Dirección de Producción',
             'gerencia-general' => 'Gerencia General',
